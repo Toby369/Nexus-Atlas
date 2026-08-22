@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+/*
+  NEXUS ATLAS – Designtokens
+  Grundidee: ein ruhiges, dunkles Marktterminal statt eines dekorativen Dashboards.
+  Zahlen stehen in Mono mit tabellarischen Ziffern, damit sich Werte beim
+  Aktualisieren nicht seitlich verschieben.
+*/
+
+:root {
+  --bg: #0b0d10;
+  --surface: #14171b;
+  --surface-raised: #1a1e23;
+  --border: #262b31;
+  --text: #e8e6e1;
+  --text-muted: #8b9198;
+  --text-faint: #565c63;
+  --accent: #c99a5b;
+  --up: #4fae7c;
+  --down: #d9695f;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-faint: var(--text-faint);
+  --color-accent: var(--accent);
+  --color-up: var(--up);
+  --color-down: var(--down);
+  --font-mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo,
+    Consolas, monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent) 0%, transparent);
+  }
+}
+
+.live-dot {
+  animation: pulse-ring 2.2s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot {
+    animation: none;
+  }
+}
