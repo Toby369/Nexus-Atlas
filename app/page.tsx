@@ -194,6 +194,7 @@ export default async function Home() {
     exchangeComparison,
     positioningBinance,
     positioningBybit,
+    positioningOkx,
     positioningSignal,
     highImpactNews,
     recentLiquidations,
@@ -204,6 +205,7 @@ export default async function Home() {
     getLatestPerExchange(),
     getLatestPositioningSnapshot("binance"),
     getLatestPositioningSnapshot("bybit"),
+    getLatestPositioningSnapshot("okx"),
     getLatestPositioningSignal(),
     getHighImpactNews(),
     getRecentLiquidations(),
@@ -236,6 +238,7 @@ export default async function Home() {
           <PositioningPanel
             initialBinance={positioningBinance}
             initialBybit={positioningBybit}
+            initialOkx={positioningOkx}
             initialSignal={positioningSignal}
           />
           <LiquidationPanel initialEvents={recentLiquidations} />

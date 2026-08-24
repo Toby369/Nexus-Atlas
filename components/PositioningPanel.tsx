@@ -59,26 +59,31 @@ async function fetchLatestSignal(): Promise<PositioningSignal | null> {
 export default function PositioningPanel({
   initialBinance,
   initialBybit,
+  initialOkx,
   initialSignal,
 }: {
   initialBinance: PositioningSnapshot | null;
   initialBybit: PositioningSnapshot | null;
+  initialOkx: PositioningSnapshot | null;
   initialSignal: PositioningSignal | null;
 }) {
   const [binance, setBinance] = useState(initialBinance);
   const [bybit, setBybit] = useState(initialBybit);
+  const [okx, setOkx] = useState(initialOkx);
   const [signal, setSignal] = useState(initialSignal);
 
   useEffect(() => {
     const fetchLatest = async () => {
-      const [binanceData, bybitData, signalData] = await Promise.all([
+      const [binanceData, bybitData, okxData, signalData] = await Promise.all([
         fetchLatestSnapshot("binance"),
         fetchLatestSnapshot("bybit"),
+        fetchLatestSnapshot("okx"),
         fetchLatestSignal(),
       ]);
 
       if (binanceData) setBinance(binanceData);
       if (bybitData) setBybit(bybitData);
+      if (okxData) setOkx(okxData);
       if (signalData) setSignal(signalData);
     };
 
@@ -86,7 +91,7 @@ export default function PositioningPanel({
     return () => clearInterval(interval);
   }, []);
 
-  if (!binance && !bybit) {
+  if (!binance && !bybit && !okx) {
     return (
       <div className="rounded-lg border border-border bg-surface p-5">
         <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
@@ -125,6 +130,13 @@ export default function PositioningPanel({
             label="Retail (Bybit)"
             long={bybit.global_long_account_ratio}
             short={bybit.global_short_account_ratio}
+          />
+        )}
+        {okx && (
+          <RatioBar
+            label="Retail (OKX)"
+            long={okx.global_long_account_ratio}
+            short={okx.global_short_account_ratio}
           />
         )}
       </div>
