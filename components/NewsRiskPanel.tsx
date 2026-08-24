@@ -23,6 +23,12 @@ const DIRECTION_STYLES: Record<string, string> = {
   neutral: "text-text-faint",
 };
 
+const DIRECTION_LABELS: Record<string, string> = {
+  bullish: "positiv",
+  bearish: "negativ",
+  neutral: "neutral",
+};
+
 function timeAgo(iso: string) {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   if (seconds < 60) return `vor ${seconds}s`;
@@ -110,7 +116,7 @@ export default function NewsRiskPanel({
                 rel="noopener noreferrer"
                 className="text-sm text-text leading-snug hover:underline"
               >
-                {item.title}
+                {item.title_de ?? item.title}
               </a>
               <div className="mt-1">
                 <span
@@ -119,7 +125,7 @@ export default function NewsRiskPanel({
                     "text-text-faint"
                   }`}
                 >
-                  {item.market_direction}
+                  {DIRECTION_LABELS[item.market_direction] ?? item.market_direction}
                 </span>
               </div>
             </div>

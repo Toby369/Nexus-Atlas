@@ -92,6 +92,7 @@ export interface NewsEvent {
   external_id: string | null;
   published_at: string;
   title: string;
+  title_de: string | null;
   summary: string | null;
   url: string | null;
   category: string;
