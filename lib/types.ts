@@ -67,7 +67,7 @@ export interface LiquidationEvent {
   event_time_utc: string;
   exchange: string;
   symbol: string;
-  side: "long_liquidated" | "short_liquidated";
+  side: "long" | "short" | "unknown";
   price: number | null;
   quantity: number | null;
   notional_usd: number | null;

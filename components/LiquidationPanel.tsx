@@ -78,10 +78,10 @@ export default function LiquidationPanel({
   }, []);
 
   const longNotional = events
-    .filter((e) => e.side === "long_liquidated")
+    .filter((e) => e.side === "long")
     .reduce((sum, e) => sum + (e.notional_usd ?? 0), 0);
   const shortNotional = events
-    .filter((e) => e.side === "short_liquidated")
+    .filter((e) => e.side === "short")
     .reduce((sum, e) => sum + (e.notional_usd ?? 0), 0);
   const totalNotional = longNotional + shortNotional;
   const longPct = totalNotional > 0 ? (longNotional / totalNotional) * 100 : 0;
