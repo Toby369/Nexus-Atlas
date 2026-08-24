@@ -26,6 +26,22 @@ function formatDate(iso: string) {
   });
 }
 
+// Ein Tag kann sowohl eine (aeltere) Farside- als auch eine (neuere)
+// SoSoValue-Zeile haben, seit die Quelle umgestellt wurde. Pro Datum nur
+// eine Zeile behalten, SoSoValue bevorzugt.
+function dedupeByDate(rows: EtfFlowDay[], limit: number): EtfFlowDay[] {
+  const byDate = new Map<string, EtfFlowDay>();
+  for (const row of rows) {
+    const existing = byDate.get(row.flow_date);
+    if (!existing || row.source === "sosovalue") {
+      byDate.set(row.flow_date, row);
+    }
+  }
+  return Array.from(byDate.values())
+    .sort((a, b) => (a.flow_date < b.flow_date ? 1 : -1))
+    .slice(0, limit);
+}
+
 async function fetchRecentFlows(): Promise<{
   data: EtfFlowDay[];
   ok: boolean;
@@ -33,15 +49,14 @@ async function fetchRecentFlows(): Promise<{
   const { data, error } = await supabase
     .from("etf_flows")
     .select("*")
-    .eq("source", "farside")
     .order("flow_date", { ascending: false })
-    .limit(FLOW_LIMIT);
+    .limit(FLOW_LIMIT * 2);
 
   if (error) {
     console.error("Fehler beim Laden der ETF-Flows:", error.message);
     return { data: [], ok: false };
   }
-  return { data: data ?? [], ok: true };
+  return { data: dedupeByDate(data ?? [], FLOW_LIMIT), ok: true };
 }
 
 export default function EtfFlowPanel({
@@ -153,7 +168,8 @@ export default function EtfFlowPanel({
       <p className="text-sm text-text leading-relaxed">{synthesis}</p>
 
       <p className="text-xs text-text-faint pt-1">
-        Quelle: Farside Investors, täglich (T+1) · kein Handelssignal
+        Quelle: {latest.source === "sosovalue" ? "SoSoValue" : "Farside Investors"},
+        täglich (T+1) · kein Handelssignal
       </p>
     </div>
   );

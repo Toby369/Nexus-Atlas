@@ -171,20 +171,36 @@ async function getRecentLiquidations(): Promise<LiquidationEvent[]> {
   return data ?? [];
 }
 
+// Die Quelle wurde von Farside (Scraping) auf SoSoValue (offizielle API)
+// umgestellt. Aeltere Farside-Zeilen bleiben als Historie stehen, ein Datum
+// kann also kurzzeitig doppelt vorkommen -- pro Datum nur eine Zeile
+// behalten, SoSoValue bevorzugt.
+function dedupeByDate(rows: EtfFlowDay[], limit: number): EtfFlowDay[] {
+  const byDate = new Map<string, EtfFlowDay>();
+  for (const row of rows) {
+    const existing = byDate.get(row.flow_date);
+    if (!existing || row.source === "sosovalue") {
+      byDate.set(row.flow_date, row);
+    }
+  }
+  return Array.from(byDate.values())
+    .sort((a, b) => (a.flow_date < b.flow_date ? 1 : -1))
+    .slice(0, limit);
+}
+
 async function getRecentEtfFlows(): Promise<EtfFlowDay[]> {
   const { data, error } = await supabase
     .from("etf_flows")
     .select("*")
-    .eq("source", "farside")
     .order("flow_date", { ascending: false })
-    .limit(ETF_FLOW_LIMIT);
+    .limit(ETF_FLOW_LIMIT * 2);
 
   if (error) {
     console.error("Fehler beim Laden der ETF-Flows:", error.message);
     return [];
   }
 
-  return data ?? [];
+  return dedupeByDate(data ?? [], ETF_FLOW_LIMIT);
 }
 
 export default async function Home() {
