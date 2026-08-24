@@ -72,6 +72,16 @@ export interface PromptProfile {
   description: string;
   /** System-Prompt, der dem Modell die Aufgabe und das erwartete JSON-Schema erklaert. */
   systemPrompt: string;
+  /**
+   * Prueft, ob die geparste JSON-Antwort dem im systemPrompt beschriebenen
+   * Schema entspricht (z.B. "bias" nur bullish|bearish|neutral, "confidence"
+   * eine Zahl 0-100). Gibt eine Liste von Fehlermeldungen zurueck, leeres
+   * Array = gueltig. Der Router behandelt eine nicht-leere Liste wie einen
+   * Provider-Fehler und wechselt zum naechsten Fallback-Provider -- ein
+   * Modell, das zwar valides JSON aber die falsche Form liefert, ist fuer
+   * die Kachel genauso unbrauchbar wie ein HTTP-Fehler.
+   */
+  validate?: (data: unknown) => string[];
 }
 
 export interface TileAIConfig {

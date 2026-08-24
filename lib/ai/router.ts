@@ -90,7 +90,24 @@ export async function runTileAnalysis<T = unknown>(
     try {
       const result = await provider.generateStructured<T>(options.context, {
         systemPrompt: profile.systemPrompt,
+        // aiModel ist providerspezifisch (z.B. ein Grok-Modellstring) und
+        // gilt daher nur fuer den primaeren Provider. Faellt die Kette auf
+        // einen anderen Vendor zurueck, soll der dessen eigenen Default
+        // nutzen statt mit einem fremden Modellnamen zu scheitern.
+        model: providerId === primaryProviderId ? tileConfig.aiModel : undefined,
       });
+
+      if (profile.validate) {
+        const validationErrors = profile.validate(result.data);
+        if (validationErrors.length > 0) {
+          throw new Error(
+            `${providerId}: Antwort entspricht nicht dem Schema von "${profile.id}": ${validationErrors.join(
+              "; "
+            )}`
+          );
+        }
+      }
+
       return {
         ...result,
         tileId,
