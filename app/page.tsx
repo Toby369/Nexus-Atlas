@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import type {
+  EtfFlowDay,
   LiquidationEvent,
   MarketCommentary,
   MarketSnapshot,
@@ -11,6 +12,7 @@ import LivePricePanel from "@/components/LivePricePanel";
 import PositioningPanel from "@/components/PositioningPanel";
 import NewsRiskPanel from "@/components/NewsRiskPanel";
 import LiquidationPanel from "@/components/LiquidationPanel";
+import EtfFlowPanel from "@/components/EtfFlowPanel";
 
 export const revalidate = 0;
 
@@ -20,6 +22,7 @@ const NEWS_LIMIT = 5;
 const NEWS_LOOKBACK_HOURS = 72;
 const LIQUIDATION_LOOKBACK_HOURS = 6;
 const LIQUIDATION_LIMIT = 300;
+const ETF_FLOW_LIMIT = 10;
 
 // 180 Punkte a 5 Min ~= 15 Std. Historie fuer die Zeitreihen-Charts.
 // Nur die Referenzboerse (Bybit), damit sich Kurse mehrerer Boersen nicht
@@ -168,6 +171,22 @@ async function getRecentLiquidations(): Promise<LiquidationEvent[]> {
   return data ?? [];
 }
 
+async function getRecentEtfFlows(): Promise<EtfFlowDay[]> {
+  const { data, error } = await supabase
+    .from("etf_flows")
+    .select("*")
+    .eq("source", "farside")
+    .order("flow_date", { ascending: false })
+    .limit(ETF_FLOW_LIMIT);
+
+  if (error) {
+    console.error("Fehler beim Laden der ETF-Flows:", error.message);
+    return [];
+  }
+
+  return data ?? [];
+}
+
 export default async function Home() {
   const [
     snapshots,
@@ -178,6 +197,7 @@ export default async function Home() {
     positioningSignal,
     highImpactNews,
     recentLiquidations,
+    recentEtfFlows,
   ] = await Promise.all([
     getSnapshotHistory(),
     getLatestCommentary(),
@@ -187,6 +207,7 @@ export default async function Home() {
     getLatestPositioningSignal(),
     getHighImpactNews(),
     getRecentLiquidations(),
+    getRecentEtfFlows(),
   ]);
 
   return (
@@ -218,6 +239,7 @@ export default async function Home() {
             initialSignal={positioningSignal}
           />
           <LiquidationPanel initialEvents={recentLiquidations} />
+          <EtfFlowPanel initialFlows={recentEtfFlows} macroNews={highImpactNews} />
           <NewsRiskPanel initialNews={highImpactNews} />
         </div>
       </section>

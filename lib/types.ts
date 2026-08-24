@@ -78,6 +78,14 @@ export interface LiquidationEvent {
   created_at: string;
 }
 
+export interface EtfFlowDay {
+  id: number;
+  flow_date: string;
+  total_flow_usd_m: number | null;
+  source: string;
+  created_at: string;
+}
+
 export interface NewsEvent {
   id: number;
   source_id: number | null;
