@@ -86,6 +86,12 @@ export default function NewsRiskPanel({
         News Risk
       </p>
 
+      {!lastSyncOk && news.length > 0 && (
+        <p className="text-xs text-down">
+          Sync-Problem — zuletzt bekannte News werden angezeigt.
+        </p>
+      )}
+
       {news.length === 0 ? (
         <p className="text-sm text-text-faint">
           {lastSyncOk
@@ -110,14 +116,20 @@ export default function NewsRiskPanel({
                   {timeAgo(item.published_at)}
                 </span>
               </div>
-              <a
-                href={item.url ?? "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-text leading-snug hover:underline"
-              >
-                {item.title_de ?? item.title}
-              </a>
+              {item.url ? (
+                <a
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-text leading-snug hover:underline"
+                >
+                  {item.title_de ?? item.title}
+                </a>
+              ) : (
+                <span className="text-sm text-text leading-snug">
+                  {item.title_de ?? item.title}
+                </span>
+              )}
               <div className="mt-1">
                 <span
                   className={`text-xs font-mono ${

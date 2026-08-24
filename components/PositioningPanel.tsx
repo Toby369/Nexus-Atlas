@@ -21,7 +21,7 @@ function pct(value: number | null) {
 
 async function fetchLatestSnapshot(
   exchange: string
-): Promise<PositioningSnapshot | null> {
+): Promise<{ data: PositioningSnapshot | null; ok: boolean }> {
   const { data, error } = await supabase
     .from("positioning_snapshots")
     .select("*")
@@ -36,12 +36,15 @@ async function fetchLatestSnapshot(
       `Fehler beim Laden des Positioning-Snapshots (${exchange}):`,
       error.message
     );
-    return null;
+    return { data: null, ok: false };
   }
-  return data;
+  return { data, ok: true };
 }
 
-async function fetchLatestSignal(): Promise<PositioningSignal | null> {
+async function fetchLatestSignal(): Promise<{
+  data: PositioningSignal | null;
+  ok: boolean;
+}> {
   const { data, error } = await supabase
     .from("positioning_signals")
     .select("*")
@@ -51,9 +54,9 @@ async function fetchLatestSignal(): Promise<PositioningSignal | null> {
 
   if (error) {
     console.error("Fehler beim Laden des Positioning-Signals:", error.message);
-    return null;
+    return { data: null, ok: false };
   }
-  return data;
+  return { data, ok: true };
 }
 
 export default function PositioningPanel({
@@ -71,20 +74,24 @@ export default function PositioningPanel({
   const [bybit, setBybit] = useState(initialBybit);
   const [okx, setOkx] = useState(initialOkx);
   const [signal, setSignal] = useState(initialSignal);
+  const [lastSyncOk, setLastSyncOk] = useState(true);
 
   useEffect(() => {
     const fetchLatest = async () => {
-      const [binanceData, bybitData, okxData, signalData] = await Promise.all([
+      const [binanceRes, bybitRes, okxRes, signalRes] = await Promise.all([
         fetchLatestSnapshot("binance"),
         fetchLatestSnapshot("bybit"),
         fetchLatestSnapshot("okx"),
         fetchLatestSignal(),
       ]);
 
-      if (binanceData) setBinance(binanceData);
-      if (bybitData) setBybit(bybitData);
-      if (okxData) setOkx(okxData);
-      if (signalData) setSignal(signalData);
+      setLastSyncOk(
+        binanceRes.ok && bybitRes.ok && okxRes.ok && signalRes.ok
+      );
+      if (binanceRes.data) setBinance(binanceRes.data);
+      if (bybitRes.data) setBybit(bybitRes.data);
+      if (okxRes.data) setOkx(okxRes.data);
+      if (signalRes.data) setSignal(signalRes.data);
     };
 
     const interval = setInterval(fetchLatest, REFRESH_INTERVAL_MS);
@@ -109,6 +116,12 @@ export default function PositioningPanel({
       <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
         Positioning Intelligence
       </p>
+
+      {!lastSyncOk && (
+        <p className="text-xs text-down">
+          Sync-Problem — zuletzt bekannte Positioning-Daten werden angezeigt.
+        </p>
+      )}
 
       <div className="space-y-3">
         {binance && (

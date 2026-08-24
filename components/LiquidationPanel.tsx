@@ -93,6 +93,12 @@ export default function LiquidationPanel({
         Liquidationen
       </p>
 
+      {!lastSyncOk && events.length > 0 && (
+        <p className="text-xs text-down">
+          Sync-Problem — zuletzt bekannte Liquidationen werden angezeigt.
+        </p>
+      )}
+
       {events.length === 0 ? (
         <p className="text-sm text-text-faint">
           {lastSyncOk

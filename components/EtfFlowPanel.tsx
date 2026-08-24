@@ -12,6 +12,8 @@ const CUMULATIVE_DAYS = 5;
 // Nur Makro-relevante News-Kategorien fuer die Synthese heranziehen --
 // Crypto-/Sonstige-News sagen nichts ueber ETF-Flow-Kontext aus.
 const MACRO_CATEGORIES = new Set(["etf", "fed", "treasury", "cpi"]);
+const MACRO_NEWS_LOOKBACK_HOURS = 72;
+const MACRO_NEWS_LIMIT = 20;
 
 function formatUsdM(value: number) {
   const abs = Math.abs(value);
@@ -59,6 +61,29 @@ async function fetchRecentFlows(): Promise<{
   return { data: dedupeByDate(data ?? [], FLOW_LIMIT), ok: true };
 }
 
+// Eigener, unabhaengiger Poll statt die macroNews-Prop dauerhaft auf dem
+// Stand des initialen Server-Renders zu belassen -- sonst driftet die
+// Synthese bei lange offenem Tab von dem ab, was News Risk gerade zeigt.
+async function fetchMacroNews(): Promise<NewsEvent[]> {
+  const cutoff = new Date(
+    Date.now() - MACRO_NEWS_LOOKBACK_HOURS * 60 * 60 * 1000
+  ).toISOString();
+
+  const { data, error } = await supabase
+    .from("news_events")
+    .select("*")
+    .eq("is_market_moving", true)
+    .gte("published_at", cutoff)
+    .order("published_at", { ascending: false })
+    .limit(MACRO_NEWS_LIMIT);
+
+  if (error) {
+    console.error("Fehler beim Laden der Makro-News:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
 export default function EtfFlowPanel({
   initialFlows,
   macroNews,
@@ -67,13 +92,18 @@ export default function EtfFlowPanel({
   macroNews: NewsEvent[];
 }) {
   const [flows, setFlows] = useState(initialFlows);
+  const [macroNewsState, setMacroNewsState] = useState(macroNews);
   const [lastSyncOk, setLastSyncOk] = useState(true);
 
   useEffect(() => {
     const interval = setInterval(async () => {
-      const { data, ok } = await fetchRecentFlows();
-      setLastSyncOk(ok);
-      if (ok) setFlows(data);
+      const [flowResult, freshMacroNews] = await Promise.all([
+        fetchRecentFlows(),
+        fetchMacroNews(),
+      ]);
+      setLastSyncOk(flowResult.ok);
+      if (flowResult.ok) setFlows(flowResult.data);
+      setMacroNewsState(freshMacroNews);
     }, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
@@ -99,7 +129,7 @@ export default function EtfFlowPanel({
     .slice(0, CUMULATIVE_DAYS)
     .reduce((sum, f) => sum + (f.total_flow_usd_m ?? 0), 0);
 
-  const relevantMacroNews = macroNews.filter((n) =>
+  const relevantMacroNews = macroNewsState.filter((n) =>
     MACRO_CATEGORIES.has(n.category)
   );
   const bullishMacro = relevantMacroNews.filter(
@@ -134,6 +164,12 @@ export default function EtfFlowPanel({
       <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
         ETF-Flows &amp; Makro
       </p>
+
+      {!lastSyncOk && (
+        <p className="text-xs text-down">
+          Sync-Problem — zuletzt bekannte ETF-Flows werden angezeigt.
+        </p>
+      )}
 
       <div className="flex items-baseline justify-between">
         <span
