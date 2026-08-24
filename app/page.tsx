@@ -1,11 +1,21 @@
 import { supabase } from "@/lib/supabase";
-import type { MarketCommentary, MarketSnapshot } from "@/lib/types";
+import type {
+  MarketCommentary,
+  MarketSnapshot,
+  NewsEvent,
+  PositioningSignal,
+  PositioningSnapshot,
+} from "@/lib/types";
 import LivePricePanel from "@/components/LivePricePanel";
+import PositioningPanel from "@/components/PositioningPanel";
+import NewsRiskPanel from "@/components/NewsRiskPanel";
 
 export const revalidate = 0;
 
 const REFERENCE_EXCHANGE = "bybit";
 export const COMPARE_EXCHANGES = ["bybit", "binance", "bitunix", "pionex"];
+const NEWS_LIMIT = 5;
+const NEWS_LOOKBACK_HOURS = 72;
 
 // 180 Punkte a 5 Min ~= 15 Std. Historie fuer die Zeitreihen-Charts.
 // Nur die Referenzboerse (Bybit), damit sich Kurse mehrerer Boersen nicht
@@ -69,11 +79,85 @@ async function getLatestCommentary(): Promise<MarketCommentary | null> {
   return data;
 }
 
+async function getLatestPositioningSnapshot(
+  exchange: string
+): Promise<PositioningSnapshot | null> {
+  const { data, error } = await supabase
+    .from("positioning_snapshots")
+    .select("*")
+    .eq("status", "ok")
+    .eq("exchange", exchange)
+    .order("timestamp_utc", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error(
+      `Fehler beim Laden des Positioning-Snapshots (${exchange}):`,
+      error.message
+    );
+    return null;
+  }
+
+  return data;
+}
+
+async function getLatestPositioningSignal(): Promise<PositioningSignal | null> {
+  const { data, error } = await supabase
+    .from("positioning_signals")
+    .select("*")
+    .order("timestamp_utc", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Fehler beim Laden des Positioning-Signals:", error.message);
+    return null;
+  }
+
+  return data;
+}
+
+// Nur markbewegende News der letzten 72h, max. 5 - bewusst kompakt statt
+// einer Rohdaten-Flut.
+async function getHighImpactNews(): Promise<NewsEvent[]> {
+  const cutoff = new Date(
+    Date.now() - NEWS_LOOKBACK_HOURS * 60 * 60 * 1000
+  ).toISOString();
+
+  const { data, error } = await supabase
+    .from("news_events")
+    .select("*")
+    .eq("is_market_moving", true)
+    .gte("published_at", cutoff)
+    .order("published_at", { ascending: false })
+    .limit(NEWS_LIMIT);
+
+  if (error) {
+    console.error("Fehler beim Laden der News:", error.message);
+    return [];
+  }
+
+  return data ?? [];
+}
+
 export default async function Home() {
-  const [snapshots, commentary, exchangeComparison] = await Promise.all([
+  const [
+    snapshots,
+    commentary,
+    exchangeComparison,
+    positioningBinance,
+    positioningBybit,
+    positioningSignal,
+    highImpactNews,
+  ] = await Promise.all([
     getSnapshotHistory(),
     getLatestCommentary(),
     getLatestPerExchange(),
+    getLatestPositioningSnapshot("binance"),
+    getLatestPositioningSnapshot("bybit"),
+    getLatestPositioningSignal(),
+    getHighImpactNews(),
   ]);
 
   return (
@@ -93,11 +177,19 @@ export default async function Home() {
       </header>
 
       <section className="flex-1 px-4 sm:px-6 py-8 max-w-3xl w-full mx-auto">
-        <LivePricePanel
-          initialSnapshots={snapshots}
-          initialCommentary={commentary}
-          initialExchangeComparison={exchangeComparison}
-        />
+        <div className="space-y-4">
+          <LivePricePanel
+            initialSnapshots={snapshots}
+            initialCommentary={commentary}
+            initialExchangeComparison={exchangeComparison}
+          />
+          <PositioningPanel
+            initialBinance={positioningBinance}
+            initialBybit={positioningBybit}
+            initialSignal={positioningSignal}
+          />
+          <NewsRiskPanel initialNews={highImpactNews} />
+        </div>
       </section>
 
       <footer className="border-t border-border px-6 py-4 text-xs text-text-faint">
