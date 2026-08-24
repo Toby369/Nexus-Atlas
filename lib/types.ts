@@ -62,6 +62,22 @@ export interface PositioningSignal {
   created_at: string;
 }
 
+export interface LiquidationEvent {
+  id: number;
+  event_time_utc: string;
+  exchange: string;
+  symbol: string;
+  side: "long_liquidated" | "short_liquidated";
+  price: number | null;
+  quantity: number | null;
+  notional_usd: number | null;
+  order_type: string | null;
+  source_event_id: string | null;
+  status: string;
+  error: string | null;
+  created_at: string;
+}
+
 export interface NewsEvent {
   id: number;
   source_id: number | null;
