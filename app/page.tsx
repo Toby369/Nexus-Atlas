@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import type {
+  LiquidationEvent,
   MarketCommentary,
   MarketSnapshot,
   NewsEvent,
@@ -9,6 +10,7 @@ import type {
 import LivePricePanel from "@/components/LivePricePanel";
 import PositioningPanel from "@/components/PositioningPanel";
 import NewsRiskPanel from "@/components/NewsRiskPanel";
+import LiquidationPanel from "@/components/LiquidationPanel";
 
 export const revalidate = 0;
 
@@ -16,6 +18,8 @@ const REFERENCE_EXCHANGE = "bybit";
 export const COMPARE_EXCHANGES = ["bybit", "binance", "bitunix", "pionex"];
 const NEWS_LIMIT = 5;
 const NEWS_LOOKBACK_HOURS = 72;
+const LIQUIDATION_LOOKBACK_HOURS = 6;
+const LIQUIDATION_LIMIT = 300;
 
 // 180 Punkte a 5 Min ~= 15 Std. Historie fuer die Zeitreihen-Charts.
 // Nur die Referenzboerse (Bybit), damit sich Kurse mehrerer Boersen nicht
@@ -141,6 +145,29 @@ async function getHighImpactNews(): Promise<NewsEvent[]> {
   return data ?? [];
 }
 
+// Stichprobenerfassung (~25s alle 5 Min je Boerse) -- letzte Fenster fuer
+// eine aussagekraeftige Aggregation (Groesse/Richtung/Haeufung).
+async function getRecentLiquidations(): Promise<LiquidationEvent[]> {
+  const cutoff = new Date(
+    Date.now() - LIQUIDATION_LOOKBACK_HOURS * 60 * 60 * 1000
+  ).toISOString();
+
+  const { data, error } = await supabase
+    .from("liquidation_events")
+    .select("*")
+    .eq("status", "ok")
+    .gte("event_time_utc", cutoff)
+    .order("event_time_utc", { ascending: false })
+    .limit(LIQUIDATION_LIMIT);
+
+  if (error) {
+    console.error("Fehler beim Laden der Liquidationen:", error.message);
+    return [];
+  }
+
+  return data ?? [];
+}
+
 export default async function Home() {
   const [
     snapshots,
@@ -150,6 +177,7 @@ export default async function Home() {
     positioningBybit,
     positioningSignal,
     highImpactNews,
+    recentLiquidations,
   ] = await Promise.all([
     getSnapshotHistory(),
     getLatestCommentary(),
@@ -158,6 +186,7 @@ export default async function Home() {
     getLatestPositioningSnapshot("bybit"),
     getLatestPositioningSignal(),
     getHighImpactNews(),
+    getRecentLiquidations(),
   ]);
 
   return (
@@ -188,6 +217,7 @@ export default async function Home() {
             initialBybit={positioningBybit}
             initialSignal={positioningSignal}
           />
+          <LiquidationPanel initialEvents={recentLiquidations} />
           <NewsRiskPanel initialNews={highImpactNews} />
         </div>
       </section>
