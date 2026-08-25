@@ -33,6 +33,12 @@ export interface MarketContextResult {
   label: string;
   confirmed: boolean | null; // null = neutral oder Spot-Daten fehlen
   explanation: string;
+  // Richtung des Szenarios selbst (long_buildup/short_covering = bullisch,
+  // short_buildup/long_unwind = baerisch) -- unabhaengig von "confirmed".
+  // "confirmed" sagt nur, ob der Spot-Markt die Futures-Bewegung bestaetigt,
+  // nicht ob das Szenario an sich positiv oder negativ ist (ein bestaetigter
+  // Short-Aufbau ist trotzdem baerisch, nicht bullisch).
+  bias: "bullish" | "bearish" | "neutral";
 }
 
 const PRICE_FLAT_THRESHOLD = 0.3;
@@ -44,6 +50,14 @@ const LABELS: Record<Exclude<MarketScenario, "neutral">, string> = {
   short_buildup: "Short-Aufbau",
   short_covering: "Short-Covering",
   long_unwind: "Long-Abbau",
+};
+
+const BIAS: Record<MarketScenario, "bullish" | "bearish" | "neutral"> = {
+  long_buildup: "bullish",
+  short_covering: "bullish",
+  short_buildup: "bearish",
+  long_unwind: "bearish",
+  neutral: "neutral",
 };
 
 const EXPLANATIONS: Record<
@@ -96,6 +110,7 @@ export function classifyMarketContext({
       confirmed: null,
       explanation:
         "Noch nicht genug Daten für eine Futures-vs-Spot-Einordnung in diesem Zeitraum.",
+      bias: "neutral",
     };
   }
 
@@ -117,6 +132,7 @@ export function classifyMarketContext({
       confirmed: null,
       explanation:
         "Preis und/oder Open Interest bewegen sich aktuell zu wenig für eine belastbare Struktur-Einordnung.",
+      bias: "neutral",
     };
   }
 
@@ -137,5 +153,5 @@ export function classifyMarketContext({
     LABELS[scenario] +
     (spotUnknown ? "" : confirmed ? " (spotbestätigt)" : " (ohne Spot-Bestätigung)");
 
-  return { scenario, label, confirmed, explanation };
+  return { scenario, label, confirmed, explanation, bias: BIAS[scenario] };
 }

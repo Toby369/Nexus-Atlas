@@ -138,10 +138,13 @@ export default function MarketContextCard({
 
   const result = classifyMarketContext({ priceChangePct, oiChangePct, spotNetFlowPct });
 
+  // Farbe zeigt die Richtung des Szenarios (bullisch/baerisch), nicht ob der
+  // Spot-Markt es bestaetigt -- ein bestaetigter Short-Aufbau ist trotzdem
+  // baerisch, nicht gruen. "confirmed" steht bereits im Label-Text.
   const badgeColor =
-    result.confirmed === true
+    result.bias === "bullish"
       ? "text-up"
-      : result.confirmed === false
+      : result.bias === "bearish"
       ? "text-down"
       : "text-text";
 
