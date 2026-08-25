@@ -43,6 +43,20 @@ const BIAS_3 = ["bullish", "bearish", "neutral"] as const;
 const RISK_ON_OFF = ["risk-on", "risk-off", "neutral"] as const;
 const RISK_LEVELS = ["low", "medium", "high"] as const;
 const IMPACT_LEVELS = ["high", "medium", "low"] as const;
+// Master-Report darf zusaetzlich "conflicting" melden -- siehe
+// validateMasterReport weiter unten (Vorgabe: Widersprueche zwischen den
+// Einzelreports erkennen statt sie zu einem falschen "bullish" zu mitteln).
+const MASTER_BIAS = ["bullish", "bearish", "neutral", "conflicting"] as const;
+
+// Wird an JEDES Report-Profile angehaengt (siehe Vorgabe Teil Q/T): die KI
+// bekommt data_quality explizit im Kontext mitgeliefert und MUSS eine
+// eingeschraenkte Datenbasis in der summary benennen statt sie zu
+// ignorieren oder fehlende Werte zu erfinden.
+const DATA_QUALITY_INSTRUCTION =
+  "Der Kontext enthaelt ein data_quality-Feld (overall: OK|PRELIMINARY|INSUFFICIENT_DATA, " +
+  "plus Detail-Notizen). Ist overall nicht 'OK', muss die summary das explizit benennen und " +
+  "die Einschaetzung entsprechend vorsichtiger formulieren. Nutze ausschliesslich die im " +
+  "Kontext gelieferten Werte -- erfinde niemals fehlende Zahlen, Ereignisse oder Quellen.";
 
 // Deckt das in oi-/funding-/liquidation-/market-structure-/macro-/etf-/
 // market-intelligence-Analysis wiederkehrende { bias, confidence, summary,
@@ -128,6 +142,38 @@ function validateSignalAnalysis(data: unknown): string[] {
   }
   if (!isStringArray(field(data, "concerns"))) {
     errors.push(`"concerns" muss ein String-Array sein.`);
+  }
+
+  return errors;
+}
+
+// Master-Report: prueft die drei Einzelreports auf Widersprueche statt sie
+// zu kopieren/mitteln. componentBiases macht nachvollziehbar, WELCHE
+// Einzelmeinung in welche Richtung zeigt (Transparenz, keine Black Box).
+function validateMasterReport(data: unknown): string[] {
+  const errors: string[] = [];
+
+  const overallBias = field(data, "overallBias");
+  if (!isEnum(overallBias, MASTER_BIAS)) {
+    errors.push(
+      `"overallBias" muss einer von [${MASTER_BIAS.join(", ")}] sein, war: ${JSON.stringify(overallBias)}`
+    );
+  }
+  if (!isConfidence(field(data, "confidence"))) {
+    errors.push(`"confidence" muss eine Zahl zwischen 0 und 100 sein.`);
+  }
+  if (!isNonEmptyString(field(data, "summary"))) {
+    errors.push(`"summary" muss ein nicht-leerer String sein.`);
+  }
+  if (!isStringArray(field(data, "conflicts"))) {
+    errors.push(`"conflicts" muss ein String-Array sein (leeres Array, wenn keine Widersprueche).`);
+  }
+
+  const componentBiases = field(data, "componentBiases");
+  for (const key of ["marketStructure", "positioning", "newsMacro"]) {
+    if (!isNonEmptyString(field(componentBiases, key))) {
+      errors.push(`"componentBiases.${key}" muss ein nicht-leerer String sein.`);
+    }
   }
 
   return errors;
@@ -237,6 +283,89 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "isConsistent (boolean), confidence (0-100), summary (string, deutsch), " +
       "concerns (string[]).",
     validate: validateSignalAnalysis,
+  },
+
+  // --- NEXUS AI Report Engine (Report 1-4) ---------------------------------
+  // Bekommen ihren Kontext ausschliesslich aus lib/reportContext.ts
+  // (buildMarketContext) -- ein bereits validiertes, strukturiertes Objekt,
+  // niemals rohe Tabellenzeilen. Werden ueber runReportAnalysis() in
+  // router.ts ausgefuehrt (Provider/Modell kommen aus der Nutzer-Konfiguration
+  // je Report-Slot, nicht aus tileConfig.ts).
+  "report-market-structure": {
+    id: "report-market-structure",
+    category: "market-mechanics",
+    description: "Report 1: Preis, OI, Funding, Liquidationen, Spot Pressure, Exchange-Daten.",
+    systemPrompt:
+      "Du analysierst die aktuelle BTC/USDT-Futures-Marktstruktur fuer den im Kontext " +
+      "angegebenen Zeitraum (timeframe). Nutze btc_price, oi (inkl. by_exchange), funding, " +
+      "liquidations, spot_pressure und exchange_comparison. Ordne ein, ob Preis- und " +
+      "OI-Bewegung zusammen mit dem Spot-Flow fuer echten Positionsaufbau/-abbau oder eher " +
+      "gehebelte/mechanische Bewegung sprechen (das regelbasierte assessment-Feld gibt dir " +
+      "bereits eine Einordnung dazu -- widersprich ihr nicht ohne Grund, sondern nutze sie " +
+      "als Ausgangspunkt). " +
+      DATA_QUALITY_INSTRUCTION +
+      " Antworte als JSON mit: bias (bullish|bearish|neutral), confidence (0-100), " +
+      "summary (string, deutsch), keyFactors (string[]), riskLevel (low|medium|high).",
+    validate: (data) =>
+      validateBiasSummary(data, { requireKeyFactors: true, requireRiskLevel: true }),
+  },
+  "report-positioning": {
+    id: "report-positioning",
+    category: "market-mechanics",
+    description: "Report 2: Long/Short, Top Trader, Retail, OI, Taker Flow, Exchange Divergence.",
+    systemPrompt:
+      "Du analysierst die aktuelle BTC-Futures-Positionierung. Nutze positioning (Retail- " +
+      "und Top-Trader-Ratios je Boerse, Taker-Buy/Sell), oi.by_exchange (Exchange Divergence " +
+      "-- zieht eine einzelne Boerse die OI-Bewegung ueberproportional?) und liquidations als " +
+      "Kontext. Ordne insbesondere ein, ob Retail- und Top-Trader-Positionierung " +
+      "uebereinstimmen oder auseinanderlaufen, und ob die OI-Bewegung breit ueber mehrere " +
+      "Boersen oder konzentriert auf eine einzelne stattfindet. " +
+      DATA_QUALITY_INSTRUCTION +
+      " Antworte als JSON mit: bias (bullish|bearish|neutral), confidence (0-100), " +
+      "summary (string, deutsch), keyFactors (string[]).",
+    validate: (data) => validateBiasSummary(data, { requireKeyFactors: true }),
+  },
+  "report-news-macro": {
+    id: "report-news-macro",
+    category: "research",
+    description: "Report 3: News Risk, ETF-Flows, Makro-relevante Ereignisse.",
+    systemPrompt:
+      "Du bewertest die aktuelle News- und Makro-Lage fuer BTC. Nutze ausschliesslich " +
+      "news_macro.items (bereits gefilterte, marktbewegende News der letzten " +
+      "news_macro.window_hours Stunden) und etf_flows. Erfinde keine Ereignisse, die nicht " +
+      "in den gelieferten Items stehen. Sind items leer, sag explizit, dass aktuell keine " +
+      "markbewegenden News/Makro-Ereignisse im Datenbestand vorliegen, statt eine " +
+      "Einschaetzung zu konstruieren. " +
+      DATA_QUALITY_INSTRUCTION +
+      " Antworte als JSON mit: bias (risk-on|risk-off|neutral), confidence (0-100), " +
+      "summary (string, deutsch), keyFactors (string[]).",
+    validate: (data) =>
+      validateBiasSummary(data, { biasValues: RISK_ON_OFF, requireKeyFactors: true }),
+  },
+  "report-master": {
+    id: "report-master",
+    category: "orchestration",
+    description:
+      "Report 4: prueft die Ergebnisse der Reports 1-3 auf Widersprueche statt sie zu mitteln.",
+    systemPrompt:
+      "Du erhaeltst im Kontext die strukturierten Ergebnisse von drei Einzelreports " +
+      "(marketStructureReport, positioningReport, newsMacroReport -- jeweils mit bias/" +
+      "confidence/summary) sowie die rohen Nexus-Marktdaten (marketData) und das " +
+      "regelbasierte assessment. Deine Aufgabe ist NICHT, die Einzelreports zu kopieren " +
+      "oder ihren Bias einfach zu mitteln, sondern zu pruefen, ob sie sich WIDERSPRECHEN. " +
+      "Beispiel: Market Structure bullish, Positioning bearish, News neutral -> overallBias " +
+      "muss 'conflicting' sein, nicht blind 'bullish'. Nenne jeden konkreten Widerspruch " +
+      "in 'conflicts' (z.B. \"Market Structure bullish, aber Positioning zeigt Retail-Short-" +
+      "Ueberhang bei fallendem Top-Trader-Interesse\"). Stimmen alle drei ueberein, ist " +
+      "conflicts ein leeres Array und overallBias entspricht der gemeinsamen Richtung. " +
+      "Erfinde keine zusaetzlichen Daten -- nutze ausschliesslich die gelieferten " +
+      "Report-Ergebnisse und Marktdaten. " +
+      DATA_QUALITY_INSTRUCTION +
+      " Antworte als JSON mit: overallBias (bullish|bearish|neutral|conflicting), " +
+      "confidence (0-100), summary (string, deutsch), conflicts (string[], leer wenn " +
+      "keine), componentBiases ({ marketStructure, positioning, newsMacro } als kurze " +
+      "String-Zusammenfassungen der jeweiligen Einzelrichtung).",
+    validate: validateMasterReport,
   },
 };
 

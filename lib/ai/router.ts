@@ -129,3 +129,81 @@ export async function runTileAnalysis<T = unknown>(
     )}). Letzter Fehler: ${errorMessage}`
   );
 }
+
+export interface RunReportAnalysisOptions {
+  /** Provider aus der Nutzer-Konfiguration des jeweiligen Report-Slots (report_configs), nicht aus tileConfig.ts. */
+  providerId: AIProviderId;
+  /** Modell-Override aus derselben Konfiguration, sonst Provider-Default. */
+  model?: string;
+  promptProfile: string;
+  context: string;
+  fallbackProviders?: AIProviderId[];
+}
+
+export interface RunReportAnalysisResult<T = unknown> extends AIStructuredResult<T> {
+  promptProfile: string;
+  attemptedProviders: AIProviderId[];
+}
+
+/**
+ * Fuehrt ein Report-Profile (Report 1-4 der AI Report Engine) mit einem
+ * explizit vom Nutzer gewaehlten Provider/Modell aus -- im Gegensatz zu
+ * runTileAnalysis() gibt es hier keine tileConfig.ts-Zuordnung, da Provider
+ * und Modell pro Report-Slot in der Datenbank (report_configs) konfiguriert
+ * werden. Teilt sich mit runTileAnalysis() dieselbe Provider-Fallback-Kette
+ * und Schema-Validierung, damit ein Modell mit valider aber falscher
+ * Antwortform genauso wie ein Provider-Fehler behandelt wird.
+ */
+export async function runReportAnalysis<T = unknown>(
+  options: RunReportAnalysisOptions
+): Promise<RunReportAnalysisResult<T>> {
+  const profile = getPromptProfile(options.promptProfile);
+
+  const providerChain: AIProviderId[] = [
+    options.providerId,
+    ...(options.fallbackProviders ?? []).filter((p) => p !== options.providerId),
+  ];
+
+  const attempted: AIProviderId[] = [];
+  let lastError: unknown;
+
+  for (const providerId of providerChain) {
+    const provider = getProvider(providerId);
+
+    if (!provider.isConfigured()) {
+      attempted.push(providerId);
+      lastError = new Error(`${providerId}: nicht konfiguriert (kein API-Key gesetzt).`);
+      continue;
+    }
+
+    try {
+      const result = await provider.generateStructured<T>(options.context, {
+        systemPrompt: profile.systemPrompt,
+        model: providerId === options.providerId ? options.model : undefined,
+      });
+
+      if (profile.validate) {
+        const validationErrors = profile.validate(result.data);
+        if (validationErrors.length > 0) {
+          throw new Error(
+            `${providerId}: Antwort entspricht nicht dem Schema von "${profile.id}": ${validationErrors.join(
+              "; "
+            )}`
+          );
+        }
+      }
+
+      return { ...result, promptProfile: profile.id, attemptedProviders: attempted };
+    } catch (err) {
+      attempted.push(providerId);
+      lastError = err;
+    }
+  }
+
+  const errorMessage = lastError instanceof Error ? lastError.message : String(lastError);
+  throw new Error(
+    `AI Router: alle Provider fuer Report-Profile "${options.promptProfile}" fehlgeschlagen (${attempted.join(
+      " -> "
+    )}). Letzter Fehler: ${errorMessage}`
+  );
+}
