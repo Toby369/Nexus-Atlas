@@ -540,7 +540,7 @@ export default function LivePricePanel({
         <div className="rounded-lg border border-border bg-surface-raised p-5">
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
-              Markteinschätzung
+              Kurznotiz (automatisch, Bybit)
             </p>
             <span className="text-xs text-text-faint">
               {timeAgo(commentary.generated_at)}
@@ -548,6 +548,11 @@ export default function LivePricePanel({
           </div>
           <p className="text-sm text-text leading-relaxed">
             {commentary.summary_text}
+          </p>
+          <p className="text-xs text-text-faint mt-2">
+            Unabhängig vom oben gewählten Zeitraum — feste, rollierende
+            Kurzbetrachtung, alle 5 Minuten neu generiert. Für eine
+            zeitraum-synchrone Einordnung siehe &bdquo;Marktkontext&ldquo; oben.
           </p>
         </div>
       )}
