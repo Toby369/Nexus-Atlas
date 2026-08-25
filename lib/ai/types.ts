@@ -11,7 +11,10 @@ export type AIProviderId =
   | "xai"
   | "google"
   | "deepseek"
-  | "perplexity";
+  | "perplexity"
+  | "groq"
+  | "mistral"
+  | "openrouter";
 
 export interface AIGenerateOptions {
   /** Ueberschreibt das Default-Modell des Providers fuer diesen Call. */

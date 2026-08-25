@@ -5,6 +5,9 @@ import { xaiProvider } from "./xai";
 import { googleProvider } from "./google";
 import { deepseekProvider } from "./deepseek";
 import { perplexityProvider } from "./perplexity";
+import { groqProvider } from "./groq";
+import { mistralProvider } from "./mistral";
+import { openrouterProvider } from "./openrouter";
 
 // Zentrale Registry: neuen Provider hinzufuegen = neue Datei unter
 // lib/ai/providers/ anlegen (AIProvider-Interface implementieren) und hier
@@ -17,6 +20,9 @@ export const providerRegistry: Record<AIProviderId, AIProvider> = {
   google: googleProvider,
   deepseek: deepseekProvider,
   perplexity: perplexityProvider,
+  groq: groqProvider,
+  mistral: mistralProvider,
+  openrouter: openrouterProvider,
 };
 
 export function getProvider(id: AIProviderId): AIProvider {
