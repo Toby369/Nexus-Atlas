@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import type {
   EtfFlowDay,
@@ -369,9 +370,17 @@ export default async function Home({
             BTC Marktüberwachung
           </h1>
         </div>
-        <p className="text-xs text-text-faint hidden sm:block">
-          Datentakt: alle 5&nbsp;Minuten · Referenz: Bybit
-        </p>
+        <div className="flex items-center gap-4">
+          <Link
+            href="/reports"
+            className="text-xs text-text-faint hover:text-text-muted underline decoration-dotted"
+          >
+            AI Reports
+          </Link>
+          <p className="text-xs text-text-faint hidden sm:block">
+            Datentakt: alle 5&nbsp;Minuten · Referenz: Bybit
+          </p>
+        </div>
       </header>
 
       <section className="flex-1 px-4 sm:px-6 py-8 max-w-3xl w-full mx-auto">
