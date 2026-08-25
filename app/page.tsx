@@ -10,6 +10,7 @@ import type {
   PositioningSnapshot,
 } from "@/lib/types";
 import { DEFAULT_TIMEFRAME, getTimeframe } from "@/lib/timeframes";
+import { DEFAULT_SERIES_EXCHANGE } from "@/lib/exchanges";
 import LivePricePanel from "@/components/LivePricePanel";
 import PositioningPanel from "@/components/PositioningPanel";
 import NewsRiskPanel from "@/components/NewsRiskPanel";
@@ -19,7 +20,7 @@ import EtfFlowPanel from "@/components/EtfFlowPanel";
 export const revalidate = 0;
 
 const REFERENCE_EXCHANGE = "bybit";
-export const COMPARE_EXCHANGES = ["bybit", "binance", "bitunix", "pionex"];
+export const COMPARE_EXCHANGES = ["bybit", "binance", "okx", "bitget", "bitunix", "pionex"];
 const NEWS_LIMIT = 5;
 const NEWS_LOOKBACK_HOURS = 72;
 const LIQUIDATION_LOOKBACK_HOURS = 6;
@@ -228,9 +229,11 @@ async function getMarketSeries(
 }
 
 // Naechstgelegener Datenpunkt vor dem Zeitraumbeginn, fuer die OI-Change%/
-// BTC-Change%-Berechnung. Faellt auf den aeltesten verfuegbaren Punkt
-// zurueck statt zu approximieren, falls die Historie noch nicht so weit
-// zurueckreicht.
+// BTC-Change%-Berechnung. Ueber dieselbe get_market_reference_snapshot-RPC
+// wie der Client-Poll in LivePricePanel.tsx -- versteht auch "aggregated"
+// (OI-Summe ueber alle Boersen) und faellt intern auf den aeltesten
+// verfuegbaren Punkt zurueck statt zu approximieren, falls die Historie
+// noch nicht so weit zurueckreicht.
 async function getOiReferenceSnapshot(
   exchange: string,
   cutoffIso: string
@@ -239,28 +242,16 @@ async function getOiReferenceSnapshot(
   last_price: number | null;
   open_interest: number | null;
 } | null> {
-  const { data, error } = await supabase
-    .from("market_snapshots")
-    .select("timestamp_utc, last_price, open_interest")
-    .eq("status", "ok")
-    .eq("exchange", exchange)
-    .lte("timestamp_utc", cutoffIso)
-    .order("timestamp_utc", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc("get_market_reference_snapshot", {
+    p_exchange: exchange,
+    p_cutoff: cutoffIso,
+  });
 
-  if (!error && data) return data;
-
-  const fallback = await supabase
-    .from("market_snapshots")
-    .select("timestamp_utc, last_price, open_interest")
-    .eq("status", "ok")
-    .eq("exchange", exchange)
-    .order("timestamp_utc", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  return fallback.data ?? null;
+  if (error) {
+    console.error("Fehler beim Laden des Referenzpunkts:", error.message);
+    return null;
+  }
+  return data?.[0] ?? null;
 }
 
 function timeframeSinceIso(id: Parameters<typeof getTimeframe>[0]): string {
@@ -294,8 +285,8 @@ export default async function Home() {
     getHighImpactNews(),
     getRecentLiquidations(),
     getRecentEtfFlows(),
-    getMarketSeries(REFERENCE_EXCHANGE, defaultTimeframeSinceIso),
-    getOiReferenceSnapshot(REFERENCE_EXCHANGE, defaultTimeframeSinceIso),
+    getMarketSeries(DEFAULT_SERIES_EXCHANGE, defaultTimeframeSinceIso),
+    getOiReferenceSnapshot(DEFAULT_SERIES_EXCHANGE, defaultTimeframeSinceIso),
   ]);
 
   return (

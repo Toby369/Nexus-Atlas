@@ -15,6 +15,12 @@ import {
   getTimeframe,
   type TimeframeId,
 } from "@/lib/timeframes";
+import {
+  DEFAULT_SERIES_EXCHANGE,
+  SERIES_EXCHANGES,
+  getSeriesExchange,
+  type SeriesExchangeId,
+} from "@/lib/exchanges";
 
 const REFRESH_INTERVAL_MS = 30_000;
 const HISTORY_LIMIT = 180; // ~15 Std bei 5-Min-Takt
@@ -24,10 +30,12 @@ const SERIES_MAX_POINTS = 500;
 // 15 Min spaeter liegt als angefragt -- kleine Luecken durch den 5-Min-Takt
 // sind normal, ein grosser Abstand bedeutet: noch keine ausreichende Historie.
 const HISTORY_GAP_TOLERANCE_MS = 15 * 60 * 1000;
-const COMPARE_EXCHANGES = ["bybit", "binance", "bitunix", "pionex"];
+const COMPARE_EXCHANGES = ["bybit", "binance", "okx", "bitget", "bitunix", "pionex"];
 const EXCHANGE_LABELS: Record<string, string> = {
   bybit: "Bybit",
   binance: "Binance",
+  okx: "OKX",
+  bitget: "Bitget",
   bitunix: "Bitunix",
   pionex: "Pionex",
 };
@@ -91,8 +99,11 @@ async function fetchSeries(
 }
 
 // Naechstgelegener Datenpunkt VOR dem Zeitraumbeginn, fuer die exakte
-// Change%-Berechnung (current vs. historical). Braucht nur eine Zeile, daher
-// nie vom PostgREST-Row-Cap betroffen.
+// Change%-Berechnung (current vs. historical). Ueber die
+// get_market_reference_snapshot-RPC, die auch den Pseudo-Wert "aggregated"
+// versteht (OI-Summe ueber alle Boersen zum selben Zeitstempel) und intern
+// auf den aeltesten verfuegbaren Punkt zurueckfaellt, falls die Historie
+// noch nicht so weit zurueckreicht -- keine Approximation.
 async function fetchReferenceSnapshot(
   exchange: string,
   cutoffIso: string
@@ -101,31 +112,16 @@ async function fetchReferenceSnapshot(
   last_price: number | null;
   open_interest: number | null;
 } | null> {
-  const { data, error } = await supabase
-    .from("market_snapshots")
-    .select("timestamp_utc, last_price, open_interest")
-    .eq("status", "ok")
-    .eq("exchange", exchange)
-    .lte("timestamp_utc", cutoffIso)
-    .order("timestamp_utc", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc("get_market_reference_snapshot", {
+    p_exchange: exchange,
+    p_cutoff: cutoffIso,
+  });
 
-  if (!error && data) return data;
-
-  // Noch keine Historie so weit zurueck (z.B. 1M kurz nach Projektstart) --
-  // aeltesten tatsaechlich vorhandenen Punkt nehmen statt zu approximieren.
-  // Wird im UI transparent mit dem echten Zeitstempel gekennzeichnet.
-  const fallback = await supabase
-    .from("market_snapshots")
-    .select("timestamp_utc, last_price, open_interest")
-    .eq("status", "ok")
-    .eq("exchange", exchange)
-    .order("timestamp_utc", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  return fallback.data ?? null;
+  if (error) {
+    console.error("Fehler beim Laden des Referenzpunkts:", error.message);
+    return null;
+  }
+  return data?.[0] ?? null;
 }
 
 interface ReferenceSnapshot {
@@ -159,6 +155,9 @@ export default function LivePricePanel({
   const [isStale, setIsStale] = useState(false);
   const [lastSyncOk, setLastSyncOk] = useState(true);
   const [timeframe, setTimeframe] = useState<TimeframeId>(DEFAULT_TIMEFRAME);
+  const [seriesExchange, setSeriesExchange] = useState<SeriesExchangeId>(
+    DEFAULT_SERIES_EXCHANGE
+  );
   const [seriesData, setSeriesData] = useState(initialSeriesData);
   const [referenceSnapshot, setReferenceSnapshot] = useState(
     initialReferenceSnapshot
@@ -175,14 +174,17 @@ export default function LivePricePanel({
   // einen Client-Fetch aus.
   const isFirstRun = useRef(true);
 
-  // Eigener Effekt pro Zeitraum: aendert sich timeframe, wird die alte
-  // Polling-Schleife sauber beendet und eine neue fuer das neue Fenster
-  // gestartet (OI Change %, BTC Change % und der Chart haengen alle am
-  // selben Zeitraum, siehe Vorgabe Punkt 2+3).
+  // Eigener Effekt pro Zeitraum+Boerse: aendert sich timeframe oder
+  // seriesExchange, wird die alte Polling-Schleife sauber beendet und eine
+  // neue fuer das neue Fenster gestartet (OI Change %, BTC Change % und der
+  // Chart haengen alle am selben Zeitraum+Boerse, siehe Vorgabe Punkt 2+3+4).
   useEffect(() => {
     let cancelled = false;
     const tf = getTimeframe(timeframe);
-    const skipImmediateLoad = isFirstRun.current && timeframe === DEFAULT_TIMEFRAME;
+    const skipImmediateLoad =
+      isFirstRun.current &&
+      timeframe === DEFAULT_TIMEFRAME &&
+      seriesExchange === DEFAULT_SERIES_EXCHANGE;
     isFirstRun.current = false;
 
     // showLoading nur beim allerersten Laden eines Zeitraums true -- sonst
@@ -192,8 +194,8 @@ export default function LivePricePanel({
       if (showLoading) setSeriesLoading(true);
       const sinceIso = new Date(Date.now() - tf.minutes * 60 * 1000).toISOString();
       const [series, reference] = await Promise.all([
-        fetchSeries(REFERENCE_EXCHANGE, sinceIso),
-        fetchReferenceSnapshot(REFERENCE_EXCHANGE, sinceIso),
+        fetchSeries(seriesExchange, sinceIso),
+        fetchReferenceSnapshot(seriesExchange, sinceIso),
       ]);
       if (cancelled) return;
       setSeriesData(series);
@@ -209,7 +211,7 @@ export default function LivePricePanel({
       cancelled = true;
       clearInterval(interval);
     };
-  }, [timeframe]);
+  }, [timeframe, seriesExchange]);
 
   useEffect(() => {
     const fetchLatest = async () => {
@@ -302,28 +304,39 @@ export default function LivePricePanel({
     .filter((s) => s.funding_rate != null)
     .map((s) => ({ t: s.timestamp_utc, v: (s.funding_rate as number) * 100 }));
 
-  // OI Change % / BTC Change % ueber den gewaehlten Zeitraum: aktueller Wert
-  // (latest, immer der frischeste Datenpunkt) gegen den echten historischen
-  // Referenzpunkt -- niemals approximiert (Vorgabe Punkt 1+10).
+  // OI Change % / BTC Change % ueber den gewaehlten Zeitraum+Boerse: aktueller
+  // Wert gegen den echten historischen Referenzpunkt -- niemals approximiert
+  // (Vorgabe Punkt 1+10). Der aktuelle Wert kommt bewusst aus dem letzten
+  // Punkt von seriesData (nicht aus der oben stehenden Bybit-"latest") --
+  // seriesData/referenceSnapshot stammen aus demselben Fetch fuer dieselbe
+  // Boerse (auch "aggregated"), so werden nie Werte verschiedener Boersen
+  // gemischt. Die RPC liefert bei jedem Downsampling immer den wirklich
+  // letzten Datenpunkt (rn = total), daher ist dies exakt der aktuellste Wert.
+  const latestSeriesPoint =
+    seriesData.length > 0 ? seriesData[seriesData.length - 1] : null;
+
   const oiChangePct =
-    latest.open_interest !== null &&
+    latestSeriesPoint?.open_interest !== null &&
+    latestSeriesPoint?.open_interest !== undefined &&
     referenceSnapshot?.open_interest !== null &&
     referenceSnapshot?.open_interest !== undefined
-      ? ((latest.open_interest - referenceSnapshot.open_interest) /
+      ? ((latestSeriesPoint.open_interest - referenceSnapshot.open_interest) /
           referenceSnapshot.open_interest) *
         100
       : null;
 
   const btcChangePct =
-    latest.last_price !== null &&
+    latestSeriesPoint?.last_price !== null &&
+    latestSeriesPoint?.last_price !== undefined &&
     referenceSnapshot?.last_price !== null &&
     referenceSnapshot?.last_price !== undefined
-      ? ((latest.last_price - referenceSnapshot.last_price) /
+      ? ((latestSeriesPoint.last_price - referenceSnapshot.last_price) /
           referenceSnapshot.last_price) *
         100
       : null;
 
   const selectedTf = getTimeframe(timeframe);
+  const selectedExchange = getSeriesExchange(seriesExchange);
   const requestedSinceMs = fetchedSinceIso ? new Date(fetchedSinceIso).getTime() : null;
   const referenceMs = referenceSnapshot
     ? new Date(referenceSnapshot.timestamp_utc).getTime()
@@ -401,9 +414,22 @@ export default function LivePricePanel({
 
       <div className="rounded-lg border border-border bg-surface p-5">
         <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
-          <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
-            OI Change
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+              OI Change
+            </p>
+            <select
+              value={seriesExchange}
+              onChange={(e) => setSeriesExchange(e.target.value as SeriesExchangeId)}
+              className="text-xs rounded-md border border-border bg-surface-raised text-text-muted px-2 py-1 focus:outline-none focus:border-accent/40"
+            >
+              {SERIES_EXCHANGES.map((ex) => (
+                <option key={ex.id} value={ex.id}>
+                  {ex.label}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="flex gap-1">
             {TIMEFRAMES.map((tf) => (
               <button
@@ -436,7 +462,7 @@ export default function LivePricePanel({
               {formatSignedPct(oiChangePct)}
             </span>
             <p className="text-xs text-text-faint mt-1">
-              Open Interest · {selectedTf.label}
+              Open Interest · {selectedExchange.label} · {selectedTf.label}
             </p>
           </div>
           <div>
