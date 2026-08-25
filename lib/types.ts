@@ -122,6 +122,41 @@ export interface OiChangeByExchange {
   has_full_history: boolean;
 }
 
+// NEXUS AI Report Engine (Vorgabe Teil M-P). report_configs = bis zu 4
+// vom Nutzer konfigurierte Report-Slots, report_runs = jede tatsaechliche
+// Ausfuehrung samt der Datenbasis, die der KI vorlag (data_snapshot).
+export type ReportType = "market_structure" | "positioning" | "news_macro" | "master";
+
+export interface ReportConfig {
+  id: number;
+  slot: number;
+  report_type: ReportType;
+  provider: string;
+  model: string | null;
+  timeframe: string;
+  schedule_time: string | null;
+  active: boolean;
+  email_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReportRun {
+  id: number;
+  report_config_id: number | null;
+  report_type: ReportType;
+  provider: string;
+  model: string | null;
+  timeframe: string;
+  generated_at: string;
+  status: "ok" | "error";
+  result: Record<string, unknown> | null;
+  data_snapshot: Record<string, unknown> | null;
+  error: string | null;
+  email_sent: boolean;
+  created_at: string;
+}
+
 export interface EtfFlowDay {
   id: number;
   flow_date: string;
