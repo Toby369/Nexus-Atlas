@@ -256,7 +256,8 @@ function SlotCard({
           checked={emailEnabled}
           onChange={(e) => setEmailEnabled(e.target.checked)}
         />
-        E-Mail bei Fertigstellung (Versand noch nicht angebunden — wird nur gespeichert)
+        E-Mail bei Fertigstellung (aktiv, sobald RESEND_API_KEY, REPORT_EMAIL_FROM und
+        REPORT_EMAIL_TO serverseitig gesetzt sind — bis dahin wird der Versand übersprungen)
       </label>
 
       <div className="flex items-center gap-3 flex-wrap pt-1">

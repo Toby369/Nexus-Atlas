@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { buildMarketContext, type FullMarketContext } from "@/lib/reportContext";
 import { runReportAnalysis } from "@/lib/ai/router";
+import { sendReportEmail } from "@/lib/email";
 import { parseTimeframe } from "@/lib/timeframes";
 import type { AIProviderId } from "@/lib/ai/types";
 import type { ReportConfig, ReportRun, ReportType } from "@/lib/types";
@@ -22,8 +23,11 @@ import type { ReportConfig, ReportRun, ReportType } from "@/lib/types";
 // automatisch nachgetriggert (das wuerde unbemerkt zusaetzliche
 // Free-Tier-Anfragen ausloesen) -- stattdessen ein klarer Fehler.
 //
-// E-Mail-Versand (report_configs.email_enabled) ist hier noch nicht
-// verdrahtet -- das ist eine spaetere Etappe (E-Mail-Service-Abstraktion).
+// Ist report_configs.email_enabled gesetzt, wird nach einem erfolgreichen
+// Lauf zusaetzlich sendReportEmail() aufgerufen (lib/email/index.ts). Diese
+// Route kennt dabei keinen konkreten Anbieter (z.B. Resend) -- ist keiner
+// konfiguriert oder schlaegt der Versand fehl, bleibt der Report-Lauf selbst
+// trotzdem erfolgreich; nur report_runs.email_sent bleibt dann false.
 
 const PROMPT_PROFILE_BY_TYPE: Record<ReportType, string> = {
   market_structure: "report-market-structure",
@@ -31,6 +35,26 @@ const PROMPT_PROFILE_BY_TYPE: Record<ReportType, string> = {
   news_macro: "report-news-macro",
   master: "report-master",
 };
+
+const REPORT_TYPE_LABEL: Record<ReportType, string> = {
+  market_structure: "Market Structure",
+  positioning: "Positioning",
+  news_macro: "News / Macro",
+  master: "Master",
+};
+
+function buildReportEmailHtml(
+  config: ReportConfig,
+  timeframe: string,
+  resultData: unknown
+): string {
+  const pretty = JSON.stringify(resultData, null, 2);
+  return (
+    `<h2>NEXUS Atlas — ${REPORT_TYPE_LABEL[config.report_type]}-Report (${timeframe})</h2>` +
+    `<p>Provider: ${config.provider}${config.model ? ` (${config.model})` : ""}</p>` +
+    `<pre style="white-space:pre-wrap;font-family:monospace;font-size:12px;">${pretty}</pre>`
+  );
+}
 
 function sliceContextForMarketStructure(ctx: FullMarketContext) {
   const { timeframe, generated_at, btc_price, oi, funding, liquidations, spot_pressure, exchange_comparison, assessment, data_quality } = ctx;
@@ -205,6 +229,39 @@ export async function POST(req: NextRequest) {
         { success: false, error: `Report erfolgreich, aber Speichern fehlgeschlagen: ${insertError.message}` },
         { status: 500 }
       );
+    }
+
+    if (config.email_enabled) {
+      const to = process.env.REPORT_EMAIL_TO;
+      if (!to) {
+        console.warn(
+          `Report-Slot ${slot}: email_enabled ist an, aber REPORT_EMAIL_TO ist nicht gesetzt -- Versand uebersprungen.`
+        );
+      } else {
+        const emailResult = await sendReportEmail({
+          to,
+          subject: `NEXUS Atlas · ${REPORT_TYPE_LABEL[config.report_type]} (${timeframe})`,
+          html: buildReportEmailHtml(config, timeframe, result.data),
+        });
+
+        if (!emailResult.attempted) {
+          console.warn(`Report-Slot ${slot}: kein E-Mail-Provider konfiguriert, Versand uebersprungen.`);
+        } else if (!emailResult.success) {
+          console.error(`Report-Slot ${slot}: E-Mail-Versand fehlgeschlagen: ${emailResult.error}`);
+        } else {
+          const { error: emailUpdateError } = await supabaseAdmin
+            .from("report_runs")
+            .update({ email_sent: true })
+            .eq("id", run.id);
+          if (emailUpdateError) {
+            console.error(
+              `Report-Slot ${slot}: E-Mail versendet, aber email_sent-Flag konnte nicht gesetzt werden: ${emailUpdateError.message}`
+            );
+          } else {
+            run.email_sent = true;
+          }
+        }
+      }
     }
 
     return NextResponse.json({ success: true, run });
