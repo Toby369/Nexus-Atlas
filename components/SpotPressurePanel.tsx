@@ -5,14 +5,10 @@ import { supabase } from "@/lib/supabase";
 import type { SpotPressurePoint, SpotPressureSummary } from "@/lib/types";
 import SpotPressureChart from "@/components/SpotPressureChart";
 import { getTimeframe, type TimeframeId } from "@/lib/timeframes";
+import { classifySpotPressure } from "@/lib/spotPressure";
 
 const REFRESH_INTERVAL_MS = 30_000;
 const SERIES_MAX_POINTS = 300;
-// Sample gilt als "unvollstaendig", wenn weniger als 80% der im Fenster
-// erwarteten 5-Min-Kerzen tatsaechlich vorliegen (Luecken durch Collector-
-// Ausfaelle oder, aktuell, den frischen Produktivstart) -- Transparenz statt
-// stillschweigend mit weniger Daten zu rechnen.
-const COMPLETENESS_WARN_THRESHOLD = 0.8;
 
 function formatBtc(value: number | null) {
   if (value === null || Number.isNaN(value)) return "—";
@@ -114,7 +110,13 @@ export default function SpotPressurePanel({
 
   const expectedCandles = Math.max(1, Math.round(selectedTf.minutes / 5));
   const candleCount = summary?.candle_count ?? 0;
-  const isIncomplete = candleCount / expectedCandles < COMPLETENESS_WARN_THRESHOLD;
+  const verdict = classifySpotPressure({ netFlowPct, candleCount, expectedCandles });
+  const verdictColor =
+    verdict.verdict === "BUYING_PRESSURE"
+      ? "text-up"
+      : verdict.verdict === "SELLING_PRESSURE"
+      ? "text-down"
+      : "text-text";
 
   return (
     <div className="rounded-lg border border-border bg-surface p-5">
@@ -125,14 +127,18 @@ export default function SpotPressurePanel({
         <p className="text-xs text-text-faint">{selectedTf.label}</p>
       </div>
 
+      <p className={`text-xl sm:text-2xl font-semibold ${verdictColor}`}>
+        {verdict.label}
+      </p>
+
       {!summary || candleCount === 0 ? (
-        <p className="text-sm text-text-muted">
+        <p className="text-sm text-text-muted mt-2">
           Noch keine Spot-Kerzen fuer diesen Zeitraum erfasst — der Collector
           sammelt alle 5 Minuten eine neue Kerze, schau in Kürze wieder vorbei.
         </p>
       ) : (
         <>
-          <div className="flex items-end gap-6 flex-wrap mb-1">
+          <div className="flex items-end gap-6 flex-wrap mt-3 mb-1">
             <div>
               <span
                 className={`tabular font-mono text-3xl sm:text-4xl font-semibold ${
@@ -188,14 +194,12 @@ export default function SpotPressurePanel({
             </div>
           </div>
 
-          {isIncomplete && (
-            <p className="text-xs text-text-faint mt-3">
-              Datenbasis unvollstaendig fuer {selectedTf.label} — nur {candleCount}{" "}
-              von {expectedCandles} erwarteten 5-Min-Kerzen vorhanden (Collector
-              erst seit Kurzem aktiv oder Datenluecke). Werte oben basieren nur
-              auf den tatsaechlich vorhandenen Kerzen.
-            </p>
-          )}
+          <p className="text-xs text-text-faint mt-3">
+            Datenabdeckung: {candleCount} / {expectedCandles} Kerzen · Status:{" "}
+            {verdict.dataQuality}
+            {verdict.dataQuality !== "OK" &&
+              " — Verdikt basiert nur auf den tatsächlich vorhandenen Kerzen."}
+          </p>
 
           <div className="mt-4 pt-4 border-t border-border">
             {loading ? (
