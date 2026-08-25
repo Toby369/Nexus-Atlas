@@ -7,6 +7,7 @@ import type {
   MarketSeriesPoint,
   MarketSnapshot,
   NewsEvent,
+  OiChangeByExchange,
   PositioningSignal,
   PositioningSnapshot,
   SpotPressurePoint,
@@ -294,6 +295,19 @@ async function getSpotPressureSeries(sinceIso: string): Promise<SpotPressurePoin
   return data ?? [];
 }
 
+// OI-Change% je Boerse fuer denselben Zeitraum wie die uebrige Seite --
+// gleiche RPC wie der Client-Poll in LivePricePanel.tsx.
+async function getOiChangeByExchange(sinceIso: string): Promise<OiChangeByExchange[]> {
+  const { data, error } = await supabase.rpc("get_oi_change_by_exchange", {
+    p_since: sinceIso,
+  });
+  if (error) {
+    console.error("Fehler beim Laden der Boersen-OI-Aenderung:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
 export default async function Home({
   searchParams,
 }: {
@@ -325,6 +339,7 @@ export default async function Home({
     oiReferenceSnapshot,
     spotPressureSummary,
     spotPressureSeries,
+    oiByExchange,
   ] = await Promise.all([
     getSnapshotHistory(),
     getLatestCommentary(),
@@ -340,6 +355,7 @@ export default async function Home({
     getOiReferenceSnapshot(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getSpotPressureSummary(timeframeSinceIsoValue),
     getSpotPressureSeries(timeframeSinceIsoValue),
+    getOiChangeByExchange(timeframeSinceIsoValue),
   ]);
 
   return (
@@ -385,6 +401,7 @@ export default async function Home({
             initialSeriesData={oiSeriesData}
             initialReferenceSnapshot={oiReferenceSnapshot}
             initialFetchedSinceIso={timeframeSinceIsoValue}
+            initialOiByExchange={oiByExchange}
           />
           <SpotPressurePanel
             timeframe={timeframe}

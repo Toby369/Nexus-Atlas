@@ -6,6 +6,7 @@ import type {
   MarketCommentary,
   MarketSeriesPoint,
   MarketSnapshot,
+  OiChangeByExchange,
 } from "@/lib/types";
 import TimeSeriesChart from "@/components/TimeSeriesChart";
 import PriceOiComparisonChart from "@/components/PriceOiComparisonChart";
@@ -125,6 +126,20 @@ interface ReferenceSnapshot {
   open_interest: number | null;
 }
 
+// OI-Change% je Boerse fuer denselben Zeitraum, in einer RPC statt N
+// Einzelabfragen -- Basis fuer die "OI je Boerse"-Karte (Exchange
+// Divergence + UNAVAILABLE-Kennzeichnung fuer Boersen ohne OI-Route).
+async function fetchOiChangeByExchange(sinceIso: string): Promise<OiChangeByExchange[]> {
+  const { data, error } = await supabase.rpc("get_oi_change_by_exchange", {
+    p_since: sinceIso,
+  });
+  if (error) {
+    console.error("Fehler beim Laden der Boersen-OI-Aenderung:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
 export default function LivePricePanel({
   timeframe,
   initialSnapshots,
@@ -133,6 +148,7 @@ export default function LivePricePanel({
   initialSeriesData,
   initialReferenceSnapshot,
   initialFetchedSinceIso,
+  initialOiByExchange,
 }: {
   // Geteilter Zeitraum, gesteuert vom TimeframeSelector in app/page.tsx (URL-
   // Query-Param "tf") -- kein lokaler Timeframe-State mehr in dieser
@@ -145,6 +161,7 @@ export default function LivePricePanel({
   initialSeriesData: MarketSeriesPoint[];
   initialReferenceSnapshot: ReferenceSnapshot | null;
   initialFetchedSinceIso: string;
+  initialOiByExchange: OiChangeByExchange[];
 }) {
   // snapshots ist chronologisch aufsteigend (aeltester zuerst) fuer die Charts,
   // ausschliesslich Bybit als Referenzboerse.
@@ -168,11 +185,38 @@ export default function LivePricePanel({
   // Daten im Effekt gesetzt und spiegelt exakt das Fenster wider, das
   // wirklich geladen wurde.
   const [fetchedSinceIso, setFetchedSinceIso] = useState(initialFetchedSinceIso);
+  const [oiByExchange, setOiByExchange] = useState(initialOiByExchange);
   // Erster Render nutzt die serverseitig vorab geladenen Daten fuer den
   // Standard-Zeitraum (kein Ladeflackern beim initialen Seitenaufruf) --
   // nur ein tatsaechlicher Zeitraum-Wechsel durch den Nutzer loest sofort
   // einen Client-Fetch aus.
   const isFirstRun = useRef(true);
+  const isFirstOiByExchangeRun = useRef(true);
+
+  // Eigener, von der Boersen-Auswahl unabhaengiger Effekt: die "OI je
+  // Boerse"-Karte zeigt IMMER alle Boersen gleichzeitig, unabhaengig davon,
+  // welche im OI-Change-Dropdown ausgewaehlt ist -- haengt daher nur an
+  // timeframe, nicht an seriesExchange.
+  useEffect(() => {
+    let cancelled = false;
+    const tf = getTimeframe(timeframe);
+    const skipImmediateLoad = isFirstOiByExchangeRun.current;
+    isFirstOiByExchangeRun.current = false;
+
+    const load = async () => {
+      const sinceIso = new Date(Date.now() - tf.minutes * 60 * 1000).toISOString();
+      const entries = await fetchOiChangeByExchange(sinceIso);
+      if (cancelled) return;
+      setOiByExchange(entries);
+    };
+
+    if (!skipImmediateLoad) load();
+    const interval = setInterval(load, REFRESH_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [timeframe]);
 
   // Eigener Effekt pro Zeitraum+Boerse: aendert sich timeframe (von aussen
   // ueber die URL) oder seriesExchange (lokal), wird die alte Polling-
@@ -512,6 +556,8 @@ export default function LivePricePanel({
         <ExchangeComparisonCard snapshots={exchangeComparison} />
       )}
 
+      <ExchangeOiDivergenceCard entries={oiByExchange} tfLabel={selectedTf.label} />
+
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <Stat label="Mark Price" value={`$${formatUsd(latest.mark_price)}`} />
         <Stat
@@ -612,6 +658,68 @@ function ExchangeComparisonCard({ snapshots }: { snapshots: MarketSnapshot[] }) 
       <p className="text-xs text-text-faint mt-3">
         Abweichung vs. Bybit (Referenz) · rechts: Funding Rate je Börse. Bitunix
         liefert öffentlich kein Open Interest.
+      </p>
+    </div>
+  );
+}
+
+// Zeigt OI-Change% je Boerse fuer denselben Zeitraum wie der Rest der
+// Seite -- macht sichtbar, welche Boersen tatsaechlich zur "Aggregiert"-
+// Summe im OI-Change-Kachel oben beitragen (Vorgabe: Exchange Divergence,
+// "welche Boerse treibt eine Bewegung"). Bitunix wird explizit als
+// "UNAVAILABLE" gefuehrt statt stillschweigend zu fehlen, da diese Boerse
+// nachweislich keine oeffentliche OI-Route hat (siehe collect-btc).
+function ExchangeOiDivergenceCard({
+  entries,
+  tfLabel,
+}: {
+  entries: OiChangeByExchange[];
+  tfLabel: string;
+}) {
+  const byExchange = new Map(entries.map((e) => [e.exchange, e]));
+  const anyIncomplete = entries.some((e) => !e.has_full_history);
+
+  return (
+    <div className="rounded-lg border border-border bg-surface p-5">
+      <p className="text-xs uppercase tracking-[0.15em] text-text-muted mb-3">
+        OI je Börse · {tfLabel}
+      </p>
+      <div className="space-y-2">
+        {COMPARE_EXCHANGES.map((ex) => {
+          const data = byExchange.get(ex);
+          const isUnavailable = ex === "bitunix";
+
+          return (
+            <div key={ex} className="flex items-center justify-between text-sm">
+              <span className="text-text-muted w-20 flex-shrink-0">
+                {EXCHANGE_LABELS[ex] ?? ex}
+              </span>
+              {isUnavailable ? (
+                <span className="tabular font-mono text-xs text-text-faint flex-1 text-right">
+                  UNAVAILABLE
+                </span>
+              ) : data && data.oi_change_pct !== null ? (
+                <span
+                  className={`tabular font-mono flex-1 text-right ${
+                    data.oi_change_pct >= 0 ? "text-up" : "text-down"
+                  }`}
+                >
+                  {formatSignedPct(data.oi_change_pct)}
+                  {!data.has_full_history && " *"}
+                </span>
+              ) : (
+                <span className="tabular font-mono text-xs text-text-faint flex-1 text-right">
+                  —
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-xs text-text-faint mt-3">
+        Diese Börsen fliessen in &quot;Aggregiert&quot; ein. UNAVAILABLE = Börse
+        bietet öffentlich kein Open Interest.
+        {anyIncomplete && " * Historie für diesen Zeitraum noch unvollständig."}
       </p>
     </div>
   );

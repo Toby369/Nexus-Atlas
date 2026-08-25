@@ -108,6 +108,20 @@ export interface SpotPressureSummary {
   latest_timestamp_utc: string;
 }
 
+// Rueckgabezeile der get_oi_change_by_exchange-RPC: OI-Change% je Boerse
+// fuer denselben Zeitraum wie die uebrige Seite -- Basis fuer Exchange-
+// Divergence (welche Boerse treibt eine Bewegung) und die "UNAVAILABLE"-
+// Kennzeichnung bei Boersen ohne oeffentliche OI-Route.
+export interface OiChangeByExchange {
+  exchange: string;
+  oi_change_pct: number | null;
+  current_oi: number | null;
+  reference_oi: number | null;
+  reference_timestamp_utc: string | null;
+  current_timestamp_utc: string | null;
+  has_full_history: boolean;
+}
+
 export interface EtfFlowDay {
   id: number;
   flow_date: string;
