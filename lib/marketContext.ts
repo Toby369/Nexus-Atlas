@@ -22,10 +22,24 @@ export type MarketScenario =
   | "long_unwind"
   | "neutral";
 
+// Datenqualitaets-Tier fuer das Gesamt-Assessment -- unabhaengig vom
+// eigenen (Spot-spezifischen) Tier in lib/spotPressure.ts, aber mit
+// denselben drei Stufen, damit spaeter beide Werte konsistent an eine AI-
+// Auswertung uebergeben werden koennen (siehe Vorgabe Teil Q/T).
+export type MarketDataQuality = "OK" | "PRELIMINARY" | "INSUFFICIENT_DATA";
+
 export interface MarketContextInput {
   priceChangePct: number | null;
   oiChangePct: number | null;
   spotNetFlowPct: number | null;
+  // Deckt der OI-Referenzpunkt den gesamten gewaehlten Zeitraum ab (analog
+  // zu LivePricePanels hasFullHistory), oder wurde auf den aeltesten
+  // verfuegbaren Punkt zurueckgefallen, weil die Historie noch zu jung ist?
+  hasFullOiHistory: boolean;
+  // Datenqualitaets-Tier der Spot-Seite (aus classifySpotPressure) --
+  // fliesst mit ein, weil das Assessment Spot explizit als Bestaetigungs-
+  // quelle nutzt und eine duenne Spot-Stichprobe die Aussage schwaecht.
+  spotDataQuality: "OK" | "PRELIMINARY" | "INSUFFICIENT";
 }
 
 export interface MarketContextResult {
@@ -39,6 +53,9 @@ export interface MarketContextResult {
   // nicht ob das Szenario an sich positiv oder negativ ist (ein bestaetigter
   // Short-Aufbau ist trotzdem baerisch, nicht bullisch).
   bias: "bullish" | "bearish" | "neutral";
+  // Getrennt vom Szenario-Label: ob die zugrundeliegenden Daten fuer diesen
+  // Zeitraum vollstaendig genug sind, um dem Szenario zu vertrauen.
+  dataQuality: MarketDataQuality;
 }
 
 const PRICE_FLAT_THRESHOLD = 0.3;
@@ -102,17 +119,28 @@ export function classifyMarketContext({
   priceChangePct,
   oiChangePct,
   spotNetFlowPct,
+  hasFullOiHistory,
+  spotDataQuality,
 }: MarketContextInput): MarketContextResult {
   if (priceChangePct === null || oiChangePct === null) {
     return {
       scenario: null,
-      label: "Keine Daten",
+      label: "INSUFFICIENT DATA",
       confirmed: null,
       explanation:
         "Noch nicht genug Daten für eine Futures-vs-Spot-Einordnung in diesem Zeitraum.",
       bias: "neutral",
+      dataQuality: "INSUFFICIENT_DATA",
     };
   }
+
+  // OI/Preis vorhanden, aber entweder deckt die Historie den Zeitraum noch
+  // nicht voll ab, oder die Spot-Bestaetigung steht auf duenner Basis --
+  // das Szenario wird trotzdem berechnet (echte Daten, keine Erfindung),
+  // aber als PRELIMINARY gekennzeichnet statt stillschweigend wie ein
+  // voll abgesichertes Ergebnis behandelt zu werden.
+  const dataQuality: MarketDataQuality =
+    !hasFullOiHistory || spotDataQuality !== "OK" ? "PRELIMINARY" : "OK";
 
   const priceUp = priceChangePct > PRICE_FLAT_THRESHOLD;
   const priceDown = priceChangePct < -PRICE_FLAT_THRESHOLD;
@@ -133,6 +161,7 @@ export function classifyMarketContext({
       explanation:
         "Preis und/oder Open Interest bewegen sich aktuell zu wenig für eine belastbare Struktur-Einordnung.",
       bias: "neutral",
+      dataQuality,
     };
   }
 
@@ -153,5 +182,5 @@ export function classifyMarketContext({
     LABELS[scenario] +
     (spotUnknown ? "" : confirmed ? " (spotbestätigt)" : " (ohne Spot-Bestätigung)");
 
-  return { scenario, label, confirmed, explanation, bias: BIAS[scenario] };
+  return { scenario, label, confirmed, explanation, bias: BIAS[scenario], dataQuality };
 }

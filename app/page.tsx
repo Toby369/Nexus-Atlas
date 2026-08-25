@@ -390,6 +390,7 @@ export default async function Home({
             initialOiSeries={oiSeriesData}
             initialOiReference={oiReferenceSnapshot}
             initialSpotSummary={spotPressureSummary}
+            initialFetchedSinceIso={timeframeSinceIsoValue}
           />
 
           <TierLabel>Kernmetriken</TierLabel>

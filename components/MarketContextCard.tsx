@@ -6,10 +6,14 @@ import type { MarketSeriesPoint, SpotPressureSummary } from "@/lib/types";
 import { getTimeframe, type TimeframeId } from "@/lib/timeframes";
 import { DEFAULT_SERIES_EXCHANGE } from "@/lib/exchanges";
 import { classifyMarketContext } from "@/lib/marketContext";
+import { classifySpotPressure } from "@/lib/spotPressure";
 
 const REFRESH_INTERVAL_MS = 30_000;
 const SERIES_MAX_POINTS = 500;
-const COMPLETENESS_WARN_THRESHOLD = 0.8;
+// Referenzpunkt gilt als "kein voller Zeitraum verfuegbar", wenn er mehr als
+// 15 Min spaeter liegt als angefragt -- identische Toleranz wie in
+// LivePricePanel.tsx (siehe dortiger Kommentar).
+const HISTORY_GAP_TOLERANCE_MS = 15 * 60 * 1000;
 
 interface ReferenceSnapshot {
   timestamp_utc: string;
@@ -63,6 +67,7 @@ export default function MarketContextCard({
   initialOiSeries,
   initialOiReference,
   initialSpotSummary,
+  initialFetchedSinceIso,
 }: {
   // Geteilter Zeitraum aus app/page.tsx (URL-Query-Param "tf") -- vorher war
   // dieser Wert hier fest auf 4H codiert, unabhaengig von jeder UI-Auswahl.
@@ -72,10 +77,14 @@ export default function MarketContextCard({
   initialOiSeries: MarketSeriesPoint[];
   initialOiReference: ReferenceSnapshot | null;
   initialSpotSummary: SpotPressureSummary | null;
+  initialFetchedSinceIso: string;
 }) {
   const [oiSeries, setOiSeries] = useState(initialOiSeries);
   const [oiReference, setOiReference] = useState(initialOiReference);
   const [spotSummary, setSpotSummary] = useState(initialSpotSummary);
+  // Tatsaechlich abgefragte Fensteruntergrenze -- Basis fuer hasFullOiHistory
+  // unten (analog zu LivePricePanel.tsx, siehe dortiger Kommentar).
+  const [fetchedSinceIso, setFetchedSinceIso] = useState(initialFetchedSinceIso);
   // Beim allerersten Mount passen die initial*-Props bereits zum aktuellen
   // timeframe-Prop (serverseitig fuer genau diesen Zeitraum geladen) -- nur
   // ein tatsaechlicher Zeitraum-Wechsel ueber die URL loest sofort einen
@@ -99,6 +108,7 @@ export default function MarketContextCard({
       setOiSeries(series);
       setOiReference(reference);
       setSpotSummary(spot);
+      setFetchedSinceIso(sinceIso);
     };
 
     if (!skipImmediateLoad) load();
@@ -140,10 +150,26 @@ export default function MarketContextCard({
 
   const expectedSpotCandles = Math.max(1, Math.round(tf.minutes / 5));
   const spotCandleCount = spotSummary?.candle_count ?? 0;
-  const spotIncomplete =
-    spotSummary !== null && spotCandleCount / expectedSpotCandles < COMPLETENESS_WARN_THRESHOLD;
+  const spotVerdict = classifySpotPressure({
+    netFlowPct: spotNetFlowPct,
+    candleCount: spotCandleCount,
+    expectedCandles: expectedSpotCandles,
+  });
 
-  const result = classifyMarketContext({ priceChangePct, oiChangePct, spotNetFlowPct });
+  const requestedSinceMs = fetchedSinceIso ? new Date(fetchedSinceIso).getTime() : null;
+  const oiReferenceMs = oiReference ? new Date(oiReference.timestamp_utc).getTime() : null;
+  const hasFullOiHistory =
+    oiReferenceMs !== null && requestedSinceMs !== null
+      ? oiReferenceMs <= requestedSinceMs + HISTORY_GAP_TOLERANCE_MS
+      : false;
+
+  const result = classifyMarketContext({
+    priceChangePct,
+    oiChangePct,
+    spotNetFlowPct,
+    hasFullOiHistory,
+    spotDataQuality: spotVerdict.dataQuality,
+  });
 
   // Farbe zeigt die Richtung des Szenarios (bullisch/baerisch), nicht ob der
   // Spot-Markt es bestaetigt -- ein bestaetigter Short-Aufbau ist trotzdem
@@ -162,7 +188,10 @@ export default function MarketContextCard({
       </p>
 
       {result.scenario === null ? (
-        <p className="text-sm text-text-muted">{result.explanation}</p>
+        <>
+          <p className="text-xl sm:text-2xl font-semibold text-text">{result.label}</p>
+          <p className="text-sm text-text-muted mt-2">{result.explanation}</p>
+        </>
       ) : (
         <>
           <p className={`text-xl sm:text-2xl font-semibold ${badgeColor}`}>{result.label}</p>
@@ -172,13 +201,13 @@ export default function MarketContextCard({
             <span>OI {formatSignedPct(oiChangePct)}</span>
             <span>Spot-Flow {formatSignedPct(spotNetFlowPct)}</span>
           </div>
-          {spotIncomplete && (
-            <p className="text-xs text-text-faint mt-2">
-              Spot-Datenbasis für {tf.label} noch unvollständig ({spotCandleCount}/
-              {expectedSpotCandles} Kerzen) — Spot-Flow-Einordnung entsprechend
-              vorläufig.
-            </p>
-          )}
+          <p className="text-xs text-text-faint mt-2">
+            Datenqualität: {result.dataQuality}
+            {result.dataQuality !== "OK" &&
+              ` — Spot-Basis ${spotCandleCount}/${expectedSpotCandles} Kerzen${
+                !hasFullOiHistory ? ", OI-Historie für diesen Zeitraum unvollständig" : ""
+              }.`}
+          </p>
         </>
       )}
 
