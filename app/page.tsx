@@ -23,6 +23,7 @@ import NewsRiskPanel from "@/components/NewsRiskPanel";
 import LiquidationPanel from "@/components/LiquidationPanel";
 import EtfFlowPanel from "@/components/EtfFlowPanel";
 import SpotPressurePanel from "@/components/SpotPressurePanel";
+import MarketContextCard from "@/components/MarketContextCard";
 
 export const revalidate = 0;
 
@@ -349,6 +350,13 @@ export default async function Home() {
 
       <section className="flex-1 px-4 sm:px-6 py-8 max-w-3xl w-full mx-auto">
         <div className="space-y-4">
+          <MarketContextCard
+            initialOiSeries={oiSeriesData}
+            initialOiReference={oiReferenceSnapshot}
+            initialSpotSummary={spotPressureSummary}
+          />
+
+          <TierLabel>Kernmetriken</TierLabel>
           <LivePricePanel
             initialSnapshots={snapshots}
             initialCommentary={commentary}
@@ -361,6 +369,8 @@ export default async function Home() {
             initialSummary={spotPressureSummary}
             initialSeries={spotPressureSeries}
           />
+
+          <TierLabel>Positionierung &amp; Kapitalfluss</TierLabel>
           <PositioningPanel
             initialBinance={positioningBinance}
             initialBybit={positioningBybit}
@@ -369,6 +379,8 @@ export default async function Home() {
           />
           <LiquidationPanel initialEvents={recentLiquidations} />
           <EtfFlowPanel initialFlows={recentEtfFlows} macroNews={highImpactNews} />
+
+          <TierLabel>News &amp; Kontext</TierLabel>
           <NewsRiskPanel initialNews={highImpactNews} />
         </div>
       </section>
@@ -377,5 +389,18 @@ export default async function Home() {
         NEXUS Atlas · Persönliches Marktüberwachungs-Tool, keine Anlageberatung
       </footer>
     </main>
+  );
+}
+
+// Leichte Tier-Kennzeichnung der 4 Informationsebenen (Marktkontext-Verdikt
+// ganz oben ohne Label, dann Kernmetriken / Positionierung & Kapitalfluss /
+// News & Kontext) -- bewusst nur eine visuelle Gruppierung statt eines
+// eigenen Grid-Layouts, damit bestehende Panels und die mobile
+// Responsivitaet unveraendert bleiben.
+function TierLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-xs uppercase tracking-[0.2em] text-text-faint pt-2">
+      {children}
+    </p>
   );
 }
