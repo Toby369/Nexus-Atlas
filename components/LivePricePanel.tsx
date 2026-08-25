@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type {
   MarketCommentary,
@@ -128,14 +128,26 @@ async function fetchReferenceSnapshot(
   return fallback.data ?? null;
 }
 
+interface ReferenceSnapshot {
+  timestamp_utc: string;
+  last_price: number | null;
+  open_interest: number | null;
+}
+
 export default function LivePricePanel({
   initialSnapshots,
   initialCommentary,
   initialExchangeComparison,
+  initialSeriesData,
+  initialReferenceSnapshot,
+  initialFetchedSinceIso,
 }: {
   initialSnapshots: MarketSnapshot[];
   initialCommentary: MarketCommentary | null;
   initialExchangeComparison: MarketSnapshot[];
+  initialSeriesData: MarketSeriesPoint[];
+  initialReferenceSnapshot: ReferenceSnapshot | null;
+  initialFetchedSinceIso: string;
 }) {
   // snapshots ist chronologisch aufsteigend (aeltester zuerst) fuer die Charts,
   // ausschliesslich Bybit als Referenzboerse.
@@ -147,18 +159,21 @@ export default function LivePricePanel({
   const [isStale, setIsStale] = useState(false);
   const [lastSyncOk, setLastSyncOk] = useState(true);
   const [timeframe, setTimeframe] = useState<TimeframeId>(DEFAULT_TIMEFRAME);
-  const [seriesData, setSeriesData] = useState<MarketSeriesPoint[]>([]);
-  const [referenceSnapshot, setReferenceSnapshot] = useState<{
-    timestamp_utc: string;
-    last_price: number | null;
-    open_interest: number | null;
-  } | null>(null);
-  const [seriesLoading, setSeriesLoading] = useState(true);
+  const [seriesData, setSeriesData] = useState(initialSeriesData);
+  const [referenceSnapshot, setReferenceSnapshot] = useState(
+    initialReferenceSnapshot
+  );
+  const [seriesLoading, setSeriesLoading] = useState(false);
   // Tatsaechlich abgefragte Fensteruntergrenze (nicht mit Date.now() im
   // Render neu berechnet -- render muss pur bleiben). Wird zusammen mit den
   // Daten im Effekt gesetzt und spiegelt exakt das Fenster wider, das
   // wirklich geladen wurde.
-  const [fetchedSinceIso, setFetchedSinceIso] = useState<string | null>(null);
+  const [fetchedSinceIso, setFetchedSinceIso] = useState(initialFetchedSinceIso);
+  // Erster Render nutzt die serverseitig vorab geladenen Daten fuer den
+  // Standard-Zeitraum (kein Ladeflackern beim initialen Seitenaufruf) --
+  // nur ein tatsaechlicher Zeitraum-Wechsel durch den Nutzer loest sofort
+  // einen Client-Fetch aus.
+  const isFirstRun = useRef(true);
 
   // Eigener Effekt pro Zeitraum: aendert sich timeframe, wird die alte
   // Polling-Schleife sauber beendet und eine neue fuer das neue Fenster
@@ -167,6 +182,8 @@ export default function LivePricePanel({
   useEffect(() => {
     let cancelled = false;
     const tf = getTimeframe(timeframe);
+    const skipImmediateLoad = isFirstRun.current && timeframe === DEFAULT_TIMEFRAME;
+    isFirstRun.current = false;
 
     // showLoading nur beim allerersten Laden eines Zeitraums true -- sonst
     // wuerde jeder 30s-Hintergrund-Refresh den Chart kurz durch den
@@ -185,7 +202,7 @@ export default function LivePricePanel({
       setSeriesLoading(false);
     };
 
-    load(true);
+    if (!skipImmediateLoad) load(true);
     const interval = setInterval(() => load(false), REFRESH_INTERVAL_MS);
 
     return () => {

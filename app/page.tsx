@@ -3,11 +3,13 @@ import type {
   EtfFlowDay,
   LiquidationEvent,
   MarketCommentary,
+  MarketSeriesPoint,
   MarketSnapshot,
   NewsEvent,
   PositioningSignal,
   PositioningSnapshot,
 } from "@/lib/types";
+import { DEFAULT_TIMEFRAME, getTimeframe } from "@/lib/timeframes";
 import LivePricePanel from "@/components/LivePricePanel";
 import PositioningPanel from "@/components/PositioningPanel";
 import NewsRiskPanel from "@/components/NewsRiskPanel";
@@ -23,6 +25,7 @@ const NEWS_LOOKBACK_HOURS = 72;
 const LIQUIDATION_LOOKBACK_HOURS = 6;
 const LIQUIDATION_LIMIT = 300;
 const ETF_FLOW_LIMIT = 10;
+const SERIES_MAX_POINTS = 500;
 
 // 180 Punkte a 5 Min ~= 15 Std. Historie fuer die Zeitreihen-Charts.
 // Nur die Referenzboerse (Bybit), damit sich Kurse mehrerer Boersen nicht
@@ -203,7 +206,70 @@ async function getRecentEtfFlows(): Promise<EtfFlowDay[]> {
   return dedupeByDate(data ?? [], ETF_FLOW_LIMIT);
 }
 
+// Serverseitig heruntergesamplete Preis/OI-Zeitreihe fuer den Standard-
+// Zeitraum, ueber dieselbe RPC wie der Client-Poll in LivePricePanel.tsx
+// (siehe dortiger Kommentar: PostgREST kappt Antworten hart bei 1000
+// Zeilen, daher serverseitiges Downsampling statt einer Tabellenabfrage).
+async function getMarketSeries(
+  exchange: string,
+  sinceIso: string
+): Promise<MarketSeriesPoint[]> {
+  const { data, error } = await supabase.rpc("get_market_series", {
+    p_exchange: exchange,
+    p_since: sinceIso,
+    p_max_points: SERIES_MAX_POINTS,
+  });
+
+  if (error) {
+    console.error("Fehler beim Laden der Preis/OI-Zeitreihe:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
+// Naechstgelegener Datenpunkt vor dem Zeitraumbeginn, fuer die OI-Change%/
+// BTC-Change%-Berechnung. Faellt auf den aeltesten verfuegbaren Punkt
+// zurueck statt zu approximieren, falls die Historie noch nicht so weit
+// zurueckreicht.
+async function getOiReferenceSnapshot(
+  exchange: string,
+  cutoffIso: string
+): Promise<{
+  timestamp_utc: string;
+  last_price: number | null;
+  open_interest: number | null;
+} | null> {
+  const { data, error } = await supabase
+    .from("market_snapshots")
+    .select("timestamp_utc, last_price, open_interest")
+    .eq("status", "ok")
+    .eq("exchange", exchange)
+    .lte("timestamp_utc", cutoffIso)
+    .order("timestamp_utc", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!error && data) return data;
+
+  const fallback = await supabase
+    .from("market_snapshots")
+    .select("timestamp_utc, last_price, open_interest")
+    .eq("status", "ok")
+    .eq("exchange", exchange)
+    .order("timestamp_utc", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  return fallback.data ?? null;
+}
+
+function timeframeSinceIso(id: Parameters<typeof getTimeframe>[0]): string {
+  return new Date(Date.now() - getTimeframe(id).minutes * 60 * 1000).toISOString();
+}
+
 export default async function Home() {
+  const defaultTimeframeSinceIso = timeframeSinceIso(DEFAULT_TIMEFRAME);
+
   const [
     snapshots,
     commentary,
@@ -215,6 +281,8 @@ export default async function Home() {
     highImpactNews,
     recentLiquidations,
     recentEtfFlows,
+    oiSeriesData,
+    oiReferenceSnapshot,
   ] = await Promise.all([
     getSnapshotHistory(),
     getLatestCommentary(),
@@ -226,6 +294,8 @@ export default async function Home() {
     getHighImpactNews(),
     getRecentLiquidations(),
     getRecentEtfFlows(),
+    getMarketSeries(REFERENCE_EXCHANGE, defaultTimeframeSinceIso),
+    getOiReferenceSnapshot(REFERENCE_EXCHANGE, defaultTimeframeSinceIso),
   ]);
 
   return (
@@ -250,6 +320,9 @@ export default async function Home() {
             initialSnapshots={snapshots}
             initialCommentary={commentary}
             initialExchangeComparison={exchangeComparison}
+            initialSeriesData={oiSeriesData}
+            initialReferenceSnapshot={oiReferenceSnapshot}
+            initialFetchedSinceIso={defaultTimeframeSinceIso}
           />
           <PositioningPanel
             initialBinance={positioningBinance}
