@@ -86,6 +86,28 @@ export interface LiquidationEvent {
   created_at: string;
 }
 
+// Rueckgabezeile der get_spot_pressure_series-RPC (Binance-Spot-BTC-Kerzen,
+// 5-Min-Takt, siehe SpotPressurePanel.tsx).
+export interface SpotPressurePoint {
+  timestamp_utc: string;
+  last_price: number | null;
+  taker_buy_vol: number | null;
+  taker_sell_vol: number | null;
+}
+
+// Rueckgabezeile der get_spot_pressure_summary-RPC: exakte Summe ueber ein
+// Zeitfenster (nicht heruntergesamplet, im Gegensatz zu SpotPressurePoint).
+export interface SpotPressureSummary {
+  candle_count: number;
+  sum_taker_buy_vol: number | null;
+  sum_taker_sell_vol: number | null;
+  sum_taker_buy_quote_vol: number | null;
+  sum_taker_sell_quote_vol: number | null;
+  first_price: number | null;
+  last_price: number | null;
+  latest_timestamp_utc: string;
+}
+
 export interface EtfFlowDay {
   id: number;
   flow_date: string;

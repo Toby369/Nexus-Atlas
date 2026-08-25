@@ -8,14 +8,21 @@ import type {
   NewsEvent,
   PositioningSignal,
   PositioningSnapshot,
+  SpotPressurePoint,
+  SpotPressureSummary,
 } from "@/lib/types";
-import { DEFAULT_TIMEFRAME, getTimeframe } from "@/lib/timeframes";
+import {
+  DEFAULT_TIMEFRAME,
+  DEFAULT_SPOT_TIMEFRAME,
+  getTimeframe,
+} from "@/lib/timeframes";
 import { DEFAULT_SERIES_EXCHANGE } from "@/lib/exchanges";
 import LivePricePanel from "@/components/LivePricePanel";
 import PositioningPanel from "@/components/PositioningPanel";
 import NewsRiskPanel from "@/components/NewsRiskPanel";
 import LiquidationPanel from "@/components/LiquidationPanel";
 import EtfFlowPanel from "@/components/EtfFlowPanel";
+import SpotPressurePanel from "@/components/SpotPressurePanel";
 
 export const revalidate = 0;
 
@@ -258,8 +265,39 @@ function timeframeSinceIso(id: Parameters<typeof getTimeframe>[0]): string {
   return new Date(Date.now() - getTimeframe(id).minutes * 60 * 1000).toISOString();
 }
 
+const SPOT_SERIES_MAX_POINTS = 300;
+
+// Exakte Summe (kein Downsampling) fuer den Spot-Pressure-Headline-Wert,
+// serverseitig fuer den Standard-Zeitraum -- gleiche RPC wie der Client-Poll
+// in SpotPressurePanel.tsx.
+async function getSpotPressureSummary(
+  sinceIso: string
+): Promise<SpotPressureSummary | null> {
+  const { data, error } = await supabase.rpc("get_spot_pressure_summary", {
+    p_since: sinceIso,
+  });
+  if (error) {
+    console.error("Fehler beim Laden der Spot-Pressure-Summary:", error.message);
+    return null;
+  }
+  return data?.[0] ?? null;
+}
+
+async function getSpotPressureSeries(sinceIso: string): Promise<SpotPressurePoint[]> {
+  const { data, error } = await supabase.rpc("get_spot_pressure_series", {
+    p_since: sinceIso,
+    p_max_points: SPOT_SERIES_MAX_POINTS,
+  });
+  if (error) {
+    console.error("Fehler beim Laden der Spot-Pressure-Zeitreihe:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
 export default async function Home() {
   const defaultTimeframeSinceIso = timeframeSinceIso(DEFAULT_TIMEFRAME);
+  const defaultSpotTimeframeSinceIso = timeframeSinceIso(DEFAULT_SPOT_TIMEFRAME);
 
   const [
     snapshots,
@@ -274,6 +312,8 @@ export default async function Home() {
     recentEtfFlows,
     oiSeriesData,
     oiReferenceSnapshot,
+    spotPressureSummary,
+    spotPressureSeries,
   ] = await Promise.all([
     getSnapshotHistory(),
     getLatestCommentary(),
@@ -287,6 +327,8 @@ export default async function Home() {
     getRecentEtfFlows(),
     getMarketSeries(DEFAULT_SERIES_EXCHANGE, defaultTimeframeSinceIso),
     getOiReferenceSnapshot(DEFAULT_SERIES_EXCHANGE, defaultTimeframeSinceIso),
+    getSpotPressureSummary(defaultSpotTimeframeSinceIso),
+    getSpotPressureSeries(defaultSpotTimeframeSinceIso),
   ]);
 
   return (
@@ -314,6 +356,10 @@ export default async function Home() {
             initialSeriesData={oiSeriesData}
             initialReferenceSnapshot={oiReferenceSnapshot}
             initialFetchedSinceIso={defaultTimeframeSinceIso}
+          />
+          <SpotPressurePanel
+            initialSummary={spotPressureSummary}
+            initialSeries={spotPressureSeries}
           />
           <PositioningPanel
             initialBinance={positioningBinance}

@@ -21,6 +21,18 @@ export const TIMEFRAMES: TimeframeOption[] = [
 
 export const DEFAULT_TIMEFRAME: TimeframeId = "4H";
 
+// Fuer SpotPressurePanel: nur 1H/4H/24H, da diese Historie erst seit
+// Produktivstart des Spot-Pressure-Collectors existiert -- ein 1W/1M-Fenster
+// waere aktuell durchgehend "keine Daten". Kommt spaeter dazu, sobald genug
+// echte Historie vorliegt. Als Konstante hier (statt in der "use client"-
+// Panel-Komponente) definiert, damit app/page.tsx denselben Wert fuer den
+// serverseitigen Initial-Fetch verwenden kann, ohne aus einem Client-Modul
+// zu importieren.
+export const SPOT_TIMEFRAMES: TimeframeOption[] = TIMEFRAMES.filter(
+  (tf) => tf.id === "1H" || tf.id === "4H" || tf.id === "24H"
+);
+export const DEFAULT_SPOT_TIMEFRAME: TimeframeId = "4H";
+
 export function getTimeframe(id: TimeframeId): TimeframeOption {
   const tf = TIMEFRAMES.find((t) => t.id === id);
   if (!tf) throw new Error(`Unbekannter Zeitraum: ${id}`);
