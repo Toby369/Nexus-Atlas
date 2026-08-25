@@ -1,19 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { MarketSeriesPoint, SpotPressureSummary } from "@/lib/types";
-import { DEFAULT_TIMEFRAME, getTimeframe } from "@/lib/timeframes";
+import { getTimeframe, type TimeframeId } from "@/lib/timeframes";
 import { DEFAULT_SERIES_EXCHANGE } from "@/lib/exchanges";
 import { classifyMarketContext } from "@/lib/marketContext";
 
 const REFRESH_INTERVAL_MS = 30_000;
 const SERIES_MAX_POINTS = 500;
-// Bewusst fest auf den Standard-Zeitraum (4H), unabhaengig von den Selectors
-// in LivePricePanel/SpotPressurePanel -- der Marktkontext braucht ein
-// konsistentes, nicht vom Nutzer verschiebbares Fenster, sonst waeren
-// Preis-, OI- und Spot-Flow-Werte nicht mehr vergleichbar.
-const CONTEXT_TIMEFRAME = DEFAULT_TIMEFRAME;
 const COMPLETENESS_WARN_THRESHOLD = 0.8;
 
 interface ReferenceSnapshot {
@@ -64,10 +59,16 @@ async function fetchSpotSummary(sinceIso: string): Promise<SpotPressureSummary |
 }
 
 export default function MarketContextCard({
+  timeframe,
   initialOiSeries,
   initialOiReference,
   initialSpotSummary,
 }: {
+  // Geteilter Zeitraum aus app/page.tsx (URL-Query-Param "tf") -- vorher war
+  // dieser Wert hier fest auf 4H codiert, unabhaengig von jeder UI-Auswahl.
+  // Jetzt nutzt das Assessment exakt denselben Zeitraum wie OI Change/BTC
+  // Change/Chart/Spot-Flow, damit die Werte tatsaechlich vergleichbar sind.
+  timeframe: TimeframeId;
   initialOiSeries: MarketSeriesPoint[];
   initialOiReference: ReferenceSnapshot | null;
   initialSpotSummary: SpotPressureSummary | null;
@@ -75,12 +76,17 @@ export default function MarketContextCard({
   const [oiSeries, setOiSeries] = useState(initialOiSeries);
   const [oiReference, setOiReference] = useState(initialOiReference);
   const [spotSummary, setSpotSummary] = useState(initialSpotSummary);
+  // Beim allerersten Mount passen die initial*-Props bereits zum aktuellen
+  // timeframe-Prop (serverseitig fuer genau diesen Zeitraum geladen) -- nur
+  // ein tatsaechlicher Zeitraum-Wechsel ueber die URL loest sofort einen
+  // Client-Fetch aus, sonst uebernimmt der 30s-Poll die Aktualisierung.
+  const isFirstRun = useRef(true);
 
-  // Kein sofortiger Fetch beim Mount -- der Server hat den Standard-Zeitraum
-  // bereits geladen (initial*-Props), nur der 30s-Poll aktualisiert danach.
   useEffect(() => {
     let cancelled = false;
-    const tf = getTimeframe(CONTEXT_TIMEFRAME);
+    const tf = getTimeframe(timeframe);
+    const skipImmediateLoad = isFirstRun.current;
+    isFirstRun.current = false;
 
     const load = async () => {
       const sinceIso = new Date(Date.now() - tf.minutes * 60 * 1000).toISOString();
@@ -95,14 +101,15 @@ export default function MarketContextCard({
       setSpotSummary(spot);
     };
 
+    if (!skipImmediateLoad) load();
     const interval = setInterval(load, REFRESH_INTERVAL_MS);
     return () => {
       cancelled = true;
       clearInterval(interval);
     };
-  }, []);
+  }, [timeframe]);
 
-  const tf = getTimeframe(CONTEXT_TIMEFRAME);
+  const tf = getTimeframe(timeframe);
 
   const latestOiPoint = oiSeries.length > 0 ? oiSeries[oiSeries.length - 1] : null;
   const oiChangePct =

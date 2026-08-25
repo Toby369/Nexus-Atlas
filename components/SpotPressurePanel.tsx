@@ -4,12 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { SpotPressurePoint, SpotPressureSummary } from "@/lib/types";
 import SpotPressureChart from "@/components/SpotPressureChart";
-import {
-  SPOT_TIMEFRAMES,
-  DEFAULT_SPOT_TIMEFRAME,
-  getTimeframe,
-  type TimeframeId,
-} from "@/lib/timeframes";
+import { getTimeframe, type TimeframeId } from "@/lib/timeframes";
 
 const REFRESH_INTERVAL_MS = 30_000;
 const SERIES_MAX_POINTS = 300;
@@ -56,13 +51,16 @@ async function fetchSeries(sinceIso: string): Promise<SpotPressurePoint[]> {
 }
 
 export default function SpotPressurePanel({
+  timeframe,
   initialSummary,
   initialSeries,
 }: {
+  // Geteilter Zeitraum aus app/page.tsx (URL-Query-Param "tf") -- kein
+  // eigener, unabhaengiger Selector mehr (siehe LivePricePanel-Kommentar).
+  timeframe: TimeframeId;
   initialSummary: SpotPressureSummary | null;
   initialSeries: SpotPressurePoint[];
 }) {
-  const [timeframe, setTimeframe] = useState<TimeframeId>(DEFAULT_SPOT_TIMEFRAME);
   const [summary, setSummary] = useState(initialSummary);
   const [series, setSeries] = useState(initialSeries);
   const [loading, setLoading] = useState(false);
@@ -71,8 +69,7 @@ export default function SpotPressurePanel({
   useEffect(() => {
     let cancelled = false;
     const tf = getTimeframe(timeframe);
-    const skipImmediateLoad =
-      isFirstRun.current && timeframe === DEFAULT_SPOT_TIMEFRAME;
+    const skipImmediateLoad = isFirstRun.current;
     isFirstRun.current = false;
 
     const load = async (showLoading: boolean) => {
@@ -125,22 +122,7 @@ export default function SpotPressurePanel({
         <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
           Spot Pressure
         </p>
-        <div className="flex gap-1">
-          {SPOT_TIMEFRAMES.map((tf) => (
-            <button
-              key={tf.id}
-              type="button"
-              onClick={() => setTimeframe(tf.id)}
-              className={`px-2 py-1 text-xs rounded-md border transition-colors ${
-                timeframe === tf.id
-                  ? "border-accent/40 bg-accent/15 text-accent"
-                  : "border-transparent text-text-faint hover:text-text-muted"
-              }`}
-            >
-              {tf.label}
-            </button>
-          ))}
-        </div>
+        <p className="text-xs text-text-faint">{selectedTf.label}</p>
       </div>
 
       {!summary || candleCount === 0 ? (

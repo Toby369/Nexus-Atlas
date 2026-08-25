@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { supabase } from "@/lib/supabase";
 import type {
   EtfFlowDay,
@@ -11,11 +12,7 @@ import type {
   SpotPressurePoint,
   SpotPressureSummary,
 } from "@/lib/types";
-import {
-  DEFAULT_TIMEFRAME,
-  DEFAULT_SPOT_TIMEFRAME,
-  getTimeframe,
-} from "@/lib/timeframes";
+import { getTimeframe, parseTimeframe, type TimeframeId } from "@/lib/timeframes";
 import { DEFAULT_SERIES_EXCHANGE } from "@/lib/exchanges";
 import LivePricePanel from "@/components/LivePricePanel";
 import PositioningPanel from "@/components/PositioningPanel";
@@ -24,6 +21,7 @@ import LiquidationPanel from "@/components/LiquidationPanel";
 import EtfFlowPanel from "@/components/EtfFlowPanel";
 import SpotPressurePanel from "@/components/SpotPressurePanel";
 import MarketContextCard from "@/components/MarketContextCard";
+import TimeframeSelector from "@/components/TimeframeSelector";
 
 export const revalidate = 0;
 
@@ -262,7 +260,7 @@ async function getOiReferenceSnapshot(
   return data?.[0] ?? null;
 }
 
-function timeframeSinceIso(id: Parameters<typeof getTimeframe>[0]): string {
+function timeframeSinceIso(id: TimeframeId): string {
   return new Date(Date.now() - getTimeframe(id).minutes * 60 * 1000).toISOString();
 }
 
@@ -296,9 +294,21 @@ async function getSpotPressureSeries(sinceIso: string): Promise<SpotPressurePoin
   return data ?? [];
 }
 
-export default async function Home() {
-  const defaultTimeframeSinceIso = timeframeSinceIso(DEFAULT_TIMEFRAME);
-  const defaultSpotTimeframeSinceIso = timeframeSinceIso(DEFAULT_SPOT_TIMEFRAME);
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ tf?: string }>;
+}) {
+  // Einzige Zeitraum-Quelle fuer die gesamte Seite: der "tf"-URL-Query-Param,
+  // gesteuert vom TimeframeSelector unten. BTC-Change, OI-Change, Chart,
+  // Spot-Flow und das Marktkontext-Assessment werden alle mit demselben
+  // aufgeloesten Zeitraum berechnet -- keine unabhaengigen/versteckten
+  // Zeitraeume mehr (vorher: LivePricePanel, SpotPressurePanel und
+  // MarketContextCard hatten je einen eigenen, nicht synchronisierten
+  // Zeitraum-Zustand).
+  const { tf } = await searchParams;
+  const timeframe = parseTimeframe(tf);
+  const timeframeSinceIsoValue = timeframeSinceIso(timeframe);
 
   const [
     snapshots,
@@ -326,10 +336,10 @@ export default async function Home() {
     getHighImpactNews(),
     getRecentLiquidations(),
     getRecentEtfFlows(),
-    getMarketSeries(DEFAULT_SERIES_EXCHANGE, defaultTimeframeSinceIso),
-    getOiReferenceSnapshot(DEFAULT_SERIES_EXCHANGE, defaultTimeframeSinceIso),
-    getSpotPressureSummary(defaultSpotTimeframeSinceIso),
-    getSpotPressureSeries(defaultSpotTimeframeSinceIso),
+    getMarketSeries(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
+    getOiReferenceSnapshot(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
+    getSpotPressureSummary(timeframeSinceIsoValue),
+    getSpotPressureSeries(timeframeSinceIsoValue),
   ]);
 
   return (
@@ -350,7 +360,17 @@ export default async function Home() {
 
       <section className="flex-1 px-4 sm:px-6 py-8 max-w-3xl w-full mx-auto">
         <div className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <p className="text-xs uppercase tracking-[0.2em] text-text-faint">
+              Zeitraum
+            </p>
+            <Suspense fallback={<div className="h-6" />}>
+              <TimeframeSelector current={timeframe} />
+            </Suspense>
+          </div>
+
           <MarketContextCard
+            timeframe={timeframe}
             initialOiSeries={oiSeriesData}
             initialOiReference={oiReferenceSnapshot}
             initialSpotSummary={spotPressureSummary}
@@ -358,14 +378,16 @@ export default async function Home() {
 
           <TierLabel>Kernmetriken</TierLabel>
           <LivePricePanel
+            timeframe={timeframe}
             initialSnapshots={snapshots}
             initialCommentary={commentary}
             initialExchangeComparison={exchangeComparison}
             initialSeriesData={oiSeriesData}
             initialReferenceSnapshot={oiReferenceSnapshot}
-            initialFetchedSinceIso={defaultTimeframeSinceIso}
+            initialFetchedSinceIso={timeframeSinceIsoValue}
           />
           <SpotPressurePanel
+            timeframe={timeframe}
             initialSummary={spotPressureSummary}
             initialSeries={spotPressureSeries}
           />

@@ -9,12 +9,7 @@ import type {
 } from "@/lib/types";
 import TimeSeriesChart from "@/components/TimeSeriesChart";
 import PriceOiComparisonChart from "@/components/PriceOiComparisonChart";
-import {
-  DEFAULT_TIMEFRAME,
-  TIMEFRAMES,
-  getTimeframe,
-  type TimeframeId,
-} from "@/lib/timeframes";
+import { getTimeframe, type TimeframeId } from "@/lib/timeframes";
 import {
   DEFAULT_SERIES_EXCHANGE,
   SERIES_EXCHANGES,
@@ -131,6 +126,7 @@ interface ReferenceSnapshot {
 }
 
 export default function LivePricePanel({
+  timeframe,
   initialSnapshots,
   initialCommentary,
   initialExchangeComparison,
@@ -138,6 +134,11 @@ export default function LivePricePanel({
   initialReferenceSnapshot,
   initialFetchedSinceIso,
 }: {
+  // Geteilter Zeitraum, gesteuert vom TimeframeSelector in app/page.tsx (URL-
+  // Query-Param "tf") -- kein lokaler Timeframe-State mehr in dieser
+  // Komponente, damit OI Change/BTC Change/Chart garantiert denselben
+  // Zeitraum verwenden wie SpotPressurePanel und MarketContextCard.
+  timeframe: TimeframeId;
   initialSnapshots: MarketSnapshot[];
   initialCommentary: MarketCommentary | null;
   initialExchangeComparison: MarketSnapshot[];
@@ -154,7 +155,6 @@ export default function LivePricePanel({
   );
   const [isStale, setIsStale] = useState(false);
   const [lastSyncOk, setLastSyncOk] = useState(true);
-  const [timeframe, setTimeframe] = useState<TimeframeId>(DEFAULT_TIMEFRAME);
   const [seriesExchange, setSeriesExchange] = useState<SeriesExchangeId>(
     DEFAULT_SERIES_EXCHANGE
   );
@@ -174,17 +174,20 @@ export default function LivePricePanel({
   // einen Client-Fetch aus.
   const isFirstRun = useRef(true);
 
-  // Eigener Effekt pro Zeitraum+Boerse: aendert sich timeframe oder
-  // seriesExchange, wird die alte Polling-Schleife sauber beendet und eine
-  // neue fuer das neue Fenster gestartet (OI Change %, BTC Change % und der
-  // Chart haengen alle am selben Zeitraum+Boerse, siehe Vorgabe Punkt 2+3+4).
+  // Eigener Effekt pro Zeitraum+Boerse: aendert sich timeframe (von aussen
+  // ueber die URL) oder seriesExchange (lokal), wird die alte Polling-
+  // Schleife sauber beendet und eine neue fuer das neue Fenster gestartet
+  // (OI Change %, BTC Change % und der Chart haengen alle am selben
+  // Zeitraum+Boerse, siehe Vorgabe Punkt 2+3+4). Beim allerersten Mount
+  // passen initialSeriesData/initialReferenceSnapshot immer bereits zum
+  // aktuellen timeframe-Prop (serverseitig fuer genau diesen Zeitraum
+  // geladen) -- nur die Boerse ist rein clientseitiger Zustand, daher der
+  // Default-Exchange-Check.
   useEffect(() => {
     let cancelled = false;
     const tf = getTimeframe(timeframe);
     const skipImmediateLoad =
-      isFirstRun.current &&
-      timeframe === DEFAULT_TIMEFRAME &&
-      seriesExchange === DEFAULT_SERIES_EXCHANGE;
+      isFirstRun.current && seriesExchange === DEFAULT_SERIES_EXCHANGE;
     isFirstRun.current = false;
 
     // showLoading nur beim allerersten Laden eines Zeitraums true -- sonst
@@ -414,38 +417,20 @@ export default function LivePricePanel({
 
       <div className="rounded-lg border border-border bg-surface p-5">
         <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
-          <div className="flex items-center gap-2">
-            <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
-              OI Change
-            </p>
-            <select
-              value={seriesExchange}
-              onChange={(e) => setSeriesExchange(e.target.value as SeriesExchangeId)}
-              className="text-xs rounded-md border border-border bg-surface-raised text-text-muted px-2 py-1 focus:outline-none focus:border-accent/40"
-            >
-              {SERIES_EXCHANGES.map((ex) => (
-                <option key={ex.id} value={ex.id}>
-                  {ex.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex gap-1">
-            {TIMEFRAMES.map((tf) => (
-              <button
-                key={tf.id}
-                type="button"
-                onClick={() => setTimeframe(tf.id)}
-                className={`px-2 py-1 text-xs rounded-md border transition-colors ${
-                  timeframe === tf.id
-                    ? "border-accent/40 bg-accent/15 text-accent"
-                    : "border-transparent text-text-faint hover:text-text-muted"
-                }`}
-              >
-                {tf.label}
-              </button>
+          <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+            OI Change
+          </p>
+          <select
+            value={seriesExchange}
+            onChange={(e) => setSeriesExchange(e.target.value as SeriesExchangeId)}
+            className="text-xs rounded-md border border-border bg-surface-raised text-text-muted px-2 py-1 focus:outline-none focus:border-accent/40"
+          >
+            {SERIES_EXCHANGES.map((ex) => (
+              <option key={ex.id} value={ex.id}>
+                {ex.label}
+              </option>
             ))}
-          </div>
+          </select>
         </div>
 
         <div className="flex items-end gap-6 flex-wrap mb-1">
