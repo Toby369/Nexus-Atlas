@@ -2,12 +2,28 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import type { MarketCommentary, MarketSnapshot } from "@/lib/types";
+import type {
+  MarketCommentary,
+  MarketSeriesPoint,
+  MarketSnapshot,
+} from "@/lib/types";
 import TimeSeriesChart from "@/components/TimeSeriesChart";
+import PriceOiComparisonChart from "@/components/PriceOiComparisonChart";
+import {
+  DEFAULT_TIMEFRAME,
+  TIMEFRAMES,
+  getTimeframe,
+  type TimeframeId,
+} from "@/lib/timeframes";
 
 const REFRESH_INTERVAL_MS = 30_000;
 const HISTORY_LIMIT = 180; // ~15 Std bei 5-Min-Takt
 const REFERENCE_EXCHANGE = "bybit";
+const SERIES_MAX_POINTS = 500;
+// Referenzpunkt gilt als "kein voller Zeitraum verfuegbar", wenn er mehr als
+// 15 Min spaeter liegt als angefragt -- kleine Luecken durch den 5-Min-Takt
+// sind normal, ein grosser Abstand bedeutet: noch keine ausreichende Historie.
+const HISTORY_GAP_TOLERANCE_MS = 15 * 60 * 1000;
 const COMPARE_EXCHANGES = ["bybit", "binance", "bitunix", "pionex"];
 const EXCHANGE_LABELS: Record<string, string> = {
   bybit: "Bybit",
@@ -31,6 +47,11 @@ function formatPercent(value: number | null) {
   return `${(value * 100).toFixed(4)}%`;
 }
 
+function formatSignedPct(value: number | null) {
+  if (value === null || Number.isNaN(value)) return "—";
+  return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
+}
+
 function timeAgo(iso: string) {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   if (seconds < 60) return `vor ${seconds}s`;
@@ -45,6 +66,66 @@ function clockTime(iso: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+// Heruntergesamplete Zeitreihe fuer den Price/OI-Chart -- ueber die
+// get_market_series-RPC statt einer direkten Tabellenabfrage, weil
+// PostgREST auf diesem Projekt Antworten hart bei 1000 Zeilen kappt und ein
+// 1W/1M-Fenster im 5-Min-Takt das ueberschreiten wuerde (siehe RPC-Kommentar
+// in der Migration fuer Details/Beleg).
+async function fetchSeries(
+  exchange: string,
+  sinceIso: string
+): Promise<MarketSeriesPoint[]> {
+  const { data, error } = await supabase.rpc("get_market_series", {
+    p_exchange: exchange,
+    p_since: sinceIso,
+    p_max_points: SERIES_MAX_POINTS,
+  });
+
+  if (error) {
+    console.error("Fehler beim Laden der Preis/OI-Zeitreihe:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
+// Naechstgelegener Datenpunkt VOR dem Zeitraumbeginn, fuer die exakte
+// Change%-Berechnung (current vs. historical). Braucht nur eine Zeile, daher
+// nie vom PostgREST-Row-Cap betroffen.
+async function fetchReferenceSnapshot(
+  exchange: string,
+  cutoffIso: string
+): Promise<{
+  timestamp_utc: string;
+  last_price: number | null;
+  open_interest: number | null;
+} | null> {
+  const { data, error } = await supabase
+    .from("market_snapshots")
+    .select("timestamp_utc, last_price, open_interest")
+    .eq("status", "ok")
+    .eq("exchange", exchange)
+    .lte("timestamp_utc", cutoffIso)
+    .order("timestamp_utc", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!error && data) return data;
+
+  // Noch keine Historie so weit zurueck (z.B. 1M kurz nach Projektstart) --
+  // aeltesten tatsaechlich vorhandenen Punkt nehmen statt zu approximieren.
+  // Wird im UI transparent mit dem echten Zeitstempel gekennzeichnet.
+  const fallback = await supabase
+    .from("market_snapshots")
+    .select("timestamp_utc, last_price, open_interest")
+    .eq("status", "ok")
+    .eq("exchange", exchange)
+    .order("timestamp_utc", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  return fallback.data ?? null;
 }
 
 export default function LivePricePanel({
@@ -65,6 +146,53 @@ export default function LivePricePanel({
   );
   const [isStale, setIsStale] = useState(false);
   const [lastSyncOk, setLastSyncOk] = useState(true);
+  const [timeframe, setTimeframe] = useState<TimeframeId>(DEFAULT_TIMEFRAME);
+  const [seriesData, setSeriesData] = useState<MarketSeriesPoint[]>([]);
+  const [referenceSnapshot, setReferenceSnapshot] = useState<{
+    timestamp_utc: string;
+    last_price: number | null;
+    open_interest: number | null;
+  } | null>(null);
+  const [seriesLoading, setSeriesLoading] = useState(true);
+  // Tatsaechlich abgefragte Fensteruntergrenze (nicht mit Date.now() im
+  // Render neu berechnet -- render muss pur bleiben). Wird zusammen mit den
+  // Daten im Effekt gesetzt und spiegelt exakt das Fenster wider, das
+  // wirklich geladen wurde.
+  const [fetchedSinceIso, setFetchedSinceIso] = useState<string | null>(null);
+
+  // Eigener Effekt pro Zeitraum: aendert sich timeframe, wird die alte
+  // Polling-Schleife sauber beendet und eine neue fuer das neue Fenster
+  // gestartet (OI Change %, BTC Change % und der Chart haengen alle am
+  // selben Zeitraum, siehe Vorgabe Punkt 2+3).
+  useEffect(() => {
+    let cancelled = false;
+    const tf = getTimeframe(timeframe);
+
+    // showLoading nur beim allerersten Laden eines Zeitraums true -- sonst
+    // wuerde jeder 30s-Hintergrund-Refresh den Chart kurz durch den
+    // "Lade..."-Platzhalter ersetzen (Flackern).
+    const load = async (showLoading: boolean) => {
+      if (showLoading) setSeriesLoading(true);
+      const sinceIso = new Date(Date.now() - tf.minutes * 60 * 1000).toISOString();
+      const [series, reference] = await Promise.all([
+        fetchSeries(REFERENCE_EXCHANGE, sinceIso),
+        fetchReferenceSnapshot(REFERENCE_EXCHANGE, sinceIso),
+      ]);
+      if (cancelled) return;
+      setSeriesData(series);
+      setReferenceSnapshot(reference);
+      setFetchedSinceIso(sinceIso);
+      setSeriesLoading(false);
+    };
+
+    load(true);
+    const interval = setInterval(() => load(false), REFRESH_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [timeframe]);
 
   useEffect(() => {
     const fetchLatest = async () => {
@@ -153,12 +281,40 @@ export default function LivePricePanel({
   const priceSeries = snapshots
     .filter((s) => s.last_price != null)
     .map((s) => ({ t: s.timestamp_utc, v: s.last_price as number }));
-  const oiSeries = snapshots
-    .filter((s) => s.open_interest != null)
-    .map((s) => ({ t: s.timestamp_utc, v: s.open_interest as number }));
   const fundingSeries = snapshots
     .filter((s) => s.funding_rate != null)
     .map((s) => ({ t: s.timestamp_utc, v: (s.funding_rate as number) * 100 }));
+
+  // OI Change % / BTC Change % ueber den gewaehlten Zeitraum: aktueller Wert
+  // (latest, immer der frischeste Datenpunkt) gegen den echten historischen
+  // Referenzpunkt -- niemals approximiert (Vorgabe Punkt 1+10).
+  const oiChangePct =
+    latest.open_interest !== null &&
+    referenceSnapshot?.open_interest !== null &&
+    referenceSnapshot?.open_interest !== undefined
+      ? ((latest.open_interest - referenceSnapshot.open_interest) /
+          referenceSnapshot.open_interest) *
+        100
+      : null;
+
+  const btcChangePct =
+    latest.last_price !== null &&
+    referenceSnapshot?.last_price !== null &&
+    referenceSnapshot?.last_price !== undefined
+      ? ((latest.last_price - referenceSnapshot.last_price) /
+          referenceSnapshot.last_price) *
+        100
+      : null;
+
+  const selectedTf = getTimeframe(timeframe);
+  const requestedSinceMs = fetchedSinceIso ? new Date(fetchedSinceIso).getTime() : null;
+  const referenceMs = referenceSnapshot
+    ? new Date(referenceSnapshot.timestamp_utc).getTime()
+    : null;
+  const hasFullHistory =
+    referenceMs !== null && requestedSinceMs !== null
+      ? referenceMs <= requestedSinceMs + HISTORY_GAP_TOLERANCE_MS
+      : false;
 
   return (
     <div className="space-y-4">
@@ -226,6 +382,88 @@ export default function LivePricePanel({
         </div>
       </div>
 
+      <div className="rounded-lg border border-border bg-surface p-5">
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+          <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+            OI Change
+          </p>
+          <div className="flex gap-1">
+            {TIMEFRAMES.map((tf) => (
+              <button
+                key={tf.id}
+                type="button"
+                onClick={() => setTimeframe(tf.id)}
+                className={`px-2 py-1 text-xs rounded-md border transition-colors ${
+                  timeframe === tf.id
+                    ? "border-accent/40 bg-accent/15 text-accent"
+                    : "border-transparent text-text-faint hover:text-text-muted"
+                }`}
+              >
+                {tf.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-end gap-6 flex-wrap mb-1">
+          <div>
+            <span
+              className={`tabular font-mono text-3xl sm:text-4xl font-semibold ${
+                oiChangePct === null
+                  ? "text-text-faint"
+                  : oiChangePct >= 0
+                  ? "text-up"
+                  : "text-down"
+              }`}
+            >
+              {formatSignedPct(oiChangePct)}
+            </span>
+            <p className="text-xs text-text-faint mt-1">
+              Open Interest · {selectedTf.label}
+            </p>
+          </div>
+          <div>
+            <span
+              className={`tabular font-mono text-lg font-medium ${
+                btcChangePct === null
+                  ? "text-text-faint"
+                  : btcChangePct >= 0
+                  ? "text-up"
+                  : "text-down"
+              }`}
+            >
+              {formatSignedPct(btcChangePct)}
+            </span>
+            <p className="text-xs text-text-faint mt-1">
+              BTC Preis · {selectedTf.label}
+            </p>
+          </div>
+        </div>
+
+        {!hasFullHistory && referenceSnapshot && (
+          <p className="text-xs text-text-faint mb-3">
+            Noch keine volle {selectedTf.label}-Historie — Basis ist der
+            älteste verfügbare Datenpunkt ({clockTime(referenceSnapshot.timestamp_utc)}
+            {", "}
+            {new Date(referenceSnapshot.timestamp_utc).toLocaleDateString("de-CH", {
+              day: "2-digit",
+              month: "short",
+            })}
+            ).
+          </p>
+        )}
+
+        <div className="mt-4 pt-4 border-t border-border">
+          {seriesLoading ? (
+            <div className="h-[180px] flex items-center justify-center text-xs text-text-faint">
+              Lade Zeitreihe…
+            </div>
+          ) : (
+            <PriceOiComparisonChart data={seriesData} />
+          )}
+        </div>
+      </div>
+
       {commentary && (
         <div className="rounded-lg border border-border bg-surface-raised p-5">
           <div className="flex items-center justify-between mb-2">
@@ -274,15 +512,7 @@ export default function LivePricePanel({
         />
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-3">
-        <ChartCard title="Open Interest (BTC)">
-          <TimeSeriesChart
-            data={oiSeries}
-            color="#8b9198"
-            formatValue={(v) => `${formatUsd(v, 0)} BTC`}
-            formatTooltipTime={clockTime}
-          />
-        </ChartCard>
+      <div className="grid gap-3">
         <ChartCard title="Funding Rate (%)">
           <TimeSeriesChart
             data={fundingSeries}

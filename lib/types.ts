@@ -15,6 +15,14 @@ export interface MarketSnapshot {
   created_at: string;
 }
 
+// Rueckgabezeile der get_market_series-RPC (serverseitig heruntergesamplete
+// Preis-/OI-Zeitreihe je Boerse, siehe lib/timeframes.ts).
+export interface MarketSeriesPoint {
+  timestamp_utc: string;
+  last_price: number | null;
+  open_interest: number | null;
+}
+
 export interface MarketCommentary {
   id: number;
   generated_at: string;
