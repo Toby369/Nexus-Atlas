@@ -36,6 +36,10 @@ const FACTOR_LABELS: Record<string, string> = {
   macro: "Makro-Regime",
   funding: "Funding-Rate",
   sentiment: "Fear & Greed Index",
+  trend_strength: "Trend-Stärke (ADX)",
+  trend_regime: "Trend-Regime (EMA50/200)",
+  vwap_position: "Preis vs. VWAP",
+  basis: "Basis (Perpetual Premium)",
 };
 
 // Feste Reihenfolge statt Objekt-Iterationsreihenfolge der DB/JSON-Antwort,
@@ -51,6 +55,10 @@ const FACTOR_ORDER = [
   "macro",
   "funding",
   "sentiment",
+  "trend_strength",
+  "trend_regime",
+  "vwap_position",
+  "basis",
 ];
 
 function factorLabel(value: -1 | 0 | 1 | null): string {
@@ -205,7 +213,7 @@ export default function MarketStateCard({
       )}
 
       <p className="text-xs text-text-faint pt-1">
-        Kombiniert 10 unabhängige Datenquellen zu einem Gesamtzustand — Rohmaterial für eine
+        Kombiniert 14 unabhängige Datenquellen zu einem Gesamtzustand — Rohmaterial für eine
         Einordnung, kein Handelssignal.
       </p>
     </div>
