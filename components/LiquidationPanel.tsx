@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { LiquidationEvent } from "@/lib/types";
+import PanelInfo from "@/components/PanelInfo";
+import { liquidationsInfo } from "@/lib/panelInfo";
 
 const REFRESH_INTERVAL_MS = 60_000;
 const LOOKBACK_HOURS = 6;
@@ -89,9 +91,12 @@ export default function LiquidationPanel({
 
   return (
     <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
-      <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
-        Liquidationen
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+          Liquidationen
+        </p>
+        <PanelInfo title="Liquidationen" content={liquidationsInfo} />
+      </div>
 
       {!lastSyncOk && events.length > 0 && (
         <p className="text-xs text-down">

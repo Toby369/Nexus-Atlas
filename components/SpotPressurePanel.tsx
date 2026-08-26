@@ -6,6 +6,8 @@ import type { SpotPressurePoint, SpotPressureSummary } from "@/lib/types";
 import SpotPressureChart from "@/components/SpotPressureChart";
 import { getTimeframe, type TimeframeId } from "@/lib/timeframes";
 import { classifySpotPressure } from "@/lib/spotPressure";
+import PanelInfo from "@/components/PanelInfo";
+import { spotPressureInfo } from "@/lib/panelInfo";
 
 const REFRESH_INTERVAL_MS = 30_000;
 const SERIES_MAX_POINTS = 300;
@@ -121,9 +123,12 @@ export default function SpotPressurePanel({
   return (
     <div className="rounded-lg border border-border bg-surface p-5">
       <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
-        <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
-          Spot Pressure
-        </p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+            Spot Pressure
+          </p>
+          <PanelInfo title="Spot Pressure" content={spotPressureInfo(selectedTf.label)} />
+        </div>
         <p className="text-xs text-text-faint">{selectedTf.label}</p>
       </div>
 

@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { NewsEvent } from "@/lib/types";
+import PanelInfo from "@/components/PanelInfo";
+import { newsRiskInfo } from "@/lib/panelInfo";
 
 const REFRESH_INTERVAL_MS = 60_000;
 const NEWS_LIMIT = 5;
@@ -82,9 +84,12 @@ export default function NewsRiskPanel({
 
   return (
     <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
-      <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
-        News Risk
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+          News Risk
+        </p>
+        <PanelInfo title="News Risk" content={newsRiskInfo} />
+      </div>
 
       {!lastSyncOk && news.length > 0 && (
         <p className="text-xs text-down">

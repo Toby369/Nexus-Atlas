@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { EtfFlowDay, NewsEvent } from "@/lib/types";
+import PanelInfo from "@/components/PanelInfo";
+import { etfMacroInfo } from "@/lib/panelInfo";
 
 // ETF-Flow-Daten aendern sich hoechstens 1x/Tag (T+1) -- seltenes Polling
 // reicht, kein 30s-Live-Takt noetig wie bei Preis/Positioning.
@@ -161,9 +163,12 @@ export default function EtfFlowPanel({
 
   return (
     <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
-      <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
-        ETF-Flows &amp; Makro
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+          ETF-Flows &amp; Makro
+        </p>
+        <PanelInfo title="ETF-Flows & Makro" content={etfMacroInfo} />
+      </div>
 
       {!lastSyncOk && (
         <p className="text-xs text-down">

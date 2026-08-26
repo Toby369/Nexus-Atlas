@@ -10,6 +10,16 @@ import type {
 } from "@/lib/types";
 import TimeSeriesChart from "@/components/TimeSeriesChart";
 import PriceOiComparisonChart from "@/components/PriceOiComparisonChart";
+import PanelInfo from "@/components/PanelInfo";
+import {
+  btcPriceInfo,
+  oiChangeInfo,
+  btcOiChartInfo,
+  kurznotizInfo,
+  exchangeComparisonInfo,
+  exchangeDivergenceInfo,
+  fundingRateInfo,
+} from "@/lib/panelInfo";
 import { getTimeframe, type TimeframeId } from "@/lib/timeframes";
 import {
   DEFAULT_SERIES_EXCHANGE,
@@ -417,14 +427,17 @@ export default function LivePricePanel({
       </div>
 
       <div className="rounded-lg border border-border bg-surface p-6 sm:p-8">
-        <div className="flex items-center gap-2 mb-3">
-          <span
-            className="live-dot inline-block h-2 w-2 rounded-full bg-accent"
-            aria-hidden
-          />
-          <span className="text-xs uppercase tracking-[0.15em] text-text-muted">
-            {latest.symbol} · {latest.exchange} Perpetual
-          </span>
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2">
+            <span
+              className="live-dot inline-block h-2 w-2 rounded-full bg-accent"
+              aria-hidden
+            />
+            <span className="text-xs uppercase tracking-[0.15em] text-text-muted">
+              {latest.symbol} · {latest.exchange} Perpetual
+            </span>
+          </div>
+          <PanelInfo title="BTC Preis" content={btcPriceInfo} />
         </div>
 
         <div className="flex items-baseline gap-3 flex-wrap">
@@ -461,9 +474,12 @@ export default function LivePricePanel({
 
       <div className="rounded-lg border border-border bg-surface p-5">
         <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
-          <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
-            OI Change
-          </p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+              OI Change
+            </p>
+            <PanelInfo title="OI Change" content={oiChangeInfo(selectedTf.label)} />
+          </div>
           <select
             value={seriesExchange}
             onChange={(e) => setSeriesExchange(e.target.value as SeriesExchangeId)}
@@ -526,6 +542,12 @@ export default function LivePricePanel({
         )}
 
         <div className="mt-4 pt-4 border-t border-border">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-text-muted uppercase tracking-wide">
+              Preis/OI-Vergleich
+            </p>
+            <PanelInfo title="BTC/OI Chart" content={btcOiChartInfo(selectedTf.label)} />
+          </div>
           {seriesLoading ? (
             <div className="h-[180px] flex items-center justify-center text-xs text-text-faint">
               Lade Zeitreihe…
@@ -539,9 +561,12 @@ export default function LivePricePanel({
       {commentary && (
         <div className="rounded-lg border border-border bg-surface-raised p-5">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
-              Kurznotiz (automatisch, Bybit)
-            </p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+                Kurznotiz (automatisch, Bybit)
+              </p>
+              <PanelInfo title="Kurznotiz" content={kurznotizInfo} />
+            </div>
             <span className="text-xs text-text-faint">
               {timeAgo(commentary.generated_at)}
             </span>
@@ -592,7 +617,10 @@ export default function LivePricePanel({
       </div>
 
       <div className="grid gap-3">
-        <ChartCard title="Funding Rate (%)">
+        <ChartCard
+          title="Funding Rate (%)"
+          info={<PanelInfo title="Funding Rate" content={fundingRateInfo} />}
+        >
           <TimeSeriesChart
             data={fundingSeries}
             color="#4fae7c"
@@ -617,9 +645,12 @@ function ExchangeComparisonCard({ snapshots }: { snapshots: MarketSnapshot[] }) 
 
   return (
     <div className="rounded-lg border border-border bg-surface p-5">
-      <p className="text-xs uppercase tracking-[0.15em] text-text-muted mb-3">
-        Börsenvergleich
-      </p>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+          Börsenvergleich
+        </p>
+        <PanelInfo title="Börsenvergleich" content={exchangeComparisonInfo} />
+      </div>
       <div className="space-y-2">
         {ordered.map((s) => {
           const deviationPct =
@@ -686,9 +717,12 @@ function ExchangeOiDivergenceCard({
 
   return (
     <div className="rounded-lg border border-border bg-surface p-5">
-      <p className="text-xs uppercase tracking-[0.15em] text-text-muted mb-3">
-        OI je Börse · {tfLabel}
-      </p>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+          OI je Börse · {tfLabel}
+        </p>
+        <PanelInfo title="OI je Börse" content={exchangeDivergenceInfo(tfLabel)} />
+      </div>
       <div className="space-y-2">
         {COMPARE_EXCHANGES.map((ex) => {
           const data = byExchange.get(ex);
@@ -743,16 +777,21 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 function ChartCard({
   title,
+  info,
   children,
 }: {
   title: string;
+  info?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <div className="rounded-lg border border-border bg-surface p-4">
-      <p className="text-xs text-text-muted uppercase tracking-wide mb-1">
-        {title}
-      </p>
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-xs text-text-muted uppercase tracking-wide">
+          {title}
+        </p>
+        {info}
+      </div>
       {children}
     </div>
   );

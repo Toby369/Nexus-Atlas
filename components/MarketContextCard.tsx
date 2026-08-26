@@ -7,6 +7,8 @@ import { getTimeframe, type TimeframeId } from "@/lib/timeframes";
 import { DEFAULT_SERIES_EXCHANGE } from "@/lib/exchanges";
 import { classifyMarketContext } from "@/lib/marketContext";
 import { classifySpotPressure } from "@/lib/spotPressure";
+import PanelInfo from "@/components/PanelInfo";
+import { marktkontextInfo } from "@/lib/panelInfo";
 
 const REFRESH_INTERVAL_MS = 30_000;
 const SERIES_MAX_POINTS = 500;
@@ -183,9 +185,12 @@ export default function MarketContextCard({
 
   return (
     <div className="rounded-lg border border-accent/25 bg-surface-raised p-5">
-      <p className="text-xs uppercase tracking-[0.15em] text-text-muted mb-2">
-        Marktkontext (regelbasiert) · {tf.label}
-      </p>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+          Marktkontext (regelbasiert) · {tf.label}
+        </p>
+        <PanelInfo title="Marktkontext" content={marktkontextInfo(tf.label)} />
+      </div>
 
       {result.scenario === null ? (
         <>

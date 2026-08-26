@@ -3,6 +3,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { PositioningSignal, PositioningSnapshot } from "@/lib/types";
+import PanelInfo from "@/components/PanelInfo";
+import {
+  positioningRatiosInfo,
+  takerFlowInfo,
+  positioningAssessmentInfo,
+} from "@/lib/panelInfo";
 
 const REFRESH_INTERVAL_MS = 30_000;
 
@@ -113,9 +119,12 @@ export default function PositioningPanel({
 
   return (
     <div className="rounded-lg border border-border bg-surface p-5 space-y-4">
-      <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
-        Positioning Intelligence
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+          Positioning Intelligence
+        </p>
+        <PanelInfo title="Positioning Intelligence" content={positioningRatiosInfo} />
+      </div>
 
       {!lastSyncOk && (
         <p className="text-xs text-down">
@@ -156,7 +165,10 @@ export default function PositioningPanel({
 
       {binance?.taker_buy_sell_ratio != null && (
         <div className="flex items-center justify-between text-xs pt-1">
-          <span className="text-text-muted">Taker-Flow (Binance)</span>
+          <span className="flex items-center gap-1.5 text-text-muted">
+            Taker-Flow (Binance)
+            <PanelInfo title="Taker-Flow" content={takerFlowInfo} />
+          </span>
           <span className="tabular font-mono text-text-faint">
             {binance.taker_buy_sell_ratio.toFixed(2)}× Buy/Sell
           </span>
@@ -166,9 +178,12 @@ export default function PositioningPanel({
       {signal && (
         <div className="pt-3 border-t border-border">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
-              NEXUS Assessment
-            </p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+                NEXUS Assessment
+              </p>
+              <PanelInfo title="NEXUS Assessment" content={positioningAssessmentInfo} />
+            </div>
             <span className="text-xs text-text-faint">
               {timeAgo(signal.timestamp_utc)}
             </span>
