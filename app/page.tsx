@@ -26,6 +26,7 @@ import SpotPressurePanel from "@/components/SpotPressurePanel";
 import MarketContextCard from "@/components/MarketContextCard";
 import MarketStateCard from "@/components/MarketStateCard";
 import TimeframeSelector from "@/components/TimeframeSelector";
+import DashboardLayout from "@/components/DashboardLayout";
 
 export const revalidate = 0;
 
@@ -417,44 +418,52 @@ export default async function Home({
             </Suspense>
           </div>
 
-          <MarketContextCard
-            timeframe={timeframe}
-            initialOiSeries={oiSeriesData}
-            initialOiReference={oiReferenceSnapshot}
-            initialSpotSummary={spotPressureSummary}
-            initialFetchedSinceIso={timeframeSinceIsoValue}
+          <DashboardLayout
+            tiles={{
+              "market-context": (
+                <MarketContextCard
+                  timeframe={timeframe}
+                  initialOiSeries={oiSeriesData}
+                  initialOiReference={oiReferenceSnapshot}
+                  initialSpotSummary={spotPressureSummary}
+                  initialFetchedSinceIso={timeframeSinceIsoValue}
+                />
+              ),
+              "live-price": (
+                <LivePricePanel
+                  timeframe={timeframe}
+                  initialSnapshots={snapshots}
+                  initialCommentary={commentary}
+                  initialExchangeComparison={exchangeComparison}
+                  initialSeriesData={oiSeriesData}
+                  initialReferenceSnapshot={oiReferenceSnapshot}
+                  initialFetchedSinceIso={timeframeSinceIsoValue}
+                  initialOiByExchange={oiByExchange}
+                />
+              ),
+              "spot-pressure": (
+                <SpotPressurePanel
+                  timeframe={timeframe}
+                  initialSummary={spotPressureSummary}
+                  initialSeries={spotPressureSeries}
+                />
+              ),
+              positioning: (
+                <PositioningPanel
+                  initialBinance={positioningBinance}
+                  initialBybit={positioningBybit}
+                  initialOkx={positioningOkx}
+                  initialBitget={positioningBitget}
+                  initialSignal={positioningSignal}
+                />
+              ),
+              liquidations: <LiquidationPanel initialEvents={recentLiquidations} />,
+              "etf-flow": (
+                <EtfFlowPanel initialFlows={recentEtfFlows} macroNews={highImpactNews} />
+              ),
+              "news-risk": <NewsRiskPanel initialNews={highImpactNews} />,
+            }}
           />
-
-          <TierLabel>Kernmetriken</TierLabel>
-          <LivePricePanel
-            timeframe={timeframe}
-            initialSnapshots={snapshots}
-            initialCommentary={commentary}
-            initialExchangeComparison={exchangeComparison}
-            initialSeriesData={oiSeriesData}
-            initialReferenceSnapshot={oiReferenceSnapshot}
-            initialFetchedSinceIso={timeframeSinceIsoValue}
-            initialOiByExchange={oiByExchange}
-          />
-          <SpotPressurePanel
-            timeframe={timeframe}
-            initialSummary={spotPressureSummary}
-            initialSeries={spotPressureSeries}
-          />
-
-          <TierLabel>Positionierung &amp; Kapitalfluss</TierLabel>
-          <PositioningPanel
-            initialBinance={positioningBinance}
-            initialBybit={positioningBybit}
-            initialOkx={positioningOkx}
-            initialBitget={positioningBitget}
-            initialSignal={positioningSignal}
-          />
-          <LiquidationPanel initialEvents={recentLiquidations} />
-          <EtfFlowPanel initialFlows={recentEtfFlows} macroNews={highImpactNews} />
-
-          <TierLabel>News &amp; Kontext</TierLabel>
-          <NewsRiskPanel initialNews={highImpactNews} />
         </div>
       </section>
 
@@ -462,18 +471,5 @@ export default async function Home({
         NEXUS Atlas · Persönliches Marktüberwachungs-Tool, keine Anlageberatung
       </footer>
     </main>
-  );
-}
-
-// Leichte Tier-Kennzeichnung der 4 Informationsebenen (Marktkontext-Verdikt
-// ganz oben ohne Label, dann Kernmetriken / Positionierung & Kapitalfluss /
-// News & Kontext) -- bewusst nur eine visuelle Gruppierung statt eines
-// eigenen Grid-Layouts, damit bestehende Panels und die mobile
-// Responsivitaet unveraendert bleiben.
-function TierLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="text-xs uppercase tracking-[0.2em] text-text-faint pt-2">
-      {children}
-    </p>
   );
 }
