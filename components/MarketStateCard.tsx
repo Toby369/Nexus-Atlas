@@ -34,6 +34,7 @@ const FACTOR_LABELS: Record<string, string> = {
   orderbook: "Orderbuch-Imbalance",
   options: "Options (Put/Call)",
   macro: "Makro-Regime",
+  funding: "Funding-Rate",
 };
 
 // Feste Reihenfolge statt Objekt-Iterationsreihenfolge der DB/JSON-Antwort,
@@ -47,6 +48,7 @@ const FACTOR_ORDER = [
   "orderbook",
   "options",
   "macro",
+  "funding",
 ];
 
 function factorLabel(value: -1 | 0 | 1 | null): string {
@@ -201,7 +203,7 @@ export default function MarketStateCard({
       )}
 
       <p className="text-xs text-text-faint pt-1">
-        Kombiniert 8 unabhängige Datenquellen zu einem Gesamtzustand — Rohmaterial für eine
+        Kombiniert 9 unabhängige Datenquellen zu einem Gesamtzustand — Rohmaterial für eine
         Einordnung, kein Handelssignal.
       </p>
     </div>
