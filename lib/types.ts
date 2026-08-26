@@ -99,6 +99,8 @@ export interface MarketState {
   factors: Record<string, MarketStateFactor>;
   patterns: MarketStatePattern[];
   mtf_alignment: MarketStateMtfAlignment | null;
+  risk_level: "LOW" | "MEDIUM" | "HIGH" | "UNKNOWN" | null;
+  risk_factors: string[] | null;
   created_at: string;
 }
 
@@ -214,6 +216,29 @@ export interface EtfFlowDay {
   total_flow_usd_m: number | null;
   source: string;
   created_at: string;
+}
+
+// Rueckgabeform der get_etf_flow_intelligence-RPC: Momentum (juengere vs.
+// aeltere Haelfte des Fensters) sowie Preis-/OI-Veraenderung ueber denselben
+// Zeitraum. Einzelne Felder sind null statt eines erfundenen Werts, wenn
+// nicht genug Historie/Daten vorhanden ist (z. B. OI vor Beginn der
+// Aggregations-Historie).
+export interface EtfFlowIntelligence {
+  window_days_used: number;
+  recent_sum_usd_m: number | null;
+  recent_days: number;
+  prior_sum_usd_m: number | null;
+  prior_days: number;
+  momentum_usd_m: number | null;
+  momentum_pct: number | null;
+  earliest_date: string | null;
+  latest_date: string | null;
+  price_start: number | null;
+  price_end: number | null;
+  price_change_pct: number | null;
+  oi_start: number | null;
+  oi_end: number | null;
+  oi_change_pct: number | null;
 }
 
 export interface NewsEvent {

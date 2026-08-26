@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import type { EtfFlowDay, NewsEvent } from "@/lib/types";
+import type { EtfFlowDay, EtfFlowIntelligence, NewsEvent } from "@/lib/types";
 import PanelInfo from "@/components/PanelInfo";
 import { etfMacroInfo } from "@/lib/panelInfo";
 
@@ -11,6 +11,16 @@ import { etfMacroInfo } from "@/lib/panelInfo";
 const REFRESH_INTERVAL_MS = 5 * 60_000;
 const FLOW_LIMIT = 10;
 const CUMULATIVE_DAYS = 5;
+// Fenstergroesse fuer die Momentum-/Trend-Analyse (get_etf_flow_intelligence):
+// wird in zwei Haelften geteilt (juengere/aeltere 5 Handelstage) -- an
+// CUMULATIVE_DAYS angelehnt, damit "Summe letzte 5 Handelstage" und die
+// juengere Momentum-Haelfte denselben Zeitraum beschreiben.
+const INTELLIGENCE_WINDOW_DAYS = CUMULATIVE_DAYS * 2;
+// Betragsschwelle fuer die Trend-Einordnung (in % relativ zur aelteren
+// Haelfte) -- unterhalb gilt der Flow-Trend als "stabil", da normales
+// Tag-zu-Tag-Rauschen sonst faelschlich als Beschleunigung/Abflachung
+// erschiene.
+const TREND_STABLE_BAND_PCT = 15;
 // Nur Makro-relevante News-Kategorien fuer die Synthese heranziehen --
 // Crypto-/Sonstige-News sagen nichts ueber ETF-Flow-Kontext aus.
 const MACRO_CATEGORIES = new Set(["etf", "fed", "treasury", "cpi"]);
@@ -28,6 +38,19 @@ function formatDate(iso: string) {
     day: "2-digit",
     month: "short",
   });
+}
+
+function formatPct(value: number | null): string {
+  if (value === null) return "nicht verfügbar";
+  const sign = value >= 0 ? "+" : "";
+  return `${sign}${value.toFixed(1)}%`;
+}
+
+function trendLabel(momentumPct: number | null): string {
+  if (momentumPct === null) return "nicht verfügbar";
+  if (momentumPct > TREND_STABLE_BAND_PCT) return "beschleunigend";
+  if (momentumPct < -TREND_STABLE_BAND_PCT) return "abflachend";
+  return "stabil";
 }
 
 // Ein Tag kann sowohl eine (aeltere) Farside- als auch eine (neuere)
@@ -63,6 +86,17 @@ async function fetchRecentFlows(): Promise<{
   return { data: dedupeByDate(data ?? [], FLOW_LIMIT), ok: true };
 }
 
+async function fetchFlowIntelligence(): Promise<EtfFlowIntelligence | null> {
+  const { data, error } = await supabase.rpc("get_etf_flow_intelligence", {
+    p_days: INTELLIGENCE_WINDOW_DAYS,
+  });
+  if (error) {
+    console.error("Fehler beim Laden der ETF-Flow-Intelligence:", error.message);
+    return null;
+  }
+  return data ?? null;
+}
+
 // Eigener, unabhaengiger Poll statt die macroNews-Prop dauerhaft auf dem
 // Stand des initialen Server-Renders zu belassen -- sonst driftet die
 // Synthese bei lange offenem Tab von dem ab, was News Risk gerade zeigt.
@@ -96,18 +130,30 @@ export default function EtfFlowPanel({
   const [flows, setFlows] = useState(initialFlows);
   const [macroNewsState, setMacroNewsState] = useState(macroNews);
   const [lastSyncOk, setLastSyncOk] = useState(true);
+  const [intelligence, setIntelligence] = useState<EtfFlowIntelligence | null>(null);
 
   useEffect(() => {
     const interval = setInterval(async () => {
-      const [flowResult, freshMacroNews] = await Promise.all([
+      const [flowResult, freshMacroNews, freshIntelligence] = await Promise.all([
         fetchRecentFlows(),
         fetchMacroNews(),
+        fetchFlowIntelligence(),
       ]);
       setLastSyncOk(flowResult.ok);
       if (flowResult.ok) setFlows(flowResult.data);
       setMacroNewsState(freshMacroNews);
+      setIntelligence(freshIntelligence);
     }, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
+  }, []);
+
+  // Eigener, einmaliger Mount-Fetch nur fuer die Intelligence-RPC -- flows/
+  // macroNews haben bereits einen serverseitigen initialen Wert (SSR-Props),
+  // ein sofortiger Re-Fetch dieser beiden wuerde eine unnoetige zusaetzliche
+  // Anfrage bei jedem Seitenaufruf bedeuten. Die RPC hat dagegen keinen
+  // Server-Anfangswert.
+  useEffect(() => {
+    fetchFlowIntelligence().then(setIntelligence);
   }, []);
 
   if (flows.length === 0) {
@@ -207,6 +253,59 @@ export default function EtfFlowPanel({
       </div>
 
       <p className="text-sm text-text leading-relaxed">{synthesis}</p>
+
+      {intelligence && (
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs pt-2 border-t border-border/60">
+          <div>
+            <span className="text-text-muted">
+              Momentum ({intelligence.recent_days}T vs. {intelligence.prior_days}T):{" "}
+            </span>
+            <span
+              className={
+                intelligence.momentum_pct === null
+                  ? "text-text-faint"
+                  : intelligence.momentum_pct >= 0
+                    ? "text-up"
+                    : "text-down"
+              }
+            >
+              {formatPct(intelligence.momentum_pct)}
+            </span>
+          </div>
+          <div>
+            <span className="text-text-muted">Trend: </span>
+            <span className="text-text">{trendLabel(intelligence.momentum_pct)}</span>
+          </div>
+          <div>
+            <span className="text-text-muted">Preis ({intelligence.window_days_used}T): </span>
+            <span
+              className={
+                intelligence.price_change_pct === null
+                  ? "text-text-faint"
+                  : intelligence.price_change_pct >= 0
+                    ? "text-up"
+                    : "text-down"
+              }
+            >
+              {formatPct(intelligence.price_change_pct)}
+            </span>
+          </div>
+          <div>
+            <span className="text-text-muted">OI ({intelligence.window_days_used}T): </span>
+            <span
+              className={
+                intelligence.oi_change_pct === null
+                  ? "text-text-faint"
+                  : intelligence.oi_change_pct >= 0
+                    ? "text-up"
+                    : "text-down"
+              }
+            >
+              {formatPct(intelligence.oi_change_pct)}
+            </span>
+          </div>
+        </div>
+      )}
 
       <p className="text-xs text-text-faint pt-1">
         Quelle: {latest.source === "sosovalue" ? "SoSoValue" : "Farside Investors"},

@@ -25,6 +25,31 @@ const STATE_LABELS: Record<string, string> = {
   INSUFFICIENT_DATA: "Unzureichende Daten",
 };
 
+const RISK_LABELS: Record<string, string> = {
+  LOW: "Niedrig",
+  MEDIUM: "Mittel",
+  HIGH: "Hoch",
+  UNKNOWN: "Unbekannt",
+};
+
+// Risk ist bewusst von Confidence getrennt (siehe compute-market-state):
+// Confidence misst die Einigkeit der verfuegbaren Faktoren, Risk misst die
+// Fragilitaet/Gefahr der aktuellen Lage unabhaengig von der Richtung.
+function riskColor(level: string | null): string {
+  if (level === "HIGH") return "text-down";
+  if (level === "LOW") return "text-up";
+  if (level === "MEDIUM") return "text-text";
+  return "text-text-faint";
+}
+
+const RISK_FACTOR_LABELS: Record<string, string> = {
+  warning_pattern: "Warn-Muster erkannt",
+  low_mtf_alignment: "Zeitrahmen uneins",
+  funding_crowding: "Funding-Crowding",
+  basis_crowding: "Basis-Crowding",
+  elevated_volatility: "erhöhte Volatilität",
+};
+
 const FACTOR_LABELS: Record<string, string> = {
   structure: "Struktur (1H)",
   momentum: "Momentum (RSI+MACD)",
@@ -161,6 +186,11 @@ export default function MarketStateCard({
       <div className="flex gap-4 text-xs text-text-faint flex-wrap">
         <span>Confidence: {Math.round(state.confidence)}/100</span>
         <span>Datenabdeckung: {Math.round(state.data_coverage_pct)}%</span>
+        {state.risk_level && (
+          <span>
+            Risk: <span className={riskColor(state.risk_level)}>{RISK_LABELS[state.risk_level] ?? state.risk_level}</span>
+          </span>
+        )}
         {mtf && (
           <span>
             MTF-Alignment: {mtf.alignment_pct}%{" "}
@@ -184,6 +214,19 @@ export default function MarketStateCard({
               className="text-[11px] px-2 py-0.5 rounded-full border border-accent/30 text-text-muted"
             >
               {p.name}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {state.risk_factors && state.risk_factors.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {state.risk_factors.map((f) => (
+            <span
+              key={f}
+              className="text-[11px] px-2 py-0.5 rounded-full border border-down/30 text-down/90"
+            >
+              {RISK_FACTOR_LABELS[f] ?? f}
             </span>
           ))}
         </div>
