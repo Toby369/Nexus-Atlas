@@ -86,6 +86,25 @@ export interface LiquidationEvent {
   created_at: string;
 }
 
+// Rueckgabeform der get_liquidation_intelligence-RPC (Phase 2: Velocity,
+// Preis-Cluster, Vergleich vs. aggregiertem Open Interest).
+export interface LiquidationIntelligence {
+  velocity: {
+    bucket_start: string;
+    event_count: number;
+    notional_usd: number;
+    long_notional: number | null;
+    short_notional: number | null;
+  }[];
+  price_clusters: {
+    price_bucket: number;
+    notional_usd: number;
+    event_count: number;
+  }[];
+  total_notional_usd: number;
+  total_oi_usd: number | null;
+}
+
 // Rueckgabezeile der get_spot_pressure_series-RPC (Binance-Spot-BTC-Kerzen,
 // 5-Min-Takt, siehe SpotPressurePanel.tsx).
 export interface SpotPressurePoint {

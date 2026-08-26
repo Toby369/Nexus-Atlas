@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import type { LiquidationEvent } from "@/lib/types";
+import type { LiquidationEvent, LiquidationIntelligence } from "@/lib/types";
 import PanelInfo from "@/components/PanelInfo";
 import { liquidationsInfo } from "@/lib/panelInfo";
 
@@ -11,6 +11,15 @@ const LOOKBACK_HOURS = 6;
 const EVENT_LIMIT = 300;
 const CASCADE_WINDOW_MS = 2 * 60_000;
 const CASCADE_MIN_COUNT = 3;
+
+// Parameter fuer get_liquidation_intelligence (Velocity-Buckets + Preis-
+// Cluster-Breite) -- bewusst benannte Konstanten statt Magic Numbers.
+const VELOCITY_BUCKET_MINUTES = 15;
+const PRICE_CLUSTER_BUCKET_USD = 200;
+// Ein Preis-Cluster wird nur angezeigt, wenn er mindestens diesen Anteil
+// des gesamten erfassten Notional-Werts auf sich vereint (sonst zu wenig
+// Konzentration fuer eine aussagekraeftige Aussage).
+const CLUSTER_MIN_SHARE = 0.3;
 
 function formatUsd(value: number) {
   if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
@@ -62,6 +71,43 @@ async function fetchRecentLiquidations(): Promise<{
   return { data: data ?? [], ok: true };
 }
 
+async function fetchIntelligence(): Promise<LiquidationIntelligence | null> {
+  const cutoff = new Date(
+    Date.now() - LOOKBACK_HOURS * 60 * 60 * 1000
+  ).toISOString();
+
+  const { data, error } = await supabase.rpc("get_liquidation_intelligence", {
+    p_since: cutoff,
+    p_bucket_minutes: VELOCITY_BUCKET_MINUTES,
+    p_price_bucket_usd: PRICE_CLUSTER_BUCKET_USD,
+  });
+
+  if (error) {
+    console.error("Fehler beim Laden der Liquidations-Intelligence:", error.message);
+    return null;
+  }
+  return data ?? null;
+}
+
+// Velocity-Trend: vergleicht den juengsten Bucket mit dem Durchschnitt der
+// vorherigen Buckets. Braucht mindestens 2 Buckets, um ueberhaupt einen
+// Trend zu bilden -- bei weniger wird bewusst nichts angezeigt statt eine
+// Aussage aus einem einzigen Datenpunkt zu erfinden.
+function describeVelocityTrend(
+  velocity: LiquidationIntelligence["velocity"]
+): string | null {
+  if (velocity.length < 2) return null;
+  const last = velocity[velocity.length - 1];
+  const prior = velocity.slice(0, -1);
+  const priorAvg =
+    prior.reduce((sum, b) => sum + b.notional_usd, 0) / prior.length;
+  if (priorAvg <= 0) return null;
+
+  if (last.notional_usd > priorAvg * 2) return "zunehmend";
+  if (last.notional_usd < priorAvg * 0.5) return "abnehmend";
+  return "stabil";
+}
+
 export default function LiquidationPanel({
   initialEvents,
 }: {
@@ -69,13 +115,20 @@ export default function LiquidationPanel({
 }) {
   const [events, setEvents] = useState(initialEvents);
   const [lastSyncOk, setLastSyncOk] = useState(true);
+  const [intelligence, setIntelligence] = useState<LiquidationIntelligence | null>(null);
 
   useEffect(() => {
-    const interval = setInterval(async () => {
-      const { data, ok } = await fetchRecentLiquidations();
+    const load = async () => {
+      const [{ data, ok }, intel] = await Promise.all([
+        fetchRecentLiquidations(),
+        fetchIntelligence(),
+      ]);
       setLastSyncOk(ok);
       if (ok) setEvents(data);
-    }, REFRESH_INTERVAL_MS);
+      setIntelligence(intel);
+    };
+    load();
+    const interval = setInterval(load, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
 
@@ -88,6 +141,18 @@ export default function LiquidationPanel({
   const totalNotional = longNotional + shortNotional;
   const longPct = totalNotional > 0 ? (longNotional / totalNotional) * 100 : 0;
   const cascade = hasCascade(events);
+
+  const velocityTrend = intelligence ? describeVelocityTrend(intelligence.velocity) : null;
+  const topCluster =
+    intelligence && intelligence.total_notional_usd > 0 && intelligence.price_clusters.length > 0
+      ? intelligence.price_clusters[0]
+      : null;
+  const topClusterShare =
+    topCluster && intelligence ? topCluster.notional_usd / intelligence.total_notional_usd : 0;
+  const oiSharePct =
+    intelligence && intelligence.total_oi_usd
+      ? (intelligence.total_notional_usd / intelligence.total_oi_usd) * 100
+      : null;
 
   return (
     <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
@@ -143,6 +208,31 @@ export default function LiquidationPanel({
               ? "Häufung erkannt — mehrere Liquidationen kurz hintereinander (mögliche Cascade)."
               : "Vereinzelte Liquidationen, keine auffällige Häufung."}
           </p>
+
+          {(velocityTrend || (topCluster && topClusterShare >= CLUSTER_MIN_SHARE) || oiSharePct !== null) && (
+            <div className="flex flex-col gap-1 text-xs text-text-faint pt-1 border-t border-border/60">
+              {velocityTrend && (
+                <span>
+                  Liquidationsrate: <span className="text-text-muted">{velocityTrend}</span>
+                </span>
+              )}
+              {topCluster && topClusterShare >= CLUSTER_MIN_SHARE && (
+                <span>
+                  Häufungspunkt nahe{" "}
+                  <span className="tabular font-mono text-text-muted">
+                    ${topCluster.price_bucket.toLocaleString("de-CH")}
+                  </span>{" "}
+                  ({formatUsd(topCluster.notional_usd)}, {Math.round(topClusterShare * 100)}% des Volumens)
+                </span>
+              )}
+              {oiSharePct !== null && (
+                <span>
+                  Entspricht {oiSharePct < 0.01 ? "<0.01" : oiSharePct.toFixed(2)}% des aktuellen
+                  aggregierten Open Interest
+                </span>
+              )}
+            </div>
+          )}
         </>
       )}
 
