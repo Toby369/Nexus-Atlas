@@ -332,6 +332,7 @@ export default async function Home({
     positioningBinance,
     positioningBybit,
     positioningOkx,
+    positioningBitget,
     positioningSignal,
     highImpactNews,
     recentLiquidations,
@@ -348,6 +349,7 @@ export default async function Home({
     getLatestPositioningSnapshot("binance"),
     getLatestPositioningSnapshot("bybit"),
     getLatestPositioningSnapshot("okx"),
+    getLatestPositioningSnapshot("bitget"),
     getLatestPositioningSignal(),
     getHighImpactNews(),
     getRecentLiquidations(),
@@ -424,6 +426,7 @@ export default async function Home({
             initialBinance={positioningBinance}
             initialBybit={positioningBybit}
             initialOkx={positioningOkx}
+            initialBitget={positioningBitget}
             initialSignal={positioningSignal}
           />
           <LiquidationPanel initialEvents={recentLiquidations} />

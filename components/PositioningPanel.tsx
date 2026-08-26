@@ -69,34 +69,39 @@ export default function PositioningPanel({
   initialBinance,
   initialBybit,
   initialOkx,
+  initialBitget,
   initialSignal,
 }: {
   initialBinance: PositioningSnapshot | null;
   initialBybit: PositioningSnapshot | null;
   initialOkx: PositioningSnapshot | null;
+  initialBitget: PositioningSnapshot | null;
   initialSignal: PositioningSignal | null;
 }) {
   const [binance, setBinance] = useState(initialBinance);
   const [bybit, setBybit] = useState(initialBybit);
   const [okx, setOkx] = useState(initialOkx);
+  const [bitget, setBitget] = useState(initialBitget);
   const [signal, setSignal] = useState(initialSignal);
   const [lastSyncOk, setLastSyncOk] = useState(true);
 
   useEffect(() => {
     const fetchLatest = async () => {
-      const [binanceRes, bybitRes, okxRes, signalRes] = await Promise.all([
+      const [binanceRes, bybitRes, okxRes, bitgetRes, signalRes] = await Promise.all([
         fetchLatestSnapshot("binance"),
         fetchLatestSnapshot("bybit"),
         fetchLatestSnapshot("okx"),
+        fetchLatestSnapshot("bitget"),
         fetchLatestSignal(),
       ]);
 
       setLastSyncOk(
-        binanceRes.ok && bybitRes.ok && okxRes.ok && signalRes.ok
+        binanceRes.ok && bybitRes.ok && okxRes.ok && bitgetRes.ok && signalRes.ok
       );
       if (binanceRes.data) setBinance(binanceRes.data);
       if (bybitRes.data) setBybit(bybitRes.data);
       if (okxRes.data) setOkx(okxRes.data);
+      if (bitgetRes.data) setBitget(bitgetRes.data);
       if (signalRes.data) setSignal(signalRes.data);
     };
 
@@ -104,7 +109,7 @@ export default function PositioningPanel({
     return () => clearInterval(interval);
   }, []);
 
-  if (!binance && !bybit && !okx) {
+  if (!binance && !bybit && !okx && !bitget) {
     return (
       <div className="rounded-lg border border-border bg-surface p-5">
         <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
@@ -159,6 +164,13 @@ export default function PositioningPanel({
             label="Retail (OKX)"
             long={okx.global_long_account_ratio}
             short={okx.global_short_account_ratio}
+          />
+        )}
+        {bitget && (
+          <RatioBar
+            label="Retail (Bitget)"
+            long={bitget.global_long_account_ratio}
+            short={bitget.global_short_account_ratio}
           />
         )}
       </div>
