@@ -7,6 +7,7 @@ import type {
   MarketCommentary,
   MarketSeriesPoint,
   MarketSnapshot,
+  MarketState,
   NewsEvent,
   OiChangeByExchange,
   PositioningSignal,
@@ -23,6 +24,7 @@ import LiquidationPanel from "@/components/LiquidationPanel";
 import EtfFlowPanel from "@/components/EtfFlowPanel";
 import SpotPressurePanel from "@/components/SpotPressurePanel";
 import MarketContextCard from "@/components/MarketContextCard";
+import MarketStateCard from "@/components/MarketStateCard";
 import TimeframeSelector from "@/components/TimeframeSelector";
 
 export const revalidate = 0;
@@ -118,6 +120,21 @@ async function getLatestPositioningSnapshot(
     return null;
   }
 
+  return data;
+}
+
+async function getLatestMarketState(): Promise<MarketState | null> {
+  const { data, error } = await supabase
+    .from("market_states")
+    .select("*")
+    .order("timestamp_utc", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Fehler beim Laden des Market State:", error.message);
+    return null;
+  }
   return data;
 }
 
@@ -329,6 +346,7 @@ export default async function Home({
     snapshots,
     commentary,
     exchangeComparison,
+    marketState,
     positioningBinance,
     positioningBybit,
     positioningOkx,
@@ -346,6 +364,7 @@ export default async function Home({
     getSnapshotHistory(),
     getLatestCommentary(),
     getLatestPerExchange(),
+    getLatestMarketState(),
     getLatestPositioningSnapshot("binance"),
     getLatestPositioningSnapshot("bybit"),
     getLatestPositioningSnapshot("okx"),
@@ -387,6 +406,8 @@ export default async function Home({
 
       <section className="flex-1 px-4 sm:px-6 py-8 max-w-3xl w-full mx-auto">
         <div className="space-y-4">
+          <MarketStateCard initialState={marketState} />
+
           <div className="flex items-center justify-between flex-wrap gap-2">
             <p className="text-xs uppercase tracking-[0.2em] text-text-faint">
               Zeitraum

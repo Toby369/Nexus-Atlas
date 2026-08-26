@@ -70,6 +70,38 @@ export interface PositioningSignal {
   created_at: string;
 }
 
+// Ein Faktor der Market-State-Engine (compute-market-state): -1/0/+1 =
+// baerisch/neutral/bullisch, null = keine (frischen) Daten verfuegbar.
+export interface MarketStateFactor {
+  value: -1 | 0 | 1 | null;
+  basis: Record<string, unknown>;
+}
+
+export interface MarketStatePattern {
+  name: string;
+  note: string;
+}
+
+export interface MarketStateMtfAlignment {
+  alignment_pct: number;
+  dominant_direction: "bullish" | "bearish" | "ranging";
+  timeframes: Record<string, -1 | 0 | 1>;
+  timeframe_count: number;
+}
+
+export interface MarketState {
+  id: number;
+  timestamp_utc: string;
+  overall_state: "BULLISH" | "BEARISH" | "NEUTRAL" | "MIXED" | "INSUFFICIENT_DATA";
+  score: number | null;
+  confidence: number;
+  data_coverage_pct: number;
+  factors: Record<string, MarketStateFactor>;
+  patterns: MarketStatePattern[];
+  mtf_alignment: MarketStateMtfAlignment | null;
+  created_at: string;
+}
+
 export interface LiquidationEvent {
   id: number;
   event_time_utc: string;
