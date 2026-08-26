@@ -40,6 +40,14 @@ export interface MarketContextInput {
   // fliesst mit ein, weil das Assessment Spot explizit als Bestaetigungs-
   // quelle nutzt und eine duenne Spot-Stichprobe die Aussage schwaecht.
   spotDataQuality: "OK" | "PRELIMINARY" | "INSUFFICIENT";
+  // Laenge des gewaehlten Zeitraums in Minuten (TIMEFRAMES[x].minutes aus
+  // lib/timeframes.ts) -- bestimmt die Flat-Schwellenwerte fuer Preis/OI
+  // (siehe getMarketContextThresholds unten). Ohne diesen Wert wuerde ein
+  // fuer 4H kalibrierter Schwellenwert unveraendert auch auf 15M oder 1M
+  // angewendet, was genau der Audit-Befund war ("Keine klare Struktur"
+  // bei kurzen Zeitraeumen fast immer, weil die durchschnittliche Preis-
+  // /OI-Bewegung dort bereits unter dem Schwellenwert selbst liegt).
+  timeframeMinutes: number;
 }
 
 export interface MarketContextResult {
@@ -58,8 +66,51 @@ export interface MarketContextResult {
   dataQuality: MarketDataQuality;
 }
 
-const PRICE_FLAT_THRESHOLD = 0.3;
-const OI_FLAT_THRESHOLD = 1.0;
+// Timeframe-skalierte Flat-Schwellenwerte fuer Preis/OI (ersetzt die vorher
+// fest codierten 0.3%/1.0%, die unabhaengig vom gewaehlten Zeitraum galten
+// -- siehe Audit: bei 15M lag die durchschnittliche Preisbewegung ueber
+// 8 Tage Realdaten bereits UNTER dem alten Schwellenwert selbst, wodurch
+// "Keine klare Struktur" bei kurzen Zeitraeumen praktisch der Normalfall
+// war (99.1% der 15M-Faelle), statt die Ausnahme zu sein.
+//
+// Kalibrierung: Median der tatsaechlichen |Preis-/OI-Aenderung| ueber 8
+// Tage Realdaten bei 1H (sauberstes, vollstaendig abgedecktes Fenster) als
+// Basiswert, mal Faktor 1.5 (Schwellenwert = "spuerbar ueber dem
+// typischen Rauschen dieses Fensters", nicht "jede minimale Bewegung").
+// Skalierung auf andere Zeitraeume ueber Wurzel-Zeit (sqrt(Minuten/60)) --
+// das ist keine willkuerliche Wahl, sondern die empirisch beobachtete
+// Skalierung in denselben Realdaten (Exponent ≈0.5 zwischen 15M/1H/4H,
+// deckungsgleich mit dem in der Finanzmarkt-Literatur ueblichen
+// "Volatilitaet skaliert mit Wurzel(Zeit)"-Zusammenhang).
+//
+// Bewusst als Formel statt als Tabelle mit 6 Einzelwerten gehalten (Vorgabe
+// Teil 33: Schwellenwerte muessen konfigurierbar und spaeter ueber
+// historische Daten optimierbar sein) -- BASE_* und SCALING_EXPONENT sind
+// die einzigen Stellen, die eine spaetere Kalibrierung/ein Backtest
+// anpassen muesste.
+const BASE_TIMEFRAME_MINUTES = 60; // 1H als Referenzpunkt der Kalibrierung
+const BASE_PRICE_FLAT_THRESHOLD_PCT = 0.4;
+const BASE_OI_FLAT_THRESHOLD_PCT = 0.4;
+const THRESHOLD_SCALING_EXPONENT = 0.5;
+
+export interface MarketContextThresholds {
+  priceFlatThresholdPct: number;
+  oiFlatThresholdPct: number;
+}
+
+export function getMarketContextThresholds(
+  timeframeMinutes: number
+): MarketContextThresholds {
+  const scale = Math.pow(
+    timeframeMinutes / BASE_TIMEFRAME_MINUTES,
+    THRESHOLD_SCALING_EXPONENT
+  );
+  return {
+    priceFlatThresholdPct: BASE_PRICE_FLAT_THRESHOLD_PCT * scale,
+    oiFlatThresholdPct: BASE_OI_FLAT_THRESHOLD_PCT * scale,
+  };
+}
+
 const SPOT_FLAT_THRESHOLD = 5;
 
 const LABELS: Record<Exclude<MarketScenario, "neutral">, string> = {
@@ -121,6 +172,7 @@ export function classifyMarketContext({
   spotNetFlowPct,
   hasFullOiHistory,
   spotDataQuality,
+  timeframeMinutes,
 }: MarketContextInput): MarketContextResult {
   if (priceChangePct === null || oiChangePct === null) {
     return {
@@ -142,10 +194,13 @@ export function classifyMarketContext({
   const dataQuality: MarketDataQuality =
     !hasFullOiHistory || spotDataQuality !== "OK" ? "PRELIMINARY" : "OK";
 
-  const priceUp = priceChangePct > PRICE_FLAT_THRESHOLD;
-  const priceDown = priceChangePct < -PRICE_FLAT_THRESHOLD;
-  const oiUp = oiChangePct > OI_FLAT_THRESHOLD;
-  const oiDown = oiChangePct < -OI_FLAT_THRESHOLD;
+  const { priceFlatThresholdPct, oiFlatThresholdPct } =
+    getMarketContextThresholds(timeframeMinutes);
+
+  const priceUp = priceChangePct > priceFlatThresholdPct;
+  const priceDown = priceChangePct < -priceFlatThresholdPct;
+  const oiUp = oiChangePct > oiFlatThresholdPct;
+  const oiDown = oiChangePct < -oiFlatThresholdPct;
 
   let scenario: MarketScenario = "neutral";
   if (priceUp && oiUp) scenario = "long_buildup";

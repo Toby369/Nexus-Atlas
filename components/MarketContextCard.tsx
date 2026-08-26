@@ -171,6 +171,7 @@ export default function MarketContextCard({
     spotNetFlowPct,
     hasFullOiHistory,
     spotDataQuality: spotVerdict.dataQuality,
+    timeframeMinutes: tf.minutes,
   });
 
   // Farbe zeigt die Richtung des Szenarios (bullisch/baerisch), nicht ob der

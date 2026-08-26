@@ -359,6 +359,7 @@ export async function buildMarketContext(timeframe: TimeframeId): Promise<FullMa
     spotNetFlowPct,
     hasFullOiHistory,
     spotDataQuality: spotVerdict.dataQuality,
+    timeframeMinutes: tf.minutes,
   });
 
   // Boersen ohne jemals gemeldetes OI (Bitunix) sind strukturell
