@@ -10,14 +10,21 @@ write to the production Supabase project, and does not affect
 
 ## Status
 
-**Step 1 of the framework (current):** the three feature modules
-(`derivatives.py`, `volatility.py`, `momentum.py`) and their look-ahead-bias
-unit tests. This is what exists right now.
+**Step 1 (done):** the three feature modules (`derivatives.py`,
+`volatility.py`, `momentum.py`) and their look-ahead-bias unit tests.
 
-**Not yet implemented:** `src/validation/walk_forward.py` is scaffolding
-only (interface + docstring, raises `NotImplementedError`) — the purged /
-embargoed walk-forward cross-validator is the next step, not part of this
-delivery.
+**Step 2 (done):** `src/validation/walk_forward.py` — `PurgedWalkForwardCV`
+(sequential expanding/rolling purged & embargoed walk-forward splits) and
+`generate_combinatorial_splits` (Combinatorial Purged Cross-Validation split
+generator, the primitive a Probability-of-Backtest-Overfitting analysis is
+built on — PBO statistic aggregation itself is not implemented).
+
+**Not yet implemented / next step:** integrating these factors and the
+walk-forward validator into an actual backtest/model-comparison pipeline,
+and a migration strategy against the 14 existing production factors — not
+started, deliberately, until there is a validated reason to touch
+production (see repo `docs/research/PHASE-*` for why this project treats
+that step as its own, evidence-gated decision).
 
 ## Structure
 
@@ -29,12 +36,13 @@ research-python/
       volatility.py    # garman_klass_volatility, bollinger_bands
       momentum.py      # adx (Wilder), log_return, return_momentum
     validation/
-      walk_forward.py  # NOT YET IMPLEMENTED - interface stub only
+      walk_forward.py  # PurgedWalkForwardCV, generate_combinatorial_splits (CPCV)
   tests/
     lookahead_utils.py     # shared no-look-ahead test helpers
     test_derivatives.py
     test_volatility.py
     test_momentum.py
+    test_walk_forward.py   # no-overlap / purge / embargo / monotonicity leak tests
   requirements.txt
   pyproject.toml
 ```
@@ -57,7 +65,8 @@ research-python/
 ```bash
 cd research-python
 pip install -r requirements.txt
-pytest -v
+pytest -v                                  # 62 tests
+pytest --cov=src --cov-report=term-missing # with coverage (95% overall)
 ```
 
 ## Factor definitions implemented
@@ -74,3 +83,19 @@ pytest -v
 
 See each module's docstrings for the exact formulas and the rationale
 behind every non-obvious parameter choice.
+
+## Validation framework (`src/validation/walk_forward.py`)
+
+| Component | Notes |
+|---|---|
+| `PurgedWalkForwardCV` | Sequential expanding or rolling walk-forward. `purge_window` bars removed from a fold's own train immediately before its test block; `embargo_window` bars removed specifically from the *next* fold's train immediately after a test block (matches the task spec's literal "blocked for the next train set" wording — documented as a deliberately conservative design choice, see module docstring for the reasoning). `test_size` has no implicit default (must be given explicitly); insufficient data raises a clear `ValueError` rather than silently producing fewer/degenerate folds. |
+| `generate_combinatorial_splits` | Combinatorial Purged Cross-Validation (CPCV) split generator (Lopez de Prado, ch. 12) — the primitive a Probability-of-Backtest-Overfitting (PBO) analysis needs. Purge/embargo applied symmetrically at *every* train/test group boundary in both time directions, since combinatorial test-group selection means a train group can sit chronologically before **or** after a given test group. PBO statistic aggregation across paths is **not** implemented — this function only produces correctly purged/embargoed splits. |
+
+`tests/test_walk_forward.py` verifies, for both generators: (a) train and
+test indices never overlap, (b) no index from a purge or embargo zone ever
+appears in a train set, and (c) for `PurgedWalkForwardCV` specifically,
+train is always strictly chronologically before its own test block (no
+future-data training) — while a dedicated CPCV test asserts the opposite is
+true there by design (train legitimately appears after a test group in some
+combinations), so the two behaviors are shown to actually differ, not just
+asserted to.
