@@ -349,6 +349,67 @@ class TestGate4Stability:
         result = evaluate_gate_4_stability(importance_stability=0.9, selection_frequency=0.9, n_folds=3, config=config)
         assert result.status != GateStatus.INSUFFICIENT_DATA
 
+    # -- PBO wiring (walk_forward.compute_pbo as an optional Gate 4 input) --
+
+    def test_pbo_not_configured_is_fully_backward_compatible(self):
+        # Default StabilityGateConfig (max_pbo=None): calling without a pbo
+        # argument at all must behave identically to before this change.
+        config = StabilityGateConfig(min_importance_stability=0.5, min_selection_frequency=0.5, min_n_folds=2)
+        result = evaluate_gate_4_stability(importance_stability=0.8, selection_frequency=0.9, n_folds=5, config=config)
+        assert result.status == GateStatus.PASS
+        assert result.details["pbo"] is None
+        assert result.details["max_pbo"] is None
+        assert result.details["pbo_acceptable"] is True
+
+    def test_pbo_within_threshold_passes(self):
+        config = StabilityGateConfig(max_pbo=0.5)
+        result = evaluate_gate_4_stability(
+            importance_stability=0.9, selection_frequency=0.9, n_folds=5, config=config, pbo=0.3
+        )
+        assert result.status == GateStatus.PASS
+        assert result.details["pbo_acceptable"] is True
+
+    def test_pbo_at_exact_threshold_passes(self):
+        config = StabilityGateConfig(max_pbo=0.5)
+        result = evaluate_gate_4_stability(
+            importance_stability=0.9, selection_frequency=0.9, n_folds=5, config=config, pbo=0.5
+        )
+        assert result.status == GateStatus.PASS
+
+    def test_pbo_exceeding_threshold_fails(self):
+        # Otherwise-passing stability/selection metrics, but PBO too high
+        # -- overfitting evidence must fail the gate on its own.
+        config = StabilityGateConfig(max_pbo=0.5)
+        result = evaluate_gate_4_stability(
+            importance_stability=0.9, selection_frequency=0.9, n_folds=5, config=config, pbo=0.7
+        )
+        assert result.status == GateStatus.FAIL
+        assert result.details["pbo_acceptable"] is False
+
+    def test_max_pbo_configured_but_pbo_not_supplied_is_insufficient_data(self):
+        config = StabilityGateConfig(max_pbo=0.5)
+        result = evaluate_gate_4_stability(importance_stability=0.9, selection_frequency=0.9, n_folds=5, config=config)
+        assert result.status == GateStatus.INSUFFICIENT_DATA
+
+    def test_nan_pbo_is_insufficient_data(self):
+        config = StabilityGateConfig(max_pbo=0.5)
+        result = evaluate_gate_4_stability(
+            importance_stability=0.9, selection_frequency=0.9, n_folds=5, config=config, pbo=float("nan")
+        )
+        assert result.status == GateStatus.INSUFFICIENT_DATA
+
+    def test_pbo_supplied_without_threshold_is_reported_but_not_enforced(self):
+        # max_pbo left at its default None: a very high (bad) pbo must NOT
+        # fail the gate, since no threshold was configured to enforce it --
+        # only reported in details for visibility.
+        config = StabilityGateConfig()
+        result = evaluate_gate_4_stability(
+            importance_stability=0.9, selection_frequency=0.9, n_folds=5, config=config, pbo=0.99
+        )
+        assert result.status == GateStatus.PASS
+        assert result.details["pbo"] == 0.99
+        assert result.details["pbo_acceptable"] is True
+
 
 # ---------------------------------------------------------------------------
 # combine_gate_results

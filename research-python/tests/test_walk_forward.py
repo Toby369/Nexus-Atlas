@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import math
 from itertools import combinations
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from src.validation.walk_forward import PurgedWalkForwardCV, generate_combinatorial_splits
+from src.validation.walk_forward import (
+    PBOResult,
+    PurgedWalkForwardCV,
+    compute_pbo,
+    generate_combinatorial_splits,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -264,3 +270,127 @@ class TestCombinatorialSplitsNoLeakage:
         for train_idx, test_idx, _ in single_test_splits:
             covered = len(set(train_idx) | set(test_idx))
             assert covered >= self.N_SAMPLES - 2 * (self.PURGE + self.EMBARGO)
+
+
+# ---------------------------------------------------------------------------
+# compute_pbo (CSCV / Probability of Backtest Overfitting)
+# ---------------------------------------------------------------------------
+
+
+class TestComputePBOValidation:
+    def test_rejects_non_2d_input(self):
+        with pytest.raises(ValueError, match="2D"):
+            compute_pbo(np.array([1.0, 2.0, 3.0]))
+        with pytest.raises(ValueError, match="2D"):
+            compute_pbo(np.zeros((2, 3, 4)))
+
+    def test_rejects_odd_n_groups(self):
+        with pytest.raises(ValueError, match="even"):
+            compute_pbo(np.ones((5, 3)))
+
+    def test_rejects_too_few_groups(self):
+        with pytest.raises(ValueError, match="n_groups"):
+            compute_pbo(np.ones((0, 3)))
+
+    def test_rejects_too_few_trials(self):
+        with pytest.raises(ValueError, match="n_trials"):
+            compute_pbo(np.ones((4, 1)))
+
+    def test_rejects_nan(self):
+        gp = np.array([[1.0, 2.0], [3.0, np.nan], [4.0, 5.0], [6.0, 7.0]])
+        with pytest.raises(ValueError, match="NaN"):
+            compute_pbo(gp)
+
+
+class TestComputePBOGoldenValues:
+    """Hand-derivable cases: with only 2 trials and 4 groups, every one of
+    the C(4,2)=6 combinations' logit can be computed by hand, so these are
+    exact golden-value checks, not just sanity bounds."""
+
+    def test_dominant_trial_yields_pbo_zero(self):
+        # trial 0 strictly beats trial 1 in every single group -> trial 0
+        # is always the in-sample winner AND always has the higher
+        # out-of-sample mean too (uniform dominance survives any subset
+        # split) -> every combination's logit is positive -> PBO == 0.0
+        # exactly (no evidence of overfitting: the selected strategy is
+        # genuinely, consistently better, not a lucky in-sample fluke).
+        group_performance = np.array([[2.0, 1.0], [3.0, 1.0], [4.0, 1.0], [5.0, 1.0]])
+        result = compute_pbo(group_performance)
+        assert result.pbo == 0.0
+        assert result.n_combinations == math.comb(4, 2) == 6
+        assert np.all(result.logits > 0)
+        assert np.all(result.selected_trial == 0)
+
+    def test_tied_trials_yield_pbo_one(self):
+        # Both trials always have identical performance -> every
+        # combination ties in-sample (argmax picks index 0) AND ties
+        # out-of-sample (average rank 1.5 for both of 2 trials) -> omega =
+        # 1.5/3 = 0.5 -> logit = ln(1) = 0 exactly -> logit <= 0 is True
+        # for every combination -> PBO == 1.0 exactly. This also exercises
+        # the tie-handling (rankdata average rank) and the "<=0" boundary.
+        group_performance = np.array([[1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [4.0, 4.0]])
+        result = compute_pbo(group_performance)
+        assert result.pbo == 1.0
+        np.testing.assert_allclose(result.logits, 0.0, atol=1e-12)
+        assert np.all(result.selected_trial == 0)
+
+    def test_result_shapes_and_field_consistency(self):
+        group_performance = np.array([[2.0, 1.0], [3.0, 1.0], [4.0, 1.0], [5.0, 1.0]])
+        result = compute_pbo(group_performance)
+        assert isinstance(result, PBOResult)
+        assert result.n_groups == 4
+        assert result.n_trials == 2
+        assert result.is_performance.shape == (6, 2)
+        assert result.oos_performance.shape == (6, 2)
+        assert result.selected_trial.shape == (6,)
+        assert result.oos_rank_of_selected.shape == (6,)
+        assert result.logits.shape == (6,)
+        # oos_rank_of_selected must be a valid rank in [1, n_trials] always.
+        assert np.all(result.oos_rank_of_selected >= 1)
+        assert np.all(result.oos_rank_of_selected <= result.n_trials)
+
+
+class TestComputePBODeterminism:
+    def test_fully_deterministic_no_seed_needed(self):
+        # No randomness anywhere in the algorithm (exhaustive enumeration
+        # of combinations) -- two calls on the same input must be
+        # bit-for-bit identical without passing any seed.
+        rng = np.random.default_rng(11)
+        group_performance = rng.normal(size=(6, 4))
+        r1 = compute_pbo(group_performance)
+        r2 = compute_pbo(group_performance)
+        assert r1.pbo == r2.pbo
+        np.testing.assert_array_equal(r1.logits, r2.logits)
+        np.testing.assert_array_equal(r1.selected_trial, r2.selected_trial)
+        np.testing.assert_array_equal(r1.is_performance, r2.is_performance)
+        np.testing.assert_array_equal(r1.oos_performance, r2.oos_performance)
+
+
+class TestComputePBOLargerCombinatorics:
+    def test_n_combinations_matches_binomial_coefficient(self):
+        for n_groups in [2, 4, 6, 8]:
+            rng = np.random.default_rng(n_groups)
+            group_performance = rng.normal(size=(n_groups, 3))
+            result = compute_pbo(group_performance)
+            assert result.n_combinations == math.comb(n_groups, n_groups // 2)
+
+    def test_pbo_always_in_unit_interval(self):
+        for n_groups in [2, 4, 6, 8]:
+            rng = np.random.default_rng(100 + n_groups)
+            group_performance = rng.normal(size=(n_groups, 5))
+            result = compute_pbo(group_performance)
+            assert 0.0 <= result.pbo <= 1.0
+
+    def test_pure_noise_trials_yield_non_extreme_pbo(self):
+        # Empirical demonstration (not just an assertion of the formula):
+        # when no trial has genuine skill (all performance values are pure
+        # iid noise, so which trial "wins" in-sample is unrelated to which
+        # wins out-of-sample), PBO should land strictly inside (0, 1) --
+        # neither falsely certain the selection process is safe (pbo=0)
+        # nor falsely certain every selection is overfit (pbo=1). A
+        # collapse to either extreme on pure noise would indicate a bug in
+        # the rank/logit aggregation, not a real finding.
+        rng = np.random.default_rng(2026)
+        group_performance = rng.normal(size=(8, 10))
+        result = compute_pbo(group_performance)
+        assert 0.0 < result.pbo < 1.0

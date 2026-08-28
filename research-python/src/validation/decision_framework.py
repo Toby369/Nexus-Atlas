@@ -365,14 +365,24 @@ class StabilityGateConfig:
     min_importance_stability: float = 0.5
     min_selection_frequency: float = 0.5
     min_n_folds: int = 2
+    # Probability-of-Backtest-Overfitting threshold (walk_forward.compute_pbo).
+    # None (default): PBO is not evaluated at all -- fully backward
+    # compatible with every existing caller of this gate. Set to enforce a
+    # ceiling (e.g. 0.5) once a caller actually has a PBO estimate to pass.
+    max_pbo: float | None = None
 
 
 def evaluate_gate_4_stability(
-    importance_stability: float, selection_frequency: float, n_folds: int, config: StabilityGateConfig
+    importance_stability: float,
+    selection_frequency: float,
+    n_folds: int,
+    config: StabilityGateConfig,
+    pbo: float | None = None,
 ) -> GateResult:
     """Gate 4: is the candidate feature consistently important and
     consistently selected across walk-forward folds -- i.e. not just a
-    lucky single-fold result?
+    lucky single-fold result -- and, optionally, is its Probability of
+    Backtest Overfitting acceptable?
 
     ``importance_stability`` and ``selection_frequency`` are the same
     cross-fold metrics ``src/selection/evaluate.py``'s ``evaluate_features``
@@ -381,9 +391,19 @@ def evaluate_gate_4_stability(
     function does not recompute them, it only judges them against a
     threshold, keeping this module decoupled from ``evaluate.py``'s types.
 
-    Status is INSUFFICIENT_DATA if fewer than ``config.min_n_folds`` folds
+    ``pbo`` is, likewise, not computed here -- it is
+    ``src.validation.walk_forward.compute_pbo(...).pbo`` from a CSCV run
+    the caller already performed, passed in as a plain float for the same
+    decoupling reason. It is only enforced when ``config.max_pbo`` is set;
+    passing ``pbo`` without setting ``config.max_pbo`` has no effect on the
+    decision (the value is still echoed in ``details`` for visibility).
+
+    Status is INSUFFICIENT_DATA if: fewer than ``config.min_n_folds`` folds
     were available (a cross-fold consistency claim needs multiple folds by
-    definition) or if either metric is NaN.
+    definition); ``importance_stability`` or ``selection_frequency`` is
+    NaN; ``config.max_pbo`` is set but no ``pbo`` was supplied (a
+    configured requirement this gate cannot silently skip); or a supplied
+    ``pbo`` is itself NaN.
     """
     if n_folds < config.min_n_folds:
         return GateResult(
@@ -404,10 +424,31 @@ def evaluate_gate_4_stability(
             rationale="importance_stability or selection_frequency is NaN -- cannot evaluate.",
             details={"importance_stability": importance_stability, "selection_frequency": selection_frequency},
         )
+    if config.max_pbo is not None and pbo is None:
+        return GateResult(
+            gate_number=4,
+            gate_name="Systematic Stability & Overfitting Protection",
+            status=GateStatus.INSUFFICIENT_DATA,
+            rationale=(
+                f"config.max_pbo={config.max_pbo} is set (PBO is required for this "
+                "evaluation) but no pbo value was supplied -- cannot silently skip "
+                "a configured requirement."
+            ),
+            details={"max_pbo": config.max_pbo, "pbo": None},
+        )
+    if pbo is not None and np.isnan(pbo):
+        return GateResult(
+            gate_number=4,
+            gate_name="Systematic Stability & Overfitting Protection",
+            status=GateStatus.INSUFFICIENT_DATA,
+            rationale="pbo is NaN -- cannot evaluate.",
+            details={"pbo": pbo},
+        )
 
     stable_importance = importance_stability >= config.min_importance_stability
     frequent_selection = selection_frequency >= config.min_selection_frequency
-    passed = stable_importance and frequent_selection
+    pbo_acceptable = pbo is None or config.max_pbo is None or pbo <= config.max_pbo
+    passed = stable_importance and frequent_selection and pbo_acceptable
 
     rationale = (
         f"importance_stability={importance_stability:.3f} "
@@ -416,6 +457,16 @@ def evaluate_gate_4_stability(
         f"({'>=' if frequent_selection else '<'} {config.min_selection_frequency}), "
         f"across {n_folds} folds."
     )
+    if pbo is not None:
+        rationale += (
+            f" PBO={pbo:.3f}"
+            + (
+                f" ({'<=' if pbo_acceptable else '>'} max_pbo={config.max_pbo})."
+                if config.max_pbo is not None
+                else " (no max_pbo threshold configured -- reported for visibility only)."
+            )
+        )
+
     return GateResult(
         gate_number=4,
         gate_name="Systematic Stability & Overfitting Protection",
@@ -427,6 +478,9 @@ def evaluate_gate_4_stability(
             "n_folds": n_folds,
             "min_importance_stability": config.min_importance_stability,
             "min_selection_frequency": config.min_selection_frequency,
+            "pbo": pbo,
+            "max_pbo": config.max_pbo,
+            "pbo_acceptable": pbo_acceptable,
         },
     )
 

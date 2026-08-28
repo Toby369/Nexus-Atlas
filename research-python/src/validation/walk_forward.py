@@ -1,16 +1,28 @@
 """Purged & embargoed walk-forward cross-validation for the BTC/USDT factor pipeline.
 
-Two split generators are provided:
+Three components are provided:
 
 - ``PurgedWalkForwardCV``: sequential (expanding or rolling) walk-forward
   splits, purged and embargoed. Train always precedes test in time.
 - ``generate_combinatorial_splits``: Combinatorial Purged Cross-Validation
   (CPCV) split generator, per Lopez de Prado's "Advances in Financial
-  Machine Learning" (ch. 12) -- the split-generation primitive a
-  Probability-of-Backtest-Overfitting (PBO) analysis is built on. This
-  function only generates (train, test) index pairs; aggregating
-  out-of-sample performance across paths into an actual PBO statistic is a
-  further step, NOT implemented here (out of scope for this module).
+  Machine Learning" (ch. 12) -- generates purged/embargoed (train, test)
+  bar-index pairs for every combinatorial group choice. This is the
+  data-splitting primitive a Probability-of-Backtest-Overfitting (PBO)
+  analysis is built on; it does not itself compute a performance statistic.
+- ``compute_pbo``: the PBO aggregation step -- Combinatorially Symmetric
+  Cross-Validation (CSCV), per Bailey, Borwein, Lopez de Prado & Zhu (2014,
+  "The Probability of Backtest Overfitting") and AFML ch. 11. Consumes a
+  pre-computed (n_groups x n_trials) matrix of a chosen performance
+  statistic (e.g. Sharpe ratio) -- one value per CPCV group per candidate
+  trial/strategy -- and aggregates it across every symmetric train/test
+  group combination into the PBO estimate. Deliberately operates one
+  abstraction level above ``generate_combinatorial_splits``: computing each
+  cell of that matrix (running a trial's strategy on one group's bars) is
+  the caller's responsibility -- typically using
+  ``generate_combinatorial_splits`` or a similar per-group evaluation --
+  since this module has no opinion on what a "trial" or a "performance
+  statistic" is for any given caller.
 
 Design intent: mirrors the purge/embargo *concept* already implemented and
 validated on the Supabase/SQL side of this project (see
@@ -28,12 +40,19 @@ network access, no `app`/`lib` imports from the Next.js side of the repo.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from itertools import combinations
 from typing import Iterator, Sequence, Sized
 
 import numpy as np
+from scipy.stats import rankdata
 
-__all__ = ["PurgedWalkForwardCV", "generate_combinatorial_splits"]
+__all__ = [
+    "PurgedWalkForwardCV",
+    "generate_combinatorial_splits",
+    "PBOResult",
+    "compute_pbo",
+]
 
 
 def _resolve_size(value: int | float | None, n_samples: int, name: str) -> int | None:
@@ -243,10 +262,12 @@ def generate_combinatorial_splits(
 
     This is the split-generation primitive a Probability-of-Backtest-
     Overfitting (PBO) analysis needs (Lopez de Prado, "Advances in Financial
-    Machine Learning", ch. 12). Computing the actual PBO statistic requires
-    aggregating out-of-sample performance across the generated combinations
-    into reconstructed "paths" -- that aggregation is NOT implemented here;
-    this function only produces correctly purged/embargoed splits.
+    Machine Learning", ch. 12): this function only produces correctly
+    purged/embargoed bar-index splits. Computing the actual PBO statistic
+    from out-of-sample performance aggregated across combinations is
+    ``compute_pbo``, below -- it consumes a per-group performance matrix
+    (typically produced by running a trial on the groups this function
+    partitions the data into), not this function's index arrays directly.
 
     Parameters
     ----------
@@ -317,3 +338,153 @@ def generate_combinatorial_splits(
             )
 
         yield train_indices, test_indices, test_group_ids
+
+
+# ---------------------------------------------------------------------------
+# PBO -- Probability of Backtest Overfitting (CSCV aggregation)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class PBOResult:
+    """Result of ``compute_pbo``.
+
+    ``logits`` holds one value per symmetric train/test combination -- the
+    same length as ``is_performance``/``oos_performance``/``selected_trial``/
+    ``oos_rank_of_selected`` (all indexed identically, combination-by-combination).
+    """
+
+    pbo: float
+    n_combinations: int
+    n_groups: int
+    n_trials: int
+    logits: np.ndarray
+    is_performance: np.ndarray
+    oos_performance: np.ndarray
+    selected_trial: np.ndarray
+    oos_rank_of_selected: np.ndarray
+
+
+def compute_pbo(group_performance: np.ndarray) -> PBOResult:
+    """Probability of Backtest Overfitting via Combinatorially Symmetric
+    Cross-Validation (CSCV), per Bailey, Borwein, Lopez de Prado & Zhu
+    (2014) and AFML ch. 11 -- the aggregation step this module's docstring
+    previously flagged as not implemented.
+
+    Parameters
+    ----------
+    group_performance : array-like, shape (n_groups, n_trials)
+        Row ``g``, column ``k`` is the chosen performance statistic (e.g.
+        Sharpe ratio, mean return -- caller's choice, this function is
+        statistic-agnostic) of trial/candidate-strategy ``k``, computed
+        using ONLY group ``g``'s bars (e.g. the group partition
+        ``generate_combinatorial_splits`` divides the data into, or any
+        other equal-status chronological partition). ``n_groups`` must be
+        even and >= 2 (CSCV splits groups into two *equal* halves at every
+        combination -- an odd count cannot be split symmetrically);
+        ``n_trials`` must be >= 2 (a "best in-sample trial" is only a
+        meaningful selection when there is more than one candidate to
+        select among).
+
+    Algorithm
+    ---------
+    For every one of ``C(n_groups, n_groups // 2)`` ways to choose half the
+    groups as a training set S (the complement Sc is the test set --
+    enumerating all such choices covers both (S, Sc) and (Sc, S) as
+    separate combinations, so both directions are exercised):
+
+    1. In-sample performance per trial = mean of ``group_performance`` over
+       the S rows.
+    2. Out-of-sample performance per trial = mean of ``group_performance``
+       over the Sc rows.
+    3. The "selected" trial n* is whichever has the highest in-sample
+       performance (ties broken by lowest index -- ``np.argmax``'s own
+       deterministic tie-break, documented here rather than left implicit).
+    4. n*'s out-of-sample performance is ranked (``scipy.stats.rankdata``,
+       ties given the average rank, ascending: rank 1 = worst OOS) among
+       all ``n_trials`` trials' out-of-sample performances for that
+       combination, giving relative rank ``omega = rank / (n_trials + 1)``
+       in (0, 1).
+    5. The logit ``lambda = ln(omega / (1 - omega))`` is this combination's
+       vote: negative or zero means the in-sample-best trial performed at
+       or below the OOS median -- exactly what "the backtest overfit" looks
+       like (a trial that only looked good on the data used to pick it).
+
+    PBO is the fraction of combinations with ``lambda <= 0``.
+
+    No random sampling is involved -- every combination is enumerated
+    exhaustively (this is the same ``itertools.combinations`` primitive
+    ``generate_combinatorial_splits`` uses for group selection, applied
+    here to already-aggregated group performance rather than to bar
+    indices), so the result is deterministic by construction; there is no
+    seed parameter to pass, unlike ``block_bootstrap.py``'s genuinely
+    randomized resampling.
+    """
+    group_performance = np.asarray(group_performance, dtype=float)
+    if group_performance.ndim != 2:
+        raise ValueError(
+            f"group_performance must be 2D (n_groups, n_trials), got shape {group_performance.shape}"
+        )
+    n_groups, n_trials = group_performance.shape
+    if n_groups < 2 or n_groups % 2 != 0:
+        raise ValueError(
+            f"n_groups (group_performance.shape[0]) must be even and >= 2 for a "
+            f"symmetric train/test half-split, got {n_groups}"
+        )
+    if n_trials < 2:
+        raise ValueError(
+            f"n_trials (group_performance.shape[1]) must be >= 2 -- a 'best "
+            f"in-sample trial' is not a meaningful selection among fewer than "
+            f"2 candidates, got {n_trials}"
+        )
+    if np.isnan(group_performance).any():
+        raise ValueError(
+            "group_performance must not contain NaN -- resolve missing "
+            "group/trial performance before calling compute_pbo (an "
+            "unevaluable cell is a decision for the caller to make "
+            "explicitly, not one this function should silently paper over)."
+        )
+
+    half = n_groups // 2
+    all_groups = np.arange(n_groups)
+    combos = list(combinations(range(n_groups), half))
+    n_combinations = len(combos)
+
+    is_performance = np.empty((n_combinations, n_trials), dtype=float)
+    oos_performance = np.empty((n_combinations, n_trials), dtype=float)
+    selected_trial = np.empty(n_combinations, dtype=int)
+    oos_rank_of_selected = np.empty(n_combinations, dtype=float)
+    logits = np.empty(n_combinations, dtype=float)
+
+    for c, train_groups in enumerate(combos):
+        train_idx = np.array(train_groups, dtype=int)
+        test_idx = np.setdiff1d(all_groups, train_idx, assume_unique=True)
+
+        is_row = group_performance[train_idx].mean(axis=0)
+        oos_row = group_performance[test_idx].mean(axis=0)
+        is_performance[c] = is_row
+        oos_performance[c] = oos_row
+
+        best = int(np.argmax(is_row))
+        selected_trial[c] = best
+
+        oos_ranks = rankdata(oos_row)  # 1..n_trials, average rank on ties
+        rank = float(oos_ranks[best])
+        oos_rank_of_selected[c] = rank
+
+        omega = rank / (n_trials + 1)
+        logits[c] = np.log(omega / (1 - omega))
+
+    pbo = float(np.mean(logits <= 0))
+
+    return PBOResult(
+        pbo=pbo,
+        n_combinations=n_combinations,
+        n_groups=n_groups,
+        n_trials=n_trials,
+        logits=logits,
+        is_performance=is_performance,
+        oos_performance=oos_performance,
+        selected_trial=selected_trial,
+        oos_rank_of_selected=oos_rank_of_selected,
+    )

@@ -54,6 +54,15 @@ yet run against real data — the actual migration decision itself is still
 gated on the Phase-3.2 power requirements (see `BENCHMARK_RESULTS.md`
 Section 8 and `ROADMAP.md`).
 
+**Step 7 (done, Path A / ROADMAP.md):**
+`src/validation/walk_forward.py::compute_pbo` — Combinatorially Symmetric
+Cross-Validation (CSCV) aggregation of the Probability of Backtest
+Overfitting (PBO), completing the CPCV validation story
+`generate_combinatorial_splits` started. Wired as an optional input to
+Gate 4 of `decision_framework.py` (`StabilityGateConfig.max_pbo` /
+`evaluate_gate_4_stability(..., pbo=...)`), `None` by default so every
+existing caller is unaffected.
+
 **Not yet implemented / next step:** running the framework above against
 real, sufficiently-powered data — not started, deliberately, until that
 data exists (see `ROADMAP.md` for the specific timeline).
@@ -84,7 +93,7 @@ research-python/
     test_derivatives.py
     test_volatility.py
     test_momentum.py
-    test_walk_forward.py   # no-overlap / purge / embargo / monotonicity leak tests
+    test_walk_forward.py   # no-overlap / purge / embargo / monotonicity leak tests + compute_pbo (PBO) tests
     test_block_bootstrap.py # determinism, NaN handling, "corrects inference not information" proof
     test_decision_framework.py # golden-value power table, all gate PASS/FAIL/INSUFFICIENT_DATA paths, combiner rules
     test_selection.py      # fold-discipline tests + synthetic noise/regime/collinearity benchmark
@@ -114,7 +123,7 @@ research-python/
 ```bash
 cd research-python
 pip install -r requirements.txt
-pytest -v                                  # 250 tests
+pytest -v                                  # 269 tests
 pytest --cov=src --cov-report=term-missing # with coverage (98% overall)
 python -m src.benchmark_production         # runs the production-factor benchmark, writes BENCHMARK_RESULTS.md
 ```
@@ -139,9 +148,10 @@ behind every non-obvious parameter choice.
 | Component | Notes |
 |---|---|
 | `PurgedWalkForwardCV` | Sequential expanding or rolling walk-forward. `purge_window` bars removed from a fold's own train immediately before its test block; `embargo_window` bars removed specifically from the *next* fold's train immediately after a test block (matches the task spec's literal "blocked for the next train set" wording — documented as a deliberately conservative design choice, see module docstring for the reasoning). `test_size` has no implicit default (must be given explicitly); insufficient data raises a clear `ValueError` rather than silently producing fewer/degenerate folds. `train_size` is optional in expanding mode too (backward-compatible addition made while building `src/selection/`): if given, it sets a minimum floor for the *first* fold's train window so it's large enough to fit a model on, rather than always starting at just `purge_window + 1` rows. |
-| `generate_combinatorial_splits` | Combinatorial Purged Cross-Validation (CPCV) split generator (Lopez de Prado, ch. 12) — the primitive a Probability-of-Backtest-Overfitting (PBO) analysis needs. Purge/embargo applied symmetrically at *every* train/test group boundary in both time directions, since combinatorial test-group selection means a train group can sit chronologically before **or** after a given test group. PBO statistic aggregation across paths is **not** implemented — this function only produces correctly purged/embargoed splits. |
+| `generate_combinatorial_splits` | Combinatorial Purged Cross-Validation (CPCV) split generator (Lopez de Prado, ch. 12) — the data-splitting primitive a Probability-of-Backtest-Overfitting (PBO) analysis needs. Purge/embargo applied symmetrically at *every* train/test group boundary in both time directions, since combinatorial test-group selection means a train group can sit chronologically before **or** after a given test group. Produces correctly purged/embargoed bar-index splits only — aggregating a performance statistic across them into PBO is `compute_pbo`, below. |
+| `compute_pbo` | Probability of Backtest Overfitting via Combinatorially Symmetric Cross-Validation (CSCV; Bailey, Borwein, Lopez de Prado & Zhu 2014; AFML ch. 11) — the aggregation step. Takes a pre-computed `(n_groups, n_trials)` performance matrix (one statistic, e.g. Sharpe ratio, per CPCV group per candidate trial — computed by the caller, this function is statistic-agnostic) and, for every one of `C(n_groups, n_groups//2)` symmetric train/test group combinations: picks the in-sample-best trial, ranks its out-of-sample performance among all trials' (`scipy.stats.rankdata`, ties averaged), and converts that rank to a logit. `PBO = mean(logit <= 0)` — the fraction of combinations where the in-sample winner performed at or below the OOS median, i.e. looked good only on the data used to pick it. Fully deterministic (exhaustive enumeration, no randomness, no seed needed). |
 
-`tests/test_walk_forward.py` verifies, for both generators: (a) train and
+`tests/test_walk_forward.py` verifies, for both split generators: (a) train and
 test indices never overlap, (b) no index from a purge or embargo zone ever
 appears in a train set, and (c) for `PurgedWalkForwardCV` specifically,
 train is always strictly chronologically before its own test block (no
@@ -149,6 +159,8 @@ future-data training) — while a dedicated CPCV test asserts the opposite is
 true there by design (train legitimately appears after a test group in some
 combinations), so the two behaviors are shown to actually differ, not just
 asserted to.
+
+**`compute_pbo` golden values** (`tests/test_walk_forward.py::TestComputePBOGoldenValues`): with 4 groups and 2 trials, every one of the `C(4,2)=6` combinations' logit is hand-derivable, so these are exact checks, not tolerance-based sanity bounds — a trial that strictly dominates another in every group yields `PBO == 0.0` exactly (every combination's logit is positive: the selection is genuinely, consistently good, not an in-sample fluke); two trials with identical performance everywhere tie in-sample and out-of-sample in every combination (`omega=0.5`, `logit=0` exactly, and the boundary rule `logit <= 0` counts a tie as a vote for overfitting), yielding `PBO == 1.0` exactly. A separate empirical test (`TestComputePBOLargerCombinatorics::test_pure_noise_trials_yield_non_extreme_pbo`) shows pure iid-noise trials (no real skill difference) produce a `PBO` strictly inside `(0, 1)` — a collapse to either extreme there would indicate a bug in the rank/logit aggregation, not a real finding, the same empirical-proof discipline used for `block_bootstrap.py`'s "corrects inference, does not create information" claim.
 
 ## Feature selection & benchmark (`src/selection/`)
 
@@ -198,7 +210,7 @@ Formalizes the 4 Decision Gates from `BENCHMARK_RESULTS.md` Section 8 into an au
 | Gate 1 — `evaluate_gate_1_statistical_power` | `statistical_power` (two-sided one-sample proportion z-test, `scipy.stats.norm`) and `required_sample_size` (binary search) reimplement, independently, the exact formula used throughout `docs/research/PHASE-0..3.2` — golden-value cross-checked against the Phase-3.2 required-n table (baseline=0.535: effect 5/8/10/13/15pp → n=776/301/192/112/84, all 5 exact) in `tests/test_decision_framework.py::TestPowerMatchesPhase32`. Status is `PASS` or `INSUFFICIENT_DATA` only — never `FAIL`. |
 | Gate 2 — `evaluate_gate_2_feature_coverage` | Per-feature non-null fraction vs. a required-feature list and minimum-coverage threshold — same notion of "coverage" as `benchmark_production.py`'s `LEGACY_EVALUABLE`/`NOT_EVALUABLE` split. `INSUFFICIENT_DATA`, not `FAIL`, for missing-entirely or below-threshold features. |
 | Gate 3 — `evaluate_gate_3_performance` | Calls `block_bootstrap_hit_rate_difference` for dependence-corrected p-value/CI; `PASS` requires statistical significance AND practical relevance (`min_practically_relevant_effect`, an explicitly-flagged NOT-yet-finalized 5pp placeholder from Phase 3 Section 6.2) AND favorable direction, all three — a significant result in the wrong direction is a genuine `FAIL`. The underlying `ValueError` from an uncomputable bootstrap (e.g. the condition never matches) is caught and reclassified as `INSUFFICIENT_DATA`, never a crash. |
-| Gate 4 — `evaluate_gate_4_stability` | Judges `evaluate.py`'s own cross-fold `importance_stability`/`selection_frequency` metrics against thresholds — deliberately decoupled from `evaluate.py`'s types (plain floats in, so it stays independently testable). `INSUFFICIENT_DATA` for too few folds or NaN inputs. |
+| Gate 4 — `evaluate_gate_4_stability` | Judges `evaluate.py`'s own cross-fold `importance_stability`/`selection_frequency` metrics against thresholds — deliberately decoupled from `evaluate.py`'s types (plain floats in, so it stays independently testable). `INSUFFICIENT_DATA` for too few folds or NaN inputs. Also takes an optional `pbo` argument (`walk_forward.compute_pbo(...).pbo`) enforced only when `StabilityGateConfig.max_pbo` is set — `None` by default on both, so every pre-existing caller is unaffected; if `max_pbo` is configured but no `pbo` is supplied, that configured requirement is not silently skipped — the gate returns `INSUFFICIENT_DATA` instead. |
 | `combine_gate_results` | Strict, conservative rule: any gate `INSUFFICIENT_DATA` → overall `INSUFFICIENT_DATA` (takes priority over any `FAIL` — concluding `REJECT` from missing data would be exactly as premature as concluding `MIGRATE`); all four `PASS` → `MIGRATE`; otherwise `REJECT`. Raises `ValueError` on a partial or duplicated gate set rather than silently producing a decision. |
 
-`tests/test_decision_framework.py` (53 tests, 100% coverage of this module) exercises every reachable status of every gate individually, an end-to-end 4-gate pipeline on deterministic synthetic data for both the `MIGRATE` path (n=1000, clear edge) and the `INSUFFICIENT_DATA` path (n=201 — the actual current project state per `BENCHMARK_RESULTS.md`), and exhaustive `combine_gate_results` combination coverage (including `INSUFFICIENT_DATA` explicitly taking priority over a simultaneous `FAIL`).
+`tests/test_decision_framework.py` (60 tests, 100% coverage of this module) exercises every reachable status of every gate individually — including the `pbo`/`max_pbo` PASS/FAIL/INSUFFICIENT_DATA paths and a dedicated backward-compatibility check that calling Gate 4 exactly as before (no `pbo` argument) is unaffected — an end-to-end 4-gate pipeline on deterministic synthetic data for both the `MIGRATE` path (n=1000, clear edge) and the `INSUFFICIENT_DATA` path (n=201 — the actual current project state per `BENCHMARK_RESULTS.md`), and exhaustive `combine_gate_results` combination coverage (including `INSUFFICIENT_DATA` explicitly taking priority over a simultaneous `FAIL`).

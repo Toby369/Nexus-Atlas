@@ -20,7 +20,7 @@ research-python-Phasen automatisch weiter.
 | Arbeitspaket | Status | Beschreibung |
 |---|---|---|
 | Moving-Block-Bootstrap-Inferenz | ✅ **Erledigt** (`src/validation/block_bootstrap.py`, Commit s. Git-Historie) | Wiederverwendbare Funktion für den künftigen konfirmatorischen Test (L=14 Tage, geblockt auf voller Kalenderreihe, gemäß `docs/research/PHASE-3.2-PROTOCOL-CORRECTION.md` Abschnitt 6a). 100% Testabdeckung, inkl. empirischem Nachweis (nicht nur Dokumentation) der Kernaussage "korrigiert Inferenz, erzeugt keine Information" auf synthetisch autokorrelierten Daten. Noch nicht in `benchmark_production.py` verdrahtet — folgt erst mit echten Daten (siehe Teil 2/3). |
-| PBO-Statistik-Aggregation | Offen | Implementierung der Probability-of-Backtest-Overfitting-Kennzahl über CPCV-Pfade in `walk_forward.py` — Ergänzung zu `generate_combinatorial_splits()`, das aktuell nur die Split-Generierung liefert, nicht die Pfad-Aggregation. |
+| PBO-Statistik-Aggregation | ✅ **Erledigt** (`src/validation/walk_forward.py::compute_pbo`, Commit s. Git-Historie) | Combinatorially Symmetric Cross-Validation (CSCV, Bailey/Borwein/López de Prado/Zhu 2014, AFML Kap. 11) — aggregiert eine vorab berechnete (n_groups × n_trials)-Performance-Matrix über alle C(n_groups, n_groups/2) symmetrischen Train/Test-Gruppen-Kombinationen zur PBO-Kennzahl. Bewusst eine Abstraktionsebene oberhalb von `generate_combinatorial_splits()` (das weiterhin nur Bar-Index-Splits liefert) — die Berechnung der Performance je Gruppe/Trial bleibt Aufgabe des Aufrufers. Vollständig deterministisch (erschöpfende Enumeration, kein Zufall, kein Seed nötig). 100% Testabdeckung, inkl. exakter Golden-Value-Fälle (Dominanz-Szenario → PBO=0.0, Gleichstand-Szenario → PBO=1.0, beide von Hand nachgerechnet) und eines empirischen Nachweises, dass reines Rauschen (keine echte Skill-Differenz zwischen Trials) einen nicht-extremen PBO-Wert liefert. Als optionaler Input (`pbo`, `StabilityGateConfig.max_pbo`) in Gate 4 von `decision_framework.py` verdrahtet — standardmäßig `None`/nicht erzwungen, volle Rückwärtskompatibilität zu allen bestehenden Aufrufen. |
 | SHAP-basierte Feature Importance (optional) | Offen | Alternative zu MDI in `evaluate.py`, bislang als dokumentierte, bewusst nicht gewählte Option vermerkt (zusätzliche schwere Dependency vs. Nutzen abgewogen) — bei Bedarf nachrüstbar. |
 | Migrations-Entscheidungs-Framework | ✅ **Erledigt** (`src/validation/decision_framework.py`, Commit s. Git-Historie) | Überführung der 4 Decision Gates aus `BENCHMARK_RESULTS.md` Abschnitt 8 in ein automatisiertes, dreiwertiges (`PASS`/`FAIL`/`INSUFFICIENT_DATA`) Python-Modul + `combine_gate_results()` (strikte Priorisierungsregel: jede `INSUFFICIENT_DATA` schlägt jede `FAIL`). Nutzt `block_bootstrap.py` für Gate 3. 100% Testabdeckung, inkl. Golden-Value-Abgleich von `statistical_power`/`required_sample_size` gegen die exakte Required-n-Tabelle aus `PHASE-3.2-PROTOCOL-CORRECTION.md` Abschnitt 8 (alle 5 Werte exakt getroffen) und einem End-to-End-Test auf der realen aktuellen Stichprobengröße n=201, der bestätigt, dass das Framework dort korrekt `INSUFFICIENT_DATA` liefert. Noch nicht gegen echte Daten für eine tatsächliche Entscheidung ausgeführt — das bleibt an die Phase-3.2-Power-Anforderungen gebunden. |
 
@@ -57,20 +57,20 @@ Zwei unabhängige Berechnungswege werden gegeneinander geprüft — kein zirkul�
 
 **Rollentrennung:** `test_legacy_factors.py` validiert die mathematische Exaktheit (Zeilen-für-Zeilen-Golden-Value-Abgleich). `test_benchmark.py` prüft eine andere Ebene: Pipeline-Orchestrierung (synthetische Mini-Datensätze, schnell/deterministisch) plus ein End-to-End-Smoke-Test auf der echten CSV, der bestätigt, dass `main()` fehlerfrei durchläuft und der generierte Bericht den Pflicht-Disclaimer sowie alle 8 NOT-EVALUABLE-Faktornamen enthält — Struktur-/Vollständigkeitsprüfung, keine Zahlen-Validierung.
 
-### 2. Testabdeckung (250 Tests, 98% Coverage)
+### 2. Testabdeckung (269 Tests, 98% Coverage)
 
 | Testdatei | Tests |
 |---|---|
+| test_decision_framework.py | 60 |
 | test_legacy_factors.py | 40 |
 | test_selection.py | 40 |
-| test_walk_forward.py | 30 |
 | test_block_bootstrap.py | 40 |
-| test_decision_framework.py | 53 |
+| test_walk_forward.py | 42 |
 | test_benchmark.py | 15 |
 | test_derivatives.py | 12 |
 | test_momentum.py | 10 |
 | test_volatility.py | 10 |
-| **Gesamt** | **250** |
+| **Gesamt** | **269** |
 
 | Modul | Coverage | Offene Zeilen (Charakter) |
 |---|---|---|
@@ -82,8 +82,8 @@ Zwei unabhängige Berechnungswege werden gegeneinander geprüft — kein zirkul�
 | `benchmark_production.py` | 99% | `FileNotFoundError`-Guard (nie getriggert, CSV existiert im Testumfeld immer); `if __name__=="__main__"` (unter pytest strukturell unerreichbar) |
 | `features/volatility.py` | 98% | Unsorted-Index-Guard (keine Testdaten mit vertauschter Reihenfolge für dieses Modul) |
 | `selection/evaluate.py` | 97% | 2× Stability-Score-Fallback (n<2 bzw. Mittelwert≈0, in aktuellen Testdaten nie erreicht); 1× Cluster-Zuordnungs-Fallback (strukturell unerreichbar, jedes Feature gehört in der Pipeline immer einem Cluster an); 1× "keine Folds erzeugt"-Guard |
-| `validation/walk_forward.py` | 96% | 4× defensive Validierungs-Raises für Parameterkombinationen, die durch andere, bereits getestete Checks vorher abgefangen werden oder in aktuellen Szenarien nicht auftreten |
+| `validation/walk_forward.py` | 97% | 4× vorbestehende defensive Validierungs-Raises in `PurgedWalkForwardCV`/`generate_combinatorial_splits` (unverändert seit Phase 2/3) — `compute_pbo()` selbst ist zu 100% abgedeckt |
 | `features/momentum.py` | 91% | Unsorted-Index-Guard; 2× früher Return in `_wilder_smooth` bei zu wenig Daten; 1× NaN-Propagationszweig; 1× Guard für ungültige Horizont/Bar-Intervall-Kombination |
-| **Gesamt** | **98%** | 17 von 914 Zeilen |
+| **Gesamt** | **98%** | 17 von 971 Zeilen |
 
 **Einordnung:** Alle ungetesteten Zeilen sind defensive Validierungs-/Guard-Branches — entweder durch vorgelagerte Checks bereits verhindert, oder Fallback-Pfade für Situationen, die in den aktuellen (echten wie synthetischen) Testdaten nie auftreten. Keine betrifft Kernlogik der Faktorberechnung, der Walk-Forward-Splits oder der Golden-Value-Validierung selbst.
