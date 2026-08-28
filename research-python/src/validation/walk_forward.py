@@ -91,9 +91,13 @@ class PurgedWalkForwardCV:
         Number of walk-forward folds. Default 5.
     train_size : int | float | None
         Absolute bar count, or fraction of the data (0, 1]. Required when
-        ``expanding=False`` (rolling window). If ``None`` and
-        ``expanding=True``, train is "everything available up to the purge
-        boundary" (a true expanding window).
+        ``expanding=False`` (rolling window), where it is the fixed window
+        size used for every fold. Optional when ``expanding=True``: if
+        given, it sets a *minimum floor* for the first fold's train window
+        (train still grows past it in later folds) -- useful when a
+        meaningfully-sized first fold is needed (e.g. to fit a model on
+        it); if ``None`` (default), the first fold starts as small as
+        ``purge_window`` allows.
     test_size : int | float
         Absolute bar count, or fraction of the data (0, 1]. Required --
         deliberately no implicit default, to avoid a silently-chosen test
@@ -159,7 +163,11 @@ class PurgedWalkForwardCV:
         train_size = _resolve_size(self.train_size_raw, n_samples, "train_size")
 
         if self.expanding:
-            initial_offset = self.purge_window + 1
+            # train_size is optional in expanding mode: if given, it sets a
+            # minimum floor for the *first* fold's train window (train still
+            # grows past it in later folds); if omitted (None), the first
+            # fold starts as small as purge_window allows, as before.
+            initial_offset = self.purge_window + (train_size if train_size is not None else 1)
         else:
             initial_offset = self.purge_window + train_size
 
