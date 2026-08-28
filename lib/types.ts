@@ -23,18 +23,6 @@ export interface MarketSeriesPoint {
   open_interest: number | null;
 }
 
-export interface MarketCommentary {
-  id: number;
-  generated_at: string;
-  symbol: string;
-  summary_text: string;
-  price_trend: string;
-  funding_sentiment: string;
-  oi_trend: string;
-  price_change_pct: number | null;
-  created_at: string;
-}
-
 export interface PositioningSnapshot {
   id: number;
   timestamp_utc: string;

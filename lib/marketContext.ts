@@ -26,7 +26,13 @@ export type MarketScenario =
 // eigenen (Spot-spezifischen) Tier in lib/spotPressure.ts, aber mit
 // denselben drei Stufen, damit spaeter beide Werte konsistent an eine AI-
 // Auswertung uebergeben werden koennen (siehe Vorgabe Teil Q/T).
-export type MarketDataQuality = "OK" | "PRELIMINARY" | "INSUFFICIENT_DATA";
+// "LOCKED" ist bewusst von "INSUFFICIENT_DATA" getrennt: INSUFFICIENT_DATA
+// heisst "gar keine Preis-/OI-Zahlen vorhanden". LOCKED heisst "Zahlen sind
+// da, aber die Historie deckt den gewaehlten Zeitraum nicht ausreichend ab"
+// (< MIN_HISTORY_COVERAGE_PCT, siehe unten) -- ein eigener Fall, der bei
+// langen Zeitraeumen (1W/1M) eintritt, waehrend die Datensammlung noch
+// juenger ist als der gewaehlte Zeitraum.
+export type MarketDataQuality = "OK" | "PRELIMINARY" | "INSUFFICIENT_DATA" | "LOCKED";
 
 export interface MarketContextInput {
   priceChangePct: number | null;
@@ -48,7 +54,34 @@ export interface MarketContextInput {
   // bei kurzen Zeitraeumen fast immer, weil die durchschnittliche Preis-
   // /OI-Bewegung dort bereits unter dem Schwellenwert selbst liegt).
   timeframeMinutes: number;
+  // Wieviel Prozent des gewaehlten Zeitraums tatsaechlich durch Historie
+  // gedeckt sind (0-100), z.B. aus dem Abstand zwischen dem aeltesten
+  // verfuegbaren Referenzpunkt und dem Fensterstart berechnet. null, wenn
+  // nicht berechenbar (kein Referenzpunkt vorhanden). Nur fuer lange
+  // Zeitraeume (>= COVERAGE_GATE_MIN_MINUTES, siehe unten) relevant --
+  // bei kurzen Zeitraeumen deckt hasFullOiHistory denselben Fall bereits
+  // ueber die PRELIMINARY-Stufe ab.
+  historyCoveragePct: number | null;
+  // Alter des aeltesten verfuegbaren Datenpunkts in Tagen -- nur fuer den
+  // Banner-Text im LOCKED-Fall verwendet ("Historie reicht nur X Tage
+  // zurueck"), keine Rechenwirkung.
+  earliestDataAgeDays: number | null;
+  // War die Boersen-MENGE hinter dem aggregierten OI ueber das gesamte
+  // Fenster konstant (siehe lib/exchangeConsistency.ts)? false = mindestens
+  // eine Boerse kam erst innerhalb des Fensters dazu -- der OI-Delta waere
+  // teilweise ein Onboarding-Artefakt, keine echte Bewegung. null = nicht
+  // geprueft (z.B. RPC-Fehler) -- wird bewusst NICHT wie false behandelt,
+  // um nicht bei jedem Prüf-Fehler pauschal zu sperren.
+  oiExchangeSetConsistent: boolean | null;
 }
+
+// Ab welcher Zeitraumlaenge die Coverage-Sperre ueberhaupt greift (1W) --
+// bei kuerzeren Zeitraeumen ist die PRELIMINARY-Stufe ausreichend, eine
+// harte Sperre waere dort unverhaeltnismaessig (Spec-Vorgabe: "wie 1W/1M").
+export const COVERAGE_GATE_MIN_MINUTES = 7 * 24 * 60;
+// Unter dieser Abdeckung gilt der gewaehlte Zeitraum als nicht belastbar
+// genug fuer eine automatische Markt-Interpretation (Spec-Vorgabe: 80%).
+export const MIN_HISTORY_COVERAGE_PCT = 80;
 
 export interface MarketContextResult {
   scenario: MarketScenario | null; // null = nicht genug Daten
@@ -173,6 +206,9 @@ export function classifyMarketContext({
   hasFullOiHistory,
   spotDataQuality,
   timeframeMinutes,
+  historyCoveragePct,
+  earliestDataAgeDays,
+  oiExchangeSetConsistent,
 }: MarketContextInput): MarketContextResult {
   if (priceChangePct === null || oiChangePct === null) {
     return {
@@ -183,6 +219,50 @@ export function classifyMarketContext({
         "Noch nicht genug Daten für eine Futures-vs-Spot-Einordnung in diesem Zeitraum.",
       bias: "neutral",
       dataQuality: "INSUFFICIENT_DATA",
+    };
+  }
+
+  // Coverage-Sperre: bei langen Zeitraeumen (1W/1M) reicht "es gibt
+  // irgendeine Zahl" nicht -- deckt die Historie den Zeitraum zu weniger
+  // als MIN_HISTORY_COVERAGE_PCT ab, wird die automatische Interpretation
+  // bewusst DEAKTIVIERT statt nur als PRELIMINARY markiert (Unterschied zu
+  // hasFullOiHistory oben: das ist eine harte Sperre, keine Abstufung).
+  if (
+    timeframeMinutes >= COVERAGE_GATE_MIN_MINUTES &&
+    historyCoveragePct !== null &&
+    historyCoveragePct < MIN_HISTORY_COVERAGE_PCT
+  ) {
+    const daysText =
+      earliestDataAgeDays !== null ? `${Math.max(0, Math.floor(earliestDataAgeDays))} Tage` : "unbekannt";
+    return {
+      scenario: null,
+      label: "Auskunft gesperrt",
+      confirmed: null,
+      explanation:
+        `Auskunft gesperrt — Historie reicht nur ${daysText} zurück ` +
+        `(${historyCoveragePct.toFixed(0)}% Abdeckung des gewählten Zeitraums, ` +
+        `benötigt mindestens ${MIN_HISTORY_COVERAGE_PCT}%).`,
+      bias: "neutral",
+      dataQuality: "LOCKED",
+    };
+  }
+
+  // Boersen-Onboarding-Sperre: kam mindestens eine der aggregierten Boersen
+  // erst innerhalb des Fensters dazu, ist der OI-Delta teilweise ein
+  // Artefakt der Boersen-Menge, keine echte Bewegung -- ausdruecklich nur
+  // bei einem bestaetigten "false" gesperrt, ein unbekanntes "null" (Pruef-
+  // Fehler) blockiert nicht pauschal.
+  if (oiExchangeSetConsistent === false) {
+    return {
+      scenario: null,
+      label: "Auskunft gesperrt",
+      confirmed: null,
+      explanation:
+        "Auskunft gesperrt — mindestens eine Börse wurde erst innerhalb des gewählten " +
+        "Zeitraums in die aggregierte Open-Interest-Summe aufgenommen. Ein Entwicklungs-Delta " +
+        "über diesen Zeitraum wäre teilweise ein Börsen-Onboarding-Artefakt, keine echte Bewegung.",
+      bias: "neutral",
+      dataQuality: "LOCKED",
     };
   }
 

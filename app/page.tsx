@@ -4,7 +4,6 @@ import { supabase } from "@/lib/supabase";
 import type {
   EtfFlowDay,
   LiquidationEvent,
-  MarketCommentary,
   MarketSeriesPoint,
   MarketSnapshot,
   MarketState,
@@ -85,21 +84,12 @@ async function getLatestPerExchange(): Promise<MarketSnapshot[]> {
   return latestByExchange;
 }
 
-async function getLatestCommentary(): Promise<MarketCommentary | null> {
-  const { data, error } = await supabase
-    .from("market_commentary")
-    .select("*")
-    .order("generated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error("Fehler beim Laden der Markteinschaetzung:", error.message);
-    return null;
-  }
-
-  return data;
-}
+// ENTFERNT (Single-Source-of-Truth-Merge): fruehere, eigenstaendige,
+// regelbasierte market_commentary-Abfrage. Die "Kurznotiz" in
+// LivePricePanel.tsx nutzt jetzt denselben marketState-Wert wie
+// MarketStateCard (siehe getLatestMarketState() unten), zusammengefasst
+// ueber lib/marketStateSummary.ts::buildCompactMarketStateSummary() -- kein
+// zweiter, unabhaengiger Rechenweg mehr.
 
 async function getLatestPositioningSnapshot(
   exchange: string
@@ -345,7 +335,6 @@ export default async function Home({
 
   const [
     snapshots,
-    commentary,
     exchangeComparison,
     marketState,
     positioningBinance,
@@ -363,7 +352,6 @@ export default async function Home({
     oiByExchange,
   ] = await Promise.all([
     getSnapshotHistory(),
-    getLatestCommentary(),
     getLatestPerExchange(),
     getLatestMarketState(),
     getLatestPositioningSnapshot("binance"),
@@ -433,7 +421,7 @@ export default async function Home({
                 <LivePricePanel
                   timeframe={timeframe}
                   initialSnapshots={snapshots}
-                  initialCommentary={commentary}
+                  initialMarketState={marketState}
                   initialExchangeComparison={exchangeComparison}
                   initialSeriesData={oiSeriesData}
                   initialReferenceSnapshot={oiReferenceSnapshot}

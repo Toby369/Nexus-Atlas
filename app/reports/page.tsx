@@ -7,6 +7,7 @@ import ReportEngineDashboard, {
   type ProviderOption,
   type ReportSlotData,
 } from "@/components/ReportEngineDashboard";
+import LogoutButton from "@/components/LogoutButton";
 
 export const revalidate = 0;
 
@@ -80,12 +81,15 @@ export default async function ReportsPage() {
           <p className="text-xs tracking-[0.2em] text-text-faint uppercase">Nexus Atlas</p>
           <h1 className="text-lg font-semibold text-text mt-1">AI Report Engine</h1>
         </div>
-        <Link
-          href="/"
-          className="text-xs text-text-faint hover:text-text-muted underline decoration-dotted"
-        >
-          ← Dashboard
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link
+            href="/"
+            className="text-xs text-text-faint hover:text-text-muted underline decoration-dotted"
+          >
+            ← Dashboard
+          </Link>
+          <LogoutButton />
+        </div>
       </header>
 
       <section className="flex-1 px-4 sm:px-6 py-8 max-w-3xl w-full mx-auto">

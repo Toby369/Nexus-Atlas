@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { classifyMarketContext, getMarketContextThresholds } from "./marketContext";
+import {
+  classifyMarketContext,
+  getMarketContextThresholds,
+  COVERAGE_GATE_MIN_MINUTES,
+  MIN_HISTORY_COVERAGE_PCT,
+} from "./marketContext";
 
 // Erste automatisierte Tests fuer dieses Projekt (Audit-Befund: kein
 // Test-Framework vorhanden). classifyMarketContext ist reine, deterministische
@@ -34,6 +39,12 @@ describe("classifyMarketContext", () => {
     hasFullOiHistory: true,
     spotDataQuality: "OK" as const,
     timeframeMinutes: 60,
+    // Neutral: volle Abdeckung, konsistente Boersen-Menge -- die neuen
+    // LOCKED-Gates werden in eigenen Tests unten gezielt geprueft, hier
+    // sollen sie fuer alle bestehenden Szenarien inaktiv bleiben.
+    historyCoveragePct: 100,
+    earliestDataAgeDays: 0,
+    oiExchangeSetConsistent: true as boolean | null,
   };
 
   it("liefert INSUFFICIENT_DATA, wenn Preis oder OI fehlen", () => {
@@ -151,5 +162,100 @@ describe("classifyMarketContext", () => {
     });
     expect(result.confirmed).toBeNull();
     expect(result.explanation).toContain("nicht verfügbar");
+  });
+
+  describe("Coverage-Sperre (1W/1M, < 80% Abdeckung)", () => {
+    it("sperrt die Interpretation bei langem Zeitraum und Abdeckung unter der Schwelle", () => {
+      const result = classifyMarketContext({
+        ...baseInput,
+        timeframeMinutes: COVERAGE_GATE_MIN_MINUTES,
+        historyCoveragePct: MIN_HISTORY_COVERAGE_PCT - 1,
+        earliestDataAgeDays: 5,
+        priceChangePct: 1.5,
+        oiChangePct: 1.5,
+        spotNetFlowPct: 10,
+      });
+      expect(result.scenario).toBeNull();
+      expect(result.dataQuality).toBe("LOCKED");
+      expect(result.label).toBe("Auskunft gesperrt");
+      expect(result.explanation).toContain("5 Tage");
+      expect(result.explanation).toContain(`${MIN_HISTORY_COVERAGE_PCT}%`);
+    });
+
+    it("sperrt NICHT bei exakt der Schwelle (>= ist ausreichend)", () => {
+      const result = classifyMarketContext({
+        ...baseInput,
+        timeframeMinutes: COVERAGE_GATE_MIN_MINUTES,
+        historyCoveragePct: MIN_HISTORY_COVERAGE_PCT,
+        earliestDataAgeDays: 7,
+        priceChangePct: 1.5,
+        oiChangePct: 1.5,
+        spotNetFlowPct: 10,
+      });
+      expect(result.dataQuality).not.toBe("LOCKED");
+    });
+
+    it("sperrt NICHT bei kurzen Zeitraeumen, selbst bei niedriger Abdeckung", () => {
+      const result = classifyMarketContext({
+        ...baseInput,
+        timeframeMinutes: 60,
+        historyCoveragePct: 10,
+        earliestDataAgeDays: 0.02,
+        priceChangePct: 1.5,
+        oiChangePct: 1.5,
+        spotNetFlowPct: 10,
+      });
+      expect(result.dataQuality).not.toBe("LOCKED");
+    });
+
+    it("sperrt NICHT, wenn historyCoveragePct nicht berechenbar ist (null)", () => {
+      const result = classifyMarketContext({
+        ...baseInput,
+        timeframeMinutes: COVERAGE_GATE_MIN_MINUTES,
+        historyCoveragePct: null,
+        earliestDataAgeDays: null,
+        priceChangePct: 1.5,
+        oiChangePct: 1.5,
+        spotNetFlowPct: 10,
+      });
+      expect(result.dataQuality).not.toBe("LOCKED");
+    });
+  });
+
+  describe("Boersen-Onboarding-Sperre (OI-Delta ueber inkonsistente Boersen-Menge)", () => {
+    it("sperrt die Interpretation, wenn die Boersen-Menge nicht konstant war", () => {
+      const result = classifyMarketContext({
+        ...baseInput,
+        oiExchangeSetConsistent: false,
+        priceChangePct: 1.5,
+        oiChangePct: 1.5,
+        spotNetFlowPct: 10,
+      });
+      expect(result.scenario).toBeNull();
+      expect(result.dataQuality).toBe("LOCKED");
+      expect(result.explanation).toContain("Börsen-Onboarding-Artefakt");
+    });
+
+    it("sperrt NICHT, wenn die Konsistenz nicht geprueft werden konnte (null)", () => {
+      const result = classifyMarketContext({
+        ...baseInput,
+        oiExchangeSetConsistent: null,
+        priceChangePct: 1.5,
+        oiChangePct: 1.5,
+        spotNetFlowPct: 10,
+      });
+      expect(result.dataQuality).not.toBe("LOCKED");
+    });
+
+    it("sperrt NICHT bei bestaetigt konsistenter Boersen-Menge", () => {
+      const result = classifyMarketContext({
+        ...baseInput,
+        oiExchangeSetConsistent: true,
+        priceChangePct: 1.5,
+        oiChangePct: 1.5,
+        spotNetFlowPct: 10,
+      });
+      expect(result.dataQuality).not.toBe("LOCKED");
+    });
   });
 });

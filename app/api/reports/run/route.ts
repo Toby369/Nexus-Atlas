@@ -5,8 +5,17 @@ import { buildMarketContext, type FullMarketContext } from "@/lib/reportContext"
 import { runReportAnalysis } from "@/lib/ai/router";
 import { sendReportEmail } from "@/lib/email";
 import { parseTimeframe } from "@/lib/timeframes";
+import { checkAndRecordRateLimit } from "@/lib/rateLimit";
 import type { AIProviderId } from "@/lib/ai/types";
 import type { ReportConfig, ReportRun, ReportType } from "@/lib/types";
+
+// Grosszuegig genug fuer ein legitimes Durchlaufen aller 4 Slots
+// nacheinander (auch mehrfach in einer Sitzung), blockiert aber Spam/
+// Endlosschleifen, die echte LLM-Kosten verursachen wuerden -- daher als
+// benannte, leicht anpassbare Konstanten statt einer Magic Number im Code.
+const RATE_LIMIT_WINDOW_MINUTES = 10;
+const RATE_LIMIT_MAX_REQUESTS = 10;
+const RATE_LIMIT_ENDPOINT = "reports_run";
 
 // POST /api/reports/run
 // Body: { slot: 1 | 2 | 3 | 4 }
@@ -126,6 +135,27 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ success: false, error: message }, { status: 500 });
+  }
+
+  // Rate-Limit VOR dem AI-Aufruf pruefen (nicht erst danach) -- zaehlt jeden
+  // Versuch, nicht nur erfolgreiche Laeufe, und blockt so auch gezielten
+  // Fehler-Spam. middleware.ts sichert bereits, dass nur eine eingeloggte
+  // Session hierher kommt; dieses Limit schuetzt zusaetzlich vor
+  // versehentlichen Endlosschleifen (z.B. ein haengender Client-Retry).
+  const rateLimit = await checkAndRecordRateLimit(
+    supabaseAdmin,
+    RATE_LIMIT_ENDPOINT,
+    RATE_LIMIT_WINDOW_MINUTES,
+    RATE_LIMIT_MAX_REQUESTS
+  );
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: `Rate-Limit erreicht (${RATE_LIMIT_MAX_REQUESTS} Anfragen pro ${RATE_LIMIT_WINDOW_MINUTES} Minuten). Bitte kurz warten.`,
+      },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds ?? RATE_LIMIT_WINDOW_MINUTES * 60) } }
+    );
   }
 
   let fullContext: FullMarketContext;

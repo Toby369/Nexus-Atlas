@@ -17,6 +17,7 @@ import { getTimeframe, type TimeframeId } from "./timeframes";
 import { DEFAULT_SERIES_EXCHANGE, SERIES_EXCHANGES } from "./exchanges";
 import { classifyMarketContext, type MarketContextResult } from "./marketContext";
 import { classifySpotPressure, type SpotPressureResult } from "./spotPressure";
+import { isExchangeSetConsistentOverWindow, type ExchangeFirstSeen } from "./exchangeConsistency";
 import type {
   EtfFlowDay,
   LiquidationEvent,
@@ -170,6 +171,15 @@ async function getOiByExchange(sinceIso: string): Promise<OiChangeByExchange[]> 
   return data ?? [];
 }
 
+async function getExchangeFirstSeen(): Promise<ExchangeFirstSeen[]> {
+  const { data, error } = await supabase.rpc("get_market_snapshot_exchange_first_seen");
+  if (error) {
+    console.error("reportContext: Fehler bei get_market_snapshot_exchange_first_seen:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
 async function getSpotSummary(sinceIso: string): Promise<SpotPressureSummary | null> {
   const { data, error } = await supabase.rpc("get_spot_pressure_summary", {
     p_since: sinceIso,
@@ -308,6 +318,7 @@ export async function buildMarketContext(timeframe: TimeframeId): Promise<FullMa
     liquidations,
     news,
     etfFlows,
+    exchangeFirstSeen,
   ] = await Promise.all([
     getOiSeries(DEFAULT_SERIES_EXCHANGE, sinceIso),
     getOiReference(DEFAULT_SERIES_EXCHANGE, sinceIso),
@@ -321,6 +332,7 @@ export async function buildMarketContext(timeframe: TimeframeId): Promise<FullMa
     getRecentLiquidations(),
     getHighImpactNews(),
     getRecentEtfFlows(),
+    getExchangeFirstSeen(),
   ]);
 
   const latestOiPoint = oiSeries.length > 0 ? oiSeries[oiSeries.length - 1] : null;
@@ -337,6 +349,29 @@ export async function buildMarketContext(timeframe: TimeframeId): Promise<FullMa
   const oiReferenceMs = oiReference ? new Date(oiReference.timestamp_utc).getTime() : null;
   const hasFullOiHistory =
     oiReferenceMs !== null ? oiReferenceMs <= requestedSinceMs + HISTORY_GAP_TOLERANCE_MS : false;
+
+  // Siehe identische Berechnung + Begruendung in MarketContextCard.tsx --
+  // beide Aufrufer von classifyMarketContext() muessen dieselbe Coverage-
+  // Definition verwenden, sonst koennten Dashboard und Report-Engine fuer
+  // denselben Zeitraum unterschiedliche Sperr-Entscheidungen treffen.
+  const nowMsForCoverage = Date.now();
+  const requestedWindowMs = nowMsForCoverage - requestedSinceMs;
+  const coveredWindowMs =
+    oiReferenceMs !== null ? nowMsForCoverage - Math.max(oiReferenceMs, requestedSinceMs) : null;
+  const historyCoveragePct =
+    requestedWindowMs > 0 && coveredWindowMs !== null
+      ? Math.min(100, Math.max(0, (coveredWindowMs / requestedWindowMs) * 100))
+      : null;
+  const earliestDataAgeDays =
+    oiReferenceMs !== null ? (nowMsForCoverage - oiReferenceMs) / (24 * 60 * 60 * 1000) : null;
+
+  const aggregatedExchangeIds = SERIES_EXCHANGES.filter((e) => e.id !== "aggregated").map(
+    (e) => e.id
+  );
+  const oiExchangeSetConsistent =
+    exchangeFirstSeen.length > 0
+      ? isExchangeSetConsistentOverWindow(exchangeFirstSeen, aggregatedExchangeIds, requestedSinceMs)
+      : null;
 
   const sumBuy = spotSummary?.sum_taker_buy_vol ?? null;
   const sumSell = spotSummary?.sum_taker_sell_vol ?? null;
@@ -360,6 +395,9 @@ export async function buildMarketContext(timeframe: TimeframeId): Promise<FullMa
     hasFullOiHistory,
     spotDataQuality: spotVerdict.dataQuality,
     timeframeMinutes: tf.minutes,
+    historyCoveragePct,
+    earliestDataAgeDays,
+    oiExchangeSetConsistent,
   });
 
   // Boersen ohne jemals gemeldetes OI (Bitunix) sind strukturell
@@ -390,6 +428,9 @@ export async function buildMarketContext(timeframe: TimeframeId): Promise<FullMa
   };
 
   const dataQualityNotes: string[] = [];
+  if (assessment.dataQuality === "LOCKED") {
+    dataQualityNotes.push(assessment.explanation);
+  }
   if (!hasFullOiHistory) {
     dataQualityNotes.push(
       `OI-Referenzpunkt faellt ausserhalb der ${tf.label}-Toleranz zurueck (Historie fuer diesen Zeitraum noch nicht vollstaendig).`

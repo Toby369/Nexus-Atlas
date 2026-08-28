@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { MarketSeriesPoint, SpotPressureSummary } from "@/lib/types";
 import { getTimeframe, type TimeframeId } from "@/lib/timeframes";
-import { DEFAULT_SERIES_EXCHANGE } from "@/lib/exchanges";
+import { DEFAULT_SERIES_EXCHANGE, SERIES_EXCHANGES } from "@/lib/exchanges";
 import { classifyMarketContext } from "@/lib/marketContext";
 import { classifySpotPressure } from "@/lib/spotPressure";
+import { isExchangeSetConsistentOverWindow, type ExchangeFirstSeen } from "@/lib/exchangeConsistency";
 import PanelInfo from "@/components/PanelInfo";
 import { marktkontextInfo } from "@/lib/panelInfo";
 
@@ -64,6 +65,17 @@ async function fetchSpotSummary(sinceIso: string): Promise<SpotPressureSummary |
   return data?.[0] ?? null;
 }
 
+// Boersen-Erstmeldung -- aendert sich praktisch nie (nur bei einer neuen
+// Boersen-Integration), daher einmalig geladen statt bei jedem 30s-Poll.
+async function fetchExchangeFirstSeen(): Promise<ExchangeFirstSeen[]> {
+  const { data, error } = await supabase.rpc("get_market_snapshot_exchange_first_seen");
+  if (error) {
+    console.error("Fehler beim Laden der Boersen-Erstmeldung:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
 export default function MarketContextCard({
   timeframe,
   initialOiSeries,
@@ -87,6 +99,13 @@ export default function MarketContextCard({
   // Tatsaechlich abgefragte Fensteruntergrenze -- Basis fuer hasFullOiHistory
   // unten (analog zu LivePricePanel.tsx, siehe dortiger Kommentar).
   const [fetchedSinceIso, setFetchedSinceIso] = useState(initialFetchedSinceIso);
+  // Zeitpunkt des letzten Ladevorgangs -- Basis fuer die Coverage-Berechnung
+  // unten. Bewusst als State statt Date.now() direkt im Render-Body (React-
+  // Regel: Render muss rein/deterministisch bleiben, siehe
+  // react-hooks/purity) -- wird zusammen mit fetchedSinceIso im selben
+  // Ladevorgang gesetzt, spiegelt also exakt den Zeitpunkt der Daten wider.
+  const [fetchedAtMs, setFetchedAtMs] = useState(() => Date.now());
+  const [exchangeFirstSeen, setExchangeFirstSeen] = useState<ExchangeFirstSeen[]>([]);
   // Beim allerersten Mount passen die initial*-Props bereits zum aktuellen
   // timeframe-Prop (serverseitig fuer genau diesen Zeitraum geladen) -- nur
   // ein tatsaechlicher Zeitraum-Wechsel ueber die URL loest sofort einen
@@ -100,7 +119,8 @@ export default function MarketContextCard({
     isFirstRun.current = false;
 
     const load = async () => {
-      const sinceIso = new Date(Date.now() - tf.minutes * 60 * 1000).toISOString();
+      const loadStartMs = Date.now();
+      const sinceIso = new Date(loadStartMs - tf.minutes * 60 * 1000).toISOString();
       const [series, reference, spot] = await Promise.all([
         fetchOiSeries(sinceIso),
         fetchOiReference(sinceIso),
@@ -111,6 +131,7 @@ export default function MarketContextCard({
       setOiReference(reference);
       setSpotSummary(spot);
       setFetchedSinceIso(sinceIso);
+      setFetchedAtMs(loadStartMs);
     };
 
     if (!skipImmediateLoad) load();
@@ -120,6 +141,16 @@ export default function MarketContextCard({
       clearInterval(interval);
     };
   }, [timeframe]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchExchangeFirstSeen().then((rows) => {
+      if (!cancelled) setExchangeFirstSeen(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const tf = getTimeframe(timeframe);
 
@@ -165,6 +196,33 @@ export default function MarketContextCard({
       ? oiReferenceMs <= requestedSinceMs + HISTORY_GAP_TOLERANCE_MS
       : false;
 
+  // Wieviel Prozent des angefragten Fensters der Referenzpunkt tatsaechlich
+  // deckt -- get_market_reference_snapshot faellt bei zu junger Historie
+  // auf den aeltesten je verfuegbaren Punkt zurueck (siehe SQL-Definition),
+  // oiReferenceMs ist in diesem Fall also das echte Alter der Historie,
+  // nicht nur ein potenziell irrefuehrendes "kein Wert".
+  const nowMs = fetchedAtMs;
+  const requestedWindowMs =
+    requestedSinceMs !== null ? nowMs - requestedSinceMs : null;
+  const coveredWindowMs =
+    oiReferenceMs !== null && requestedSinceMs !== null
+      ? nowMs - Math.max(oiReferenceMs, requestedSinceMs)
+      : null;
+  const historyCoveragePct =
+    requestedWindowMs !== null && requestedWindowMs > 0 && coveredWindowMs !== null
+      ? Math.min(100, Math.max(0, (coveredWindowMs / requestedWindowMs) * 100))
+      : null;
+  const earliestDataAgeDays =
+    oiReferenceMs !== null ? (nowMs - oiReferenceMs) / (24 * 60 * 60 * 1000) : null;
+
+  const aggregatedExchangeIds = SERIES_EXCHANGES.filter((e) => e.id !== "aggregated").map(
+    (e) => e.id
+  );
+  const oiExchangeSetConsistent =
+    requestedSinceMs !== null && exchangeFirstSeen.length > 0
+      ? isExchangeSetConsistentOverWindow(exchangeFirstSeen, aggregatedExchangeIds, requestedSinceMs)
+      : null;
+
   const result = classifyMarketContext({
     priceChangePct,
     oiChangePct,
@@ -172,6 +230,9 @@ export default function MarketContextCard({
     hasFullOiHistory,
     spotDataQuality: spotVerdict.dataQuality,
     timeframeMinutes: tf.minutes,
+    historyCoveragePct,
+    earliestDataAgeDays,
+    oiExchangeSetConsistent,
   });
 
   // Farbe zeigt die Richtung des Szenarios (bullisch/baerisch), nicht ob der
@@ -195,7 +256,13 @@ export default function MarketContextCard({
 
       {result.scenario === null ? (
         <>
-          <p className="text-xl sm:text-2xl font-semibold text-text">{result.label}</p>
+          <p
+            className={`text-xl sm:text-2xl font-semibold ${
+              result.dataQuality === "LOCKED" ? "text-down" : "text-text"
+            }`}
+          >
+            {result.label}
+          </p>
           <p className="text-sm text-text-muted mt-2">{result.explanation}</p>
         </>
       ) : (

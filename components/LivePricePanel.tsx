@@ -3,14 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type {
-  MarketCommentary,
   MarketSeriesPoint,
   MarketSnapshot,
+  MarketState,
   OiChangeByExchange,
 } from "@/lib/types";
 import TimeSeriesChart from "@/components/TimeSeriesChart";
 import PriceOiComparisonChart from "@/components/PriceOiComparisonChart";
 import PanelInfo from "@/components/PanelInfo";
+import { buildCompactMarketStateSummary } from "@/lib/marketStateSummary";
 import {
   btcPriceInfo,
   oiChangeInfo,
@@ -153,7 +154,7 @@ async function fetchOiChangeByExchange(sinceIso: string): Promise<OiChangeByExch
 export default function LivePricePanel({
   timeframe,
   initialSnapshots,
-  initialCommentary,
+  initialMarketState,
   initialExchangeComparison,
   initialSeriesData,
   initialReferenceSnapshot,
@@ -166,7 +167,11 @@ export default function LivePricePanel({
   // Zeitraum verwenden wie SpotPressurePanel und MarketContextCard.
   timeframe: TimeframeId;
   initialSnapshots: MarketSnapshot[];
-  initialCommentary: MarketCommentary | null;
+  // Dieselbe market_states-Zeile wie MarketStateCard (app/page.tsx laedt sie
+  // einmal, beide Komponenten bekommen denselben Wert) -- Kurznotiz ist nur
+  // noch eine kompakte Textdarstellung dieser einen Quelle, siehe
+  // lib/marketStateSummary.ts. Kein eigener market_commentary-Rechenweg mehr.
+  initialMarketState: MarketState | null;
   initialExchangeComparison: MarketSnapshot[];
   initialSeriesData: MarketSeriesPoint[];
   initialReferenceSnapshot: ReferenceSnapshot | null;
@@ -176,7 +181,7 @@ export default function LivePricePanel({
   // snapshots ist chronologisch aufsteigend (aeltester zuerst) fuer die Charts,
   // ausschliesslich Bybit als Referenzboerse.
   const [snapshots, setSnapshots] = useState(initialSnapshots);
-  const [commentary, setCommentary] = useState(initialCommentary);
+  const [marketState, setMarketState] = useState(initialMarketState);
   const [exchangeComparison, setExchangeComparison] = useState(
     initialExchangeComparison
   );
@@ -272,7 +277,7 @@ export default function LivePricePanel({
 
   useEffect(() => {
     const fetchLatest = async () => {
-      const [snapshotRes, commentaryRes, comparisonRes] = await Promise.all([
+      const [snapshotRes, marketStateRes, comparisonRes] = await Promise.all([
         supabase
           .from("market_snapshots")
           .select("*")
@@ -281,9 +286,9 @@ export default function LivePricePanel({
           .order("timestamp_utc", { ascending: false })
           .limit(HISTORY_LIMIT),
         supabase
-          .from("market_commentary")
+          .from("market_states")
           .select("*")
-          .order("generated_at", { ascending: false })
+          .order("timestamp_utc", { ascending: false })
           .limit(1)
           .maybeSingle(),
         supabase
@@ -302,8 +307,8 @@ export default function LivePricePanel({
         setLastSyncOk(false);
       }
 
-      if (!commentaryRes.error && commentaryRes.data) {
-        setCommentary(commentaryRes.data);
+      if (!marketStateRes.error && marketStateRes.data) {
+        setMarketState(marketStateRes.data);
       }
 
       if (!comparisonRes.error && comparisonRes.data) {
@@ -558,26 +563,27 @@ export default function LivePricePanel({
         </div>
       </div>
 
-      {commentary && (
+      {marketState && (
         <div className="rounded-lg border border-border bg-surface-raised p-5">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1.5">
               <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
-                Kurznotiz (automatisch, Bybit)
+                Kurznotiz (NEXUS Assessment)
               </p>
               <PanelInfo title="Kurznotiz" content={kurznotizInfo} />
             </div>
             <span className="text-xs text-text-faint">
-              {timeAgo(commentary.generated_at)}
+              {timeAgo(marketState.timestamp_utc)}
             </span>
           </div>
           <p className="text-sm text-text leading-relaxed">
-            {commentary.summary_text}
+            {buildCompactMarketStateSummary(marketState)}
           </p>
           <p className="text-xs text-text-faint mt-2">
             Unabhängig vom oben gewählten Zeitraum — feste, rollierende
-            Kurzbetrachtung, alle 5 Minuten neu generiert. Für eine
-            zeitraum-synchrone Einordnung siehe &bdquo;Marktkontext&ldquo; oben.
+            Kurzbetrachtung, alle 15 Minuten neu berechnet. Dieselbe Quelle
+            wie &bdquo;NEXUS Assessment&ldquo; oben — keine zweite, unabhängige
+            Einschätzung mehr (Single Source of Truth).
           </p>
         </div>
       )}
