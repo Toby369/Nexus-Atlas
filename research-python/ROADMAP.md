@@ -17,12 +17,12 @@ research-python-Phasen automatisch weiter.
 
 ### 1. Sofort umsetzbare Ingenieursarbeiten (keine Datenabhängigkeit)
 
-| Arbeitspaket | Beschreibung |
-|---|---|
-| PBO-Statistik-Aggregation | Implementierung der Probability-of-Backtest-Overfitting-Kennzahl über CPCV-Pfade in `walk_forward.py` — Ergänzung zu `generate_combinatorial_splits()`, das aktuell nur die Split-Generierung liefert, nicht die Pfad-Aggregation. |
-| Moving-Block-Bootstrap-Inferenz | Wiederverwendbare Funktion für den künftigen konfirmatorischen Test (L=14 Tage, geblockt auf voller Kalenderreihe, gemäß `docs/research/PHASE-3.2-PROTOCOL-CORRECTION.md` Abschnitt 6a) — im SQL-Track bereits methodisch festgelegt, in research-python noch nicht als Funktion umgesetzt. |
-| SHAP-basierte Feature Importance (optional) | Alternative zu MDI in `evaluate.py`, bislang als dokumentierte, bewusst nicht gewählte Option vermerkt (zusätzliche schwere Dependency vs. Nutzen abgewogen) — bei Bedarf nachrüstbar. |
-| Migrations-Entscheidungs-Framework | Überführung der 4 Schritte aus `BENCHMARK_RESULTS.md` Abschnitt 8 in ein testbares Python-Modul mit vorab festgelegten Decision Gates (analog `PHASE-3-RESEARCH-PROTOCOL.md`), damit der spätere echte Vergleich nicht ad hoc läuft. |
+| Arbeitspaket | Status | Beschreibung |
+|---|---|---|
+| Moving-Block-Bootstrap-Inferenz | ✅ **Erledigt** (`src/validation/block_bootstrap.py`, Commit s. Git-Historie) | Wiederverwendbare Funktion für den künftigen konfirmatorischen Test (L=14 Tage, geblockt auf voller Kalenderreihe, gemäß `docs/research/PHASE-3.2-PROTOCOL-CORRECTION.md` Abschnitt 6a). 100% Testabdeckung, inkl. empirischem Nachweis (nicht nur Dokumentation) der Kernaussage "korrigiert Inferenz, erzeugt keine Information" auf synthetisch autokorrelierten Daten. Noch nicht in `benchmark_production.py` verdrahtet — folgt erst mit echten Daten (siehe Teil 2/3). |
+| PBO-Statistik-Aggregation | Offen | Implementierung der Probability-of-Backtest-Overfitting-Kennzahl über CPCV-Pfade in `walk_forward.py` — Ergänzung zu `generate_combinatorial_splits()`, das aktuell nur die Split-Generierung liefert, nicht die Pfad-Aggregation. |
+| SHAP-basierte Feature Importance (optional) | Offen | Alternative zu MDI in `evaluate.py`, bislang als dokumentierte, bewusst nicht gewählte Option vermerkt (zusätzliche schwere Dependency vs. Nutzen abgewogen) — bei Bedarf nachrüstbar. |
+| Migrations-Entscheidungs-Framework | Offen | Überführung der 4 Schritte aus `BENCHMARK_RESULTS.md` Abschnitt 8 in ein testbares Python-Modul mit vorab festgelegten Decision Gates (analog `PHASE-3-RESEARCH-PROTOCOL.md`), damit der spätere echte Vergleich nicht ad hoc läuft. Kann jetzt `block_bootstrap.py` als fertigen Baustein referenzieren. |
 
 ### 2. Datengetriebene Meilensteine (warten auf passive Akkumulation)
 
