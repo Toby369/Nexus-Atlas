@@ -43,10 +43,20 @@ machinery the eventual primary confirmatory test needs; not yet wired into
 the remaining Path-A items (PBO path aggregation, migration decision
 framework) and the Path-B (data-gated) timeline.
 
-**Not yet implemented / next step:** an actual migration decision — not
-started, deliberately, until real data meets the Phase-3.2 power
-requirements (see `BENCHMARK_RESULTS.md` Section 8 and `ROADMAP.md` for
-the specific roadmap).
+**Step 6 (done, Path A / ROADMAP.md):** `src/validation/decision_framework.py`
+— formalizes the 4 Decision Gates from `BENCHMARK_RESULTS.md` Section 8
+(statistical power, feature coverage, out-of-sample performance via
+`block_bootstrap.py`, cross-fold stability) into an automated, three-state
+(`PASS`/`FAIL`/`INSUFFICIENT_DATA`) module with a strict combination rule
+(`combine_gate_results`) producing one `MigrationDecisionResult`
+(`MIGRATE`/`REJECT`/`INSUFFICIENT_DATA`). Fully wired and tested, but not
+yet run against real data — the actual migration decision itself is still
+gated on the Phase-3.2 power requirements (see `BENCHMARK_RESULTS.md`
+Section 8 and `ROADMAP.md`).
+
+**Not yet implemented / next step:** running the framework above against
+real, sufficiently-powered data — not started, deliberately, until that
+data exists (see `ROADMAP.md` for the specific timeline).
 
 ## Structure
 
@@ -59,8 +69,9 @@ research-python/
       momentum.py        # adx (Wilder), log_return, return_momentum
       legacy_factors.py  # independent reimplementation of the 14 production factors
     validation/
-      walk_forward.py     # PurgedWalkForwardCV, generate_combinatorial_splits (CPCV)
-      block_bootstrap.py  # Moving Block Bootstrap inference (L=14, per Phase 3.2)
+      walk_forward.py       # PurgedWalkForwardCV, generate_combinatorial_splits (CPCV)
+      block_bootstrap.py    # Moving Block Bootstrap inference (L=14, per Phase 3.2)
+      decision_framework.py # Migration Decision Framework: 4 Decision Gates + combiner
     selection/
       orthogonal.py    # HRP-style clustering, Clustered Feature Importance
       evaluate.py       # fold-by-fold importance/ADF/IC evaluation engine
@@ -75,6 +86,7 @@ research-python/
     test_momentum.py
     test_walk_forward.py   # no-overlap / purge / embargo / monotonicity leak tests
     test_block_bootstrap.py # determinism, NaN handling, "corrects inference not information" proof
+    test_decision_framework.py # golden-value power table, all gate PASS/FAIL/INSUFFICIENT_DATA paths, combiner rules
     test_selection.py      # fold-discipline tests + synthetic noise/regime/collinearity benchmark
     test_legacy_factors.py # formula unit tests + golden-value check against the real snapshot
     test_benchmark.py      # benchmark pipeline tests (synthetic + real-snapshot smoke test)
@@ -102,7 +114,7 @@ research-python/
 ```bash
 cd research-python
 pip install -r requirements.txt
-pytest -v                                  # 197 tests
+pytest -v                                  # 250 tests
 pytest --cov=src --cov-report=term-missing # with coverage (98% overall)
 python -m src.benchmark_production         # runs the production-factor benchmark, writes BENCHMARK_RESULTS.md
 ```
@@ -175,3 +187,18 @@ Moving Block Bootstrap (MBB), the inference method `docs/research/PHASE-3.2-PROT
 | `compare_iid_vs_block_bootstrap_ci_width` | Diagnostic utility, not used internally — compares the (invalid) naive iid Wald CI width against the actual block-bootstrap width on the same sample, for whoever runs the eventual confirmatory test. |
 
 **Central claim, empirically demonstrated, not just documented:** *Block Bootstrap corrects the inference for dependence; it does not create additional information.* `tests/test_block_bootstrap.py::TestCorrectsInferenceNotInformation` builds a strongly autocorrelated synthetic binary series (Markov chain with `p_stay=0.85`, long same-value runs — unlike iid coin flips) and shows the block-bootstrap CI is >30% *wider* than the naive iid CI on the same raw n — a narrower interval would indicate fabricated precision, i.e. a bug. A companion test confirms the method does not wildly over-inflate uncertainty on genuinely iid data either (width ratio stays within 0.6–1.8).
+
+## Migration decision framework (`src/validation/decision_framework.py`)
+
+Formalizes the 4 Decision Gates from `BENCHMARK_RESULTS.md` Section 8 into an automated, fully-testable module — so the eventual real comparison runs against a pre-registered, not ad-hoc, decision procedure. Does not import from `benchmark_production.py` or `evaluate.py`; every gate function takes plain, well-typed inputs and reuses `block_bootstrap.py` for Gate 3's inference.
+
+| Component | Notes |
+|---|---|
+| `GateStatus` / `MigrationDecision` | Three-state (`PASS`/`FAIL`/`INSUFFICIENT_DATA`) and three-state (`MIGRATE`/`REJECT`/`INSUFFICIENT_DATA`) enums. `INSUFFICIENT_DATA` is never conflated with `FAIL` — "no evidence of an edge" and "evidence of no edge" stay distinct, consistent with Phase 0–3.2 and every prior module in this project. |
+| Gate 1 — `evaluate_gate_1_statistical_power` | `statistical_power` (two-sided one-sample proportion z-test, `scipy.stats.norm`) and `required_sample_size` (binary search) reimplement, independently, the exact formula used throughout `docs/research/PHASE-0..3.2` — golden-value cross-checked against the Phase-3.2 required-n table (baseline=0.535: effect 5/8/10/13/15pp → n=776/301/192/112/84, all 5 exact) in `tests/test_decision_framework.py::TestPowerMatchesPhase32`. Status is `PASS` or `INSUFFICIENT_DATA` only — never `FAIL`. |
+| Gate 2 — `evaluate_gate_2_feature_coverage` | Per-feature non-null fraction vs. a required-feature list and minimum-coverage threshold — same notion of "coverage" as `benchmark_production.py`'s `LEGACY_EVALUABLE`/`NOT_EVALUABLE` split. `INSUFFICIENT_DATA`, not `FAIL`, for missing-entirely or below-threshold features. |
+| Gate 3 — `evaluate_gate_3_performance` | Calls `block_bootstrap_hit_rate_difference` for dependence-corrected p-value/CI; `PASS` requires statistical significance AND practical relevance (`min_practically_relevant_effect`, an explicitly-flagged NOT-yet-finalized 5pp placeholder from Phase 3 Section 6.2) AND favorable direction, all three — a significant result in the wrong direction is a genuine `FAIL`. The underlying `ValueError` from an uncomputable bootstrap (e.g. the condition never matches) is caught and reclassified as `INSUFFICIENT_DATA`, never a crash. |
+| Gate 4 — `evaluate_gate_4_stability` | Judges `evaluate.py`'s own cross-fold `importance_stability`/`selection_frequency` metrics against thresholds — deliberately decoupled from `evaluate.py`'s types (plain floats in, so it stays independently testable). `INSUFFICIENT_DATA` for too few folds or NaN inputs. |
+| `combine_gate_results` | Strict, conservative rule: any gate `INSUFFICIENT_DATA` → overall `INSUFFICIENT_DATA` (takes priority over any `FAIL` — concluding `REJECT` from missing data would be exactly as premature as concluding `MIGRATE`); all four `PASS` → `MIGRATE`; otherwise `REJECT`. Raises `ValueError` on a partial or duplicated gate set rather than silently producing a decision. |
+
+`tests/test_decision_framework.py` (53 tests, 100% coverage of this module) exercises every reachable status of every gate individually, an end-to-end 4-gate pipeline on deterministic synthetic data for both the `MIGRATE` path (n=1000, clear edge) and the `INSUFFICIENT_DATA` path (n=201 — the actual current project state per `BENCHMARK_RESULTS.md`), and exhaustive `combine_gate_results` combination coverage (including `INSUFFICIENT_DATA` explicitly taking priority over a simultaneous `FAIL`).
