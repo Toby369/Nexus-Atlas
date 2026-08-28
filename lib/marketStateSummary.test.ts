@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { buildCompactMarketStateSummary } from "./marketStateSummary";
+import {
+  buildCompactMarketStateSummary,
+  isDirectionalLabelSuppressed,
+  DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD,
+} from "./marketStateSummary";
 import type { MarketState } from "./types";
 
 function baseState(overrides: Partial<MarketState> = {}): MarketState {
@@ -69,5 +73,71 @@ describe("buildCompactMarketStateSummary", () => {
       expect(text.length).toBeGreaterThan(0);
       expect(text).toContain("Marktzustand");
     }
+  });
+
+  describe("Confidence-Gate fuer Bullish/Bearish (Phase 1, Punkt 3.1 -- Anzeige-Ebene)", () => {
+    it("zeigt 'unklar' statt 'bullisch', wenn Confidence unter der Schwelle liegt", () => {
+      const text = buildCompactMarketStateSummary(
+        baseState({ overall_state: "BULLISH", confidence: DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD - 1 })
+      );
+      expect(text).not.toContain("bullisch");
+      expect(text).toContain("unklar");
+    });
+
+    it("zeigt 'unklar' statt 'bärisch', wenn Confidence unter der Schwelle liegt", () => {
+      const text = buildCompactMarketStateSummary(
+        baseState({ overall_state: "BEARISH", confidence: DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD - 1 })
+      );
+      expect(text).not.toContain("bärisch");
+      expect(text).toContain("unklar");
+    });
+
+    it("zeigt das echte Label, wenn Confidence exakt der Schwelle entspricht (>= reicht)", () => {
+      const text = buildCompactMarketStateSummary(
+        baseState({ overall_state: "BULLISH", confidence: DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD })
+      );
+      expect(text).toContain("bullisch");
+    });
+
+    it("gate wirkt NICHT auf NEUTRAL/MIXED -- keine Richtungsaussage, nichts zu unterdruecken", () => {
+      const text = buildCompactMarketStateSummary(baseState({ overall_state: "NEUTRAL", confidence: 5 }));
+      expect(text).toContain("neutral");
+      expect(text).not.toContain("unklar");
+    });
+  });
+});
+
+describe("isDirectionalLabelSuppressed", () => {
+  it("true fuer BULLISH mit niedriger Confidence", () => {
+    expect(
+      isDirectionalLabelSuppressed({ overall_state: "BULLISH", confidence: 10 })
+    ).toBe(true);
+  });
+
+  it("true fuer BEARISH mit niedriger Confidence", () => {
+    expect(
+      isDirectionalLabelSuppressed({ overall_state: "BEARISH", confidence: 10 })
+    ).toBe(true);
+  });
+
+  it("false fuer BULLISH mit ausreichender Confidence", () => {
+    expect(
+      isDirectionalLabelSuppressed({ overall_state: "BULLISH", confidence: 80 })
+    ).toBe(false);
+  });
+
+  it("false fuer NEUTRAL/MIXED/INSUFFICIENT_DATA unabhaengig von der Confidence", () => {
+    for (const state of ["NEUTRAL", "MIXED", "INSUFFICIENT_DATA"] as const) {
+      expect(isDirectionalLabelSuppressed({ overall_state: state, confidence: 0 })).toBe(false);
+    }
+  });
+
+  it("false exakt an der Schwelle (>=)", () => {
+    expect(
+      isDirectionalLabelSuppressed({
+        overall_state: "BULLISH",
+        confidence: DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD,
+      })
+    ).toBe(false);
   });
 });

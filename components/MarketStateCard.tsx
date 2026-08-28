@@ -5,6 +5,11 @@ import { supabase } from "@/lib/supabase";
 import type { MarketState } from "@/lib/types";
 import PanelInfo from "@/components/PanelInfo";
 import { marketStateInfo } from "@/lib/panelInfo";
+import {
+  isDirectionalLabelSuppressed,
+  UNCLEAR_STATE_LABEL,
+  DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD,
+} from "@/lib/marketStateSummary";
 
 const REFRESH_INTERVAL_MS = 60_000;
 
@@ -149,8 +154,19 @@ export default function MarketStateCard({
     );
   }
 
-  const badgeColor =
-    state.overall_state === "BULLISH"
+  // Confidence-Gate (Phase 1, Punkt 3.1 -- Q3: "Option A, nur Anzeige-
+  // Ebene"): state.overall_state selbst bleibt unveraendert (Ground-Truth
+  // fuer die Backtest-/Modell-Pipeline, siehe lib/marketStateSummary.ts),
+  // nur das angezeigte Label/Badge wird bei niedriger Confidence auf
+  // "Unklar / kein Zustand" umgestellt statt Bullish/Bearish zu zeigen.
+  const suppressDirectionalLabel = isDirectionalLabelSuppressed(state);
+  const displayLabel = suppressDirectionalLabel
+    ? UNCLEAR_STATE_LABEL
+    : STATE_LABELS[state.overall_state] ?? state.overall_state;
+
+  const badgeColor = suppressDirectionalLabel
+    ? "text-text-faint"
+    : state.overall_state === "BULLISH"
       ? "text-up"
       : state.overall_state === "BEARISH"
       ? "text-down"
@@ -177,11 +193,18 @@ export default function MarketStateCard({
       )}
 
       <div className="flex items-baseline justify-between flex-wrap gap-2">
-        <p className={`text-xl sm:text-2xl font-semibold ${badgeColor}`}>
-          {STATE_LABELS[state.overall_state] ?? state.overall_state}
-        </p>
+        <p className={`text-xl sm:text-2xl font-semibold ${badgeColor}`}>{displayLabel}</p>
         <span className="text-xs text-text-faint">{timeAgo(state.timestamp_utc)}</span>
       </div>
+
+      {suppressDirectionalLabel && (
+        <p className="text-xs text-text-faint">
+          Berechneter Zustand war {STATE_LABELS[state.overall_state]}, aber Confidence liegt unter{" "}
+          {DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD}/100 — für eine Richtungsaussage zu unsicher, daher
+          hier als &bdquo;{UNCLEAR_STATE_LABEL}&ldquo; angezeigt. Faktoren-Detail unten unverändert
+          einsehbar.
+        </p>
+      )}
 
       <div className="flex gap-4 text-xs text-text-faint flex-wrap">
         <span>Confidence: {Math.round(state.confidence)}/100</span>
