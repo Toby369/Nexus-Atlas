@@ -9,3 +9,10 @@ next-env.d.ts
 .DS_Store
 *.pem
 npm-debug.log*
+
+# research-python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
