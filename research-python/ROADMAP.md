@@ -24,6 +24,24 @@ research-python-Phasen automatisch weiter.
 | SHAP-basierte Feature Importance (optional) | Offen | Alternative zu MDI in `evaluate.py`, bislang als dokumentierte, bewusst nicht gewählte Option vermerkt (zusätzliche schwere Dependency vs. Nutzen abgewogen) — bei Bedarf nachrüstbar. |
 | Migrations-Entscheidungs-Framework | ✅ **Erledigt** (`src/validation/decision_framework.py`, Commit s. Git-Historie) | Überführung der 4 Decision Gates aus `BENCHMARK_RESULTS.md` Abschnitt 8 in ein automatisiertes, dreiwertiges (`PASS`/`FAIL`/`INSUFFICIENT_DATA`) Python-Modul + `combine_gate_results()` (strikte Priorisierungsregel: jede `INSUFFICIENT_DATA` schlägt jede `FAIL`). Nutzt `block_bootstrap.py` für Gate 3. 100% Testabdeckung, inkl. Golden-Value-Abgleich von `statistical_power`/`required_sample_size` gegen die exakte Required-n-Tabelle aus `PHASE-3.2-PROTOCOL-CORRECTION.md` Abschnitt 8 (alle 5 Werte exakt getroffen) und einem End-to-End-Test auf der realen aktuellen Stichprobengröße n=201, der bestätigt, dass das Framework dort korrekt `INSUFFICIENT_DATA` liefert. Noch nicht gegen echte Daten für eine tatsächliche Entscheidung ausgeführt — das bleibt an die Phase-3.2-Power-Anforderungen gebunden. |
 
+**Status Pfad A: ✅ 100% abgeschlossen.** Alle drei datenunabhängig umsetzbaren
+Arbeitspakete (Moving-Block-Bootstrap-Inferenz, Migrations-Entscheidungs-
+Framework, PBO-Statistik-Aggregation) sind implementiert, vollständig
+getestet (100% Coverage je neuem Modul) und commit-/push-bestätigt auf
+`claude/work-by-prompt-gxzjbj`. SHAP-basierte Feature Importance ist kein
+offenes Arbeitspaket, sondern eine bewusst nicht gewählte, bei Bedarf
+nachrüstbare Option (s. o.) — sie zählt nicht als ausstehend.
+
+Damit ist jede Ingenieursarbeit erschöpft, die *ohne* zusätzliche reale
+Daten sinnvoll geleistet werden kann. Der einzig verbleibende Schritt für
+`research-python` ist der Übergang in **Pfad B**: passive Datenakkumulation
+über den SQL-Track (Supabase `pg_cron`, 1D-Intervall, siehe Abschnitt 2/3
+unten) — kein weiterer Implementierungsaufwand kann diesen Zeithorizont
+verkürzen (das ist die bereits in Phase 3.2 mathematisch hergeleitete
+Kernerkenntnis). `research-python` geht damit in einen **Passiv-Modus**:
+kein aktives Arbeitspaket mehr offen, bis die Datenbasis eine der
+untenstehenden Schwellen erreicht.
+
 ### 2. Datengetriebene Meilensteine (warten auf passive Akkumulation)
 
 | Meilenstein | Ziel | Zeithorizont |
