@@ -2,20 +2,20 @@ import type { PromptProfile } from "./types";
 
 // Prompt Profiles liegen zentral hier statt in einzelnen UI-Komponenten.
 // Aendert sich ein Analyse-Prompt, wird NUR diese Datei angepasst – keine
-// Dashboard-Kachel muss dafuer angefasst werden.
+// Dashboard-Kachel muss dafür angefasst werden.
 //
 // Aktuell nutzt NOCH KEINE Kachel diese Profiles produktiv (die
-// Markteinschaetzungs-Box laeuft weiterhin regelbasiert, siehe
+// Markteinschätzungs-Box läuft weiterhin regelbasiert, siehe
 // supabase/functions/collect-btc). Das ist Absicht: das Fundament wird
 // vorbereitet, ohne die bestehende, funktionierende Analyse zu ersetzen.
 
 // --- Validierungs-Bausteine ------------------------------------------------
-// Jedes Profile beschreibt sein JSON-Schema im systemPrompt (Freitext fuers
-// Modell) UND in validate() (maschinelle Pruefung der Antwort). Ein Modell,
+// Jedes Profile beschreibt sein JSON-Schema im systemPrompt (Freitext fürs
+// Modell) UND in validate() (maschinelle Prüfung der Antwort). Ein Modell,
 // das zwar valides JSON aber die falsche Form liefert (z.B. "bias": "up"
-// statt "bullish"), ist fuer die Kachel unbrauchbar -- der Router behandelt
+// statt "bullish"), ist für die Kachel unbrauchbar -- der Router behandelt
 // eine fehlgeschlagene Validierung daher wie einen Provider-Fehler und
-// wechselt zum naechsten Fallback.
+// wechselt zum nächsten Fallback.
 
 function field(data: unknown, key: string): unknown {
   return typeof data === "object" && data !== null
@@ -43,20 +43,32 @@ const BIAS_3 = ["bullish", "bearish", "neutral"] as const;
 const RISK_ON_OFF = ["risk-on", "risk-off", "neutral"] as const;
 const RISK_LEVELS = ["low", "medium", "high"] as const;
 const IMPACT_LEVELS = ["high", "medium", "low"] as const;
-// Master-Report darf zusaetzlich "conflicting" melden -- siehe
-// validateMasterReport weiter unten (Vorgabe: Widersprueche zwischen den
+// Master-Report darf zusätzlich "conflicting" melden -- siehe
+// validateMasterReport weiter unten (Vorgabe: Widersprüche zwischen den
 // Einzelreports erkennen statt sie zu einem falschen "bullish" zu mitteln).
 const MASTER_BIAS = ["bullish", "bearish", "neutral", "conflicting"] as const;
 
-// Wird an JEDES Report-Profile angehaengt (siehe Vorgabe Teil Q/T): die KI
+// Wird an JEDES Report-Profile angehängt (siehe Vorgabe Teil Q/T): die KI
 // bekommt data_quality explizit im Kontext mitgeliefert und MUSS eine
-// eingeschraenkte Datenbasis in der summary benennen statt sie zu
+// eingeschränkte Datenbasis in der summary benennen statt sie zu
 // ignorieren oder fehlende Werte zu erfinden.
 const DATA_QUALITY_INSTRUCTION =
-  "Der Kontext enthaelt ein data_quality-Feld (overall: OK|PRELIMINARY|INSUFFICIENT_DATA, " +
+  "Der Kontext enthält ein data_quality-Feld (overall: OK|PRELIMINARY|INSUFFICIENT_DATA, " +
   "plus Detail-Notizen). Ist overall nicht 'OK', muss die summary das explizit benennen und " +
-  "die Einschaetzung entsprechend vorsichtiger formulieren. Nutze ausschliesslich die im " +
+  "die Einschätzung entsprechend vorsichtiger formulieren. Nutze ausschliesslich die im " +
   "Kontext gelieferten Werte -- erfinde niemals fehlende Zahlen, Ereignisse oder Quellen.";
+
+// Einheitliche Zahlen-/Formatierungsregeln für die "summary"/Freitext-Felder
+// -- an alle Report-Profile angehängt (Report 1-4, deren summary direkt im
+// Dashboard angezeigt wird), damit AI-Text und die regelbasierten UI-Werte
+// (siehe z.B. LivePricePanel.tsx/MarketContextCard.tsx, durchgehend
+// toLocaleString("de-CH") bzw. .toFixed()) nicht auseinanderlaufen -- vorher
+// gab es dafür keine Vorgabe, wodurch je nach Provider/Modell uneinheitlich
+// formatiert wurde (mal Komma, mal Punkt, mal ohne Vorzeichen).
+const NUMBER_FORMAT_INSTRUCTION =
+  "Formatiere Zahlen in der summary wie im Dashboard: Prozentwerte mit Vorzeichen und einer " +
+  "Nachkommastelle (z.B. +1.5%, -0.3%), Punkt als Dezimaltrennzeichen (nie Komma), große " +
+  "USD-Beträge gerundet mit Einheit (z.B. $12.3M, $450K) statt ausgeschriebener Nullen.";
 
 // Deckt das in oi-/funding-/liquidation-/market-structure-/macro-/etf-/
 // market-intelligence-Analysis wiederkehrende { bias, confidence, summary,
@@ -147,7 +159,7 @@ function validateSignalAnalysis(data: unknown): string[] {
   return errors;
 }
 
-// Master-Report: prueft die drei Einzelreports auf Widersprueche statt sie
+// Master-Report: prüft die drei Einzelreports auf Widersprüche statt sie
 // zu kopieren/mitteln. componentBiases macht nachvollziehbar, WELCHE
 // Einzelmeinung in welche Richtung zeigt (Transparenz, keine Black Box).
 function validateMasterReport(data: unknown): string[] {
@@ -166,7 +178,7 @@ function validateMasterReport(data: unknown): string[] {
     errors.push(`"summary" muss ein nicht-leerer String sein.`);
   }
   if (!isStringArray(field(data, "conflicts"))) {
-    errors.push(`"conflicts" muss ein String-Array sein (leeres Array, wenn keine Widersprueche).`);
+    errors.push(`"conflicts" muss ein String-Array sein (leeres Array, wenn keine Widersprüche).`);
   }
 
   const componentBiases = field(data, "componentBiases");
@@ -185,8 +197,8 @@ export const promptProfiles: Record<string, PromptProfile> = {
     category: "market-mechanics",
     description: "Interpretation von Open-Interest-Bewegungen relativ zu Preis und Funding.",
     systemPrompt:
-      "Du analysierst Open-Interest-Daten fuer BTC/USDT Perpetual Futures. " +
-      "Ordne die OI-Bewegung im Verhaeltnis zu Preis und Funding ein (Positionsaufbau, " +
+      "Du analysierst Open-Interest-Daten für BTC/USDT Perpetual Futures. " +
+      "Ordne die OI-Bewegung im Verhältnis zu Preis und Funding ein (Positionsaufbau, " +
       "-abbau, Short-Covering, Long-Liquidation). Formuliere Wahrscheinlichkeiten, keine " +
       "Fakten. Antworte als JSON mit den Feldern: bias (bullish|bearish|neutral), " +
       "confidence (0-100), summary (string, deutsch), keyFactors (string[]).",
@@ -195,11 +207,11 @@ export const promptProfiles: Record<string, PromptProfile> = {
   "funding-analysis": {
     id: "funding-analysis",
     category: "market-mechanics",
-    description: "Einordnung der Funding-Rate-Situation und was sie fuer Positionierung bedeutet.",
+    description: "Einordnung der Funding-Rate-Situation und was sie für Positionierung bedeutet.",
     systemPrompt:
-      "Du analysierst die Funding Rate von BTC/USDT Perpetual Futures ueber mehrere " +
-      "Boersen hinweg. Ordne ein, ob der Markt eher long- oder short-lastig positioniert " +
-      "ist und ob Abweichungen zwischen Boersen auffaellig sind. Antworte als JSON mit: " +
+      "Du analysierst die Funding Rate von BTC/USDT Perpetual Futures über mehrere " +
+      "Börsen hinweg. Ordne ein, ob der Markt eher long- oder short-lastig positioniert " +
+      "ist und ob Abweichungen zwischen Börsen auffällig sind. Antworte als JSON mit: " +
       "bias (bullish|bearish|neutral), confidence (0-100), summary (string, deutsch), " +
       "keyFactors (string[]).",
     validate: (data) => validateBiasSummary(data, { requireKeyFactors: true }),
@@ -207,18 +219,18 @@ export const promptProfiles: Record<string, PromptProfile> = {
   "liquidation-analysis": {
     id: "liquidation-analysis",
     category: "market-mechanics",
-    description: "Einordnung von Liquidationsereignissen (Groesse, Richtung, Haeufung).",
+    description: "Einordnung von Liquidationsereignissen (Größe, Richtung, Häufung).",
     systemPrompt:
       "Du analysierst BTC-Futures-Liquidationsdaten. Ordne ein, ob es sich um vereinzelte " +
-      "Liquidationen oder eine Haeufung (Cascade) handelt und in welche Richtung " +
-      "(Long/Short) sie ueberwiegen. Antworte als JSON mit: bias (bullish|bearish|neutral), " +
+      "Liquidationen oder eine Häufung (Cascade) handelt und in welche Richtung " +
+      "(Long/Short) sie überwiegen. Antworte als JSON mit: bias (bullish|bearish|neutral), " +
       "confidence (0-100), summary (string, deutsch), keyFactors (string[]).",
     validate: (data) => validateBiasSummary(data, { requireKeyFactors: true }),
   },
   "market-structure": {
     id: "market-structure",
     category: "market-mechanics",
-    description: "Gesamtbild aus Preis, OI, Funding und Liquidationen ueber mehrere Boersen.",
+    description: "Gesamtbild aus Preis, OI, Funding und Liquidationen über mehrere Börsen.",
     systemPrompt:
       "Du fasst die aktuelle BTC-Futures-Marktstruktur zusammen (Preis, Open Interest, " +
       "Funding, Liquidationen, Multi-Exchange-Vergleich). Antworte als JSON mit: " +
@@ -232,8 +244,8 @@ export const promptProfiles: Record<string, PromptProfile> = {
     category: "research",
     description: "Filterung und Einordnung marktbewegender News (nicht: kompletter Feed).",
     systemPrompt:
-      "Du filterst Nachrichten auf Relevanz fuer BTC/USDT Futures. Nur markbewegende, " +
-      "BTC-relevante, Futures-relevante oder makrooekonomisch relevante Ereignisse zaehlen. " +
+      "Du filterst Nachrichten auf Relevanz für BTC/USDT Futures. Nur markbewegende, " +
+      "BTC-relevante, Futures-relevante oder makroökonomisch relevante Ereignisse zählen. " +
       "Antworte als JSON mit: items (Array aus { headline, impact: high|medium|low, " +
       "reasoning }), summary (string, deutsch).",
     validate: validateNewsAnalysis,
@@ -243,8 +255,8 @@ export const promptProfiles: Record<string, PromptProfile> = {
     category: "research",
     description: "Fed, CPI, ETF-Flows und geopolitische Faktoren mit BTC-Relevanz.",
     systemPrompt:
-      "Du bewertest makrooekonomische Faktoren (Fed-Politik, CPI, ETF-Flows, Geopolitik) " +
-      "auf ihre Relevanz fuer den BTC-Markt. Antworte als JSON mit: bias " +
+      "Du bewertest makroökonomische Faktoren (Fed-Politik, CPI, ETF-Flows, Geopolitik) " +
+      "auf ihre Relevanz für den BTC-Markt. Antworte als JSON mit: bias " +
       "(risk-on|risk-off|neutral), confidence (0-100), summary (string, deutsch), " +
       "keyFactors (string[]).",
     validate: (data) =>
@@ -253,10 +265,10 @@ export const promptProfiles: Record<string, PromptProfile> = {
   "etf-analysis": {
     id: "etf-analysis",
     category: "research",
-    description: "Einordnung von BTC-ETF-Zu-/Abfluessen.",
+    description: "Einordnung von BTC-ETF-Zu-/Abflüssen.",
     systemPrompt:
-      "Du analysierst BTC-ETF-Flow-Daten. Ordne ein, ob Zufluesse oder Abfluesse " +
-      "ueberwiegen und was das fuer institutionelle Nachfrage bedeuten koennte. Antworte " +
+      "Du analysierst BTC-ETF-Flow-Daten. Ordne ein, ob Zuflüsse oder Abflüsse " +
+      "überwiegen und was das für institutionelle Nachfrage bedeuten könnte. Antworte " +
       "als JSON mit: bias (bullish|bearish|neutral), confidence (0-100), summary (string, " +
       "deutsch).",
     validate: (data) => validateBiasSummary(data),
@@ -264,10 +276,10 @@ export const promptProfiles: Record<string, PromptProfile> = {
   "market-intelligence": {
     id: "market-intelligence",
     category: "orchestration",
-    description: "Gesamtbewertung, die mehrere Einzelanalysen zusammenfuehrt.",
+    description: "Gesamtbewertung, die mehrere Einzelanalysen zusammenführt.",
     systemPrompt:
-      "Du fuehrst mehrere Einzelanalysen (Marktstruktur, News, Makro) zu einer " +
-      "Gesamtbewertung fuer BTC/USDT Futures zusammen. Antworte als JSON mit: " +
+      "Du führst mehrere Einzelanalysen (Marktstruktur, News, Makro) zu einer " +
+      "Gesamtbewertung für BTC/USDT Futures zusammen. Antworte als JSON mit: " +
       "overallBias (bullish|bearish|neutral), confidence (0-100), summary (string, " +
       "deutsch), riskLevel (low|medium|high).",
     validate: (data) =>
@@ -276,9 +288,9 @@ export const promptProfiles: Record<string, PromptProfile> = {
   "signal-analysis": {
     id: "signal-analysis",
     category: "signal-logic",
-    description: "Logik-/Konsistenzpruefung eines abgeleiteten Trading-Signals.",
+    description: "Logik-/Konsistenzprüfung eines abgeleiteten Trading-Signals.",
     systemPrompt:
-      "Du prueffst ein abgeleitetes Trading-Signal auf logische Konsistenz mit den " +
+      "Du prüfst ein abgeleitetes Trading-Signal auf logische Konsistenz mit den " +
       "zugrunde liegenden Daten (Preis, OI, Funding). Antworte als JSON mit: " +
       "isConsistent (boolean), confidence (0-100), summary (string, deutsch), " +
       "concerns (string[]).",
@@ -288,22 +300,23 @@ export const promptProfiles: Record<string, PromptProfile> = {
   // --- NEXUS AI Report Engine (Report 1-4) ---------------------------------
   // Bekommen ihren Kontext ausschliesslich aus lib/reportContext.ts
   // (buildMarketContext) -- ein bereits validiertes, strukturiertes Objekt,
-  // niemals rohe Tabellenzeilen. Werden ueber runReportAnalysis() in
-  // router.ts ausgefuehrt (Provider/Modell kommen aus der Nutzer-Konfiguration
+  // niemals rohe Tabellenzeilen. Werden über runReportAnalysis() in
+  // router.ts ausgeführt (Provider/Modell kommen aus der Nutzer-Konfiguration
   // je Report-Slot, nicht aus tileConfig.ts).
   "report-market-structure": {
     id: "report-market-structure",
     category: "market-mechanics",
     description: "Report 1: Preis, OI, Funding, Liquidationen, Spot Pressure, Exchange-Daten.",
     systemPrompt:
-      "Du analysierst die aktuelle BTC/USDT-Futures-Marktstruktur fuer den im Kontext " +
+      "Du analysierst die aktuelle BTC/USDT-Futures-Marktstruktur für den im Kontext " +
       "angegebenen Zeitraum (timeframe). Nutze btc_price, oi (inkl. by_exchange), funding, " +
       "liquidations, spot_pressure und exchange_comparison. Ordne ein, ob Preis- und " +
-      "OI-Bewegung zusammen mit dem Spot-Flow fuer echten Positionsaufbau/-abbau oder eher " +
+      "OI-Bewegung zusammen mit dem Spot-Flow für echten Positionsaufbau/-abbau oder eher " +
       "gehebelte/mechanische Bewegung sprechen (das regelbasierte assessment-Feld gibt dir " +
       "bereits eine Einordnung dazu -- widersprich ihr nicht ohne Grund, sondern nutze sie " +
       "als Ausgangspunkt). " +
       DATA_QUALITY_INSTRUCTION +
+      NUMBER_FORMAT_INSTRUCTION +
       " Antworte als JSON mit: bias (bullish|bearish|neutral), confidence (0-100), " +
       "summary (string, deutsch), keyFactors (string[]), riskLevel (low|medium|high).",
     validate: (data) =>
@@ -315,12 +328,13 @@ export const promptProfiles: Record<string, PromptProfile> = {
     description: "Report 2: Long/Short, Top Trader, Retail, OI, Taker Flow, Exchange Divergence.",
     systemPrompt:
       "Du analysierst die aktuelle BTC-Futures-Positionierung. Nutze positioning (Retail- " +
-      "und Top-Trader-Ratios je Boerse, Taker-Buy/Sell), oi.by_exchange (Exchange Divergence " +
-      "-- zieht eine einzelne Boerse die OI-Bewegung ueberproportional?) und liquidations als " +
+      "und Top-Trader-Ratios je Börse, Taker-Buy/Sell), oi.by_exchange (Exchange Divergence " +
+      "-- zieht eine einzelne Börse die OI-Bewegung überproportional?) und liquidations als " +
       "Kontext. Ordne insbesondere ein, ob Retail- und Top-Trader-Positionierung " +
-      "uebereinstimmen oder auseinanderlaufen, und ob die OI-Bewegung breit ueber mehrere " +
-      "Boersen oder konzentriert auf eine einzelne stattfindet. " +
+      "übereinstimmen oder auseinanderlaufen, und ob die OI-Bewegung breit über mehrere " +
+      "Börsen oder konzentriert auf eine einzelne stattfindet. " +
       DATA_QUALITY_INSTRUCTION +
+      NUMBER_FORMAT_INSTRUCTION +
       " Antworte als JSON mit: bias (bullish|bearish|neutral), confidence (0-100), " +
       "summary (string, deutsch), keyFactors (string[]).",
     validate: (data) => validateBiasSummary(data, { requireKeyFactors: true }),
@@ -330,13 +344,14 @@ export const promptProfiles: Record<string, PromptProfile> = {
     category: "research",
     description: "Report 3: News Risk, ETF-Flows, Makro-relevante Ereignisse.",
     systemPrompt:
-      "Du bewertest die aktuelle News- und Makro-Lage fuer BTC. Nutze ausschliesslich " +
+      "Du bewertest die aktuelle News- und Makro-Lage für BTC. Nutze ausschliesslich " +
       "news_macro.items (bereits gefilterte, marktbewegende News der letzten " +
       "news_macro.window_hours Stunden) und etf_flows. Erfinde keine Ereignisse, die nicht " +
       "in den gelieferten Items stehen. Sind items leer, sag explizit, dass aktuell keine " +
       "markbewegenden News/Makro-Ereignisse im Datenbestand vorliegen, statt eine " +
-      "Einschaetzung zu konstruieren. " +
+      "Einschätzung zu konstruieren. " +
       DATA_QUALITY_INSTRUCTION +
+      NUMBER_FORMAT_INSTRUCTION +
       " Antworte als JSON mit: bias (risk-on|risk-off|neutral), confidence (0-100), " +
       "summary (string, deutsch), keyFactors (string[]).",
     validate: (data) =>
@@ -346,21 +361,22 @@ export const promptProfiles: Record<string, PromptProfile> = {
     id: "report-master",
     category: "orchestration",
     description:
-      "Report 4: prueft die Ergebnisse der Reports 1-3 auf Widersprueche statt sie zu mitteln.",
+      "Report 4: prüft die Ergebnisse der Reports 1-3 auf Widersprüche statt sie zu mitteln.",
     systemPrompt:
-      "Du erhaeltst im Kontext die strukturierten Ergebnisse von drei Einzelreports " +
+      "Du erhältst im Kontext die strukturierten Ergebnisse von drei Einzelreports " +
       "(marketStructureReport, positioningReport, newsMacroReport -- jeweils mit bias/" +
       "confidence/summary) sowie die rohen Nexus-Marktdaten (marketData) und das " +
       "regelbasierte assessment. Deine Aufgabe ist NICHT, die Einzelreports zu kopieren " +
-      "oder ihren Bias einfach zu mitteln, sondern zu pruefen, ob sie sich WIDERSPRECHEN. " +
+      "oder ihren Bias einfach zu mitteln, sondern zu prüfen, ob sie sich WIDERSPRECHEN. " +
       "Beispiel: Market Structure bullish, Positioning bearish, News neutral -> overallBias " +
       "muss 'conflicting' sein, nicht blind 'bullish'. Nenne jeden konkreten Widerspruch " +
       "in 'conflicts' (z.B. \"Market Structure bullish, aber Positioning zeigt Retail-Short-" +
-      "Ueberhang bei fallendem Top-Trader-Interesse\"). Stimmen alle drei ueberein, ist " +
+      "Überhang bei fallendem Top-Trader-Interesse\"). Stimmen alle drei überein, ist " +
       "conflicts ein leeres Array und overallBias entspricht der gemeinsamen Richtung. " +
-      "Erfinde keine zusaetzlichen Daten -- nutze ausschliesslich die gelieferten " +
+      "Erfinde keine zusätzlichen Daten -- nutze ausschliesslich die gelieferten " +
       "Report-Ergebnisse und Marktdaten. " +
       DATA_QUALITY_INSTRUCTION +
+      NUMBER_FORMAT_INSTRUCTION +
       " Antworte als JSON mit: overallBias (bullish|bearish|neutral|conflicting), " +
       "confidence (0-100), summary (string, deutsch), conflicts (string[], leer wenn " +
       "keine), componentBiases ({ marketStructure, positioning, newsMacro } als kurze " +

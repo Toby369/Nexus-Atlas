@@ -1,156 +1,41 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import type { MarketSeriesPoint, SpotPressureSummary } from "@/lib/types";
 import { getTimeframe, type TimeframeId } from "@/lib/timeframes";
-import { DEFAULT_SERIES_EXCHANGE, SERIES_EXCHANGES } from "@/lib/exchanges";
+import { SERIES_EXCHANGES } from "@/lib/exchanges";
 import { classifyMarketContext } from "@/lib/marketContext";
 import { classifySpotPressure } from "@/lib/spotPressure";
-import { isExchangeSetConsistentOverWindow, type ExchangeFirstSeen } from "@/lib/exchangeConsistency";
+import { isExchangeSetConsistentOverWindow } from "@/lib/exchangeConsistency";
 import PanelInfo from "@/components/PanelInfo";
 import { marktkontextInfo } from "@/lib/panelInfo";
+import { useDashboardPoll } from "@/components/DashboardPollProvider";
 
-const REFRESH_INTERVAL_MS = 30_000;
-const SERIES_MAX_POINTS = 500;
 // Referenzpunkt gilt als "kein voller Zeitraum verfuegbar", wenn er mehr als
 // 15 Min spaeter liegt als angefragt -- identische Toleranz wie in
 // LivePricePanel.tsx (siehe dortiger Kommentar).
 const HISTORY_GAP_TOLERANCE_MS = 15 * 60 * 1000;
-
-interface ReferenceSnapshot {
-  timestamp_utc: string;
-  last_price: number | null;
-  open_interest: number | null;
-}
 
 function formatSignedPct(value: number | null) {
   if (value === null || Number.isNaN(value)) return "—";
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
 
-async function fetchOiSeries(sinceIso: string): Promise<MarketSeriesPoint[]> {
-  const { data, error } = await supabase.rpc("get_market_series", {
-    p_exchange: DEFAULT_SERIES_EXCHANGE,
-    p_since: sinceIso,
-    p_max_points: SERIES_MAX_POINTS,
-  });
-  if (error) {
-    console.error("Fehler beim Laden der Marktkontext-OI-Zeitreihe:", error.message);
-    return [];
-  }
-  return data ?? [];
-}
-
-async function fetchOiReference(sinceIso: string): Promise<ReferenceSnapshot | null> {
-  const { data, error } = await supabase.rpc("get_market_reference_snapshot", {
-    p_exchange: DEFAULT_SERIES_EXCHANGE,
-    p_cutoff: sinceIso,
-  });
-  if (error) {
-    console.error("Fehler beim Laden des Marktkontext-Referenzpunkts:", error.message);
-    return null;
-  }
-  return data?.[0] ?? null;
-}
-
-async function fetchSpotSummary(sinceIso: string): Promise<SpotPressureSummary | null> {
-  const { data, error } = await supabase.rpc("get_spot_pressure_summary", {
-    p_since: sinceIso,
-  });
-  if (error) {
-    console.error("Fehler beim Laden der Marktkontext-Spot-Summary:", error.message);
-    return null;
-  }
-  return data?.[0] ?? null;
-}
-
-// Boersen-Erstmeldung -- aendert sich praktisch nie (nur bei einer neuen
-// Boersen-Integration), daher einmalig geladen statt bei jedem 30s-Poll.
-async function fetchExchangeFirstSeen(): Promise<ExchangeFirstSeen[]> {
-  const { data, error } = await supabase.rpc("get_market_snapshot_exchange_first_seen");
-  if (error) {
-    console.error("Fehler beim Laden der Boersen-Erstmeldung:", error.message);
-    return [];
-  }
-  return data ?? [];
-}
-
 export default function MarketContextCard({
   timeframe,
-  initialOiSeries,
-  initialOiReference,
-  initialSpotSummary,
-  initialFetchedSinceIso,
 }: {
   // Geteilter Zeitraum aus app/page.tsx (URL-Query-Param "tf") -- vorher war
   // dieser Wert hier fest auf 4H codiert, unabhaengig von jeder UI-Auswahl.
   // Jetzt nutzt das Assessment exakt denselben Zeitraum wie OI Change/BTC
   // Change/Chart/Spot-Flow, damit die Werte tatsaechlich vergleichbar sind.
   timeframe: TimeframeId;
-  initialOiSeries: MarketSeriesPoint[];
-  initialOiReference: ReferenceSnapshot | null;
-  initialSpotSummary: SpotPressureSummary | null;
-  initialFetchedSinceIso: string;
 }) {
-  const [oiSeries, setOiSeries] = useState(initialOiSeries);
-  const [oiReference, setOiReference] = useState(initialOiReference);
-  const [spotSummary, setSpotSummary] = useState(initialSpotSummary);
-  // Tatsaechlich abgefragte Fensteruntergrenze -- Basis fuer hasFullOiHistory
-  // unten (analog zu LivePricePanel.tsx, siehe dortiger Kommentar).
-  const [fetchedSinceIso, setFetchedSinceIso] = useState(initialFetchedSinceIso);
-  // Zeitpunkt des letzten Ladevorgangs -- Basis fuer die Coverage-Berechnung
-  // unten. Bewusst als State statt Date.now() direkt im Render-Body (React-
-  // Regel: Render muss rein/deterministisch bleiben, siehe
-  // react-hooks/purity) -- wird zusammen mit fetchedSinceIso im selben
-  // Ladevorgang gesetzt, spiegelt also exakt den Zeitpunkt der Daten wider.
-  const [fetchedAtMs, setFetchedAtMs] = useState(() => Date.now());
-  const [exchangeFirstSeen, setExchangeFirstSeen] = useState<ExchangeFirstSeen[]>([]);
-  // Beim allerersten Mount passen die initial*-Props bereits zum aktuellen
-  // timeframe-Prop (serverseitig fuer genau diesen Zeitraum geladen) -- nur
-  // ein tatsaechlicher Zeitraum-Wechsel ueber die URL loest sofort einen
-  // Client-Fetch aus, sonst uebernimmt der 30s-Poll die Aktualisierung.
-  const isFirstRun = useRef(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    const tf = getTimeframe(timeframe);
-    const skipImmediateLoad = isFirstRun.current;
-    isFirstRun.current = false;
-
-    const load = async () => {
-      const loadStartMs = Date.now();
-      const sinceIso = new Date(loadStartMs - tf.minutes * 60 * 1000).toISOString();
-      const [series, reference, spot] = await Promise.all([
-        fetchOiSeries(sinceIso),
-        fetchOiReference(sinceIso),
-        fetchSpotSummary(sinceIso),
-      ]);
-      if (cancelled) return;
-      setOiSeries(series);
-      setOiReference(reference);
-      setSpotSummary(spot);
-      setFetchedSinceIso(sinceIso);
-      setFetchedAtMs(loadStartMs);
-    };
-
-    if (!skipImmediateLoad) load();
-    const interval = setInterval(load, REFRESH_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [timeframe]);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchExchangeFirstSeen().then((rows) => {
-      if (!cancelled) setExchangeFirstSeen(rows);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Datenquelle: DashboardPollProvider (Phase 2, Punkt 3) statt eigenem
+  // 30s-Poll -- siehe dortiger Kommentar zur Buendelung mit
+  // SpotPressurePanel/PositioningPanel.
+  const { bundle, fetchedSinceIso, fetchedAtMs } = useDashboardPoll();
+  const oiSeries = bundle.oi_series;
+  const oiReference = bundle.oi_reference;
+  const spotSummary = bundle.spot_summary;
+  const exchangeFirstSeen = bundle.exchange_first_seen;
 
   const tf = getTimeframe(timeframe);
 
@@ -246,11 +131,11 @@ export default function MarketContextCard({
       : "text-text";
 
   return (
-    <div className="rounded-lg border border-accent/25 bg-surface-raised p-5">
+    <section className="rounded-lg border border-accent/25 bg-surface-raised p-5">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+        <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
           Marktkontext (regelbasiert) · {tf.label}
-        </p>
+        </h2>
         <PanelInfo title="Marktkontext" content={marktkontextInfo(tf.label)} />
       </div>
 
@@ -289,6 +174,6 @@ export default function MarketContextCard({
         über {tf.label} — keine KI, keine Anlageberatung. Schwellenwerte sind
         bewusst konservativ gewählt.
       </p>
-    </div>
+    </section>
   );
 }

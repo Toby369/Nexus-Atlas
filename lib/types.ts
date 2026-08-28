@@ -1,3 +1,5 @@
+import type { ExchangeFirstSeen } from "@/lib/exchangeConsistency";
+
 export interface MarketSnapshot {
   id: number;
   timestamp_utc: string;
@@ -163,6 +165,27 @@ export interface OiChangeByExchange {
   has_full_history: boolean;
 }
 
+// Rueckgabe der get_dashboard_poll_bundle-RPC (Phase 2, Punkt 3): buendelt
+// die 30s-Polls von MarketContextCard, SpotPressurePanel und
+// PositioningPanel (vorher 10 unabhaengige Einzel-Requests) zu einem
+// einzigen jsonb-Objekt -- siehe components/DashboardPollProvider.tsx.
+export interface DashboardPollBundle {
+  oi_series: MarketSeriesPoint[];
+  oi_reference: {
+    timestamp_utc: string;
+    last_price: number | null;
+    open_interest: number | null;
+  } | null;
+  spot_summary: SpotPressureSummary | null;
+  spot_series: SpotPressurePoint[];
+  exchange_first_seen: ExchangeFirstSeen[];
+  positioning_binance: PositioningSnapshot | null;
+  positioning_bybit: PositioningSnapshot | null;
+  positioning_okx: PositioningSnapshot | null;
+  positioning_bitget: PositioningSnapshot | null;
+  positioning_signal: PositioningSignal | null;
+}
+
 // NEXUS AI Report Engine (Vorgabe Teil M-P). report_configs = bis zu 4
 // vom Nutzer konfigurierte Report-Slots, report_runs = jede tatsaechliche
 // Ausfuehrung samt der Datenbasis, die der KI vorlag (data_snapshot).
@@ -195,6 +218,12 @@ export interface ReportRun {
   data_snapshot: Record<string, unknown> | null;
   error: string | null;
   email_sent: boolean;
+  // Regelbasierte Post-Validation (Phase 2, Punkt 1) -- getrennt von
+  // "status": status sagt "hat der API-Call funktioniert", validation_status
+  // sagt "stimmt der Text mit den mitgegebenen Rohdaten überein". null =
+  // nicht validiert (z.B. status='error'-Läufe, oder Altdaten vor Phase 2).
+  validation_status: "ok" | "flagged_contradiction" | null;
+  validation_notes: string[] | null;
   created_at: string;
 }
 

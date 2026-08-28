@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { TIMEFRAMES, parseTimeframe, type TimeframeId } from "@/lib/timeframes";
 import type { ReportConfig, ReportRun, ReportType } from "@/lib/types";
+import { FullDateTime, StaleBadge } from "@/components/ClientTimestamp";
 
 export interface ProviderOption {
   id: string;
@@ -298,15 +299,30 @@ function LastRunView({ lastRun }: { lastRun: ReportRun | null }) {
   const confidence = data?.confidence as number | undefined;
   const summary = data?.summary as string | undefined;
 
+  const isFlagged = lastRun.validation_status === "flagged_contradiction";
+
   return (
     <div className="border-t border-border pt-3">
-      <div className="flex items-center gap-2 text-xs">
+      <div className="flex items-center gap-2 text-xs flex-wrap">
         <span className={isOk ? "text-up" : "text-down"}>{isOk ? "OK" : "FEHLER"}</span>
         <span className="text-text-faint">
-          {new Date(lastRun.generated_at).toLocaleString("de-CH")} · {lastRun.provider}
+          <FullDateTime iso={lastRun.generated_at} /> · {lastRun.provider}
           {lastRun.model ? ` (${lastRun.model})` : ""}
         </span>
+        <StaleBadge iso={lastRun.generated_at} />
+        {isFlagged && (
+          <span className="inline-flex items-center rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-[10px] font-medium text-accent">
+            FLAGGED_CONTRADICTION
+          </span>
+        )}
       </div>
+      {isFlagged && lastRun.validation_notes && lastRun.validation_notes.length > 0 && (
+        <ul className="mt-1.5 space-y-0.5 text-xs text-accent">
+          {lastRun.validation_notes.map((note, i) => (
+            <li key={i}>⚠ {note}</li>
+          ))}
+        </ul>
+      )}
       {isOk ? (
         <div className="mt-2 space-y-1">
           {bias && (

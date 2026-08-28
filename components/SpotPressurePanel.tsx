@@ -1,16 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import type { SpotPressurePoint, SpotPressureSummary } from "@/lib/types";
 import SpotPressureChart from "@/components/SpotPressureChart";
 import { getTimeframe, type TimeframeId } from "@/lib/timeframes";
 import { classifySpotPressure } from "@/lib/spotPressure";
 import PanelInfo from "@/components/PanelInfo";
 import { spotPressureInfo } from "@/lib/panelInfo";
-
-const REFRESH_INTERVAL_MS = 30_000;
-const SERIES_MAX_POINTS = 300;
+import { useDashboardPoll } from "@/components/DashboardPollProvider";
 
 function formatBtc(value: number | null) {
   if (value === null || Number.isNaN(value)) return "—";
@@ -25,72 +20,20 @@ function formatSignedPct(value: number | null) {
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
 
-async function fetchSummary(sinceIso: string): Promise<SpotPressureSummary | null> {
-  const { data, error } = await supabase.rpc("get_spot_pressure_summary", {
-    p_since: sinceIso,
-  });
-  if (error) {
-    console.error("Fehler beim Laden der Spot-Pressure-Summary:", error.message);
-    return null;
-  }
-  return data?.[0] ?? null;
-}
-
-async function fetchSeries(sinceIso: string): Promise<SpotPressurePoint[]> {
-  const { data, error } = await supabase.rpc("get_spot_pressure_series", {
-    p_since: sinceIso,
-    p_max_points: SERIES_MAX_POINTS,
-  });
-  if (error) {
-    console.error("Fehler beim Laden der Spot-Pressure-Zeitreihe:", error.message);
-    return [];
-  }
-  return data ?? [];
-}
-
 export default function SpotPressurePanel({
   timeframe,
-  initialSummary,
-  initialSeries,
 }: {
   // Geteilter Zeitraum aus app/page.tsx (URL-Query-Param "tf") -- kein
   // eigener, unabhaengiger Selector mehr (siehe LivePricePanel-Kommentar).
   timeframe: TimeframeId;
-  initialSummary: SpotPressureSummary | null;
-  initialSeries: SpotPressurePoint[];
 }) {
-  const [summary, setSummary] = useState(initialSummary);
-  const [series, setSeries] = useState(initialSeries);
-  const [loading, setLoading] = useState(false);
-  const isFirstRun = useRef(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    const tf = getTimeframe(timeframe);
-    const skipImmediateLoad = isFirstRun.current;
-    isFirstRun.current = false;
-
-    const load = async (showLoading: boolean) => {
-      if (showLoading) setLoading(true);
-      const sinceIso = new Date(Date.now() - tf.minutes * 60 * 1000).toISOString();
-      const [summaryRes, seriesRes] = await Promise.all([
-        fetchSummary(sinceIso),
-        fetchSeries(sinceIso),
-      ]);
-      if (cancelled) return;
-      setSummary(summaryRes);
-      setSeries(seriesRes);
-      setLoading(false);
-    };
-
-    if (!skipImmediateLoad) load(true);
-    const interval = setInterval(() => load(false), REFRESH_INTERVAL_MS);
-
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [timeframe]);
+  // Datenquelle: DashboardPollProvider (Phase 2, Punkt 3) statt eigenem
+  // 30s-Poll -- siehe dortiger Kommentar zur Buendelung mit
+  // MarketContextCard/PositioningPanel.
+  const { bundle, isLoading } = useDashboardPoll();
+  const summary = bundle.spot_summary;
+  const series = bundle.spot_series;
+  const loading = isLoading;
 
   const selectedTf = getTimeframe(timeframe);
 
@@ -121,12 +64,12 @@ export default function SpotPressurePanel({
       : "text-text";
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-5">
+    <section className="rounded-lg border border-border bg-surface p-5">
       <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
         <div className="flex items-center gap-1.5">
-          <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+          <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
             Spot Pressure
-          </p>
+          </h2>
           <PanelInfo title="Spot Pressure" content={spotPressureInfo(selectedTf.label)} />
         </div>
         <p className="text-xs text-text-faint">{selectedTf.label}</p>
@@ -224,6 +167,6 @@ export default function SpotPressurePanel({
         Spot-Markt; ein Abgleich mit dem Futures-Markt (Positionierung, OI)
         folgt in einer spaeteren Erweiterung.
       </p>
-    </div>
+    </section>
   );
 }

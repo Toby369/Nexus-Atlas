@@ -155,11 +155,11 @@ export default function LiquidationPanel({
       : null;
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
+    <section className="rounded-lg border border-border bg-surface p-5 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+        <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
           Liquidationen
-        </p>
+        </h2>
         <PanelInfo title="Liquidationen" content={liquidationsInfo} />
       </div>
 
@@ -240,6 +240,6 @@ export default function LiquidationPanel({
         Stichprobenerfassung (~25s alle 5 Min je Börse, Binance + Bybit) —
         keine lückenlose Erfassung, kein Handelssignal.
       </p>
-    </div>
+    </section>
   );
 }

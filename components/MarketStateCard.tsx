@@ -10,17 +10,9 @@ import {
   UNCLEAR_STATE_LABEL,
   DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD,
 } from "@/lib/marketStateSummary";
+import { RelativeTime } from "@/components/ClientTimestamp";
 
 const REFRESH_INTERVAL_MS = 60_000;
-
-function timeAgo(iso: string) {
-  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (seconds < 60) return `vor ${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `vor ${minutes} Min`;
-  const hours = Math.floor(minutes / 60);
-  return `vor ${hours} Std`;
-}
 
 const STATE_LABELS: Record<string, string> = {
   BULLISH: "Bullish",
@@ -140,17 +132,17 @@ export default function MarketStateCard({
 
   if (!state) {
     return (
-      <div className="rounded-lg border border-accent/25 bg-surface-raised p-5">
+      <section className="rounded-lg border border-accent/25 bg-surface-raised p-5">
         <div className="flex items-center justify-between">
-          <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+          <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
             Market State
-          </p>
+          </h2>
           <PanelInfo title="Market State" content={marketStateInfo} />
         </div>
         <p className="text-sm text-text-faint mt-3">
           Noch keine Market-State-Daten vorhanden.
         </p>
-      </div>
+      </section>
     );
   }
 
@@ -178,11 +170,11 @@ export default function MarketStateCard({
   const mtf = state.mtf_alignment;
 
   return (
-    <div className="rounded-lg border border-accent/25 bg-surface-raised p-5 space-y-3">
+    <section className="rounded-lg border border-accent/25 bg-surface-raised p-5 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+        <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
           Market State
-        </p>
+        </h2>
         <PanelInfo title="Market State" content={marketStateInfo} />
       </div>
 
@@ -194,7 +186,7 @@ export default function MarketStateCard({
 
       <div className="flex items-baseline justify-between flex-wrap gap-2">
         <p className={`text-xl sm:text-2xl font-semibold ${badgeColor}`}>{displayLabel}</p>
-        <span className="text-xs text-text-faint">{timeAgo(state.timestamp_utc)}</span>
+        <RelativeTime iso={state.timestamp_utc} className="text-xs text-text-faint" />
       </div>
 
       {suppressDirectionalLabel && (
@@ -282,6 +274,6 @@ export default function MarketStateCard({
         Kombiniert 14 unabhängige Datenquellen zu einem Gesamtzustand — Rohmaterial für eine
         Einordnung, kein Handelssignal.
       </p>
-    </div>
+    </section>
   );
 }

@@ -1,133 +1,48 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import type { PositioningSignal, PositioningSnapshot } from "@/lib/types";
 import PanelInfo from "@/components/PanelInfo";
 import {
   positioningRatiosInfo,
   takerFlowInfo,
   positioningAssessmentInfo,
 } from "@/lib/panelInfo";
-
-const REFRESH_INTERVAL_MS = 30_000;
-
-function timeAgo(iso: string) {
-  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (seconds < 60) return `vor ${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `vor ${minutes} Min`;
-  const hours = Math.floor(minutes / 60);
-  return `vor ${hours} Std`;
-}
+import { RelativeTime } from "@/components/ClientTimestamp";
+import { useDashboardPoll } from "@/components/DashboardPollProvider";
 
 function pct(value: number | null) {
   return value !== null ? `${(value * 100).toFixed(1)}%` : "—";
 }
 
-async function fetchLatestSnapshot(
-  exchange: string
-): Promise<{ data: PositioningSnapshot | null; ok: boolean }> {
-  const { data, error } = await supabase
-    .from("positioning_snapshots")
-    .select("*")
-    .eq("status", "ok")
-    .eq("exchange", exchange)
-    .order("timestamp_utc", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error(
-      `Fehler beim Laden des Positioning-Snapshots (${exchange}):`,
-      error.message
-    );
-    return { data: null, ok: false };
-  }
-  return { data, ok: true };
-}
-
-async function fetchLatestSignal(): Promise<{
-  data: PositioningSignal | null;
-  ok: boolean;
-}> {
-  const { data, error } = await supabase
-    .from("positioning_signals")
-    .select("*")
-    .order("timestamp_utc", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error("Fehler beim Laden des Positioning-Signals:", error.message);
-    return { data: null, ok: false };
-  }
-  return { data, ok: true };
-}
-
-export default function PositioningPanel({
-  initialBinance,
-  initialBybit,
-  initialOkx,
-  initialBitget,
-  initialSignal,
-}: {
-  initialBinance: PositioningSnapshot | null;
-  initialBybit: PositioningSnapshot | null;
-  initialOkx: PositioningSnapshot | null;
-  initialBitget: PositioningSnapshot | null;
-  initialSignal: PositioningSignal | null;
-}) {
-  const [binance, setBinance] = useState(initialBinance);
-  const [bybit, setBybit] = useState(initialBybit);
-  const [okx, setOkx] = useState(initialOkx);
-  const [bitget, setBitget] = useState(initialBitget);
-  const [signal, setSignal] = useState(initialSignal);
-  const [lastSyncOk, setLastSyncOk] = useState(true);
-
-  useEffect(() => {
-    const fetchLatest = async () => {
-      const [binanceRes, bybitRes, okxRes, bitgetRes, signalRes] = await Promise.all([
-        fetchLatestSnapshot("binance"),
-        fetchLatestSnapshot("bybit"),
-        fetchLatestSnapshot("okx"),
-        fetchLatestSnapshot("bitget"),
-        fetchLatestSignal(),
-      ]);
-
-      setLastSyncOk(
-        binanceRes.ok && bybitRes.ok && okxRes.ok && bitgetRes.ok && signalRes.ok
-      );
-      if (binanceRes.data) setBinance(binanceRes.data);
-      if (bybitRes.data) setBybit(bybitRes.data);
-      if (okxRes.data) setOkx(okxRes.data);
-      if (bitgetRes.data) setBitget(bitgetRes.data);
-      if (signalRes.data) setSignal(signalRes.data);
-    };
-
-    const interval = setInterval(fetchLatest, REFRESH_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, []);
+export default function PositioningPanel() {
+  // Datenquelle: DashboardPollProvider (Phase 2, Punkt 3) statt eigenem
+  // 30s-Poll -- siehe dortiger Kommentar zur Buendelung mit
+  // MarketContextCard/SpotPressurePanel.
+  const { bundle, lastSyncOk } = useDashboardPoll();
+  const binance = bundle.positioning_binance;
+  const bybit = bundle.positioning_bybit;
+  const okx = bundle.positioning_okx;
+  const bitget = bundle.positioning_bitget;
+  const signal = bundle.positioning_signal;
 
   if (!binance && !bybit && !okx && !bitget) {
     return (
-      <div className="rounded-lg border border-border bg-surface p-5">
-        <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+      <section className="rounded-lg border border-border bg-surface p-5">
+        <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
           Positioning Intelligence
-        </p>
+        </h2>
         <p className="text-sm text-text-faint mt-3">
           Noch keine Positioning-Daten vorhanden.
         </p>
-      </div>
+      </section>
     );
   }
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-5 space-y-4">
+    <section className="rounded-lg border border-border bg-surface p-5 space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+        <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
           Positioning Intelligence
-        </p>
+        </h2>
         <PanelInfo title="Positioning Intelligence" content={positioningRatiosInfo} />
       </div>
 
@@ -196,9 +111,7 @@ export default function PositioningPanel({
               </p>
               <PanelInfo title="NEXUS Assessment" content={positioningAssessmentInfo} />
             </div>
-            <span className="text-xs text-text-faint">
-              {timeAgo(signal.timestamp_utc)}
-            </span>
+            <RelativeTime iso={signal.timestamp_utc} className="text-xs text-text-faint" />
           </div>
           <p className="text-sm text-text leading-relaxed">
             {signal.explanation}
@@ -210,7 +123,7 @@ export default function PositioningPanel({
           </p>
         </div>
       )}
-    </div>
+    </section>
   );
 }
 

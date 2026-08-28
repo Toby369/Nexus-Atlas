@@ -184,23 +184,26 @@ function SortableTile({
 
   return (
     <div ref={setNodeRef} style={style}>
-      <div className="flex items-center gap-1 mb-1.5">
+      <div className="flex items-center gap-1 max-sm:gap-0.5 mb-1.5">
         <button
           type="button"
           {...attributes}
           {...listeners}
           aria-label={`${title} verschieben`}
-          className="touch-none cursor-grab px-1 text-text-faint hover:text-text-muted active:cursor-grabbing"
+          className="flex items-center justify-center touch-none cursor-grab px-1 text-text-faint hover:text-text-muted active:cursor-grabbing max-sm:h-11 max-sm:w-11 max-sm:px-0"
         >
           ⠿
         </button>
-        <div className="flex flex-col">
+        {/* Auf Mobile-Viewports (<640px) nebeneinander statt gestapelt, damit
+            jeder Reorder-Button einzeln auf mindestens 44x44px kommt, statt
+            zwei 22px-hohe Haelften uebereinander (WCAG 2.5.5 Target Size). */}
+        <div className="flex flex-col max-sm:flex-row max-sm:gap-0.5">
           <button
             type="button"
             onClick={onMoveUp}
             disabled={!canMoveUp}
             aria-label={`${title} nach oben verschieben`}
-            className="px-0.5 text-[9px] leading-[10px] text-text-faint hover:text-text-muted disabled:opacity-20"
+            className="flex items-center justify-center px-0.5 text-[9px] leading-[10px] text-text-faint hover:text-text-muted disabled:opacity-20 max-sm:h-11 max-sm:w-11 max-sm:px-0 max-sm:text-sm"
           >
             ▲
           </button>
@@ -209,7 +212,7 @@ function SortableTile({
             onClick={onMoveDown}
             disabled={!canMoveDown}
             aria-label={`${title} nach unten verschieben`}
-            className="px-0.5 text-[9px] leading-[10px] text-text-faint hover:text-text-muted disabled:opacity-20"
+            className="flex items-center justify-center px-0.5 text-[9px] leading-[10px] text-text-faint hover:text-text-muted disabled:opacity-20 max-sm:h-11 max-sm:w-11 max-sm:px-0 max-sm:text-sm"
           >
             ▼
           </button>
@@ -221,7 +224,7 @@ function SortableTile({
           type="button"
           onClick={onToggleMinimize}
           aria-label={isMinimized ? `${title} einblenden` : `${title} minimieren`}
-          className="px-1.5 text-xs text-text-faint hover:text-text-muted"
+          className="flex items-center justify-center px-1.5 text-xs text-text-faint hover:text-text-muted max-sm:h-11 max-sm:w-11 max-sm:px-0"
         >
           {isMinimized ? "+" : "−"}
         </button>

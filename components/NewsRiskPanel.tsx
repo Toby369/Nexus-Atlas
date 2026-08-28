@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import type { NewsEvent } from "@/lib/types";
 import PanelInfo from "@/components/PanelInfo";
 import { newsRiskInfo } from "@/lib/panelInfo";
+import { RelativeTime } from "@/components/ClientTimestamp";
 
 const REFRESH_INTERVAL_MS = 60_000;
 const NEWS_LIMIT = 5;
@@ -30,17 +31,6 @@ const DIRECTION_LABELS: Record<string, string> = {
   bearish: "negativ",
   neutral: "neutral",
 };
-
-function timeAgo(iso: string) {
-  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (seconds < 60) return `vor ${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `vor ${minutes} Min`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `vor ${hours} Std`;
-  const days = Math.floor(hours / 24);
-  return `vor ${days} Tg`;
-}
 
 async function fetchHighImpactNews(): Promise<{
   data: NewsEvent[];
@@ -83,11 +73,11 @@ export default function NewsRiskPanel({
   }, []);
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
+    <section className="rounded-lg border border-border bg-surface p-5 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+        <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
           News Risk
-        </p>
+        </h2>
         <PanelInfo title="News Risk" content={newsRiskInfo} />
       </div>
 
@@ -117,9 +107,7 @@ export default function NewsRiskPanel({
                 <span className="text-xs text-text-faint">
                   {CATEGORY_LABELS[item.category] ?? item.category}
                 </span>
-                <span className="text-xs text-text-faint ml-auto">
-                  {timeAgo(item.published_at)}
-                </span>
+                <RelativeTime iso={item.published_at} className="text-xs text-text-faint ml-auto" />
               </div>
               {item.url ? (
                 <a
@@ -154,6 +142,6 @@ export default function NewsRiskPanel({
         Nur markbewegende Ereignisse der letzten 72h · regelbasierte
         Filterung, keine Anlageberatung
       </p>
-    </div>
+    </section>
   );
 }

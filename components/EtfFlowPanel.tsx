@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import type { EtfFlowDay, EtfFlowIntelligence, NewsEvent } from "@/lib/types";
 import PanelInfo from "@/components/PanelInfo";
 import { etfMacroInfo } from "@/lib/panelInfo";
+import { ShortDate } from "@/components/ClientTimestamp";
 
 // ETF-Flow-Daten aendern sich hoechstens 1x/Tag (T+1) -- seltenes Polling
 // reicht, kein 30s-Live-Takt noetig wie bei Preis/Positioning.
@@ -31,13 +32,6 @@ function formatUsdM(value: number) {
   const abs = Math.abs(value);
   const sign = value >= 0 ? "+" : "-";
   return `${sign}$${abs.toFixed(1)}M`;
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("de-CH", {
-    day: "2-digit",
-    month: "short",
-  });
 }
 
 function formatPct(value: number | null): string {
@@ -158,16 +152,16 @@ export default function EtfFlowPanel({
 
   if (flows.length === 0) {
     return (
-      <div className="rounded-lg border border-border bg-surface p-5">
-        <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+      <section className="rounded-lg border border-border bg-surface p-5">
+        <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
           ETF-Flows &amp; Makro
-        </p>
+        </h2>
         <p className="text-sm text-text-faint mt-3">
           {lastSyncOk
             ? "Noch keine ETF-Flow-Daten vorhanden."
             : "Sync-Problem — ETF-Flows derzeit nicht verfügbar."}
         </p>
-      </div>
+      </section>
     );
   }
 
@@ -208,11 +202,11 @@ export default function EtfFlowPanel({
   }
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
+    <section className="rounded-lg border border-border bg-surface p-5 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+        <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
           ETF-Flows &amp; Makro
-        </p>
+        </h2>
         <PanelInfo title="ETF-Flows & Makro" content={etfMacroInfo} />
       </div>
 
@@ -235,7 +229,7 @@ export default function EtfFlowPanel({
             : "—"}
         </span>
         <span className="text-xs text-text-faint">
-          {formatDate(latest.flow_date)} · US-Spot-BTC-ETFs
+          <ShortDate iso={latest.flow_date} /> · US-Spot-BTC-ETFs
         </span>
       </div>
 
@@ -311,6 +305,6 @@ export default function EtfFlowPanel({
         Quelle: {latest.source === "sosovalue" ? "SoSoValue" : "Farside Investors"},
         täglich (T+1) · kein Handelssignal
       </p>
-    </div>
+    </section>
   );
 }

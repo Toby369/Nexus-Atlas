@@ -6,6 +6,7 @@ import { runReportAnalysis } from "@/lib/ai/router";
 import { sendReportEmail } from "@/lib/email";
 import { parseTimeframe } from "@/lib/timeframes";
 import { checkAndRecordRateLimit } from "@/lib/rateLimit";
+import { validateReportAgainstData } from "@/lib/reportValidation";
 import type { AIProviderId } from "@/lib/ai/types";
 import type { ReportConfig, ReportRun, ReportType } from "@/lib/types";
 
@@ -239,6 +240,12 @@ export async function POST(req: NextRequest) {
       context: JSON.stringify(contextPayload),
     });
 
+    // Fact-Checker (Phase 2, Punkt 1): prueft die AI-Kernaussagen gegen die
+    // Rohdaten, die IM SELBEN Request-Kontext an das Modell gingen -- vor
+    // dem Insert, damit report_runs von Anfang an den Validierungsstatus
+    // traegt statt ihn nachtraeglich per Update anzuflicken.
+    const validation = validateReportAgainstData(result.data, contextPayload);
+
     const { data: run, error: insertError } = await supabaseAdmin
       .from("report_runs")
       .insert({
@@ -247,6 +254,8 @@ export async function POST(req: NextRequest) {
         provider: result.provider,
         model: result.model,
         timeframe,
+        validation_status: validation.status,
+        validation_notes: validation.contradictions.length > 0 ? validation.contradictions : null,
         status: "ok",
         result: result.data as Record<string, unknown>,
         data_snapshot: contextPayload as Record<string, unknown>,

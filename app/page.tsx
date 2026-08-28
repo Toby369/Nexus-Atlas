@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import type {
+  DashboardPollBundle,
   EtfFlowDay,
   LiquidationEvent,
   MarketSeriesPoint,
@@ -9,10 +10,6 @@ import type {
   MarketState,
   NewsEvent,
   OiChangeByExchange,
-  PositioningSignal,
-  PositioningSnapshot,
-  SpotPressurePoint,
-  SpotPressureSummary,
 } from "@/lib/types";
 import { getTimeframe, parseTimeframe, type TimeframeId } from "@/lib/timeframes";
 import { DEFAULT_SERIES_EXCHANGE } from "@/lib/exchanges";
@@ -26,6 +23,7 @@ import MarketContextCard from "@/components/MarketContextCard";
 import MarketStateCard from "@/components/MarketStateCard";
 import TimeframeSelector from "@/components/TimeframeSelector";
 import DashboardLayout from "@/components/DashboardLayout";
+import DashboardPollProvider from "@/components/DashboardPollProvider";
 
 export const revalidate = 0;
 
@@ -91,29 +89,6 @@ async function getLatestPerExchange(): Promise<MarketSnapshot[]> {
 // ueber lib/marketStateSummary.ts::buildCompactMarketStateSummary() -- kein
 // zweiter, unabhaengiger Rechenweg mehr.
 
-async function getLatestPositioningSnapshot(
-  exchange: string
-): Promise<PositioningSnapshot | null> {
-  const { data, error } = await supabase
-    .from("positioning_snapshots")
-    .select("*")
-    .eq("status", "ok")
-    .eq("exchange", exchange)
-    .order("timestamp_utc", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error(
-      `Fehler beim Laden des Positioning-Snapshots (${exchange}):`,
-      error.message
-    );
-    return null;
-  }
-
-  return data;
-}
-
 async function getLatestMarketState(): Promise<MarketState | null> {
   const { data, error } = await supabase
     .from("market_states")
@@ -129,21 +104,6 @@ async function getLatestMarketState(): Promise<MarketState | null> {
   return data;
 }
 
-async function getLatestPositioningSignal(): Promise<PositioningSignal | null> {
-  const { data, error } = await supabase
-    .from("positioning_signals")
-    .select("*")
-    .order("timestamp_utc", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error("Fehler beim Laden des Positioning-Signals:", error.message);
-    return null;
-  }
-
-  return data;
-}
 
 // Nur markbewegende News der letzten 72h, max. 5 - bewusst kompakt statt
 // einer Rohdaten-Flut.
@@ -274,34 +234,26 @@ function timeframeSinceIso(id: TimeframeId): string {
   return new Date(Date.now() - getTimeframe(id).minutes * 60 * 1000).toISOString();
 }
 
-const SPOT_SERIES_MAX_POINTS = 300;
+const DASHBOARD_BUNDLE_MAX_POINTS = 500;
 
-// Exakte Summe (kein Downsampling) fuer den Spot-Pressure-Headline-Wert,
-// serverseitig fuer den Standard-Zeitraum -- gleiche RPC wie der Client-Poll
-// in SpotPressurePanel.tsx.
-async function getSpotPressureSummary(
+// Serverseitig dieselbe RPC wie der Client-Poll (DashboardPollProvider,
+// Phase 2 Punkt 3) -- liefert die initialen Werte fuer MarketContextCard/
+// SpotPressurePanel/PositioningPanel in einem Aufruf statt fuenf
+// Einzelabfragen (vorher: getOiReferenceSnapshot/getSpotPressureSummary/
+// getSpotPressureSeries/getLatestPositioningSnapshot x4/
+// getLatestPositioningSignal).
+async function getDashboardPollBundle(
   sinceIso: string
-): Promise<SpotPressureSummary | null> {
-  const { data, error } = await supabase.rpc("get_spot_pressure_summary", {
+): Promise<DashboardPollBundle | null> {
+  const { data, error } = await supabase.rpc("get_dashboard_poll_bundle", {
     p_since: sinceIso,
+    p_max_points: DASHBOARD_BUNDLE_MAX_POINTS,
   });
   if (error) {
-    console.error("Fehler beim Laden der Spot-Pressure-Summary:", error.message);
+    console.error("Fehler beim Laden des Dashboard-Poll-Bundles:", error.message);
     return null;
   }
-  return data?.[0] ?? null;
-}
-
-async function getSpotPressureSeries(sinceIso: string): Promise<SpotPressurePoint[]> {
-  const { data, error } = await supabase.rpc("get_spot_pressure_series", {
-    p_since: sinceIso,
-    p_max_points: SPOT_SERIES_MAX_POINTS,
-  });
-  if (error) {
-    console.error("Fehler beim Laden der Spot-Pressure-Zeitreihe:", error.message);
-    return [];
-  }
-  return data ?? [];
+  return (data as DashboardPollBundle | null) ?? null;
 }
 
 // OI-Change% je Boerse fuer denselben Zeitraum wie die uebrige Seite --
@@ -337,37 +289,43 @@ export default async function Home({
     snapshots,
     exchangeComparison,
     marketState,
-    positioningBinance,
-    positioningBybit,
-    positioningOkx,
-    positioningBitget,
-    positioningSignal,
     highImpactNews,
     recentLiquidations,
     recentEtfFlows,
     oiSeriesData,
     oiReferenceSnapshot,
-    spotPressureSummary,
-    spotPressureSeries,
+    dashboardBundle,
     oiByExchange,
   ] = await Promise.all([
     getSnapshotHistory(),
     getLatestPerExchange(),
     getLatestMarketState(),
-    getLatestPositioningSnapshot("binance"),
-    getLatestPositioningSnapshot("bybit"),
-    getLatestPositioningSnapshot("okx"),
-    getLatestPositioningSnapshot("bitget"),
-    getLatestPositioningSignal(),
     getHighImpactNews(),
     getRecentLiquidations(),
     getRecentEtfFlows(),
     getMarketSeries(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getOiReferenceSnapshot(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
-    getSpotPressureSummary(timeframeSinceIsoValue),
-    getSpotPressureSeries(timeframeSinceIsoValue),
+    getDashboardPollBundle(timeframeSinceIsoValue),
     getOiChangeByExchange(timeframeSinceIsoValue),
   ]);
+
+  // Fallback, falls das Bundle-RPC fehlschlaegt (z.B. kurzzeitiger DB-
+  // Aussetzer) -- MarketContextCard/SpotPressurePanel/PositioningPanel
+  // zeigen dann ihre jeweiligen "keine Daten"-Zustaende, statt dass die
+  // ganze Seite abstuerzt. Der naechste 30s-Poll im DashboardPollProvider
+  // versucht es erneut.
+  const initialDashboardBundle: DashboardPollBundle = dashboardBundle ?? {
+    oi_series: [],
+    oi_reference: null,
+    spot_summary: null,
+    spot_series: [],
+    exchange_first_seen: [],
+    positioning_binance: null,
+    positioning_bybit: null,
+    positioning_okx: null,
+    positioning_bitget: null,
+    positioning_signal: null,
+  };
 
   return (
     <main className="flex-1 flex flex-col">
@@ -406,52 +364,36 @@ export default async function Home({
             </Suspense>
           </div>
 
-          <DashboardLayout
-            tiles={{
-              "market-context": (
-                <MarketContextCard
-                  timeframe={timeframe}
-                  initialOiSeries={oiSeriesData}
-                  initialOiReference={oiReferenceSnapshot}
-                  initialSpotSummary={spotPressureSummary}
-                  initialFetchedSinceIso={timeframeSinceIsoValue}
-                />
-              ),
-              "live-price": (
-                <LivePricePanel
-                  timeframe={timeframe}
-                  initialSnapshots={snapshots}
-                  initialMarketState={marketState}
-                  initialExchangeComparison={exchangeComparison}
-                  initialSeriesData={oiSeriesData}
-                  initialReferenceSnapshot={oiReferenceSnapshot}
-                  initialFetchedSinceIso={timeframeSinceIsoValue}
-                  initialOiByExchange={oiByExchange}
-                />
-              ),
-              "spot-pressure": (
-                <SpotPressurePanel
-                  timeframe={timeframe}
-                  initialSummary={spotPressureSummary}
-                  initialSeries={spotPressureSeries}
-                />
-              ),
-              positioning: (
-                <PositioningPanel
-                  initialBinance={positioningBinance}
-                  initialBybit={positioningBybit}
-                  initialOkx={positioningOkx}
-                  initialBitget={positioningBitget}
-                  initialSignal={positioningSignal}
-                />
-              ),
-              liquidations: <LiquidationPanel initialEvents={recentLiquidations} />,
-              "etf-flow": (
-                <EtfFlowPanel initialFlows={recentEtfFlows} macroNews={highImpactNews} />
-              ),
-              "news-risk": <NewsRiskPanel initialNews={highImpactNews} />,
-            }}
-          />
+          <DashboardPollProvider
+            timeframe={timeframe}
+            initialBundle={initialDashboardBundle}
+            initialFetchedSinceIso={timeframeSinceIsoValue}
+          >
+            <DashboardLayout
+              tiles={{
+                "market-context": <MarketContextCard timeframe={timeframe} />,
+                "live-price": (
+                  <LivePricePanel
+                    timeframe={timeframe}
+                    initialSnapshots={snapshots}
+                    initialMarketState={marketState}
+                    initialExchangeComparison={exchangeComparison}
+                    initialSeriesData={oiSeriesData}
+                    initialReferenceSnapshot={oiReferenceSnapshot}
+                    initialFetchedSinceIso={timeframeSinceIsoValue}
+                    initialOiByExchange={oiByExchange}
+                  />
+                ),
+                "spot-pressure": <SpotPressurePanel timeframe={timeframe} />,
+                positioning: <PositioningPanel />,
+                liquidations: <LiquidationPanel initialEvents={recentLiquidations} />,
+                "etf-flow": (
+                  <EtfFlowPanel initialFlows={recentEtfFlows} macroNews={highImpactNews} />
+                ),
+                "news-risk": <NewsRiskPanel initialNews={highImpactNews} />,
+              }}
+            />
+          </DashboardPollProvider>
         </div>
       </section>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import type {
   MarketSeriesPoint,
@@ -12,6 +12,7 @@ import TimeSeriesChart from "@/components/TimeSeriesChart";
 import PriceOiComparisonChart from "@/components/PriceOiComparisonChart";
 import PanelInfo from "@/components/PanelInfo";
 import { buildCompactMarketStateSummary } from "@/lib/marketStateSummary";
+import { RelativeTime, ClockTime, ShortDate } from "@/components/ClientTimestamp";
 import {
   btcPriceInfo,
   oiChangeInfo,
@@ -62,25 +63,18 @@ function formatPercent(value: number | null) {
   return `${(value * 100).toFixed(4)}%`;
 }
 
+// Nur fuer Chart-Tooltips (Hover-only, nie Teil des SSR-Outputs -- siehe
+// ClientTimestamp.tsx's Begruendung, warum das fuer tatsaechlich
+// gerenderten Text anders gehandhabt werden muss). formatTooltipTime von
+// TimeSeriesChart erwartet eine reine (string) => string Funktion, keine
+// Komponente.
+function clockTimeTooltip(iso: string) {
+  return new Date(iso).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" });
+}
+
 function formatSignedPct(value: number | null) {
   if (value === null || Number.isNaN(value)) return "—";
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
-}
-
-function timeAgo(iso: string) {
-  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (seconds < 60) return `vor ${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `vor ${minutes} Min`;
-  const hours = Math.floor(minutes / 60);
-  return `vor ${hours} Std`;
-}
-
-function clockTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("de-CH", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 // Heruntergesamplete Zeitreihe fuer den Price/OI-Chart -- ueber die
@@ -427,7 +421,8 @@ export default function LivePricePanel({
           </span>
         </div>
         <span className="text-text-faint">
-          Datenpunkt {clockTime(latest.timestamp_utc)} Uhr · {timeAgo(latest.timestamp_utc)}
+          Datenpunkt <ClockTime iso={latest.timestamp_utc} /> Uhr ·{" "}
+          <RelativeTime iso={latest.timestamp_utc} />
         </span>
       </div>
 
@@ -461,7 +456,7 @@ export default function LivePricePanel({
         </div>
 
         <p className="text-xs text-text-faint mt-2">
-          Aktualisiert {timeAgo(latest.timestamp_utc)}
+          Aktualisiert <RelativeTime iso={latest.timestamp_utc} />
         </p>
 
         <div className="mt-5 pt-5 border-t border-border">
@@ -472,17 +467,17 @@ export default function LivePricePanel({
             data={priceSeries}
             color="#c99a5b"
             formatValue={(v) => `$${formatUsd(v)}`}
-            formatTooltipTime={clockTime}
+            formatTooltipTime={clockTimeTooltip}
           />
         </div>
       </div>
 
-      <div className="rounded-lg border border-border bg-surface p-5">
+      <section className="rounded-lg border border-border bg-surface p-5">
         <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
           <div className="flex items-center gap-1.5">
-            <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+            <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
               OI Change
-            </p>
+            </h2>
             <PanelInfo title="OI Change" content={oiChangeInfo(selectedTf.label)} />
           </div>
           <select
@@ -536,12 +531,9 @@ export default function LivePricePanel({
         {!hasFullHistory && referenceSnapshot && (
           <p className="text-xs text-text-faint mb-3">
             Noch keine volle {selectedTf.label}-Historie — Basis ist der
-            älteste verfügbare Datenpunkt ({clockTime(referenceSnapshot.timestamp_utc)}
+            älteste verfügbare Datenpunkt (<ClockTime iso={referenceSnapshot.timestamp_utc} />
             {", "}
-            {new Date(referenceSnapshot.timestamp_utc).toLocaleDateString("de-CH", {
-              day: "2-digit",
-              month: "short",
-            })}
+            <ShortDate iso={referenceSnapshot.timestamp_utc} />
             ).
           </p>
         )}
@@ -561,20 +553,18 @@ export default function LivePricePanel({
             <PriceOiComparisonChart data={seriesData} />
           )}
         </div>
-      </div>
+      </section>
 
       {marketState && (
-        <div className="rounded-lg border border-border bg-surface-raised p-5">
+        <section className="rounded-lg border border-border bg-surface-raised p-5">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1.5">
-              <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+              <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
                 Kurznotiz (NEXUS Assessment)
-              </p>
+              </h2>
               <PanelInfo title="Kurznotiz" content={kurznotizInfo} />
             </div>
-            <span className="text-xs text-text-faint">
-              {timeAgo(marketState.timestamp_utc)}
-            </span>
+            <RelativeTime iso={marketState.timestamp_utc} className="text-xs text-text-faint" />
           </div>
           <p className="text-sm text-text leading-relaxed">
             {buildCompactMarketStateSummary(marketState)}
@@ -585,7 +575,7 @@ export default function LivePricePanel({
             wie &bdquo;NEXUS Assessment&ldquo; oben — keine zweite, unabhängige
             Einschätzung mehr (Single Source of Truth).
           </p>
-        </div>
+        </section>
       )}
 
       {exchangeComparison.length > 1 && (
@@ -615,9 +605,11 @@ export default function LivePricePanel({
         <Stat
           label="Nächstes Funding"
           value={
-            latest.next_funding_time_utc
-              ? clockTime(latest.next_funding_time_utc)
-              : "—"
+            latest.next_funding_time_utc ? (
+              <ClockTime iso={latest.next_funding_time_utc} />
+            ) : (
+              "—"
+            )
           }
         />
       </div>
@@ -631,7 +623,7 @@ export default function LivePricePanel({
             data={fundingSeries}
             color="#4fae7c"
             formatValue={(v) => `${v.toFixed(4)}%`}
-            formatTooltipTime={clockTime}
+            formatTooltipTime={clockTimeTooltip}
           />
         </ChartCard>
       </div>
@@ -650,11 +642,11 @@ function ExchangeComparisonCard({ snapshots }: { snapshots: MarketSnapshot[] }) 
   ).filter((s): s is MarketSnapshot => Boolean(s));
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-5">
+    <section className="rounded-lg border border-border bg-surface p-5">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+        <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
           Börsenvergleich
-        </p>
+        </h2>
         <PanelInfo title="Börsenvergleich" content={exchangeComparisonInfo} />
       </div>
       <div className="space-y-2">
@@ -701,7 +693,7 @@ function ExchangeComparisonCard({ snapshots }: { snapshots: MarketSnapshot[] }) 
         Abweichung vs. Bybit (Referenz) · rechts: Funding Rate je Börse. Bitunix
         liefert öffentlich kein Open Interest.
       </p>
-    </div>
+    </section>
   );
 }
 
@@ -722,11 +714,11 @@ function ExchangeOiDivergenceCard({
   const anyIncomplete = entries.some((e) => !e.has_full_history);
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-5">
+    <section className="rounded-lg border border-border bg-surface p-5">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
+        <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
           OI je Börse · {tfLabel}
-        </p>
+        </h2>
         <PanelInfo title="OI je Börse" content={exchangeDivergenceInfo(tfLabel)} />
       </div>
       <div className="space-y-2">
@@ -766,11 +758,11 @@ function ExchangeOiDivergenceCard({
         bietet öffentlich kein Open Interest.
         {anyIncomplete && " * Historie für diesen Zeitraum noch unvollständig."}
       </p>
-    </div>
+    </section>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="rounded-lg border border-border bg-surface-raised p-4">
       <p className="text-xs text-text-muted uppercase tracking-wide">
