@@ -1,4 +1,4 @@
-import type { MarketRegime } from "@/lib/types";
+import type { MarketRegime, MarketState } from "@/lib/types";
 import { DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD } from "@/lib/marketStateSummary";
 
 // Anzeige-Schicht fuer die Market-State-Matrix-Engine (Phase 3, Punkt 2) --
@@ -88,4 +88,44 @@ export function shouldSuppressRegimeDirectionalLabel(
   if (!isTrendingRegime(regime)) return false;
   if (marketStateConfidence === null) return false;
   return marketStateConfidence < DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD;
+}
+
+// Engine-Divergenz: vergleicht die Richtungsaussage der beiden unabhaengigen
+// Engines (Market State: additive 14-Faktoren-Summe, Regime Matrix:
+// ADX/Steigungs-basierte 5-Saeulen-Klassifikation) direkt anhand ihrer
+// gespeicherten Ground-Truth-Werte -- keine dritte, neu erfundene Kennzahl.
+// Uneinigkeit zwischen unabhaengigen Modellen ist in der quantitativen
+// Praxis selbst ein Signal (sinngemaess "Meta-Labeling", Lopez de Prado /
+// Ensemble-Disagreement), keine Redundanz: macht sichtbar, was man sonst nur
+// durch manuellen Abgleich beider Kacheln erkennen wuerde.
+//
+// NOT_COMPARABLE, sobald eine der beiden Engines keine gerichtete Aussage
+// liefert (NEUTRAL/MIXED/INSUFFICIENT_DATA bzw. ein nicht-trendendes
+// Regime) -- ein erzwungener Vergleich ohne zwei echte Richtungen waere kein
+// Befund, sondern eine erfundene Aussage.
+export type EngineDivergenceStatus = "AGREEMENT" | "DIVERGENCE" | "NOT_COMPARABLE";
+
+function directionFromOverallState(
+  overallState: MarketState["overall_state"]
+): "BULLISH" | "BEARISH" | null {
+  if (overallState === "BULLISH") return "BULLISH";
+  if (overallState === "BEARISH") return "BEARISH";
+  return null;
+}
+
+function directionFromRegime(regime: MarketRegime): "BULLISH" | "BEARISH" | null {
+  if (regime === "TREND_EXPANSION_BULLISH") return "BULLISH";
+  if (regime === "TREND_EXPANSION_BEARISH") return "BEARISH";
+  return null;
+}
+
+export function computeEngineDivergence(
+  overallState: MarketState["overall_state"] | null,
+  regime: MarketRegime | null
+): EngineDivergenceStatus {
+  if (overallState === null || regime === null) return "NOT_COMPARABLE";
+  const marketStateDirection = directionFromOverallState(overallState);
+  const regimeDirection = directionFromRegime(regime);
+  if (marketStateDirection === null || regimeDirection === null) return "NOT_COMPARABLE";
+  return marketStateDirection === regimeDirection ? "AGREEMENT" : "DIVERGENCE";
 }

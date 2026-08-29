@@ -6,9 +6,10 @@ import {
   regimeDescription,
   regimeLabel,
   shouldSuppressRegimeDirectionalLabel,
+  computeEngineDivergence,
 } from "./marketRegime";
 import { DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD } from "@/lib/marketStateSummary";
-import type { MarketRegime } from "@/lib/types";
+import type { MarketRegime, MarketState } from "@/lib/types";
 
 describe("marketRegime", () => {
   it("deckt jedes MarketRegime in ALL_MARKET_REGIMES ab", () => {
@@ -112,6 +113,49 @@ describe("marketRegime", () => {
 
     it("sperrt nicht, wenn noch keine Confidence vorliegt (null) -- defensiv, kein Vergleichswert vorhanden", () => {
       expect(shouldSuppressRegimeDirectionalLabel("TREND_EXPANSION_BULLISH", null)).toBe(false);
+    });
+  });
+
+  describe("computeEngineDivergence", () => {
+    it("meldet AGREEMENT, wenn beide Engines dieselbe Richtung zeigen (bullisch)", () => {
+      expect(computeEngineDivergence("BULLISH", "TREND_EXPANSION_BULLISH")).toBe("AGREEMENT");
+    });
+
+    it("meldet AGREEMENT, wenn beide Engines dieselbe Richtung zeigen (bärisch)", () => {
+      expect(computeEngineDivergence("BEARISH", "TREND_EXPANSION_BEARISH")).toBe("AGREEMENT");
+    });
+
+    it("meldet DIVERGENCE, wenn die Engines entgegengesetzte Richtungen zeigen", () => {
+      expect(computeEngineDivergence("BULLISH", "TREND_EXPANSION_BEARISH")).toBe("DIVERGENCE");
+      expect(computeEngineDivergence("BEARISH", "TREND_EXPANSION_BULLISH")).toBe("DIVERGENCE");
+    });
+
+    it("meldet NOT_COMPARABLE, wenn Market State keine gerichtete Aussage liefert", () => {
+      const nonDirectional: MarketState["overall_state"][] = [
+        "NEUTRAL",
+        "MIXED",
+        "INSUFFICIENT_DATA",
+      ];
+      for (const state of nonDirectional) {
+        expect(computeEngineDivergence(state, "TREND_EXPANSION_BULLISH")).toBe("NOT_COMPARABLE");
+      }
+    });
+
+    it("meldet NOT_COMPARABLE, wenn das Regime nicht gerichtet ist", () => {
+      const nonDirectional: MarketRegime[] = [
+        "HIGH_VOLA_REVERSION",
+        "VOLA_SQUEEZE_RANGING",
+        "UNRESOLVED_NEUTRAL",
+      ];
+      for (const regime of nonDirectional) {
+        expect(computeEngineDivergence("BULLISH", regime)).toBe("NOT_COMPARABLE");
+      }
+    });
+
+    it("meldet NOT_COMPARABLE, wenn eine der beiden Engines noch keinen Wert hat (null)", () => {
+      expect(computeEngineDivergence(null, "TREND_EXPANSION_BULLISH")).toBe("NOT_COMPARABLE");
+      expect(computeEngineDivergence("BULLISH", null)).toBe("NOT_COMPARABLE");
+      expect(computeEngineDivergence(null, null)).toBe("NOT_COMPARABLE");
     });
   });
 });

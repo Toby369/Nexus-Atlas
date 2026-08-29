@@ -14,6 +14,7 @@ import {
   regimeDescription,
   regimeColorClass,
   shouldSuppressRegimeDirectionalLabel,
+  computeEngineDivergence,
 } from "@/lib/marketRegime";
 import { RelativeTime } from "@/components/ClientTimestamp";
 
@@ -103,6 +104,26 @@ export default function RegimeMatrixCard({
   const displayLabel = suppressDirectional ? UNCLEAR_STATE_LABEL : regimeLabel(matrix.regime);
   const badgeColor = suppressDirectional ? "text-text-faint" : regimeColorClass(matrix.regime);
 
+  // Engine-Divergenz (siehe lib/marketRegime.ts::computeEngineDivergence):
+  // vergleicht die Richtung von Market State (14-Faktoren-Summe) und Regime
+  // Matrix (ADX/Steigungs-Klassifikation) direkt anhand ihrer Ground-Truth-
+  // Werte. Nur angezeigt, wenn die Confidence-Sperre oben NICHT bereits
+  // greift (suppressDirectional) -- sonst wuerde hier eine konkrete
+  // Richtung genannt, obwohl die Kachel-Ueberschrift gerade "Unklar / kein
+  // Zustand" zeigt, weil dieselbe Confidence zu niedrig fuer eine
+  // Richtungsaussage ist. NOT_COMPARABLE wird bewusst nicht angezeigt (der
+  // haeufigste Fall -- kein Befund, keine Meldung noetig, gleiche
+  // Konvention wie die patterns-Liste in MarketStateCard).
+  const engineDivergence = suppressDirectional
+    ? "NOT_COMPARABLE"
+    : computeEngineDivergence(marketState?.overall_state ?? null, matrix.regime);
+  const marketStateDirectionLabel =
+    marketState?.overall_state === "BULLISH"
+      ? "bullisch"
+      : marketState?.overall_state === "BEARISH"
+        ? "bärisch"
+        : null;
+
   return (
     <section className="rounded-lg border border-border bg-surface p-5 space-y-3">
       <div className="flex items-center justify-between">
@@ -133,6 +154,20 @@ export default function RegimeMatrixCard({
       ) : (
         <p className="text-xs text-text-muted leading-relaxed">
           {regimeDescription(matrix.regime)}
+        </p>
+      )}
+
+      {engineDivergence === "DIVERGENCE" && marketStateDirectionLabel && (
+        <p className="text-xs text-down">
+          ⚠ Divergenz: Market State ist {marketStateDirectionLabel}, Regime Matrix zeigt{" "}
+          {regimeLabel(matrix.regime)} — zwei unabhängige Engines widersprechen sich aktuell in der
+          Richtung, geringere Aussagekraft der Gesamteinschätzung.
+        </p>
+      )}
+      {engineDivergence === "AGREEMENT" && marketStateDirectionLabel && (
+        <p className="text-xs text-up">
+          Market State und Regime Matrix stimmen richtungsmäßig überein (beide{" "}
+          {marketStateDirectionLabel}).
         </p>
       )}
 
