@@ -279,3 +279,61 @@ export interface NewsEvent {
   raw_hash: string | null;
   created_at: string;
 }
+
+// Phase 3: Market State Matrix Engine. Fuehrt die 5 Feature-Engine-Saeulen
+// (Trend/Volatilitaet/Momentum-Mean-Reversion/Mikrostruktur-Derivate/Makro-
+// Sentiment) zu einem Regime-Label zusammen -- SQL-Gegenstueck (siehe
+// Migration add_market_state_matrix_engine) zu
+// research-python/src/regime.py. Eine Zeile pro (timestamp_utc, symbol,
+// interval); regime ist eine der MarketRegime-Werte, nie NULL (ein
+// unvollstaendiger Datensatz klassifiziert als UNRESOLVED_NEUTRAL statt
+// NULL zu liefern).
+export type MarketRegime =
+  | "HIGH_VOLA_REVERSION"
+  | "TREND_EXPANSION_BULLISH"
+  | "TREND_EXPANSION_BEARISH"
+  | "VOLA_SQUEEZE_RANGING"
+  | "UNRESOLVED_NEUTRAL";
+
+export type OiPriceQuadrant =
+  | "long_buildup"
+  | "short_buildup"
+  | "short_covering"
+  | "long_unwind"
+  | "neutral";
+
+export interface MarketStateMatrix {
+  id: number;
+  timestamp_utc: string;
+  symbol: string;
+  interval: string;
+  // Säule 1: Trend
+  adx_14: number | null;
+  plus_di: number | null;
+  minus_di: number | null;
+  linreg_slope: number | null;
+  linreg_r2: number | null;
+  // Säule 2: Volatilität
+  garman_klass_vol: number | null;
+  bb_width: number | null;
+  bb_percent_b: number | null;
+  atr_ratio: number | null;
+  // Säule 3: Momentum/Mean-Reversion
+  rsi_14: number | null;
+  dist_zscore_sma20: number | null;
+  dist_zscore_sma50: number | null;
+  dist_zscore_sma200: number | null;
+  // Säule 4: Mikrostruktur & Derivate
+  funding_zscore: number | null;
+  price_change_pct: number | null;
+  oi_change_pct: number | null;
+  oi_price_quadrant: OiPriceQuadrant | null;
+  cvd_zscore: number | null;
+  // Säule 5: Makro/Sentiment
+  liq_cluster_density: number | null;
+  net_taker_flow_ratio: number | null;
+  // Regime Matrix Engine Output
+  regime: MarketRegime;
+  data_coverage_pct: number | null;
+  created_at: string;
+}

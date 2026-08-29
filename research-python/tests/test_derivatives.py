@@ -4,7 +4,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.features.derivatives import funding_persistence, funding_zscore, oi_volume_ratio
+from src.features.derivatives import (
+    cvd_zscore,
+    funding_persistence,
+    funding_zscore,
+    oi_price_change_matrix,
+    oi_volume_ratio,
+)
 from tests.lookahead_utils import (
     assert_no_lookahead_on_future_perturbation,
     assert_no_lookahead_on_truncation,
@@ -124,3 +130,108 @@ class TestOiVolumeRatioNoLookahead:
         oi, volume = oi_and_volume
         with pytest.raises(ValueError):
             oi_volume_ratio(oi, volume.iloc[:-1])
+
+
+@pytest.fixture
+def oi_and_price() -> tuple[pd.Series, pd.Series]:
+    rng = np.random.default_rng(3)
+    n = 100
+    idx = make_datetime_index(n, freq="h")
+    price = pd.Series(60000 + np.cumsum(rng.normal(0, 40, size=n)), index=idx, name="price")
+    oi = pd.Series(2e8 + np.cumsum(rng.normal(0, 1e6, size=n)), index=idx, name="open_interest")
+    return oi, price
+
+
+class TestOiPriceChangeMatrixNoLookahead:
+    def test_truncation(self, oi_and_price):
+        oi, price = oi_and_price
+        combined = pd.DataFrame({"oi": oi, "price": price})
+
+        def compute(df):
+            return oi_price_change_matrix(df["oi"], df["price"], window=10)
+
+        assert_no_lookahead_on_truncation(compute, combined, cutoff_pos=60)
+
+    def test_future_perturbation(self, oi_and_price):
+        oi, price = oi_and_price
+        combined = pd.DataFrame({"oi": oi, "price": price})
+
+        def compute(df):
+            return oi_price_change_matrix(df["oi"], df["price"], window=10)
+
+        assert_no_lookahead_on_future_perturbation(compute, combined, cutoff_pos=60)
+
+    def test_quadrants_hand_verified(self):
+        idx = make_datetime_index(4, freq="h")
+        # window=1: each bar compared to the previous bar only.
+        price = pd.Series([100.0, 110.0, 90.0, 80.0], index=idx)  # up, down, down
+        oi = pd.Series([1000.0, 1100.0, 1150.0, 1000.0], index=idx)  # up, up, down
+        result = oi_price_change_matrix(oi, price, window=1)
+        # bar1: price up (100->110), OI up (1000->1100) -> long_buildup
+        assert result["quadrant"].iloc[1] == "long_buildup"
+        # bar2: price down (110->90), OI up (1100->1150) -> short_buildup
+        assert result["quadrant"].iloc[2] == "short_buildup"
+        # bar3: price down (90->80), OI down (1150->1000) -> long_unwind
+        assert result["quadrant"].iloc[3] == "long_unwind"
+
+    def test_short_covering_quadrant(self):
+        idx = make_datetime_index(2, freq="h")
+        price = pd.Series([100.0, 110.0], index=idx)  # up
+        oi = pd.Series([1000.0, 900.0], index=idx)  # down
+        result = oi_price_change_matrix(oi, price, window=1)
+        assert result["quadrant"].iloc[1] == "short_covering"
+
+    def test_flat_moves_are_neutral(self):
+        idx = make_datetime_index(2, freq="h")
+        price = pd.Series([100.0, 100.0], index=idx)
+        oi = pd.Series([1000.0, 1000.0], index=idx)
+        result = oi_price_change_matrix(oi, price, window=1)
+        assert result["quadrant"].iloc[1] == "neutral"
+
+    def test_warmup_region_quadrant_is_nan_not_neutral(self):
+        idx = make_datetime_index(5, freq="h")
+        price = pd.Series([100.0, 101.0, 102.0, 103.0, 104.0], index=idx)
+        oi = pd.Series([1000.0, 1010.0, 1020.0, 1030.0, 1040.0], index=idx)
+        result = oi_price_change_matrix(oi, price, window=3)
+        assert result["quadrant"].iloc[:3].isna().all()
+
+    def test_rejects_negative_threshold(self, oi_and_price):
+        oi, price = oi_and_price
+        with pytest.raises(ValueError):
+            oi_price_change_matrix(oi, price, window=10, price_flat_threshold_pct=-1.0)
+
+    def test_mismatched_index_raises(self, oi_and_price):
+        oi, price = oi_and_price
+        with pytest.raises(ValueError):
+            oi_price_change_matrix(oi, price.iloc[:-1], window=10)
+
+
+@pytest.fixture
+def cvd_delta_series() -> pd.Series:
+    rng = np.random.default_rng(17)
+    n = 200
+    return pd.Series(rng.normal(0, 500, size=n), index=make_datetime_index(n, freq="h"), name="cvd_delta")
+
+
+class TestCvdZscoreNoLookahead:
+    def test_truncation(self, cvd_delta_series):
+        assert_no_lookahead_on_truncation(
+            lambda s: cvd_zscore(s, window=48), cvd_delta_series, cutoff_pos=150
+        )
+
+    def test_future_perturbation(self, cvd_delta_series):
+        assert_no_lookahead_on_future_perturbation(
+            lambda s: cvd_zscore(s, window=48), cvd_delta_series, cutoff_pos=150
+        )
+
+    def test_nan_region_matches_window(self, cvd_delta_series):
+        z = cvd_zscore(cvd_delta_series, window=48)
+        assert z.iloc[:47].isna().all()
+        assert z.iloc[47:].notna().all()
+
+    def test_constant_series_is_nan_not_inf(self):
+        idx = make_datetime_index(60, freq="h")
+        cvd = pd.Series([500.0] * 60, index=idx)
+        z = cvd_zscore(cvd, window=48)
+        assert not np.isinf(z.dropna()).any()
+        assert z.iloc[47:].isna().all()

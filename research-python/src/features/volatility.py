@@ -26,6 +26,109 @@ def _require_ohlc_columns(ohlc: pd.DataFrame) -> None:
         raise ValueError(f"OHLC DataFrame is missing required columns: {sorted(missing)}")
 
 
+def _require_hlc_columns(ohlc: pd.DataFrame) -> None:
+    missing = {"high", "low", "close"} - set(ohlc.columns)
+    if missing:
+        raise ValueError(f"OHLC DataFrame is missing required columns: {sorted(missing)}")
+
+
+def _wilder_ema(x: pd.Series, period: int) -> pd.Series:
+    """Wilder's (1978) running-average smoothing -- see `momentum._wilder_smooth`
+    for the full derivation/rationale (deliberately duplicated here, not
+    imported, to keep `volatility.py` independent of `momentum.py`'s private
+    internals: two small, independently-tested copies of a ~15-line recursion
+    are preferable to a cross-module dependency on another module's
+    underscore-prefixed helper).
+
+    Returns NaN for all indices before the first full window of `period`
+    consecutive non-NaN input values is available.
+    """
+    n = len(x)
+    out = np.full(n, np.nan)
+    values = x.to_numpy(dtype=float)
+
+    if n < period:
+        return pd.Series(out, index=x.index)
+
+    first_valid = 0
+    while first_valid <= n - period and np.isnan(values[first_valid : first_valid + period]).any():
+        first_valid += 1
+    if first_valid > n - period:
+        return pd.Series(out, index=x.index)
+
+    seed_end = first_valid + period - 1
+    avg = values[first_valid : first_valid + period].mean()
+    out[seed_end] = avg
+
+    for t in range(seed_end + 1, n):
+        if np.isnan(values[t]) or np.isnan(out[t - 1]):
+            out[t] = np.nan
+            continue
+        out[t] = out[t - 1] + (values[t] - out[t - 1]) / period
+
+    return pd.Series(out, index=x.index)
+
+
+def true_range(ohlc: pd.DataFrame) -> pd.Series:
+    """True Range: max(H_t - L_t, |H_t - C_{t-1}|, |L_t - C_{t-1}|).
+
+    NaN at the first bar (no previous close to compare against).
+    """
+    _require_hlc_columns(ohlc)
+    _assert_sorted_index(ohlc, "true_range")
+
+    high, low, close = ohlc["high"], ohlc["low"], ohlc["close"]
+    prev_close = close.shift(1)
+
+    tr = pd.concat(
+        [
+            high - low,
+            (high - prev_close).abs(),
+            (low - prev_close).abs(),
+        ],
+        axis=1,
+    ).max(axis=1)
+    tr.iloc[0] = np.nan  # see momentum.adx's identical guard for the rationale
+    return tr.rename("true_range")
+
+
+def atr(ohlc: pd.DataFrame, period: int = 14) -> pd.Series:
+    """Average True Range, Wilder-smoothed over `period` bars (default 14).
+
+    atr_t = WilderSmooth(true_range, period)_t
+
+    Returns
+    -------
+    pd.Series named "atr", NaN until the smoothing window is fully seeded.
+    """
+    tr = true_range(ohlc)
+    return _wilder_ema(tr, period).rename("atr")
+
+
+def atr_ratio(
+    ohlc: pd.DataFrame,
+    period: int = 14,
+    sma_window: int = 20,
+) -> pd.Series:
+    """Normalized ATR-Ratio: current ATR relative to its own rolling SMA.
+
+    ratio_t = ATR_t / SMA(ATR, sma_window)_t
+
+    >1 means volatility is currently elevated relative to its recent average
+    (`sma_window` bars); <1 means currently depressed (a "squeeze"-like
+    condition). NaN-guarded division (an all-zero/NaN ATR average never
+    fabricates an infinite ratio).
+
+    Returns
+    -------
+    pd.Series named "atr_ratio".
+    """
+    atr_series = atr(ohlc, period=period)
+    atr_sma = atr_series.rolling(window=sma_window, min_periods=sma_window, center=False).mean()
+    ratio = atr_series / atr_sma.replace(0, np.nan)
+    return ratio.rename("atr_ratio")
+
+
 def garman_klass_volatility(
     ohlc: pd.DataFrame,
     window: int = 24,
