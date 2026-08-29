@@ -1,15 +1,21 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isPublicPath } from "@/lib/authGate";
 
-// Auth-Gate fuer /reports (Seite + alle zugehoerigen API-Route-Handler).
-// Der Rest des Dashboards bleibt bewusst oeffentlich (reine Lese-Panels,
-// Anon-Key, RLS "Public read access") -- nur der Report-Bereich loest
-// echte LLM-Kosten pro Aufruf aus und wird deshalb serverseitig gesperrt,
-// nicht nur im UI versteckt (Vorgabe: "keine UI-Renderung ohne Session").
+// Phase 4: vollstaendiges Auth-Gate fuer die gesamte Anwendung (vorher nur
+// /reports + /api/reports -- siehe Git-Historie fuer die urspruengliche,
+// bewusst enger gefasste Begruendung "nur der Report-Bereich loest echte
+// LLM-Kosten aus"). Diese Einschraenkung wurde ausdruecklich aufgehoben:
+// Nexus Atlas ist ein persoenliches Marktueberwachungs-Tool (siehe Footer),
+// kein oeffentliches Produkt -- jetzt ist buchstaeblich jede Seite/API-Route
+// gesperrt, mit Ausnahme der Login-Seite selbst und statischer Assets, die
+// der Browser/Service-Worker OHNE Session abrufen koennen muss (siehe
+// lib/authGate.ts fuer die genaue Begruendung je Pfad und dessen Tests).
 //
-// Unauthentifizierte API-Aufrufe bekommen strikt 401 (JSON, kein Redirect --
-// ein Redirect waere fuer einen fetch()-Aufruf nutzlos und wuerde den
-// Fehler verschleiern). Seiten-Aufrufe werden auf /login umgeleitet.
+// Unauthentifizierte API-Aufrufe bekommen weiterhin strikt 401 (JSON, kein
+// Redirect -- ein Redirect waere fuer einen fetch()-Aufruf nutzlos und
+// wuerde den Fehler verschleiern). Seiten-Aufrufe werden auf /login
+// umgeleitet.
 //
 // Datei heisst "proxy.ts", nicht "middleware.ts" -- dieses Next.js 16
 // (siehe AGENTS.md-Warnung) hat die Konvention umbenannt ("middleware" ist
@@ -17,17 +23,15 @@ import { NextResponse, type NextRequest } from "next/server";
 // und node_modules/next/dist/docs/.../proxy.md verifiziert). API
 // (NextRequest/NextResponse/config.matcher) ist identisch geblieben, nur
 // Dateiname und Funktionsname aendern sich.
-const PROTECTED_PAGE_PREFIX = "/reports";
-const PROTECTED_API_PREFIX = "/api/reports";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const isProtectedApi = pathname.startsWith(PROTECTED_API_PREFIX);
-  const isProtectedPage = pathname.startsWith(PROTECTED_PAGE_PREFIX);
 
-  if (!isProtectedApi && !isProtectedPage) {
+  if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
+
+  const isApi = pathname.startsWith("/api");
 
   let response = NextResponse.next({ request });
 
@@ -37,7 +41,7 @@ export async function proxy(request: NextRequest) {
   if (!supabaseUrl || !supabaseAnonKey) {
     // Fehlende Env-Vars sind ein Konfigurationsfehler, kein "kein Nutzer
     // eingeloggt" -- klar als 500 statt eines irrefuehrenden 401.
-    if (isProtectedApi) {
+    if (isApi) {
       return NextResponse.json(
         { success: false, error: "Supabase-Auth-Konfiguration fehlt serverseitig." },
         { status: 500 }
@@ -69,7 +73,7 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    if (isProtectedApi) {
+    if (isApi) {
       return NextResponse.json(
         { success: false, error: "Nicht authentifiziert. Bitte zuerst einloggen." },
         { status: 401 }
@@ -84,5 +88,9 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/reports/:path*", "/api/reports/:path*"],
+  // Alles ausser den Next.js-Build-internen Pfaden -- die eigentliche
+  // Public/Protected-Unterscheidung passiert in isPublicPath()
+  // (lib/authGate.ts), nicht hier im Matcher, damit die vollstaendige
+  // Liste an einer testbaren Stelle steht.
+  matcher: ["/((?!_next/static|_next/image).*)"],
 };

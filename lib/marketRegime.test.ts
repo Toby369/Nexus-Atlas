@@ -5,7 +5,9 @@ import {
   regimeColorClass,
   regimeDescription,
   regimeLabel,
+  shouldSuppressRegimeDirectionalLabel,
 } from "./marketRegime";
+import { DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD } from "@/lib/marketStateSummary";
 import type { MarketRegime } from "@/lib/types";
 
 describe("marketRegime", () => {
@@ -63,6 +65,53 @@ describe("marketRegime", () => {
 
     it("ist false für UNRESOLVED_NEUTRAL", () => {
       expect(isTrendingRegime("UNRESOLVED_NEUTRAL")).toBe(false);
+    });
+  });
+
+  // Phase 4, Punkt 2: "Behalte dabei alle in Phase 1 integrierten
+  // Sicherheits-Regeln bei (Display-Only Confidence Threshold < 35 ->
+  // 'Unklar / kein Zustand')" -- dieselbe Schwelle wie MarketStateCard,
+  // hier auf die beiden gerichteten Regimes angewendet.
+  describe("shouldSuppressRegimeDirectionalLabel", () => {
+    it("sperrt TREND_EXPANSION_BULLISH, wenn Confidence unter der Schwelle liegt", () => {
+      expect(
+        shouldSuppressRegimeDirectionalLabel(
+          "TREND_EXPANSION_BULLISH",
+          DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD - 1
+        )
+      ).toBe(true);
+    });
+
+    it("sperrt TREND_EXPANSION_BEARISH, wenn Confidence unter der Schwelle liegt", () => {
+      expect(
+        shouldSuppressRegimeDirectionalLabel(
+          "TREND_EXPANSION_BEARISH",
+          DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD - 1
+        )
+      ).toBe(true);
+    });
+
+    it("sperrt NICHT, wenn Confidence genau auf der Schwelle liegt (Grenzwert zählt als ausreichend)", () => {
+      expect(
+        shouldSuppressRegimeDirectionalLabel(
+          "TREND_EXPANSION_BULLISH",
+          DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD
+        )
+      ).toBe(false);
+    });
+
+    it("sperrt NICHT, wenn Confidence über der Schwelle liegt", () => {
+      expect(shouldSuppressRegimeDirectionalLabel("TREND_EXPANSION_BULLISH", 80)).toBe(false);
+    });
+
+    it("sperrt NICHT-gerichtete Regimes nie, unabhängig von der Confidence", () => {
+      expect(shouldSuppressRegimeDirectionalLabel("VOLA_SQUEEZE_RANGING", 0)).toBe(false);
+      expect(shouldSuppressRegimeDirectionalLabel("HIGH_VOLA_REVERSION", 0)).toBe(false);
+      expect(shouldSuppressRegimeDirectionalLabel("UNRESOLVED_NEUTRAL", 0)).toBe(false);
+    });
+
+    it("sperrt nicht, wenn noch keine Confidence vorliegt (null) -- defensiv, kein Vergleichswert vorhanden", () => {
+      expect(shouldSuppressRegimeDirectionalLabel("TREND_EXPANSION_BULLISH", null)).toBe(false);
     });
   });
 });

@@ -8,6 +8,7 @@ import type {
   MarketSeriesPoint,
   MarketSnapshot,
   MarketState,
+  MarketStateMatrix,
   NewsEvent,
   OiChangeByExchange,
 } from "@/lib/types";
@@ -21,9 +22,11 @@ import EtfFlowPanel from "@/components/EtfFlowPanel";
 import SpotPressurePanel from "@/components/SpotPressurePanel";
 import MarketContextCard from "@/components/MarketContextCard";
 import MarketStateCard from "@/components/MarketStateCard";
+import RegimeMatrixCard from "@/components/RegimeMatrixCard";
 import TimeframeSelector from "@/components/TimeframeSelector";
 import DashboardLayout from "@/components/DashboardLayout";
 import DashboardPollProvider from "@/components/DashboardPollProvider";
+import LogoutButton from "@/components/LogoutButton";
 
 export const revalidate = 0;
 
@@ -99,6 +102,25 @@ async function getLatestMarketState(): Promise<MarketState | null> {
 
   if (error) {
     console.error("Fehler beim Laden des Market State:", error.message);
+    return null;
+  }
+  return data;
+}
+
+// Phase 4: 5-Saeulen-Regime der Market State Matrix Engine (Phase 3, siehe
+// Migration add_market_state_matrix_engine). Von market_states getrennte
+// Tabelle/Berechnung -- daher eigener Query statt Wiederverwendung von
+// getLatestMarketState().
+async function getLatestMarketStateMatrix(): Promise<MarketStateMatrix | null> {
+  const { data, error } = await supabase
+    .from("market_state_matrix")
+    .select("*")
+    .order("timestamp_utc", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Fehler beim Laden der Market State Matrix:", error.message);
     return null;
   }
   return data;
@@ -289,6 +311,7 @@ export default async function Home({
     snapshots,
     exchangeComparison,
     marketState,
+    marketStateMatrix,
     highImpactNews,
     recentLiquidations,
     recentEtfFlows,
@@ -300,6 +323,7 @@ export default async function Home({
     getSnapshotHistory(),
     getLatestPerExchange(),
     getLatestMarketState(),
+    getLatestMarketStateMatrix(),
     getHighImpactNews(),
     getRecentLiquidations(),
     getRecentEtfFlows(),
@@ -348,6 +372,7 @@ export default async function Home({
           <p className="text-xs text-text-faint hidden sm:block">
             Datentakt: alle 5&nbsp;Minuten · Referenz: Bybit
           </p>
+          <LogoutButton />
         </div>
       </header>
 
@@ -372,6 +397,9 @@ export default async function Home({
             <DashboardLayout
               tiles={{
                 "market-context": <MarketContextCard timeframe={timeframe} />,
+                "regime-matrix": (
+                  <RegimeMatrixCard initialMatrix={marketStateMatrix} marketState={marketState} />
+                ),
                 "live-price": (
                   <LivePricePanel
                     timeframe={timeframe}

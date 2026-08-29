@@ -1,4 +1,5 @@
 import type { MarketRegime } from "@/lib/types";
+import { DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD } from "@/lib/marketStateSummary";
 
 // Anzeige-Schicht fuer die Market-State-Matrix-Engine (Phase 3, Punkt 2) --
 // deutsche Labels/Kurzbeschreibungen fuer die 5 Regime-Werte, die
@@ -61,4 +62,30 @@ export function regimeColorClass(regime: MarketRegime): string {
 // zukuenftige UI-Filter/Badges (z.B. "nur Trend-Phasen anzeigen").
 export function isTrendingRegime(regime: MarketRegime): boolean {
   return regime === "TREND_EXPANSION_BULLISH" || regime === "TREND_EXPANSION_BEARISH";
+}
+
+// Confidence-Sperre fuer die Regime-Anzeige (Phase 4, Punkt 2 -- "Behalte
+// dabei alle in Phase 1 integrierten Sicherheits-Regeln bei"). Dieselbe
+// Schwelle wie MarketStateCard/lib/marketStateSummary.ts::
+// isDirectionalLabelSuppressed, angewendet auf die beiden gerichteten
+// Regimes: liegt die Confidence des primaeren NEXUS-Assessments (market_
+// states.confidence) unter der Schwelle, wird TREND_EXPANSION_BULLISH/
+// BEARISH hier NICHT als gerichtete Aussage angezeigt -- verhindert, dass
+// das neue Regime-Panel dieselbe Richtungsaussage zeigt, die MarketStateCard
+// im selben Moment bereits als "Unklar / kein Zustand" sperrt.
+// VOLA_SQUEEZE_RANGING/HIGH_VOLA_REVERSION/UNRESOLVED_NEUTRAL sind keine
+// gerichteten bullisch/baerisch-Aussagen und werden nie gesperrt.
+//
+// `marketStateConfidence` ist nullable, weil noch keine market_states-Zeile
+// vorliegen kann (z.B. ganz frischer Deploy) -- in dem Fall wird defensiv
+// NICHT gesperrt (kein Confidence-Wert zum Vergleichen vorhanden), das
+// Regime selbst bleibt aber ohnehin UNRESOLVED_NEUTRAL, solange die
+// zugrundeliegenden Saeulen-Werte fehlen (siehe regime.py).
+export function shouldSuppressRegimeDirectionalLabel(
+  regime: MarketRegime,
+  marketStateConfidence: number | null
+): boolean {
+  if (!isTrendingRegime(regime)) return false;
+  if (marketStateConfidence === null) return false;
+  return marketStateConfidence < DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD;
 }
