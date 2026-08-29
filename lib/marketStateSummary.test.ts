@@ -3,8 +3,16 @@ import {
   buildCompactMarketStateSummary,
   isDirectionalLabelSuppressed,
   DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD,
+  computeConfidenceBreakdown,
+  computeEngineDivergence,
+  engineDivergenceStatusLabel,
+  ENGINE_DIVERGENCE_HIGH_LABEL,
 } from "./marketStateSummary";
-import type { MarketState } from "./types";
+import type { MarketRegime, MarketState, MarketStateFactor } from "./types";
+
+function factor(value: -1 | 0 | 1 | null): MarketStateFactor {
+  return { value, basis: {} };
+}
 
 function baseState(overrides: Partial<MarketState> = {}): MarketState {
   return {
@@ -139,5 +147,129 @@ describe("isDirectionalLabelSuppressed", () => {
         confidence: DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD,
       })
     ).toBe(false);
+  });
+});
+
+describe("computeConfidenceBreakdown", () => {
+  it("rekonstruiert exakt die reale Fallstudie vom 2026-08-29 (Confidence 14)", () => {
+    // 12 verfuegbare Faktoren (2 fehlend): 4 positiv, 2 negativ, 6 neutral.
+    // Coverage 85.7%, Confidence 14 -- Live-Werte aus market_states.
+    const breakdown = computeConfidenceBreakdown({
+      data_coverage_pct: 85.7,
+      factors: {
+        structure: factor(1),
+        cvd: factor(1),
+        positioning: factor(1),
+        options: factor(1),
+        orderbook: factor(-1),
+        trend_strength: factor(-1),
+        momentum: factor(0),
+        macro: factor(0),
+        funding: factor(0),
+        sentiment: factor(0),
+        trend_regime: factor(0),
+        vwap_position: factor(0),
+        oi_price: factor(null),
+        basis: factor(null),
+      },
+    });
+    expect(breakdown.coveragePct).toBe(85.7);
+    expect(breakdown.signalStrengthPct).toBeCloseTo((6 / 12) * 100, 5);
+    expect(breakdown.consensusPct).toBeCloseTo((4 / 6) * 100, 5);
+    // Coverage * SignalStrength * |2*Consensus-1| muss die reale
+    // gespeicherte Confidence (14) reproduzieren -- keine neu erfundene
+    // Kennzahl, nur eine Zerlegung derselben Formel.
+    const reconstructed =
+      (breakdown.coveragePct / 100) *
+      (breakdown.signalStrengthPct / 100) *
+      Math.abs(2 * (breakdown.consensusPct! / 100) - 1) *
+      100;
+    expect(Math.round(reconstructed)).toBe(14);
+  });
+
+  it("Consensus ist 100%, wenn alle gerichteten Faktoren einig sind", () => {
+    const breakdown = computeConfidenceBreakdown({
+      data_coverage_pct: 100,
+      factors: { a: factor(1), b: factor(1), c: factor(0) },
+    });
+    expect(breakdown.consensusPct).toBe(100);
+    expect(breakdown.signalStrengthPct).toBeCloseTo((2 / 3) * 100, 5);
+  });
+
+  it("Consensus ist null (kein erfundener Wert), wenn kein Faktor eine Richtung zeigt", () => {
+    const breakdown = computeConfidenceBreakdown({
+      data_coverage_pct: 50,
+      factors: { a: factor(0), b: factor(0) },
+    });
+    expect(breakdown.consensusPct).toBeNull();
+    expect(breakdown.signalStrengthPct).toBe(0);
+  });
+
+  it("Consensus ist null, wenn kein einziger Faktor Daten hat", () => {
+    const breakdown = computeConfidenceBreakdown({
+      data_coverage_pct: 0,
+      factors: { a: factor(null), b: factor(null) },
+    });
+    expect(breakdown.consensusPct).toBeNull();
+    expect(breakdown.signalStrengthPct).toBe(0);
+    expect(breakdown.coveragePct).toBe(0);
+  });
+});
+
+describe("computeEngineDivergence", () => {
+  it("meldet AGREEMENT, wenn beide Engines dieselbe Richtung zeigen (bullisch)", () => {
+    expect(computeEngineDivergence("BULLISH", "TREND_EXPANSION_BULLISH")).toBe("AGREEMENT");
+  });
+
+  it("meldet AGREEMENT, wenn beide Engines dieselbe Richtung zeigen (bärisch)", () => {
+    expect(computeEngineDivergence("BEARISH", "TREND_EXPANSION_BEARISH")).toBe("AGREEMENT");
+  });
+
+  it("meldet DIVERGENCE, wenn die Engines entgegengesetzte Richtungen zeigen", () => {
+    expect(computeEngineDivergence("BULLISH", "TREND_EXPANSION_BEARISH")).toBe("DIVERGENCE");
+    expect(computeEngineDivergence("BEARISH", "TREND_EXPANSION_BULLISH")).toBe("DIVERGENCE");
+  });
+
+  it("meldet NOT_COMPARABLE, wenn Market State keine gerichtete Aussage liefert", () => {
+    const nonDirectional: MarketState["overall_state"][] = ["NEUTRAL", "MIXED", "INSUFFICIENT_DATA"];
+    for (const state of nonDirectional) {
+      expect(computeEngineDivergence(state, "TREND_EXPANSION_BULLISH")).toBe("NOT_COMPARABLE");
+    }
+  });
+
+  it("meldet NOT_COMPARABLE, wenn das Regime nicht gerichtet ist", () => {
+    const nonDirectional: MarketRegime[] = [
+      "HIGH_VOLA_REVERSION",
+      "VOLA_SQUEEZE_RANGING",
+      "UNRESOLVED_NEUTRAL",
+    ];
+    for (const regime of nonDirectional) {
+      expect(computeEngineDivergence("BULLISH", regime)).toBe("NOT_COMPARABLE");
+    }
+  });
+
+  it("meldet NOT_COMPARABLE, wenn eine der beiden Engines noch keinen Wert hat (null)", () => {
+    expect(computeEngineDivergence(null, "TREND_EXPANSION_BULLISH")).toBe("NOT_COMPARABLE");
+    expect(computeEngineDivergence("BULLISH", null)).toBe("NOT_COMPARABLE");
+    expect(computeEngineDivergence(null, null)).toBe("NOT_COMPARABLE");
+  });
+
+  it("bildet die reale Fallstudie vom 2026-08-29 korrekt ab (MIXED -> NOT_COMPARABLE)", () => {
+    // Market State war an dem Tag MIXED (kein BULLISH/BEARISH), Regime
+    // Matrix TREND_EXPANSION_BEARISH -- ein binaerer Richtungsvergleich
+    // greift hier bewusst nicht, siehe docs/research/
+    // METHODIC_DIVERGENCE_2026-08-29.md fuer die vollstaendige Einordnung.
+    expect(computeEngineDivergence("MIXED", "TREND_EXPANSION_BEARISH")).toBe("NOT_COMPARABLE");
+  });
+});
+
+describe("engineDivergenceStatusLabel", () => {
+  it("liefert den festen High-Severity-Status nur bei DIVERGENCE", () => {
+    expect(engineDivergenceStatusLabel("DIVERGENCE")).toBe(ENGINE_DIVERGENCE_HIGH_LABEL);
+  });
+
+  it("liefert null bei AGREEMENT und NOT_COMPARABLE -- nichts zu warnen", () => {
+    expect(engineDivergenceStatusLabel("AGREEMENT")).toBeNull();
+    expect(engineDivergenceStatusLabel("NOT_COMPARABLE")).toBeNull();
   });
 });

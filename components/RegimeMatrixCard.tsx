@@ -8,6 +8,7 @@ import { marketStateMatrixInfo } from "@/lib/panelInfo";
 import {
   DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD,
   UNCLEAR_STATE_LABEL,
+  engineDivergenceStatusLabel,
 } from "@/lib/marketStateSummary";
 import {
   regimeLabel,
@@ -158,11 +159,16 @@ export default function RegimeMatrixCard({
       )}
 
       {engineDivergence === "DIVERGENCE" && marketStateDirectionLabel && (
-        <p className="text-xs text-down">
-          ⚠ Divergenz: Market State ist {marketStateDirectionLabel}, Regime Matrix zeigt{" "}
-          {regimeLabel(matrix.regime)} — zwei unabhängige Engines widersprechen sich aktuell in der
-          Richtung, geringere Aussagekraft der Gesamteinschätzung.
-        </p>
+        <div className="space-y-1">
+          <span className="inline-block text-[11px] px-2 py-0.5 rounded-full border border-down/40 text-down font-semibold uppercase tracking-wide">
+            {engineDivergenceStatusLabel(engineDivergence)}
+          </span>
+          <p className="text-xs text-down">
+            Market State ist {marketStateDirectionLabel}, Regime Matrix zeigt{" "}
+            {regimeLabel(matrix.regime)} — zwei unabhängige Engines widersprechen sich aktuell in der
+            Richtung, geringere Aussagekraft der Gesamteinschätzung.
+          </p>
+        </div>
       )}
       {engineDivergence === "AGREEMENT" && marketStateDirectionLabel && (
         <p className="text-xs text-up">

@@ -1,4 +1,4 @@
-import type { MarketState } from "./types";
+import type { MarketRegime, MarketState } from "./types";
 
 // Kompakte Textdarstellung der NEXUS-Assessment-SSOT (market_states,
 // compute-market-state) fuer den "Kurznotiz"-Slot in LivePricePanel.tsx.
@@ -75,4 +75,118 @@ export function buildCompactMarketStateSummary(state: MarketState): string {
   }
   text += " Basis: 14-Faktoren-Engine (NEXUS Assessment) — keine Anlageberatung.";
   return text;
+}
+
+// --- Confidence-Aufspaltung (Institutional-Grade-Professionalisierung,
+// Punkt 2: "unkalibrierte Confidence im UI in Coverage, Consensus und
+// Signal Strength aufspalten") -----------------------------------------
+//
+// compute-market-state (Edge Function) berechnet Confidence als
+// `(Coverage/100) * (|Score|/n_verfuegbar) * 100`. Das vermischt zwei
+// unabhaengige Ursachen fuer eine niedrige Zahl: (a) viele verfuegbare
+// Faktoren sind schlicht NEUTRAL (kein Rauschen, kein Widerspruch -- nur
+// keine Aussage), und (b) die Faktoren, die eine Richtung zeigen,
+// widersprechen sich tatsaechlich. Ein Nutzer kann diese beiden Faelle aus
+// der einen Zahl nicht unterscheiden.
+//
+// Diese Funktion zerlegt dieselbe Formel exakt (keine neue Kennzahl,
+// keine Aenderung der gespeicherten Confidence) in drei unabhaengig
+// interpretierbare Anteile:
+//   - Coverage: identisch mit state.data_coverage_pct (wie viele der 14
+//     Faktoren ueberhaupt Daten haben).
+//   - Signal Strength: Anteil der VERFUEGBAREN Faktoren, die ueberhaupt
+//     eine Richtung zeigen (nicht neutral) -- macht sichtbar, wie stark
+//     die Confidence durch reine Neutralitaet verduennt ist.
+//   - Consensus: von den Faktoren, die eine Richtung zeigen, wie viele
+//     stimmen mit der Mehrheitsrichtung ueberein (100% = einstimmig,
+//     50% = genau haelftig gespalten) -- macht den eigentlichen
+//     Widerspruch sichtbar, getrennt von reiner Neutralitaet.
+// Rechnerisch gilt: Confidence = Coverage * SignalStrength * |2*Consensus-1|
+// * 100 (Betrag, da Consensus < 50% durch die max()-Definition nicht
+// vorkommt) -- die drei Anteile rekonstruieren also exakt den bestehenden
+// Wert, machen aber sichtbar, WARUM er niedrig oder hoch ist.
+export interface ConfidenceBreakdown {
+  coveragePct: number;
+  // null, wenn kein einziger verfuegbarer Faktor eine Richtung zeigt (alle
+  // neutral oder keine Faktoren verfuegbar) -- kein erfundener Wert.
+  consensusPct: number | null;
+  signalStrengthPct: number;
+}
+
+export function computeConfidenceBreakdown(
+  state: Pick<MarketState, "data_coverage_pct" | "factors">
+): ConfidenceBreakdown {
+  const values = Object.values(state.factors ?? {})
+    .map((f) => f.value)
+    .filter((v): v is -1 | 0 | 1 => v !== null);
+
+  if (values.length === 0) {
+    return { coveragePct: state.data_coverage_pct, consensusPct: null, signalStrengthPct: 0 };
+  }
+
+  const positiveCount = values.filter((v) => v === 1).length;
+  const negativeCount = values.filter((v) => v === -1).length;
+  const directionalCount = positiveCount + negativeCount;
+
+  return {
+    coveragePct: state.data_coverage_pct,
+    signalStrengthPct: (directionalCount / values.length) * 100,
+    consensusPct:
+      directionalCount === 0
+        ? null
+        : (Math.max(positiveCount, negativeCount) / directionalCount) * 100,
+  };
+}
+
+// --- Engine Divergence (Institutional-Grade-Professionalisierung, Sprint
+// B: Meta-Signal aus dem Vergleich der beiden unabhaengigen Engines) -----
+//
+// Vergleicht die Richtungsaussage von Market State (14-Faktoren-Summe,
+// overall_state) und Regime Matrix (5-Saeulen-ADX/Steigungs-Klassifikation,
+// regime) direkt anhand ihrer gespeicherten Ground-Truth-Werte -- keine
+// dritte, neu erfundene Kennzahl. Uneinigkeit zwischen unabhaengigen
+// Modellen ist in der quantitativen Praxis selbst ein Signal (sinngemaess
+// "Meta-Labeling", Lopez de Prado / Ensemble-Disagreement), keine
+// Redundanz: macht sichtbar, was man sonst nur durch manuellen Abgleich
+// beider Kacheln erkennen wuerde (siehe docs/research/
+// METHODIC_DIVERGENCE_2026-08-29.md fuer die auslösende Fallstudie).
+//
+// NOT_COMPARABLE, sobald eine der beiden Engines keine gerichtete Aussage
+// liefert (NEUTRAL/MIXED/INSUFFICIENT_DATA bzw. ein nicht-trendendes
+// Regime) -- ein erzwungener Vergleich ohne zwei echte Richtungen waere
+// kein Befund, sondern eine erfundene Aussage.
+export type EngineDivergenceStatus = "AGREEMENT" | "DIVERGENCE" | "NOT_COMPARABLE";
+
+function directionFromOverallState(
+  overallState: MarketState["overall_state"]
+): "BULLISH" | "BEARISH" | null {
+  if (overallState === "BULLISH") return "BULLISH";
+  if (overallState === "BEARISH") return "BEARISH";
+  return null;
+}
+
+function directionFromRegime(regime: MarketRegime): "BULLISH" | "BEARISH" | null {
+  if (regime === "TREND_EXPANSION_BULLISH") return "BULLISH";
+  if (regime === "TREND_EXPANSION_BEARISH") return "BEARISH";
+  return null;
+}
+
+export function computeEngineDivergence(
+  overallState: MarketState["overall_state"] | null,
+  regime: MarketRegime | null
+): EngineDivergenceStatus {
+  if (overallState === null || regime === null) return "NOT_COMPARABLE";
+  const marketStateDirection = directionFromOverallState(overallState);
+  const regimeDirection = directionFromRegime(regime);
+  if (marketStateDirection === null || regimeDirection === null) return "NOT_COMPARABLE";
+  return marketStateDirection === regimeDirection ? "AGREEMENT" : "DIVERGENCE";
+}
+
+// Fester UI-Status-Text (Vorgabe Sprint B) fuer den High-Severity-Fall --
+// nur bei tatsaechlicher Divergenz, nie bei Uebereinstimmung oder fehlender
+// Vergleichbarkeit (dort gibt es nichts zu warnen).
+export const ENGINE_DIVERGENCE_HIGH_LABEL = "Regime Transition / Engine Divergence HIGH";
+
+export function engineDivergenceStatusLabel(status: EngineDivergenceStatus): string | null {
+  return status === "DIVERGENCE" ? ENGINE_DIVERGENCE_HIGH_LABEL : null;
 }
