@@ -184,9 +184,19 @@ export default function LiquidationPanel({
   return (
     <section className="rounded-lg border border-border bg-surface p-5 space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
-          Liquidationen
-        </h2>
+        <div className="flex items-center gap-1.5">
+          <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
+            Liquidationen
+          </h2>
+          {anchorIso && (
+            <span
+              className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border border-accent/30 text-accent"
+              title="Zeigt weiter unten zusätzlich Daten seit dem gesetzten Event-Anker."
+            >
+              ⚓ Anker
+            </span>
+          )}
+        </div>
         <PanelInfo title="Liquidationen" content={liquidationsInfo} />
       </div>
 
