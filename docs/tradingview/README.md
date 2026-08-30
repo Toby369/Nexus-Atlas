@@ -11,6 +11,8 @@ oder der 5-Säulen-Regime-Matrix ein.
 - `nexus-volume-expansion.pine` — Donchian-Breakout mit Volumen-Filter
 - `nexus-vwap-stretch.pine` — Session-VWAP-Stddev-Band-Exhaustion
 - `nexus-squeeze-breakout.pine` — TTM-Squeeze-Release (Standard-Parameter)
+- `nexus-liquidity-sweep.pine` — Stop-Hunt-Erkennung an Swing-High/-Low
+- `nexus-rsi-macd-divergence.pine` — Regular Divergence (RSI + MACD-Histogramm getrennt)
 
 ## Setup (pro Skript identisch)
 
@@ -54,29 +56,50 @@ oder `lib/webhookTradingView.ts` nötig.
   (`sqzOn[1]`) statt sich allein auf die symmetrische Bandbreite zu
   verlassen.
 
-## Konkrete Empfehlung: welche weiteren Alert-Typen als Nächstes?
+## Liquidity Sweep / RSI-MACD-Divergenz — Implementierungsnotizen
+
+Beide gemäß der Prioritätsliste unten als Nummer 1 und 2 ausgearbeitet.
+
+**`nexus-liquidity-sweep.pine`**: nutzt `ta.pivothigh`/`ta.pivotlow` zur
+Swing-Erkennung (inherent verzögert um `pivotLen` Bars — Standardverhalten,
+kein Repainting), vergleicht dann jede neue Kerze gegen das zuletzt
+bestätigte Pivot-Level. `LIQUIDITY_SWEEP_HIGH`/`LIQUIDITY_SWEEP_LOW` feuern
+nur beim *ersten* Bar, der ein gegebenes Level sweept (`highSwept`/
+`lowSwept`-Flags verhindern Alert-Spam bei mehreren Bars in Folge um
+dasselbe Level).
+
+**`nexus-rsi-macd-divergence.pine`**: folgt der etablierten "Divergence
+Indicator"-Pivot-Vergleichslogik (Oszillator-Pivot vs. `ta.valuewhen` des
+vorherigen Pivots, plus Bar-Abstandsfenster `rangeLower`/`rangeUpper` gegen
+zu nah/weit auseinanderliegende Pivots). RSI und MACD-Histogramm werden
+**unabhängig voneinander** ausgewertet (vier Signal-Typen:
+`RSI_BULLISH_DIVERGENCE`, `RSI_BEARISH_DIVERGENCE`,
+`MACD_BULLISH_DIVERGENCE`, `MACD_BEARISH_DIVERGENCE`) statt künstlich zu
+einer Blackbox-Kombination zusammengeführt — so bleibt im Badge sichtbar,
+welcher Oszillator die Divergenz zeigt.
+
+## Priorisierung der Alert-Typen (Begründung)
 
 Rangfolge nach Mehrwert/Lückenfüller-Grad gegenüber den bestehenden 14
 Faktoren (`compute-market-state`) und der 5-Säulen-Regime-Matrix:
 
-1. **Liquidity Sweep / Stop-Hunt-Erkennung** (höchste Priorität) — Kerze
-   sticht über/unter ein vorheriges Swing-High/-Low hinaus (Wick-Sweep) und
+1. **Liquidity Sweep / Stop-Hunt-Erkennung** ✅ umgesetzt — Kerze sticht
+   über/unter ein vorheriges Swing-High/-Low hinaus (Wick-Sweep) und
    schließt wieder zurück im vorherigen Range. Echte Lücke: Nexus hat
    nichts, das gezielte Liquiditätsjagden vor einer Umkehr erkennt — die
    14 Faktoren sind alle Zustands-/Trend-orientiert, kein Wick-/
    Struktur-Pattern-Faktor. Bei BTC-Perpetuals (hoher Hebel, viele
    Stop-Cluster um runde Zahlen/vorherige Highs) ein Pattern, das
    institutionelle/Prop-Desks aktiv tracken.
-2. **RSI/MACD-Preis-Divergenz** (Momentum-Exhaustion) — Nexus hat RSI und
-   MACD zwar bereits als Rohwerte im Momentum-Faktor, aber keine explizite
-   Divergenz-Erkennung (Preis macht neues Hoch, Momentum-Indikator nicht).
-   Divergenz ist eine andere Dimension als der reine Momentum-Level und
-   damit ein echter Zusatz, kein Duplikat.
-3. **Order Block / Fair Value Gap (ICT-Methodik)** — verbreitet bei
-   Pro-/Prop-Tradern, aber komplexer zu robustem Pine-Code zu bringen
+2. **RSI/MACD-Preis-Divergenz** ✅ umgesetzt (Momentum-Exhaustion) — Nexus
+   hat RSI und MACD zwar bereits als Rohwerte im Momentum-Faktor, aber
+   keine explizite Divergenz-Erkennung (Preis macht neues Hoch,
+   Momentum-Indikator nicht). Divergenz ist eine andere Dimension als der
+   reine Momentum-Level und damit ein echter Zusatz, kein Duplikat.
+3. **Order Block / Fair Value Gap (ICT-Methodik)** — noch offen. Verbreitet
+   bei Pro-/Prop-Tradern, aber komplexer zu robustem Pine-Code zu bringen
    (viele Interpretationsspielräume, mehr Parameter-Tuning nötig) und
    liefert tendenziell mehr Rauschen als Signal ohne manuelle Kuratierung.
-   Sinnvoll als dritter Schritt, nicht als nächster.
 
 **Nicht empfohlen als Ergänzung:** MTF-EMA-Alignment und CVD-Divergenz —
 beide inhaltlich bereits von Nexus intern abgedeckt (MTF-Alignment bzw.

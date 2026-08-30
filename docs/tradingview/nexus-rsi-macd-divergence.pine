@@ -1,0 +1,82 @@
+//@version=5
+// Nexus Atlas - RSI/MACD Divergence
+//
+// Klassische "Regular Divergence": Preis macht ein neues Extremum, der
+// Oszillator (RSI bzw. MACD-Histogramm) bestaetigt es nicht -- das
+// bekannteste Momentum-Exhaustion-Muster bei institutionellen/Pro-Tradern.
+// Folgt der weit verbreiteten, gut geprueften "Divergence Indicator"-Pivot-
+// Vergleichslogik (ta.pivothigh/-low auf dem Oszillator + ta.valuewhen-
+// Vergleich mit dem vorherigen Pivot, plus ein Bar-Abstands-Fenster gegen
+// zu nah/zu weit auseinanderliegende Pivots).
+//
+// Luecke gegenueber Nexus Atlas: die 14-Faktoren-Engine hat RSI und MACD
+// bereits als Rohwerte im Momentum-Faktor, aber keine explizite Divergenz-
+// Erkennung (Preis vs. Oszillator ueber zwei Pivots hinweg) -- das ist eine
+// andere Dimension als der reine Momentum-Level und damit kein Duplikat.
+//
+// Vier unabhaengige Signal-Typen (RSI und MACD-Histogramm getrennt
+// ausgewertet, nicht kuenstlich zusammengefuehrt) -- so bleibt sichtbar,
+// welcher Oszillator die Divergenz zeigt, statt eine Blackbox-Kombination
+// zu erzeugen.
+//
+// Wie die anderen Pivot-basierten Skripte inherent verzoegert (Bestaetigung
+// erst `lbR` Bars nach dem eigentlichen Extremum) -- Standardverhalten,
+// kein Repainting.
+//
+// Setup: siehe README.md. Niemals als "Public" veroeffentlichen (Secret
+// im Klartext).
+indicator("Nexus Atlas - RSI/MACD Divergence", overlay=false)
+
+lbL = input.int(5, title="Pivot Lookback Left")
+lbR = input.int(5, title="Pivot Lookback Right")
+rangeLower = input.int(5, title="Min. Baranzahl zwischen Pivots")
+rangeUpper = input.int(60, title="Max. Baranzahl zwischen Pivots")
+
+rsiValue = ta.rsi(close, 14)
+[macdLine, signalLine, histLine] = ta.macd(close, 12, 26, 9)
+
+_inRange(cond) =>
+    bars = ta.barssince(cond)
+    rangeLower <= bars and bars <= rangeUpper
+
+// --- RSI-Divergenz ---
+rsiPL = ta.pivotlow(rsiValue, lbL, lbR)
+rsiPH = ta.pivothigh(rsiValue, lbL, lbR)
+rsiPlFound = not na(rsiPL)
+rsiPhFound = not na(rsiPH)
+
+// Bullish: Preis tieferes Low, RSI hoeheres Low (Abwaertsmomentum laesst nach)
+rsiOscHL = rsiValue[lbR] > ta.valuewhen(rsiPlFound, rsiValue[lbR], 1) and _inRange(rsiPlFound[1])
+rsiPriceLL = low[lbR] < ta.valuewhen(rsiPlFound, low[lbR], 1)
+rsiBullDiv = rsiPriceLL and rsiOscHL and rsiPlFound
+
+// Bearish: Preis hoeheres High, RSI tieferes High (Aufwaertsmomentum laesst nach)
+rsiOscLH = rsiValue[lbR] < ta.valuewhen(rsiPhFound, rsiValue[lbR], 1) and _inRange(rsiPhFound[1])
+rsiPriceHH = high[lbR] > ta.valuewhen(rsiPhFound, high[lbR], 1)
+rsiBearDiv = rsiPriceHH and rsiOscLH and rsiPhFound
+
+// --- MACD-Histogramm-Divergenz (dieselbe Vergleichslogik, anderer Oszillator) ---
+macdPL = ta.pivotlow(histLine, lbL, lbR)
+macdPH = ta.pivothigh(histLine, lbL, lbR)
+macdPlFound = not na(macdPL)
+macdPhFound = not na(macdPH)
+
+macdOscHL = histLine[lbR] > ta.valuewhen(macdPlFound, histLine[lbR], 1) and _inRange(macdPlFound[1])
+macdPriceLL = low[lbR] < ta.valuewhen(macdPlFound, low[lbR], 1)
+macdBullDiv = macdPriceLL and macdOscHL and macdPlFound
+
+macdOscLH = histLine[lbR] < ta.valuewhen(macdPhFound, histLine[lbR], 1) and _inRange(macdPhFound[1])
+macdPriceHH = high[lbR] > ta.valuewhen(macdPhFound, high[lbR], 1)
+macdBearDiv = macdPriceHH and macdOscLH and macdPhFound
+
+if rsiBullDiv
+    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"RSI_BULLISH_DIVERGENCE","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+
+if rsiBearDiv
+    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"RSI_BEARISH_DIVERGENCE","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+
+if macdBullDiv
+    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"MACD_BULLISH_DIVERGENCE","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+
+if macdBearDiv
+    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"MACD_BEARISH_DIVERGENCE","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
