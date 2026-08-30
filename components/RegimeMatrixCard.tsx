@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import type { MarketState, MarketStateMatrix, TradingViewSignal } from "@/lib/types";
+import type { AnchoredSummary, MarketState, MarketStateMatrix, TradingViewSignal } from "@/lib/types";
 import PanelInfo from "@/components/PanelInfo";
 import { marketStateMatrixInfo } from "@/lib/panelInfo";
+import { formatAnchorBadge } from "@/lib/anchor";
 import {
   DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD,
   UNCLEAR_STATE_LABEL,
@@ -89,6 +90,8 @@ export default function RegimeMatrixCard({
   initialMatrix,
   marketState,
   initialTradingViewSignal,
+  anchorIso,
+  initialAnchoredSummary,
 }: {
   initialMatrix: MarketStateMatrix | null;
   // Fuer die Confidence-Sperre (siehe unten) -- dieselbe market_states-Zeile,
@@ -98,11 +101,18 @@ export default function RegimeMatrixCard({
   // Render-Block unten. null, wenn kein frisches Signal vorliegt (haeufigster
   // Fall, solange noch kein TradingView-Alert konfiguriert ist).
   initialTradingViewSignal: TradingViewSignal | null;
+  // "Seit Anker"-Regime-Vergleich (Phase 1 "Anchored Analytics" auf die
+  // Regime Matrix erweitert): dieselbe get_anchored_summary-RPC wie
+  // LivePricePanel/LiquidationPanel, hier nur regime_at_anchor/
+  // confidence_at_anchor ausgewertet statt Preis/OI.
+  anchorIso: string | null;
+  initialAnchoredSummary: AnchoredSummary | null;
 }) {
   const [matrix, setMatrix] = useState(initialMatrix);
   const [lastSyncOk, setLastSyncOk] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [tradingViewSignal, setTradingViewSignal] = useState(initialTradingViewSignal);
+  const [anchoredSummary, setAnchoredSummary] = useState(initialAnchoredSummary);
 
   useEffect(() => {
     const load = async () => {
@@ -117,6 +127,32 @@ export default function RegimeMatrixCard({
     const interval = setInterval(load, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
+
+  // Wie LivePricePanel.tsx: eigener Effekt, nur aktiv wenn ein Anker
+  // gesetzt ist. Kein synchrones setState bei fehlendem Anker (react-hooks/
+  // set-state-in-effect) -- die JSX-Stelle unten ist selbst an
+  // "anchorIso &&" gebunden, ein veralteter State wird also nie gerendert.
+  useEffect(() => {
+    if (!anchorIso) return;
+    let cancelled = false;
+    const load = async () => {
+      const { data, error } = await supabase.rpc("get_anchored_summary", {
+        p_anchor: anchorIso,
+      });
+      if (cancelled) return;
+      if (error) {
+        console.error("Fehler beim Laden der Anchored Summary:", error.message);
+        return;
+      }
+      setAnchoredSummary(data ?? null);
+    };
+    load();
+    const interval = setInterval(load, REFRESH_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [anchorIso]);
 
   if (!matrix) {
     return (
@@ -163,6 +199,19 @@ export default function RegimeMatrixCard({
         ? "bärisch"
         : null;
 
+  // "Seit Anker"-Regime-Vergleich: dieselbe Confidence-Sperre wie oben,
+  // nur mit der Confidence zum Anker-Zeitpunkt statt der aktuellen --
+  // verhindert, dass hier eine Richtungsaussage auftaucht, die zu diesem
+  // historischen Zeitpunkt eigentlich als "Unklar / kein Zustand" gegolten
+  // haette.
+  const anchorRegime = anchoredSummary?.regime_at_anchor ?? null;
+  const anchorRegimeLabel = anchorRegime
+    ? shouldSuppressRegimeDirectionalLabel(anchorRegime, anchoredSummary?.confidence_at_anchor ?? null)
+      ? UNCLEAR_STATE_LABEL
+      : regimeLabel(anchorRegime)
+    : null;
+  const anchorRegimeChanged = anchorRegimeLabel !== null && anchorRegimeLabel !== displayLabel;
+
   return (
     <section className="rounded-lg border border-border bg-surface p-5 space-y-3">
       <div className="flex items-center justify-between">
@@ -194,6 +243,29 @@ export default function RegimeMatrixCard({
         <p className="text-xs text-text-muted leading-relaxed">
           {regimeDescription(matrix.regime)}
         </p>
+      )}
+
+      {anchorIso && (
+        <div className="space-y-0.5">
+          <p className="text-xs text-text-faint">
+            Seit Anker ({formatAnchorBadge(new Date(anchorIso))}):
+          </p>
+          {anchorRegimeLabel ? (
+            <p className="text-xs text-text-muted">
+              Regime beim Anker: {anchorRegimeLabel} → jetzt: {displayLabel}
+              {anchorRegimeChanged && (
+                <span className="ml-1.5 text-[11px] uppercase tracking-wide text-accent">
+                  geändert
+                </span>
+              )}
+            </p>
+          ) : (
+            <p className="text-xs text-text-faint">
+              Keine Regime-Daten für diesen Zeitpunkt verfügbar (Anker liegt vor Beginn der
+              Regime-Matrix-Historie).
+            </p>
+          )}
+        </div>
       )}
 
       {engineDivergence === "DIVERGENCE" && marketStateDirectionLabel && (

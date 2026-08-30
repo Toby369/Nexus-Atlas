@@ -151,6 +151,15 @@ export interface AnchoredSummary {
   long_liquidation_usd: number;
   short_liquidation_usd: number;
   liquidation_event_count: number;
+  // Naechstgelegene market_state_matrix-Zeile vor/bei anchor_timestamp_utc
+  // (siehe RegimeMatrixCard.tsx "Seit Anker") -- null, wenn der Anker vor
+  // dem Beginn der Regime-Matrix-Historie liegt (kein erfundener Wert).
+  // confidence_at_anchor ist die market_states.confidence desselben
+  // Zeitpunkts, noetig fuer dieselbe Confidence-Sperre wie beim aktuellen
+  // Regime (shouldSuppressRegimeDirectionalLabel).
+  regime_at_anchor: MarketRegime | null;
+  regime_at_anchor_timestamp_utc: string | null;
+  confidence_at_anchor: number | null;
   series: AnchoredSummaryPoint[];
 }
 
