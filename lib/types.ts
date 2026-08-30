@@ -154,6 +154,20 @@ export interface AnchoredSummary {
   series: AnchoredSummaryPoint[];
 }
 
+// Rueckgabezeile aus tradingview_signals (Phase 2 TradingView-Integration,
+// Migration add_tradingview_signals_table). Rein informatives Kontext-
+// Badge im Dashboard (siehe RegimeMatrixCard.tsx) -- fliesst NICHT in
+// compute-market-state oder die Regime Matrix ein (siehe die
+// webhook-tradingview Edge Function).
+export interface TradingViewSignal {
+  id: string;
+  received_at: string;
+  ticker: string;
+  signal_type: string;
+  timeframe: string | null;
+  payload: Record<string, unknown>;
+}
+
 // Rueckgabezeile der get_spot_pressure_series-RPC (Binance-Spot-BTC-Kerzen,
 // 5-Min-Takt, siehe SpotPressurePanel.tsx).
 export interface SpotPressurePoint {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import type { MarketState, MarketStateMatrix } from "@/lib/types";
+import type { MarketState, MarketStateMatrix, TradingViewSignal } from "@/lib/types";
 import PanelInfo from "@/components/PanelInfo";
 import { marketStateMatrixInfo } from "@/lib/panelInfo";
 import {
@@ -17,6 +17,11 @@ import {
   shouldSuppressRegimeDirectionalLabel,
   computeEngineDivergence,
 } from "@/lib/marketRegime";
+import {
+  TRADINGVIEW_SIGNAL_FRESHNESS_HOURS,
+  formatSignalBadge,
+  isSignalFresh,
+} from "@/lib/tradingViewSignal";
 import { RelativeTime } from "@/components/ClientTimestamp";
 
 // Regime-Daten aendern sich hoechstens stuendlich (1H-Kerzen-Raster, siehe
@@ -57,24 +62,57 @@ async function fetchLatestMatrix(): Promise<{ data: MarketStateMatrix | null; ok
   return { data, ok: true };
 }
 
+// Phase 2 TradingView-Integration: juengstes Signal der letzten
+// TRADINGVIEW_SIGNAL_FRESHNESS_HOURS. Der Frische-Cutoff steckt bereits im
+// Query (wie beim initialen Server-Fetch in app/page.tsx) -- kein
+// zusaetzlicher isSignalFresh()-Check noetig fuer das, was diese Funktion
+// zurueckgibt, isSignalFresh() bleibt aber die geteilte, getestete
+// Referenz fuer die Zeitspanne (keine doppelt gepflegte Zahl).
+async function fetchLatestTradingViewSignal(): Promise<TradingViewSignal | null> {
+  const cutoff = new Date(Date.now() - TRADINGVIEW_SIGNAL_FRESHNESS_HOURS * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from("tradingview_signals")
+    .select("*")
+    .gte("received_at", cutoff)
+    .order("received_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Fehler beim Laden des TradingView-Signals:", error.message);
+    return null;
+  }
+  return data;
+}
+
 export default function RegimeMatrixCard({
   initialMatrix,
   marketState,
+  initialTradingViewSignal,
 }: {
   initialMatrix: MarketStateMatrix | null;
   // Fuer die Confidence-Sperre (siehe unten) -- dieselbe market_states-Zeile,
   // die MarketStateCard bereits erhaelt, kein Zusatz-Query.
   marketState: MarketState | null;
+  // Phase 2 TradingView-Integration: rein informatives Kontext-Badge, siehe
+  // Render-Block unten. null, wenn kein frisches Signal vorliegt (haeufigster
+  // Fall, solange noch kein TradingView-Alert konfiguriert ist).
+  initialTradingViewSignal: TradingViewSignal | null;
 }) {
   const [matrix, setMatrix] = useState(initialMatrix);
   const [lastSyncOk, setLastSyncOk] = useState(true);
   const [expanded, setExpanded] = useState(false);
+  const [tradingViewSignal, setTradingViewSignal] = useState(initialTradingViewSignal);
 
   useEffect(() => {
     const load = async () => {
-      const { data, ok } = await fetchLatestMatrix();
+      const [{ data, ok }, signal] = await Promise.all([
+        fetchLatestMatrix(),
+        fetchLatestTradingViewSignal(),
+      ]);
       setLastSyncOk(ok);
       if (ok && data) setMatrix(data);
+      setTradingViewSignal(signal);
     };
     const interval = setInterval(load, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
@@ -175,6 +213,15 @@ export default function RegimeMatrixCard({
           Market State und Regime Matrix stimmen richtungsmäßig überein (beide{" "}
           {marketStateDirectionLabel}).
         </p>
+      )}
+
+      {tradingViewSignal && isSignalFresh(tradingViewSignal.received_at) && (
+        <span
+          title={`Externes Signal, empfangen ${tradingViewSignal.received_at} — rein informativ, fließt nicht in Score/Confidence/Regime ein.`}
+          className="inline-block text-[11px] px-2 py-0.5 rounded-full border border-accent/30 text-text-muted"
+        >
+          {formatSignalBadge(tradingViewSignal)}
+        </span>
       )}
 
       <p className="text-xs text-text-faint">

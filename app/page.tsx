@@ -12,9 +12,11 @@ import type {
   MarketStateMatrix,
   NewsEvent,
   OiChangeByExchange,
+  TradingViewSignal,
 } from "@/lib/types";
 import { getTimeframe, parseTimeframe, type TimeframeId } from "@/lib/timeframes";
 import { parseAnchorParam } from "@/lib/anchor";
+import { TRADINGVIEW_SIGNAL_FRESHNESS_HOURS } from "@/lib/tradingViewSignal";
 import { DEFAULT_SERIES_EXCHANGE } from "@/lib/exchanges";
 import LivePricePanel from "@/components/LivePricePanel";
 import PositioningPanel from "@/components/PositioningPanel";
@@ -129,6 +131,30 @@ async function getLatestMarketStateMatrix(): Promise<MarketStateMatrix | null> {
   return data;
 }
 
+// Phase 2 TradingView-Integration (Feasibility-Review vom 29.08.2026): das
+// juengste externe Signal der letzten TRADINGVIEW_SIGNAL_FRESHNESS_HOURS,
+// empfangen ueber die webhook-tradingview Edge Function
+// (tradingview_signals-Tabelle). Rein informatives Kontext-Badge in
+// RegimeMatrixCard -- fliesst NICHT in compute-market-state ein.
+async function getLatestTradingViewSignal(): Promise<TradingViewSignal | null> {
+  const cutoff = new Date(
+    Date.now() - TRADINGVIEW_SIGNAL_FRESHNESS_HOURS * 60 * 60 * 1000
+  ).toISOString();
+
+  const { data, error } = await supabase
+    .from("tradingview_signals")
+    .select("*")
+    .gte("received_at", cutoff)
+    .order("received_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Fehler beim Laden des TradingView-Signals:", error.message);
+    return null;
+  }
+  return data;
+}
 
 // Nur markbewegende News der letzten 72h, max. 5 - bewusst kompakt statt
 // einer Rohdaten-Flut.
@@ -350,6 +376,7 @@ export default async function Home({
     dashboardBundle,
     oiByExchange,
     anchoredSummary,
+    latestTradingViewSignal,
   ] = await Promise.all([
     getSnapshotHistory(),
     getLatestPerExchange(),
@@ -363,6 +390,7 @@ export default async function Home({
     getDashboardPollBundle(timeframeSinceIsoValue),
     getOiChangeByExchange(timeframeSinceIsoValue),
     getAnchoredSummary(anchorIso),
+    getLatestTradingViewSignal(),
   ]);
 
   // Fallback, falls das Bundle-RPC fehlschlaegt (z.B. kurzzeitiger DB-
@@ -439,7 +467,11 @@ export default async function Home({
               tiles={{
                 "market-context": <MarketContextCard timeframe={timeframe} />,
                 "regime-matrix": (
-                  <RegimeMatrixCard initialMatrix={marketStateMatrix} marketState={marketState} />
+                  <RegimeMatrixCard
+                    initialMatrix={marketStateMatrix}
+                    marketState={marketState}
+                    initialTradingViewSignal={latestTradingViewSignal}
+                  />
                 ),
                 "live-price": (
                   <LivePricePanel
