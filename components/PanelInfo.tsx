@@ -69,7 +69,28 @@ export default function PanelInfo({
           className="fixed left-4 right-4 top-1/2 z-50 -translate-y-1/2 rounded-lg border border-accent/25 bg-surface-raised p-4 shadow-lg sm:absolute sm:left-auto sm:right-0 sm:top-full sm:bottom-auto sm:mt-2 sm:w-72 sm:translate-y-0"
         >
           <p className="text-xs font-semibold text-text mb-1.5">{title}</p>
-          <p className="text-xs text-text-muted leading-relaxed">{content}</p>
+          <div className="space-y-2">
+            {content.split("\n\n").map((paragraph, index) => {
+              // Erwartetes Format: "Label: Text" (z.B. "So liest du das: ...").
+              // Label wird fett hervorgehoben, damit die Struktur (Interpretation
+              // vs. Methodik) visuell erkennbar ist, statt in einem Fliesstext zu
+              // verschwinden -- ohne dangerouslySetInnerHTML, rein ueber Aufteilen
+              // des Plain-Text-Strings.
+              const match = paragraph.match(/^([^:\n]{3,40}:)\s*([\s\S]*)$/);
+              return (
+                <p key={index} className="text-xs text-text-muted leading-relaxed">
+                  {match ? (
+                    <>
+                      <span className="font-semibold text-text-muted">{match[1]}</span>{" "}
+                      {match[2]}
+                    </>
+                  ) : (
+                    paragraph
+                  )}
+                </p>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
