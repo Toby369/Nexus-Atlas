@@ -471,6 +471,8 @@ export default async function Home({
                     initialMatrix={marketStateMatrix}
                     marketState={marketState}
                     initialTradingViewSignal={latestTradingViewSignal}
+                    anchorIso={anchorIso}
+                    initialAnchoredSummary={anchoredSummary}
                   />
                 ),
                 "live-price": (
