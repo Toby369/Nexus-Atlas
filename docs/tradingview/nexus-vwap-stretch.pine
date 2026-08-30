@@ -1,0 +1,43 @@
+//@version=5
+// Nexus Atlas - VWAP Extreme Stretch
+//
+// Erschoepfungs-Signal: Preis durchbricht das Stddev-Band um die
+// session-verankerte VWAP. Nutzt den 3-Werte-Overload von ta.vwap()
+// (Pine v5), der VWAP + volumen-gewichtete Stddev-Baender in einem Schritt
+// liefert -- exakt dieselbe Berechnung wie TradingViews eigener
+// "VWAP"-Built-in-Indikator (Anchor Period = Session). Das ist die
+// methodisch korrekte Variante: ein fixes, un-gewichtetes ta.stdev(close,20)
+// waere weder an denselben Anker noch an das Volumen gekoppelt und koennte
+// kurz nach Sessionstart (VWAP-Reset) noch Daten der Vorsession im
+// Stdev-Fenster mitschleppen.
+//
+// WICHTIG: ta.vwap() liefert nur auf Intraday-Timeframes gueltige Werte
+// (TradingView gibt auf 1D+ Charts "na" zurueck) -- diesen Indikator nur
+// auf Intraday-Charts (<1D) verwenden.
+//
+// Teilueberschneidung mit Nexus Atlas: die 14-Faktoren-Engine hat "Preis
+// vs. VWAP" bereits als einen von 14 Faktoren (dort aber ein fixes,
+// rollierendes 20er-Fenster statt session-verankert) -- dieses Signal und
+// der Faktor zeigen aehnliches Terrain, sind aber keine unabhaengigen
+// Bestaetigungen voneinander.
+//
+// Setup: siehe nexus-volume-expansion.pine (gleiches Alarm-/Webhook-Setup).
+// Niemals als "Public" veroeffentlichen (Secret im Klartext).
+indicator("Nexus Atlas - VWAP Extreme Stretch", overlay=true)
+
+stretchMult = input.float(2.0, title="Stddev-Multiplikator")
+
+newSession = timeframe.change("D")
+[vwapValue, upperBand, lowerBand] = ta.vwap(close, newSession, stretchMult)
+
+isOverbought = ta.crossover(close, upperBand)
+isOversold = ta.crossunder(close, lowerBand)
+
+// price = close (dieselbe Quelle, die auch den Crossover ausloest) statt
+// high/low -- vermeidet eine Abweichung zwischen dem ausloesenden Wert und
+// dem gemeldeten Preis.
+if isOverbought
+    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"VWAP_STRETCH_HI","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+
+if isOversold
+    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"VWAP_STRETCH_LO","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)

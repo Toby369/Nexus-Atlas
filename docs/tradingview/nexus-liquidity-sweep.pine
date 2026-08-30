@@ -1,0 +1,63 @@
+//@version=5
+// Nexus Atlas - Liquidity Sweep
+//
+// Erkennt klassische Stop-Hunts: ein bestaetigter Swing-High/-Low
+// (ta.pivothigh/ta.pivotlow) wird per Docht ueberschossen, die Kerze
+// schliesst aber wieder zurueck innerhalb der vorherigen Range -- das
+// Muster, das institutionelle/Prop-Desks als "Liquidity Grab" vor einer
+// moeglichen Umkehr tracken. Groesste identifizierte Luecke gegenueber
+// Nexus Atlas: alle 14 Faktoren (compute-market-state) sind zustands-/
+// trendorientiert, kein Faktor erkennt gezielte Wick-Sweeps.
+//
+// Feuert nur beim ERSTEN Bar, der ein gegebenes Pivot-Level sweept
+// (highSwept/lowSwept-Flags), nicht bei jedem weiteren Bar, der zufaellig
+// noch ueber/unter demselben Level liegt -- verhindert Alert-Spam in
+// choppigen Phasen um dasselbe Level.
+//
+// Pivot-Erkennung ist inherent verzoegert (ta.pivothigh/-low brauchen
+// `pivotLen` Bestaetigungs-Bars nach dem eigentlichen Extremum) -- das ist
+// Standardverhalten fuer Swing-Point-Detection, kein Bug/Repainting.
+//
+// Setup: siehe README.md. Niemals als "Public" veroeffentlichen (Secret
+// im Klartext).
+indicator("Nexus Atlas - Liquidity Sweep", overlay=true)
+
+pivotLen = input.int(5, title="Pivot-Erkennungslaenge (links/rechts)")
+minWickPct = input.float(0.05, title="Mindest-Ueberschuss ueber Pivot (%)")
+
+pivotHigh = ta.pivothigh(high, pivotLen, pivotLen)
+pivotLow = ta.pivotlow(low, pivotLen, pivotLen)
+
+var float lastPivotHigh = na
+var float lastPivotLow = na
+var bool highSwept = false
+var bool lowSwept = false
+
+if not na(pivotHigh)
+    lastPivotHigh := pivotHigh
+    highSwept := false
+
+if not na(pivotLow)
+    lastPivotLow := pivotLow
+    lowSwept := false
+
+sweepHighRaw = not na(lastPivotHigh) and high > lastPivotHigh and close < lastPivotHigh and (high - lastPivotHigh) / lastPivotHigh >= minWickPct / 100
+sweepLowRaw = not na(lastPivotLow) and low < lastPivotLow and close > lastPivotLow and (lastPivotLow - low) / lastPivotLow >= minWickPct / 100
+
+sweepHigh = sweepHighRaw and not highSwept
+sweepLow = sweepLowRaw and not lowSwept
+
+if sweepHigh
+    highSwept := true
+if sweepLow
+    lowSwept := true
+
+// LIQUIDITY_SWEEP_HIGH = Buy-Side-Liquidity oberhalb eines Swing-Highs
+// gesweept, Schluss darunter zurueck -- moeglicher bearischer Reversal.
+// LIQUIDITY_SWEEP_LOW = Sell-Side-Liquidity unterhalb eines Swing-Lows
+// gesweept, Schluss darueber zurueck -- moeglicher bullischer Reversal.
+if sweepHigh
+    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"LIQUIDITY_SWEEP_HIGH","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+
+if sweepLow
+    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"LIQUIDITY_SWEEP_LOW","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
