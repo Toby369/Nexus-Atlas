@@ -1,0 +1,51 @@
+//@version=5
+// Nexus Atlas - Squeeze Breakout
+//
+// Klassischer TTM-Squeeze (John Carter): Bollinger-Baender innerhalb der
+// Keltner-Channel = Kompressionsphase ("Ruhe vor dem Sturm"); Release =
+// erster gerichteter Impuls danach. Standard-Konvention BB-Mult 2.0 /
+// KC-Basis-Laenge 20 -- die urspruengliche Version hatte BB-Mult 1.5 und
+// ATR-Laenge 14 (deutlich engere Baender als ueblich, dadurch haeufigere,
+// weniger selektive Squeeze-Signale). Alle Parameter jetzt ueber input.*
+// einstellbar (Konsistenz mit den anderen beiden Skripten), `ma`/`basis`
+// waren identische Doppelberechnungen und sind zusammengelegt.
+//
+// Deutliche Ueberschneidung mit Nexus Atlas: die 5-Saeulen-Regime-Matrix
+// hat bereits eine eigene "Volatilitaets-Squeeze"-Erkennung (Bollinger-
+// Breite + Normalized-ATR-Ratio). Unterschied: Nexus zeigt den ZUSTAND
+// ("wir sind gerade in einer Kompression"), dieses Signal den EVENT-Moment
+// (Release + Richtung) -- komplementaer, aber inhaltlich nah beieinander.
+//
+// Setup: siehe nexus-volume-expansion.pine (gleiches Alarm-/Webhook-Setup).
+// Niemals als "Public" veroeffentlichen (Secret im Klartext).
+indicator("Nexus Atlas - Squeeze Breakout", overlay=false)
+
+length = input.int(20, title="BB/KC Basis-Periode")
+bbMult = input.float(2.0, title="Bollinger-Multiplikator")
+kcMult = input.float(1.5, title="Keltner-Multiplikator")
+atrLength = input.int(20, title="ATR-Periode (KC)")
+
+basis = ta.sma(close, length)
+dev = bbMult * ta.stdev(close, length)
+upperBB = basis + dev
+lowerBB = basis - dev
+
+atrValue = ta.atr(atrLength)
+upperKC = basis + atrValue * kcMult
+lowerKC = basis - atrValue * kcMult
+
+sqzOn = (lowerBB > lowerKC) and (upperBB < upperKC)
+
+// Release explizit an "war im Vorbalken noch in der Squeeze" gebunden,
+// statt sich allein auf die symmetrische Bandbreite um `basis` zu
+// verlassen -- macht die Bedingung robust, falls Basis/Mult je einmal
+// getrennt veraendert werden.
+sqzRelease = ta.crossunder(lowerBB, lowerKC) and sqzOn[1]
+isBullRelease = sqzRelease and close > basis
+isBearRelease = sqzRelease and close < basis
+
+if isBullRelease
+    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"SQUEEZE_RELEASE_BULL","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+
+if isBearRelease
+    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"SQUEEZE_RELEASE_BEAR","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)

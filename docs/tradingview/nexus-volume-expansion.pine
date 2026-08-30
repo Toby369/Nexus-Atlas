@@ -1,0 +1,40 @@
+//@version=5
+// Nexus Atlas - Volume Expansion Alert
+//
+// Filtert Preisausbrueche: feuert nur, wenn ein neuer Donchian-Breakout
+// (Schlusskurs ueber/unter dem Hoch/Tief der letzten `length` Kerzen, ohne
+// die aktuelle Kerze) von ueberdurchschnittlichem Volumen begleitet wird.
+// Fuellt eine echte Luecke in Nexus Atlas: die 14-Faktoren-Engine hat mit
+// ADX-Trend-Staerke einen Trend-Filter, aber keinen Volumen-Filter fuer
+// Ausbrueche.
+//
+// Setup: Indikator zu einem BTCUSDT-Chart hinzufuegen, dann ueber
+// "Alarm erstellen" -> Bedingung "Nexus Atlas - Volume Expansion Alert" ->
+// "Beliebiger alert()-Funktionsaufruf" -> unter "Benachrichtigungen" die
+// Webhook-URL der webhook-tradingview Edge Function eintragen.
+// WICHTIG: Diesen Indikator NIE als "Public" auf TradingView veroeffentlichen
+// -- das Secret steht im Klartext im Skript.
+indicator("Nexus Atlas - Volume Expansion Alert", overlay=true)
+
+volMultiplier = input.float(2.0, title="Volumen-Multiplikator (x MA)")
+length = input.int(20, title="MA Periode")
+
+avgVol = ta.sma(volume, length)
+isHighVol = volume > (avgVol * volMultiplier)
+isBreakoutUp = ta.crossover(close, ta.highest(high[1], length)) and isHighVol
+isBreakoutDown = ta.crossunder(close, ta.lowest(low[1], length)) and isHighVol
+
+// Ticker bewusst hartcodiert statt syminfo.ticker: syminfo.ticker variiert
+// je nach Chart/Exchange (z.B. "BTCUSDT.P" bei manchen Perp-Listings) --
+// "BTCUSDT" haelt den Wert konsistent zum Rest des Dashboards.
+//
+// "price" liegt bewusst auf oberster Ebene des JSON, nicht in einem
+// verschachtelten "payload"-Objekt: die Edge Function speichert den
+// gesamten Body (minus secret) 1:1 in die jsonb-Spalte "payload" --
+// ein zusaetzliches verschachteltes Feld wuerde als "payload.payload.price"
+// statt "payload.price" landen.
+if isBreakoutUp
+    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"VOLUME_EXPANSION_BULL","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+
+if isBreakoutDown
+    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"VOLUME_EXPANSION_BEAR","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
