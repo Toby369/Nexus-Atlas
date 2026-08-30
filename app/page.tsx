@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import type {
+  AnchoredSummary,
   DashboardPollBundle,
   EtfFlowDay,
   LiquidationEvent,
@@ -13,6 +14,7 @@ import type {
   OiChangeByExchange,
 } from "@/lib/types";
 import { getTimeframe, parseTimeframe, type TimeframeId } from "@/lib/timeframes";
+import { parseAnchorParam } from "@/lib/anchor";
 import { DEFAULT_SERIES_EXCHANGE } from "@/lib/exchanges";
 import LivePricePanel from "@/components/LivePricePanel";
 import PositioningPanel from "@/components/PositioningPanel";
@@ -24,6 +26,7 @@ import MarketContextCard from "@/components/MarketContextCard";
 import MarketStateCard from "@/components/MarketStateCard";
 import RegimeMatrixCard from "@/components/RegimeMatrixCard";
 import TimeframeSelector from "@/components/TimeframeSelector";
+import AnchorPicker from "@/components/AnchorPicker";
 import DashboardLayout from "@/components/DashboardLayout";
 import DashboardPollProvider from "@/components/DashboardPollProvider";
 import LogoutButton from "@/components/LogoutButton";
@@ -173,6 +176,25 @@ async function getRecentLiquidations(): Promise<LiquidationEvent[]> {
   return data ?? [];
 }
 
+// Phase 1 "Anchored Analytics" (Feasibility-Review vom 29.08.2026): laedt
+// den kumulierten Event-Driven-Kontext (Liquidationen/OI/Preis) ab einem
+// frei waehlbaren Ankerpunkt -- unabhaengig vom festen "tf"-Zeitraum.
+// Frueher Ausstieg ohne DB-Aufruf, wenn kein Anker gesetzt ist (haeufigster
+// Fall), statt die RPC unnoetig mit einem null-Parameter aufzurufen.
+async function getAnchoredSummary(anchorIso: string | null): Promise<AnchoredSummary | null> {
+  if (!anchorIso) return null;
+
+  const { data, error } = await supabase.rpc("get_anchored_summary", {
+    p_anchor: anchorIso,
+  });
+
+  if (error) {
+    console.error("Fehler beim Laden der Anchored Summary:", error.message);
+    return null;
+  }
+  return data ?? null;
+}
+
 // Die Quelle wurde von Farside (Scraping) auf SoSoValue (offizielle API)
 // umgestellt. Aeltere Farside-Zeilen bleiben als Historie stehen, ein Datum
 // kann also kurzzeitig doppelt vorkommen -- pro Datum nur eine Zeile
@@ -294,7 +316,7 @@ async function getOiChangeByExchange(sinceIso: string): Promise<OiChangeByExchan
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ tf?: string }>;
+  searchParams: Promise<{ tf?: string; anchor?: string }>;
 }) {
   // Einzige Zeitraum-Quelle fuer die gesamte Seite: der "tf"-URL-Query-Param,
   // gesteuert vom TimeframeSelector unten. BTC-Change, OI-Change, Chart,
@@ -303,9 +325,17 @@ export default async function Home({
   // Zeitraeume mehr (vorher: LivePricePanel, SpotPressurePanel und
   // MarketContextCard hatten je einen eigenen, nicht synchronisierten
   // Zeitraum-Zustand).
-  const { tf } = await searchParams;
+  const { tf, anchor } = await searchParams;
   const timeframe = parseTimeframe(tf);
   const timeframeSinceIsoValue = timeframeSinceIso(timeframe);
+
+  // Event-Driven-Anker (Phase 1 "Anchored Analytics"), unabhaengig vom
+  // festen Zeitraum oben -- dieselbe server-seitige Aufloesungs-/
+  // Weiterreichungs-Logik wie bei "tf" (AnchorPicker schreibt den
+  // Roh-Query-Param, hier wird er einmal zentral geparst/validiert und als
+  // fertiger ISO-String an LiquidationPanel/LivePricePanel gereicht).
+  const anchorDate = parseAnchorParam(anchor);
+  const anchorIso = anchorDate ? anchorDate.toISOString() : null;
 
   const [
     snapshots,
@@ -319,6 +349,7 @@ export default async function Home({
     oiReferenceSnapshot,
     dashboardBundle,
     oiByExchange,
+    anchoredSummary,
   ] = await Promise.all([
     getSnapshotHistory(),
     getLatestPerExchange(),
@@ -331,6 +362,7 @@ export default async function Home({
     getOiReferenceSnapshot(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getDashboardPollBundle(timeframeSinceIsoValue),
     getOiChangeByExchange(timeframeSinceIsoValue),
+    getAnchoredSummary(anchorIso),
   ]);
 
   // Fallback, falls das Bundle-RPC fehlschlaegt (z.B. kurzzeitiger DB-
@@ -389,6 +421,15 @@ export default async function Home({
             </Suspense>
           </div>
 
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <p className="text-xs uppercase tracking-[0.2em] text-text-faint">
+              Event-Anker
+            </p>
+            <Suspense fallback={<div className="h-6" />}>
+              <AnchorPicker />
+            </Suspense>
+          </div>
+
           <DashboardPollProvider
             timeframe={timeframe}
             initialBundle={initialDashboardBundle}
@@ -410,11 +451,19 @@ export default async function Home({
                     initialReferenceSnapshot={oiReferenceSnapshot}
                     initialFetchedSinceIso={timeframeSinceIsoValue}
                     initialOiByExchange={oiByExchange}
+                    anchorIso={anchorIso}
+                    initialAnchoredSummary={anchoredSummary}
                   />
                 ),
                 "spot-pressure": <SpotPressurePanel timeframe={timeframe} />,
                 positioning: <PositioningPanel />,
-                liquidations: <LiquidationPanel initialEvents={recentLiquidations} />,
+                liquidations: (
+                  <LiquidationPanel
+                    initialEvents={recentLiquidations}
+                    anchorIso={anchorIso}
+                    initialAnchoredSummary={anchoredSummary}
+                  />
+                ),
                 "etf-flow": (
                   <EtfFlowPanel initialFlows={recentEtfFlows} macroNews={highImpactNews} />
                 ),

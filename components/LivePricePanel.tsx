@@ -3,11 +3,13 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import type {
+  AnchoredSummary,
   MarketSeriesPoint,
   MarketSnapshot,
   MarketState,
   OiChangeByExchange,
 } from "@/lib/types";
+import { formatAnchorBadge } from "@/lib/anchor";
 import TimeSeriesChart from "@/components/TimeSeriesChart";
 import PriceOiComparisonChart from "@/components/PriceOiComparisonChart";
 import PanelInfo from "@/components/PanelInfo";
@@ -154,6 +156,8 @@ export default function LivePricePanel({
   initialReferenceSnapshot,
   initialFetchedSinceIso,
   initialOiByExchange,
+  anchorIso,
+  initialAnchoredSummary,
 }: {
   // Geteilter Zeitraum, gesteuert vom TimeframeSelector in app/page.tsx (URL-
   // Query-Param "tf") -- kein lokaler Timeframe-State mehr in dieser
@@ -171,6 +175,11 @@ export default function LivePricePanel({
   initialReferenceSnapshot: ReferenceSnapshot | null;
   initialFetchedSinceIso: string;
   initialOiByExchange: OiChangeByExchange[];
+  // Phase 1 "Anchored Analytics": null, solange kein Event-Anker gesetzt
+  // ist (haeufigster Fall) -- server-seitig aufgeloest in app/page.tsx,
+  // unabhaengig von "timeframe" oben.
+  anchorIso: string | null;
+  initialAnchoredSummary: AnchoredSummary | null;
 }) {
   // snapshots ist chronologisch aufsteigend (aeltester zuerst) fuer die Charts,
   // ausschliesslich Bybit als Referenzboerse.
@@ -195,6 +204,7 @@ export default function LivePricePanel({
   // wirklich geladen wurde.
   const [fetchedSinceIso, setFetchedSinceIso] = useState(initialFetchedSinceIso);
   const [oiByExchange, setOiByExchange] = useState(initialOiByExchange);
+  const [anchoredSummary, setAnchoredSummary] = useState(initialAnchoredSummary);
   // Erster Render nutzt die serverseitig vorab geladenen Daten fuer den
   // Standard-Zeitraum (kein Ladeflackern beim initialen Seitenaufruf) --
   // nur ein tatsaechlicher Zeitraum-Wechsel durch den Nutzer loest sofort
@@ -226,6 +236,37 @@ export default function LivePricePanel({
       clearInterval(interval);
     };
   }, [timeframe]);
+
+  // Phase 1 "Anchored Analytics": voellig unabhaengig vom timeframe-Effekt
+  // oben -- laedt/aktualisiert den Event-Driven-Kontext nur, wenn ein
+  // Anker gesetzt ist (anchorIso aendert sich, wenn der Nutzer im
+  // AnchorPicker einen neuen Anker waehlt oder zuruecksetzt).
+  useEffect(() => {
+    // Kein synchrones setState im Effekt-Koerper (siehe react-hooks/
+    // set-state-in-effect) -- bei fehlendem Anker wird der Effekt einfach
+    // uebersprungen; ein veralteter anchoredSummary-State bleibt zwar
+    // bestehen, wird aber nie gerendert, da die JSX-Stelle unten selbst
+    // an "anchorIso &&" gebunden ist.
+    if (!anchorIso) return;
+    let cancelled = false;
+    const load = async () => {
+      const { data, error } = await supabase.rpc("get_anchored_summary", {
+        p_anchor: anchorIso,
+      });
+      if (cancelled) return;
+      if (error) {
+        console.error("Fehler beim Laden der Anchored Summary:", error.message);
+        return;
+      }
+      setAnchoredSummary(data ?? null);
+    };
+    load();
+    const interval = setInterval(load, REFRESH_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [anchorIso]);
 
   // Eigener Effekt pro Zeitraum+Boerse: aendert sich timeframe (von aussen
   // ueber die URL) oder seriesExchange (lokal), wird die alte Polling-
@@ -613,6 +654,22 @@ export default function LivePricePanel({
           }
         />
       </div>
+
+      {anchorIso && (
+        <div className="flex flex-col gap-1 text-xs pt-2 border-t border-border/60">
+          <span className="text-text-faint">
+            Seit Anker ({formatAnchorBadge(new Date(anchorIso))}):
+          </span>
+          {anchoredSummary ? (
+            <span className="tabular font-mono text-text-muted">
+              Preis {formatSignedPct(anchoredSummary.price_change_pct)} · OI{" "}
+              {formatSignedPct(anchoredSummary.oi_change_pct)}
+            </span>
+          ) : (
+            <span className="text-text-faint">Lädt…</span>
+          )}
+        </div>
+      )}
 
       <div className="grid gap-3">
         <ChartCard

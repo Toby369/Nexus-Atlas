@@ -129,6 +129,31 @@ export interface LiquidationIntelligence {
   total_oi_usd: number | null;
 }
 
+// Rueckgabeform der get_anchored_summary-RPC (Phase 1 "Anchored
+// Analytics" -- Event-Driven-Kontext ab einem frei waehlbaren Ankerpunkt,
+// siehe lib/anchor.ts). granularity_used dokumentiert, welche Zeitreihen-
+// Aufloesung fuer `series` gewaehlt wurde (abhaengig vom Anker-Alter).
+export interface AnchoredSummaryPoint {
+  timestamp_utc: string;
+  last_price: number | null;
+  open_interest: number | null;
+}
+
+export interface AnchoredSummary {
+  anchor_timestamp_utc: string;
+  granularity_used: "5m" | "1h" | "4h" | "1d";
+  price_at_anchor: number | null;
+  price_current: number | null;
+  price_change_pct: number | null;
+  oi_at_anchor: number | null;
+  oi_current: number | null;
+  oi_change_pct: number | null;
+  long_liquidation_usd: number;
+  short_liquidation_usd: number;
+  liquidation_event_count: number;
+  series: AnchoredSummaryPoint[];
+}
+
 // Rueckgabezeile der get_spot_pressure_series-RPC (Binance-Spot-BTC-Kerzen,
 // 5-Min-Takt, siehe SpotPressurePanel.tsx).
 export interface SpotPressurePoint {

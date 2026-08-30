@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import type { LiquidationEvent, LiquidationIntelligence } from "@/lib/types";
+import type { AnchoredSummary, LiquidationEvent, LiquidationIntelligence } from "@/lib/types";
 import PanelInfo from "@/components/PanelInfo";
 import { liquidationsInfo } from "@/lib/panelInfo";
+import { formatAnchorBadge } from "@/lib/anchor";
 
 const REFRESH_INTERVAL_MS = 60_000;
 const LOOKBACK_HOURS = 6;
@@ -71,6 +72,22 @@ async function fetchRecentLiquidations(): Promise<{
   return { data: data ?? [], ok: true };
 }
 
+// Phase 1 "Anchored Analytics": laedt den kumulierten Event-Driven-Kontext
+// (Long-/Short-Liquidationen seit einem frei waehlbaren Ankerpunkt) --
+// unabhaengig vom festen LOOKBACK_HOURS-Fenster oben. Kein eigener
+// Lade-Loop bei fehlendem Anker (haeufigster Fall), Aufrufer prueft das.
+async function fetchAnchoredSummary(anchorIso: string): Promise<AnchoredSummary | null> {
+  const { data, error } = await supabase.rpc("get_anchored_summary", {
+    p_anchor: anchorIso,
+  });
+
+  if (error) {
+    console.error("Fehler beim Laden der Anchored Summary:", error.message);
+    return null;
+  }
+  return data ?? null;
+}
+
 async function fetchIntelligence(): Promise<LiquidationIntelligence | null> {
   const cutoff = new Date(
     Date.now() - LOOKBACK_HOURS * 60 * 60 * 1000
@@ -110,27 +127,37 @@ function describeVelocityTrend(
 
 export default function LiquidationPanel({
   initialEvents,
+  anchorIso,
+  initialAnchoredSummary,
 }: {
   initialEvents: LiquidationEvent[];
+  // Phase 1 "Anchored Analytics": null, solange kein Event-Anker gesetzt
+  // ist (haeufigster Fall) -- server-seitig aufgeloest in app/page.tsx,
+  // dasselbe Muster wie "timeframe".
+  anchorIso: string | null;
+  initialAnchoredSummary: AnchoredSummary | null;
 }) {
   const [events, setEvents] = useState(initialEvents);
   const [lastSyncOk, setLastSyncOk] = useState(true);
   const [intelligence, setIntelligence] = useState<LiquidationIntelligence | null>(null);
+  const [anchoredSummary, setAnchoredSummary] = useState(initialAnchoredSummary);
 
   useEffect(() => {
     const load = async () => {
-      const [{ data, ok }, intel] = await Promise.all([
+      const [{ data, ok }, intel, anchored] = await Promise.all([
         fetchRecentLiquidations(),
         fetchIntelligence(),
+        anchorIso ? fetchAnchoredSummary(anchorIso) : Promise.resolve(null),
       ]);
       setLastSyncOk(ok);
       if (ok) setEvents(data);
       setIntelligence(intel);
+      setAnchoredSummary(anchored);
     };
     load();
     const interval = setInterval(load, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, []);
+  }, [anchorIso]);
 
   const longNotional = events
     .filter((e) => e.side === "long")
@@ -234,6 +261,23 @@ export default function LiquidationPanel({
             </div>
           )}
         </>
+      )}
+
+      {anchorIso && (
+        <div className="flex flex-col gap-1 text-xs pt-2 border-t border-border/60">
+          <span className="text-text-faint">
+            Seit Anker ({formatAnchorBadge(new Date(anchorIso))}):
+          </span>
+          {anchoredSummary ? (
+            <span className="tabular font-mono text-text-muted">
+              Long {formatUsd(anchoredSummary.long_liquidation_usd)} · Short{" "}
+              {formatUsd(anchoredSummary.short_liquidation_usd)} ·{" "}
+              {anchoredSummary.liquidation_event_count} Events
+            </span>
+          ) : (
+            <span className="text-text-faint">Lädt…</span>
+          )}
+        </div>
       )}
 
       <p className="text-xs text-text-faint pt-1">
