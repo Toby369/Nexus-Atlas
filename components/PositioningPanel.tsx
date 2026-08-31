@@ -28,7 +28,7 @@ export default function PositioningPanel() {
     return (
       <section className="rounded-lg border border-border bg-surface p-5">
         <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
-          Positioning Intelligence
+          Positionierung
         </h2>
         <p className="text-sm text-text-faint mt-3">
           Noch keine Positioning-Daten vorhanden.
@@ -41,9 +41,9 @@ export default function PositioningPanel() {
     <section className="rounded-lg border border-border bg-surface p-5 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
-          Positioning Intelligence
+          Positionierung
         </h2>
-        <PanelInfo title="Positioning Intelligence" content={positioningRatiosInfo} />
+        <PanelInfo title="Positionierung" content={positioningRatiosInfo} />
       </div>
 
       {!lastSyncOk && (
@@ -107,9 +107,9 @@ export default function PositioningPanel() {
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1.5">
               <p className="text-xs uppercase tracking-[0.15em] text-text-muted">
-                NEXUS Assessment
+                Einschätzung
               </p>
-              <PanelInfo title="NEXUS Assessment" content={positioningAssessmentInfo} />
+              <PanelInfo title="Einschätzung" content={positioningAssessmentInfo} />
             </div>
             <RelativeTime iso={signal.timestamp_utc} className="text-xs text-text-faint" />
           </div>

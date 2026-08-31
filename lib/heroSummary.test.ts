@@ -44,7 +44,7 @@ describe("spotPressureDirection", () => {
 
 describe("summarizeConfirmation", () => {
   const bothBullish: ConfirmationSignal[] = [
-    { name: "Regime Matrix", direction: "bullish" },
+    { name: "Marktphase", direction: "bullish" },
     { name: "Spot Pressure", direction: "bullish" },
   ];
 
@@ -54,26 +54,26 @@ describe("summarizeConfirmation", () => {
       primaryDirection: "bullish",
       confirmingCount: 2,
       totalComparable: 2,
-      confirming: ["Regime Matrix", "Spot Pressure"],
+      confirming: ["Marktphase", "Spot Pressure"],
       contradicting: [],
     });
   });
 
   it("ein Signal widerspricht", () => {
     const mixed: ConfirmationSignal[] = [
-      { name: "Regime Matrix", direction: "bullish" },
+      { name: "Marktphase", direction: "bullish" },
       { name: "Spot Pressure", direction: "bearish" },
     ];
     const result = summarizeConfirmation("BULLISH", 78, mixed);
     expect(result.confirmingCount).toBe(1);
     expect(result.totalComparable).toBe(2);
-    expect(result.confirming).toEqual(["Regime Matrix"]);
+    expect(result.confirming).toEqual(["Marktphase"]);
     expect(result.contradicting).toEqual(["Spot Pressure"]);
   });
 
   it("not_comparable-Signale zaehlen weder als Bestaetigung noch als Widerspruch", () => {
     const withNotComparable: ConfirmationSignal[] = [
-      { name: "Regime Matrix", direction: "not_comparable" },
+      { name: "Marktphase", direction: "not_comparable" },
       { name: "Spot Pressure", direction: "bullish" },
     ];
     const result = summarizeConfirmation("BULLISH", 78, withNotComparable);

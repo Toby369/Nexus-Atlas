@@ -76,9 +76,9 @@ export default function NewsRiskPanel({
     <section className="rounded-lg border border-border bg-surface p-5 space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
-          News Risk
+          News &amp; Risiko
         </h2>
-        <PanelInfo title="News Risk" content={newsRiskInfo} />
+        <PanelInfo title="News & Risiko" content={newsRiskInfo} />
       </div>
 
       {!lastSyncOk && news.length > 0 && (

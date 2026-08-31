@@ -212,12 +212,12 @@ export default function MarketStateCard({
       <section className="rounded-lg border border-accent/25 bg-surface-raised p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
-            Market State
+            Gesamteinschätzung
           </h2>
-          <PanelInfo title="Market State" content={marketStateInfo} />
+          <PanelInfo title="Gesamteinschätzung" content={marketStateInfo} />
         </div>
         <p className="text-sm text-text-faint mt-3">
-          Noch keine Market-State-Daten vorhanden.
+          Noch keine Daten vorhanden.
         </p>
       </section>
     );
@@ -251,14 +251,14 @@ export default function MarketStateCard({
     <section className="rounded-lg border border-accent/25 bg-surface-raised p-5 space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
-          Market State
+          Gesamteinschätzung
         </h2>
-        <PanelInfo title="Market State" content={marketStateInfo} />
+        <PanelInfo title="Gesamteinschätzung" content={marketStateInfo} />
       </div>
 
       {!lastSyncOk && (
         <p className="text-xs text-down">
-          Sync-Problem — zuletzt bekannter Market State wird angezeigt.
+          Sync-Problem — zuletzt bekannte Gesamteinschätzung wird angezeigt.
         </p>
       )}
 

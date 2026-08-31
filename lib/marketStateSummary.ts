@@ -9,7 +9,7 @@ import type { MarketRegime, MarketState } from "./types";
 // diese Funktion erzeugt KEINE eigene Einschaetzung, sie fasst nur die
 // bereits vorhandenen 14-Faktoren-Werte aus market_states in einem Satz
 // zusammen. Ein einziger Rechenweg fuer "wie steht der Markt gerade da" --
-// Kurznotiz und NEXUS Assessment koennen sich dadurch nicht mehr
+// Kurznotiz und Gesamteinschätzung koennen sich dadurch nicht mehr
 // widersprechen, weil es nur noch eine Quelle gibt.
 
 // Confidence-Gate fuer die Richtungs-Label BULLISH/BEARISH (Phase 1, Punkt
@@ -53,7 +53,7 @@ export function buildCompactMarketStateSummary(state: MarketState): string {
   if (state.overall_state === "INSUFFICIENT_DATA") {
     return (
       `Marktzustand aktuell nicht auswertbar — nur ${state.data_coverage_pct.toFixed(0)}% ` +
-      `Datenabdeckung unter den 14 Faktoren. Details siehe „NEXUS Assessment" oben.`
+      `Datenabdeckung unter den 14 Faktoren. Details siehe „Gesamteinschätzung" oben.`
     );
   }
 
@@ -73,7 +73,7 @@ export function buildCompactMarketStateSummary(state: MarketState): string {
   if (riskText) {
     text += ` Risk: ${riskText}.`;
   }
-  text += " Basis: 14-Faktoren-Engine (NEXUS Assessment) — keine Anlageberatung.";
+  text += " Basis: 14-Faktoren-Engine (Gesamteinschätzung) — keine Anlageberatung.";
   return text;
 }
 

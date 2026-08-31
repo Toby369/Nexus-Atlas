@@ -609,7 +609,7 @@ export default function LivePricePanel({
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1.5">
               <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
-                Kurznotiz (NEXUS Assessment)
+                Kurznotiz (Gesamteinschätzung)
               </h2>
               <PanelInfo title="Kurznotiz" content={kurznotizInfo} />
             </div>
@@ -621,7 +621,7 @@ export default function LivePricePanel({
           <p className="text-xs text-text-faint mt-2">
             Unabhängig vom oben gewählten Zeitraum — feste, rollierende
             Kurzbetrachtung, alle 15 Minuten neu berechnet. Dieselbe Quelle
-            wie &bdquo;NEXUS Assessment&ldquo; oben — keine zweite, unabhängige
+            wie &bdquo;Gesamteinschätzung&ldquo; oben — keine zweite, unabhängige
             Einschätzung mehr (Single Source of Truth).
           </p>
         </section>
