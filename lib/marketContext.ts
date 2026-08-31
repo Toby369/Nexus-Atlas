@@ -1,3 +1,9 @@
+import type { DashboardPollBundle } from "./types";
+import { getTimeframe, type TimeframeId } from "./timeframes";
+import { SERIES_EXCHANGES } from "./exchanges";
+import { isExchangeSetConsistentOverWindow } from "./exchangeConsistency";
+import { classifySpotPressure, type SpotPressureResult } from "./spotPressure";
+
 // Regelbasierte Futures-vs-Spot Markteinordnung (kein KI-Aufruf, reine
 // Schwellenwert-Logik). Kombiniert drei unabhaengige, bereits an anderer
 // Stelle im Dashboard sichtbare Kennzahlen -- niemals eine isolierte
@@ -318,4 +324,128 @@ export function classifyMarketContext({
     (spotUnknown ? "" : confirmed ? " (spotbestätigt)" : " (ohne Spot-Bestätigung)");
 
   return { scenario, label, confirmed, explanation, bias: BIAS[scenario], dataQuality };
+}
+
+// Referenzpunkt gilt als "kein voller Zeitraum verfuegbar", wenn er mehr als
+// 15 Min spaeter liegt als angefragt -- identische Toleranz wie in
+// LivePricePanel.tsx.
+const HISTORY_GAP_TOLERANCE_MS = 15 * 60 * 1000;
+
+export interface MarketContextDerived {
+  result: MarketContextResult;
+  priceChangePct: number | null;
+  oiChangePct: number | null;
+  spotNetFlowPct: number | null;
+  spotVerdict: SpotPressureResult;
+  spotCandleCount: number;
+  expectedSpotCandles: number;
+  hasFullOiHistory: boolean;
+}
+
+// Extrahierte Herleitung aus dem geteilten DashboardPollProvider-Bundle --
+// urspruenglich nur in MarketContextCard.tsx inline berechnet. Ausgelagert,
+// damit HeroHeader.tsx (Sparten-Uebersicht) exakt dieselbe Berechnung
+// wiederverwenden kann statt sie zu duplizieren (Nutzer-Feedback vom
+// 31.08.2026: "kurze, klare, strukturierte Zusammenfassung aller Sparten" --
+// dafuer muss Marktkontext ohne Logik-Drift-Risiko an zwei Stellen
+// auswertbar sein). Mechanische Extraktion, keine Verhaltensaenderung
+// gegenueber der vorherigen Inline-Version.
+export function deriveMarketContext(
+  bundle: DashboardPollBundle,
+  timeframe: TimeframeId,
+  fetchedSinceIso: string | null,
+  fetchedAtMs: number
+): MarketContextDerived {
+  const oiSeries = bundle.oi_series;
+  const oiReference = bundle.oi_reference;
+  const spotSummary = bundle.spot_summary;
+  const exchangeFirstSeen = bundle.exchange_first_seen;
+
+  const tf = getTimeframe(timeframe);
+
+  const latestOiPoint = oiSeries.length > 0 ? oiSeries[oiSeries.length - 1] : null;
+  const oiChangePct =
+    latestOiPoint?.open_interest !== null &&
+    latestOiPoint?.open_interest !== undefined &&
+    oiReference?.open_interest !== null &&
+    oiReference?.open_interest !== undefined
+      ? ((latestOiPoint.open_interest - oiReference.open_interest) /
+          oiReference.open_interest) *
+        100
+      : null;
+
+  const priceChangePct =
+    latestOiPoint?.last_price !== null &&
+    latestOiPoint?.last_price !== undefined &&
+    oiReference?.last_price !== null &&
+    oiReference?.last_price !== undefined
+      ? ((latestOiPoint.last_price - oiReference.last_price) / oiReference.last_price) * 100
+      : null;
+
+  const sumBuy = spotSummary?.sum_taker_buy_vol ?? null;
+  const sumSell = spotSummary?.sum_taker_sell_vol ?? null;
+  const totalVol = sumBuy !== null && sumSell !== null ? sumBuy + sumSell : null;
+  const spotNetFlowPct =
+    totalVol !== null && totalVol > 0 && sumBuy !== null && sumSell !== null
+      ? ((sumBuy - sumSell) / totalVol) * 100
+      : null;
+
+  const expectedSpotCandles = Math.max(1, Math.round(tf.minutes / 5));
+  const spotCandleCount = spotSummary?.candle_count ?? 0;
+  const spotVerdict = classifySpotPressure({
+    netFlowPct: spotNetFlowPct,
+    candleCount: spotCandleCount,
+    expectedCandles: expectedSpotCandles,
+  });
+
+  const requestedSinceMs = fetchedSinceIso ? new Date(fetchedSinceIso).getTime() : null;
+  const oiReferenceMs = oiReference ? new Date(oiReference.timestamp_utc).getTime() : null;
+  const hasFullOiHistory =
+    oiReferenceMs !== null && requestedSinceMs !== null
+      ? oiReferenceMs <= requestedSinceMs + HISTORY_GAP_TOLERANCE_MS
+      : false;
+
+  const nowMs = fetchedAtMs;
+  const requestedWindowMs = requestedSinceMs !== null ? nowMs - requestedSinceMs : null;
+  const coveredWindowMs =
+    oiReferenceMs !== null && requestedSinceMs !== null
+      ? nowMs - Math.max(oiReferenceMs, requestedSinceMs)
+      : null;
+  const historyCoveragePct =
+    requestedWindowMs !== null && requestedWindowMs > 0 && coveredWindowMs !== null
+      ? Math.min(100, Math.max(0, (coveredWindowMs / requestedWindowMs) * 100))
+      : null;
+  const earliestDataAgeDays =
+    oiReferenceMs !== null ? (nowMs - oiReferenceMs) / (24 * 60 * 60 * 1000) : null;
+
+  const aggregatedExchangeIds = SERIES_EXCHANGES.filter((e) => e.id !== "aggregated").map(
+    (e) => e.id
+  );
+  const oiExchangeSetConsistent =
+    requestedSinceMs !== null && exchangeFirstSeen.length > 0
+      ? isExchangeSetConsistentOverWindow(exchangeFirstSeen, aggregatedExchangeIds, requestedSinceMs)
+      : null;
+
+  const result = classifyMarketContext({
+    priceChangePct,
+    oiChangePct,
+    spotNetFlowPct,
+    hasFullOiHistory,
+    spotDataQuality: spotVerdict.dataQuality,
+    timeframeMinutes: tf.minutes,
+    historyCoveragePct,
+    earliestDataAgeDays,
+    oiExchangeSetConsistent,
+  });
+
+  return {
+    result,
+    priceChangePct,
+    oiChangePct,
+    spotNetFlowPct,
+    spotVerdict,
+    spotCandleCount,
+    expectedSpotCandles,
+    hasFullOiHistory,
+  };
 }

@@ -3,6 +3,10 @@ import {
   regimeDirection,
   spotPressureDirection,
   summarizeConfirmation,
+  regimeArrowDirection,
+  spotPressureArrowDirection,
+  marketContextArrowDirection,
+  signArrowDirection,
   type ConfirmationSignal,
 } from "./heroSummary";
 
@@ -101,5 +105,78 @@ describe("summarizeConfirmation", () => {
     expect(result.primaryDirection).toBe("bearish");
     expect(result.confirmingCount).toBe(0);
     expect(result.totalComparable).toBe(0);
+  });
+});
+
+describe("regimeArrowDirection", () => {
+  it("TREND_EXPANSION_BULLISH -> up (unterdrueckt=false)", () => {
+    expect(regimeArrowDirection("TREND_EXPANSION_BULLISH", false)).toBe("up");
+  });
+
+  it("TREND_EXPANSION_BEARISH -> down (unterdrueckt=false)", () => {
+    expect(regimeArrowDirection("TREND_EXPANSION_BEARISH", false)).toBe("down");
+  });
+
+  it("VOLA_SQUEEZE_RANGING/HIGH_VOLA_REVERSION -> neutral (echtes, nicht gerichtetes Regime)", () => {
+    expect(regimeArrowDirection("VOLA_SQUEEZE_RANGING", false)).toBe("neutral");
+    expect(regimeArrowDirection("HIGH_VOLA_REVERSION", false)).toBe("neutral");
+  });
+
+  it("UNRESOLVED_NEUTRAL -> not_available (keine belastbare Aussage moeglich)", () => {
+    expect(regimeArrowDirection("UNRESOLVED_NEUTRAL", false)).toBe("not_available");
+  });
+
+  it("null -> not_available", () => {
+    expect(regimeArrowDirection(null, false)).toBe("not_available");
+  });
+
+  it("Confidence-Sperre ueberschreibt auch ein gerichtetes Regime -> not_available", () => {
+    expect(regimeArrowDirection("TREND_EXPANSION_BULLISH", true)).toBe("not_available");
+  });
+});
+
+describe("spotPressureArrowDirection", () => {
+  it("BUYING_PRESSURE -> up", () => {
+    expect(spotPressureArrowDirection("BUYING_PRESSURE")).toBe("up");
+  });
+
+  it("SELLING_PRESSURE -> down", () => {
+    expect(spotPressureArrowDirection("SELLING_PRESSURE")).toBe("down");
+  });
+
+  it("NEUTRAL -> neutral", () => {
+    expect(spotPressureArrowDirection("NEUTRAL")).toBe("neutral");
+  });
+
+  it("INSUFFICIENT_DATA/null -> not_available", () => {
+    expect(spotPressureArrowDirection("INSUFFICIENT_DATA")).toBe("not_available");
+    expect(spotPressureArrowDirection(null)).toBe("not_available");
+  });
+});
+
+describe("marketContextArrowDirection", () => {
+  it("scenario null (INSUFFICIENT_DATA/LOCKED) -> not_available, auch bei bias neutral", () => {
+    expect(marketContextArrowDirection(null, "neutral")).toBe("not_available");
+  });
+
+  it("echtes neutrales Szenario -> neutral", () => {
+    expect(marketContextArrowDirection("neutral", "neutral")).toBe("neutral");
+  });
+
+  it("bullisches Szenario -> up", () => {
+    expect(marketContextArrowDirection("long_buildup", "bullish")).toBe("up");
+  });
+
+  it("baerisches Szenario -> down", () => {
+    expect(marketContextArrowDirection("short_buildup", "bearish")).toBe("down");
+  });
+});
+
+describe("signArrowDirection", () => {
+  it("positiv -> up, negativ -> down, 0 -> neutral, null -> not_available", () => {
+    expect(signArrowDirection(1.2)).toBe("up");
+    expect(signArrowDirection(-0.5)).toBe("down");
+    expect(signArrowDirection(0)).toBe("neutral");
+    expect(signArrowDirection(null)).toBe("not_available");
   });
 });
