@@ -31,6 +31,8 @@ import TimeframeSelector from "@/components/TimeframeSelector";
 import AnchorPicker from "@/components/AnchorPicker";
 import DashboardLayout from "@/components/DashboardLayout";
 import DashboardPollProvider from "@/components/DashboardPollProvider";
+import HeroHeader from "@/components/HeroHeader";
+import DetailsToggle from "@/components/DetailsToggle";
 import LogoutButton from "@/components/LogoutButton";
 
 export const revalidate = 0;
@@ -444,72 +446,80 @@ export default async function Home({
 
       <section className="flex-1 px-4 sm:px-6 py-8 max-w-3xl w-full mx-auto">
         <div className="space-y-4">
-          <MarketStateCard initialState={marketState} />
-
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <p className="text-xs uppercase tracking-[0.2em] text-text-faint">
-              Zeitraum
-            </p>
-            <Suspense fallback={<div className="h-6" />}>
-              <TimeframeSelector current={timeframe} />
-            </Suspense>
-          </div>
-
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <p className="text-xs uppercase tracking-[0.2em] text-text-faint">
-              Event-Anker
-            </p>
-            <Suspense fallback={<div className="h-6" />}>
-              <AnchorPicker />
-            </Suspense>
-          </div>
-
           <DashboardPollProvider
             timeframe={timeframe}
             initialBundle={initialDashboardBundle}
             initialFetchedSinceIso={timeframeSinceIsoValue}
           >
-            <DashboardLayout
-              tiles={{
-                "market-context": <MarketContextCard timeframe={timeframe} />,
-                "regime-matrix": (
-                  <RegimeMatrixCard
-                    initialMatrix={marketStateMatrix}
-                    marketState={marketState}
-                    initialTradingViewSignal={latestTradingViewSignal}
-                    anchorIso={anchorIso}
-                    initialAnchoredSummary={anchoredSummary}
-                  />
-                ),
-                "live-price": (
-                  <LivePricePanel
-                    timeframe={timeframe}
-                    initialSnapshots={snapshots}
-                    initialMarketState={marketState}
-                    initialExchangeComparison={exchangeComparison}
-                    initialSeriesData={oiSeriesData}
-                    initialReferenceSnapshot={oiReferenceSnapshot}
-                    initialFetchedSinceIso={timeframeSinceIsoValue}
-                    initialOiByExchange={oiByExchange}
-                    anchorIso={anchorIso}
-                    initialAnchoredSummary={anchoredSummary}
-                  />
-                ),
-                "spot-pressure": <SpotPressurePanel timeframe={timeframe} />,
-                positioning: <PositioningPanel />,
-                liquidations: (
-                  <LiquidationPanel
-                    initialEvents={recentLiquidations}
-                    anchorIso={anchorIso}
-                    initialAnchoredSummary={anchoredSummary}
-                  />
-                ),
-                "etf-flow": (
-                  <EtfFlowPanel initialFlows={recentEtfFlows} macroNews={highImpactNews} />
-                ),
-                "news-risk": <NewsRiskPanel initialNews={highImpactNews} />,
-              }}
+            <HeroHeader
+              initialState={marketState}
+              initialRegime={marketStateMatrix?.regime ?? null}
+              timeframe={timeframe}
             />
+
+            <DetailsToggle>
+              <MarketStateCard initialState={marketState} />
+
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <p className="text-xs uppercase tracking-[0.2em] text-text-faint">
+                  Zeitraum
+                </p>
+                <Suspense fallback={<div className="h-6" />}>
+                  <TimeframeSelector current={timeframe} />
+                </Suspense>
+              </div>
+
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <p className="text-xs uppercase tracking-[0.2em] text-text-faint">
+                  Event-Anker
+                </p>
+                <Suspense fallback={<div className="h-6" />}>
+                  <AnchorPicker />
+                </Suspense>
+              </div>
+
+              <DashboardLayout
+                tiles={{
+                  "market-context": <MarketContextCard timeframe={timeframe} />,
+                  "regime-matrix": (
+                    <RegimeMatrixCard
+                      initialMatrix={marketStateMatrix}
+                      marketState={marketState}
+                      initialTradingViewSignal={latestTradingViewSignal}
+                      anchorIso={anchorIso}
+                      initialAnchoredSummary={anchoredSummary}
+                    />
+                  ),
+                  "live-price": (
+                    <LivePricePanel
+                      timeframe={timeframe}
+                      initialSnapshots={snapshots}
+                      initialMarketState={marketState}
+                      initialExchangeComparison={exchangeComparison}
+                      initialSeriesData={oiSeriesData}
+                      initialReferenceSnapshot={oiReferenceSnapshot}
+                      initialFetchedSinceIso={timeframeSinceIsoValue}
+                      initialOiByExchange={oiByExchange}
+                      anchorIso={anchorIso}
+                      initialAnchoredSummary={anchoredSummary}
+                    />
+                  ),
+                  "spot-pressure": <SpotPressurePanel timeframe={timeframe} />,
+                  positioning: <PositioningPanel />,
+                  liquidations: (
+                    <LiquidationPanel
+                      initialEvents={recentLiquidations}
+                      anchorIso={anchorIso}
+                      initialAnchoredSummary={anchoredSummary}
+                    />
+                  ),
+                  "etf-flow": (
+                    <EtfFlowPanel initialFlows={recentEtfFlows} macroNews={highImpactNews} />
+                  ),
+                  "news-risk": <NewsRiskPanel initialNews={highImpactNews} />,
+                }}
+              />
+            </DetailsToggle>
           </DashboardPollProvider>
         </div>
       </section>
