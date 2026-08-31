@@ -429,6 +429,12 @@ export default async function Home({
           >
             AI Reports
           </Link>
+          <Link
+            href="/account"
+            className="text-xs text-text-faint hover:text-text-muted underline decoration-dotted"
+          >
+            Konto
+          </Link>
           <p className="text-xs text-text-faint hidden sm:block">
             Datentakt: alle 5&nbsp;Minuten · Referenz: Bybit
           </p>

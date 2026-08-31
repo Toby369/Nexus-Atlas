@@ -88,6 +88,12 @@ export default async function ReportsPage() {
           >
             ← Dashboard
           </Link>
+          <Link
+            href="/account"
+            className="text-xs text-text-faint hover:text-text-muted underline decoration-dotted"
+          >
+            Konto
+          </Link>
           <LogoutButton />
         </div>
       </header>
