@@ -10,12 +10,12 @@ export interface DashboardTileMeta {
 
 export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "market-context", title: "Marktkontext" },
-  { id: "regime-matrix", title: "Market State Matrix" },
-  { id: "live-price", title: "Live-Preis & Open Interest" },
+  { id: "regime-matrix", title: "Regime-Matrix" },
+  { id: "live-price", title: "Preis & Open Interest" },
   { id: "spot-pressure", title: "Spot Pressure" },
   { id: "positioning", title: "Positionierung" },
   { id: "liquidations", title: "Liquidationen" },
-  { id: "etf-flow", title: "ETF Flows" },
+  { id: "etf-flow", title: "ETF-Flows & Makro" },
   { id: "news-risk", title: "News & Risiko" },
 ];
 
