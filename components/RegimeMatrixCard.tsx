@@ -159,9 +159,9 @@ export default function RegimeMatrixCard({
       <section className="rounded-lg border border-border bg-surface p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
-            Regime-Matrix
+            Marktphase
           </h2>
-          <PanelInfo title="Regime-Matrix" content={marketStateMatrixInfo} />
+          <PanelInfo title="Marktphase" content={marketStateMatrixInfo} />
         </div>
         <p className="text-sm text-text-faint mt-3">Noch keine Regime-Daten vorhanden.</p>
       </section>
@@ -217,7 +217,7 @@ export default function RegimeMatrixCard({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
-            Regime-Matrix
+            Marktphase
           </h2>
           {anchorIso && (
             <span
@@ -228,7 +228,7 @@ export default function RegimeMatrixCard({
             </span>
           )}
         </div>
-        <PanelInfo title="Regime-Matrix" content={marketStateMatrixInfo} />
+        <PanelInfo title="Marktphase" content={marketStateMatrixInfo} />
       </div>
 
       {!lastSyncOk && (
@@ -272,7 +272,7 @@ export default function RegimeMatrixCard({
           ) : (
             <p className="text-xs text-text-faint">
               Keine Regime-Daten für diesen Zeitpunkt verfügbar (Anker liegt vor Beginn der
-              Regime-Matrix-Historie).
+              Marktphasen-Historie).
             </p>
           )}
         </div>
@@ -284,7 +284,7 @@ export default function RegimeMatrixCard({
             {engineDivergenceStatusLabel(engineDivergence)}
           </span>
           <p className="text-xs text-down">
-            Gesamteinschätzung ist {marketStateDirectionLabel}, Regime-Matrix zeigt{" "}
+            Gesamteinschätzung ist {marketStateDirectionLabel}, Marktphase zeigt{" "}
             {regimeLabel(matrix.regime)} — zwei unabhängige Engines widersprechen sich aktuell in der
             Richtung, geringere Aussagekraft der Gesamteinschätzung.
           </p>
@@ -292,7 +292,7 @@ export default function RegimeMatrixCard({
       )}
       {engineDivergence === "AGREEMENT" && marketStateDirectionLabel && (
         <p className="text-xs text-up">
-          Gesamteinschätzung und Regime-Matrix stimmen richtungsmäßig überein (beide{" "}
+          Gesamteinschätzung und Marktphase stimmen richtungsmäßig überein (beide{" "}
           {marketStateDirectionLabel}).
         </p>
       )}

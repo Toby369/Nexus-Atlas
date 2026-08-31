@@ -10,7 +10,7 @@ export interface DashboardTileMeta {
 
 export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "market-context", title: "Marktkontext" },
-  { id: "regime-matrix", title: "Regime-Matrix" },
+  { id: "regime-matrix", title: "Marktphase" },
   { id: "live-price", title: "Preis & Open Interest" },
   { id: "spot-pressure", title: "Spot Pressure" },
   { id: "positioning", title: "Positionierung" },

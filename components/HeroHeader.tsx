@@ -134,7 +134,7 @@ export default function HeroHeader({
   const spotVerdict = classifySpotPressure({ netFlowPct, candleCount, expectedCandles });
 
   const signals: ConfirmationSignal[] = [
-    { name: "Regime Matrix", direction: regimeDirection(regime) },
+    { name: "Marktphase", direction: regimeDirection(regime) },
     { name: "Spot Pressure", direction: spotPressureDirection(spotVerdict.verdict) },
   ];
   const confirmation = summarizeConfirmation(state.overall_state, state.confidence, signals);
