@@ -455,6 +455,9 @@ export default async function Home({
               initialState={marketState}
               initialRegime={marketStateMatrix?.regime ?? null}
               timeframe={timeframe}
+              recentEtfFlows={recentEtfFlows}
+              recentLiquidations={recentLiquidations}
+              highImpactNews={highImpactNews}
             />
 
             <DetailsToggle>
