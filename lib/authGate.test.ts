@@ -17,6 +17,10 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/offline.html")).toBe(true);
   });
 
+  it("lässt den Auth-Confirm-Endpoint durch (Einladungs-/Passwort-Reset-Links, ohne Session)", () => {
+    expect(isPublicPath("/auth/confirm")).toBe(true);
+  });
+
   it("lässt PWA-Icons durch (vom Service Worker beim install-Event geladen)", () => {
     expect(isPublicPath("/icons/icon-192.png")).toBe(true);
     expect(isPublicPath("/icons/icon-512.png")).toBe(true);

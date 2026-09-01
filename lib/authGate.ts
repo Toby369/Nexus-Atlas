@@ -6,6 +6,11 @@
 
 // Exakte Pfade, die OHNE Session erreichbar bleiben muessen:
 // - /login: die Login-Seite selbst -- sonst Redirect-Schleife.
+// - /auth/confirm: serverseitiger Bestaetigungs-Endpoint fuer Einladungs-/
+//   Passwort-Reset-Mails (app/auth/confirm/route.ts, 01.09.2026) --
+//   verifiziert token_hash+type BEVOR ueberhaupt eine Session existiert;
+//   waere er hier nicht gelistet, wuerde proxy.ts den Aufruf samt Token
+//   sofort nach /login umleiten, ohne dass verifyOtp() je laeuft.
 // - /favicon.ico, /apple-icon.png, /manifest.webmanifest: von Next.js
 //   generierte Metadaten-Routen, die Browser/OS ohne jeden App-Kontext
 //   abrufen (Tab-Icon, "Zum Homescreen hinzufuegen").
@@ -19,6 +24,7 @@
 //   nicht eingeloggte Aufrufe der Login-Seite bricht.
 export const PUBLIC_EXACT_PATHS: ReadonlySet<string> = new Set([
   "/login",
+  "/auth/confirm",
   "/favicon.ico",
   "/apple-icon.png",
   "/manifest.webmanifest",
