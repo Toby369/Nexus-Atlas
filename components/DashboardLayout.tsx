@@ -132,12 +132,12 @@ export default function DashboardLayout({ tiles }: { tiles: Record<string, React
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       {/* rectSortingStrategy statt verticalListSortingStrategy: die Kacheln
-          stehen ab lg: in einem 2-spaltigen CSS-Grid nebeneinander statt nur
+          stehen ab lg: in einem 3-spaltigen CSS-Grid nebeneinander statt nur
           gestapelt -- die vertikale Strategie geht von genau einer Spalte
           aus und wuerde beim Ziehen ueber Spalten hinweg falsch positionieren
           (siehe dnd-kit-Doku: rectSortingStrategy fuer Grid-Layouts). */}
       <SortableContext items={order} strategy={rectSortingStrategy}>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
           {order.map((id, idx) => (
             <SortableTile
               key={id}
