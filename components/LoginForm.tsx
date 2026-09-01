@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseAuthBrowser } from "@/lib/supabaseAuthBrowser";
 
@@ -10,6 +10,43 @@ export default function LoginForm({ next }: { next: string }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Einladungs-/Passwort-Reset-Mails von Supabase haengen das Session-
+  // Token als URL-FRAGMENT an (#access_token=...&type=invite), niemals als
+  // Query-Param -- Fragmente werden vom Browser nie an den Server gesendet,
+  // weshalb proxy.ts (serverseitiges Auth-Gate) sie prinzipiell nicht sehen
+  // kann und jede Route ausser /login blockiert, bevor ueberhaupt Client-
+  // JS laeuft. supabaseAuthBrowser verarbeitet ein vorhandenes Fragment
+  // aber automatisch selbst (detectSessionInUrl, supabase-js-Standard) und
+  // etabliert daraus im Erfolgsfall eine Session -- ohne diesen Listener
+  // wuerde ein neu eingeladener Nutzer trotzdem auf dem leeren Login-
+  // Formular haengen bleiben, weil nichts die neue Session bemerkt und
+  // weiterleitet (siehe Bug-Report 01.09.2026: Freund landete nach Klick
+  // auf "Accept invitation" unveraendert auf /login).
+  //
+  // type=invite/recovery bekommt bewusst ein anderes Ziel als ein
+  // normaler Login: der Nutzer hat noch KEIN Passwort gesetzt (Invite)
+  // bzw. will es gerade zuruecksetzen (Recovery) -- direkt aufs Dashboard
+  // zu leiten wuerde ihn ohne je gesetztes Passwort zurücklassen, das
+  // naechste Mal koennte er sich gar nicht mehr einloggen. /account zeigt
+  // dafuer bereits ChangePasswordForm, das nur eine aktive Session
+  // braucht, kein altes Passwort.
+  useEffect(() => {
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const type = hashParams.get("type");
+    const destination = type === "invite" || type === "recovery" ? "/account" : next;
+
+    const {
+      data: { subscription },
+    } = supabaseAuthBrowser.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        router.push(destination);
+        router.refresh();
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [next, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
