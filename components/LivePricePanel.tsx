@@ -20,7 +20,6 @@ import {
   oiChangeInfo,
   btcOiChartInfo,
   kurznotizInfo,
-  exchangeComparisonInfo,
   exchangeDivergenceInfo,
   fundingRateInfo,
 } from "@/lib/panelInfo";
@@ -49,8 +48,6 @@ const EXCHANGE_LABELS: Record<string, string> = {
   bitunix: "Bitunix",
   pionex: "Pionex",
 };
-// Preisabweichung ab diesem Wert gilt als auffaellig (moeglicher Ausreisser).
-const DEVIATION_ALERT_PCT = 0.15;
 
 function formatUsd(value: number | null, decimals = 2) {
   if (value === null || Number.isNaN(value)) return "—";
@@ -151,7 +148,6 @@ export default function LivePricePanel({
   timeframe,
   initialSnapshots,
   initialMarketState,
-  initialExchangeComparison,
   initialSeriesData,
   initialReferenceSnapshot,
   initialFetchedSinceIso,
@@ -170,7 +166,6 @@ export default function LivePricePanel({
   // noch eine kompakte Textdarstellung dieser einen Quelle, siehe
   // lib/marketStateSummary.ts. Kein eigener market_commentary-Rechenweg mehr.
   initialMarketState: MarketState | null;
-  initialExchangeComparison: MarketSnapshot[];
   initialSeriesData: MarketSeriesPoint[];
   initialReferenceSnapshot: ReferenceSnapshot | null;
   initialFetchedSinceIso: string;
@@ -185,9 +180,6 @@ export default function LivePricePanel({
   // ausschliesslich Bybit als Referenzboerse.
   const [snapshots, setSnapshots] = useState(initialSnapshots);
   const [marketState, setMarketState] = useState(initialMarketState);
-  const [exchangeComparison, setExchangeComparison] = useState(
-    initialExchangeComparison
-  );
   const [isStale, setIsStale] = useState(false);
   const [lastSyncOk, setLastSyncOk] = useState(true);
   const [seriesExchange, setSeriesExchange] = useState<SeriesExchangeId>(
@@ -312,7 +304,7 @@ export default function LivePricePanel({
 
   useEffect(() => {
     const fetchLatest = async () => {
-      const [snapshotRes, marketStateRes, comparisonRes] = await Promise.all([
+      const [snapshotRes, marketStateRes] = await Promise.all([
         supabase
           .from("market_snapshots")
           .select("*")
@@ -326,13 +318,6 @@ export default function LivePricePanel({
           .order("timestamp_utc", { ascending: false })
           .limit(1)
           .maybeSingle(),
-        supabase
-          .from("market_snapshots")
-          .select("*")
-          .eq("status", "ok")
-          .in("exchange", COMPARE_EXCHANGES)
-          .order("timestamp_utc", { ascending: false })
-          .limit(40),
       ]);
 
       if (!snapshotRes.error && snapshotRes.data && snapshotRes.data.length > 0) {
@@ -344,18 +329,6 @@ export default function LivePricePanel({
 
       if (!marketStateRes.error && marketStateRes.data) {
         setMarketState(marketStateRes.data);
-      }
-
-      if (!comparisonRes.error && comparisonRes.data) {
-        const seen = new Set<string>();
-        const latest: MarketSnapshot[] = [];
-        for (const row of comparisonRes.data) {
-          if (!seen.has(row.exchange)) {
-            seen.add(row.exchange);
-            latest.push(row);
-          }
-        }
-        setExchangeComparison(latest);
       }
     };
 
@@ -627,10 +600,6 @@ export default function LivePricePanel({
         </section>
       )}
 
-      {exchangeComparison.length > 1 && (
-        <ExchangeComparisonCard snapshots={exchangeComparison} />
-      )}
-
       <ExchangeOiDivergenceCard entries={oiByExchange} tfLabel={selectedTf.label} />
 
       {anchorIso && (
@@ -676,72 +645,6 @@ export default function LivePricePanel({
         </ChartCard>
       </div>
     </div>
-  );
-}
-
-function ExchangeComparisonCard({ snapshots }: { snapshots: MarketSnapshot[] }) {
-  const reference = snapshots.find((s) => s.exchange === REFERENCE_EXCHANGE);
-  const refPrice = reference?.last_price ?? null;
-
-  // In fester Reihenfolge anzeigen, unabhaengig davon in welcher Reihenfolge
-  // die Zeilen aus der DB kamen.
-  const ordered = COMPARE_EXCHANGES.map((ex) =>
-    snapshots.find((s) => s.exchange === ex)
-  ).filter((s): s is MarketSnapshot => Boolean(s));
-
-  return (
-    <section className="rounded-lg border border-border bg-surface p-5">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
-          Börsenvergleich
-        </h2>
-        <PanelInfo title="Börsenvergleich" content={exchangeComparisonInfo} />
-      </div>
-      <div className="space-y-2">
-        {ordered.map((s) => {
-          const deviationPct =
-            refPrice && s.last_price !== null && s.exchange !== REFERENCE_EXCHANGE
-              ? ((s.last_price - refPrice) / refPrice) * 100
-              : null;
-          const isOutlier =
-            deviationPct !== null && Math.abs(deviationPct) >= DEVIATION_ALERT_PCT;
-
-          return (
-            <div
-              key={s.exchange}
-              className="flex items-center justify-between text-sm"
-            >
-              <span className="text-text-muted w-20 flex-shrink-0">
-                {EXCHANGE_LABELS[s.exchange] ?? s.exchange}
-              </span>
-              <span className="tabular font-mono text-text flex-1 text-right">
-                {s.last_price !== null ? `$${formatUsd(s.last_price)}` : "—"}
-              </span>
-              <span
-                className={`tabular font-mono text-xs w-20 text-right ${
-                  isOutlier ? "text-down" : "text-text-faint"
-                }`}
-              >
-                {deviationPct !== null
-                  ? `${deviationPct >= 0 ? "+" : ""}${deviationPct.toFixed(2)}%`
-                  : s.exchange === REFERENCE_EXCHANGE
-                  ? "Referenz"
-                  : "—"}
-              </span>
-              <span className="tabular font-mono text-xs text-text-faint w-16 text-right">
-                {s.funding_rate !== null
-                  ? `${(s.funding_rate * 100).toFixed(3)}%`
-                  : "—"}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      <p className="text-xs text-text-faint mt-3">
-        Abweichung vs. Bybit (Referenz) · rechts: Funding Rate je Börse. Bitunix
-        liefert öffentlich kein Open Interest.
-      </p>
-    </section>
   );
 }
 

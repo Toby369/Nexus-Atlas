@@ -38,7 +38,6 @@ import LogoutButton from "@/components/LogoutButton";
 export const revalidate = 0;
 
 const REFERENCE_EXCHANGE = "bybit";
-export const COMPARE_EXCHANGES = ["bybit", "binance", "okx", "bitget", "bitunix", "pionex"];
 const NEWS_LIMIT = 5;
 const NEWS_LOOKBACK_HOURS = 72;
 const LIQUIDATION_LOOKBACK_HOURS = 6;
@@ -64,32 +63,6 @@ async function getSnapshotHistory(limit = 180): Promise<MarketSnapshot[]> {
   }
 
   return (data ?? []).slice().reverse();
-}
-
-// Letzter bekannter Datenpunkt je Boerse, fuer den Boersenvergleich.
-async function getLatestPerExchange(): Promise<MarketSnapshot[]> {
-  const { data, error } = await supabase
-    .from("market_snapshots")
-    .select("*")
-    .eq("status", "ok")
-    .in("exchange", COMPARE_EXCHANGES)
-    .order("timestamp_utc", { ascending: false })
-    .limit(40);
-
-  if (error) {
-    console.error("Fehler beim Laden des Boersenvergleichs:", error.message);
-    return [];
-  }
-
-  const seen = new Set<string>();
-  const latestByExchange: MarketSnapshot[] = [];
-  for (const row of data ?? []) {
-    if (!seen.has(row.exchange)) {
-      seen.add(row.exchange);
-      latestByExchange.push(row);
-    }
-  }
-  return latestByExchange;
 }
 
 // ENTFERNT (Single-Source-of-Truth-Merge): fruehere, eigenstaendige,
@@ -367,7 +340,6 @@ export default async function Home({
 
   const [
     snapshots,
-    exchangeComparison,
     marketState,
     marketStateMatrix,
     highImpactNews,
@@ -381,7 +353,6 @@ export default async function Home({
     latestTradingViewSignal,
   ] = await Promise.all([
     getSnapshotHistory(),
-    getLatestPerExchange(),
     getLatestMarketState(),
     getLatestMarketStateMatrix(),
     getHighImpactNews(),
@@ -498,7 +469,6 @@ export default async function Home({
                       timeframe={timeframe}
                       initialSnapshots={snapshots}
                       initialMarketState={marketState}
-                      initialExchangeComparison={exchangeComparison}
                       initialSeriesData={oiSeriesData}
                       initialReferenceSnapshot={oiReferenceSnapshot}
                       initialFetchedSinceIso={timeframeSinceIsoValue}
