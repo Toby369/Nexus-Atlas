@@ -59,13 +59,13 @@ export function buildCompactMarketStateSummary(state: MarketState): string {
 
   const suppressed = isDirectionalLabelSuppressed(state);
   const stateText = suppressed
-    ? `${UNCLEAR_STATE_LABEL.toLowerCase()} (Confidence unter ${DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD}/100 für eine Richtungsaussage)`
+    ? `${UNCLEAR_STATE_LABEL.toLowerCase()} (Verlässlichkeit unter ${DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD}/100 für eine Richtungsaussage)`
     : STATE_TEXT[state.overall_state];
   const riskText = state.risk_level && state.risk_level !== "UNKNOWN" ? RISK_TEXT[state.risk_level] : null;
   const topPattern = state.patterns.length > 0 ? state.patterns[0].name : null;
 
   let text =
-    `Marktzustand ${stateText} bei ${state.confidence}/100 Confidence ` +
+    `Marktzustand ${stateText} bei ${state.confidence}/100 Verlässlichkeit ` +
     `(${state.data_coverage_pct.toFixed(0)}% Datenabdeckung).`;
   if (topPattern) {
     text += ` Muster: „${topPattern}".`;

@@ -244,8 +244,8 @@ export default function RegimeMatrixCard({
 
       {suppressDirectional ? (
         <p className="text-xs text-text-faint">
-          Berechnetes Regime war {regimeLabel(matrix.regime)}, aber die Confidence des NEXUS
-          Assessment liegt unter {DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD}/100 — für eine
+          Berechnetes Regime war {regimeLabel(matrix.regime)}, aber die Verlässlichkeit der
+          Gesamteinschätzung liegt unter {DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD}/100 — für eine
           Richtungsaussage zu unsicher, daher hier als &bdquo;{UNCLEAR_STATE_LABEL}&ldquo;
           angezeigt. Säulen-Detail unten unverändert einsehbar.
         </p>
@@ -299,7 +299,7 @@ export default function RegimeMatrixCard({
 
       {tradingViewSignal && isSignalFresh(tradingViewSignal.received_at) && (
         <span
-          title={`Externes Signal, empfangen ${tradingViewSignal.received_at} — rein informativ, fließt nicht in Score/Confidence/Regime ein.`}
+          title={`Externes Signal, empfangen ${tradingViewSignal.received_at} — rein informativ, fließt nicht in Score/Verlässlichkeit/Regime ein.`}
           className="inline-block text-[11px] px-2 py-0.5 rounded-full border border-accent/30 text-text-muted"
         >
           {formatSignalBadge(tradingViewSignal)}

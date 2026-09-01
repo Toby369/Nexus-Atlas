@@ -247,7 +247,7 @@ export default function MarketStateCard({
   // Confidence-Gate (Phase 1, Punkt 3.1 -- Q3: "Option A, nur Anzeige-
   // Ebene"): state.overall_state selbst bleibt unveraendert (Ground-Truth
   // fuer die Backtest-/Modell-Pipeline, siehe lib/marketStateSummary.ts),
-  // nur das angezeigte Label/Badge wird bei niedriger Confidence auf
+  // nur das angezeigte Label/Badge wird bei niedriger Verlaesslichkeit auf
   // "Unklar / kein Zustand" umgestellt statt Bullish/Bearish zu zeigen.
   const suppressDirectionalLabel = isDirectionalLabelSuppressed(state);
   const displayLabel = suppressDirectionalLabel
@@ -290,7 +290,7 @@ export default function MarketStateCard({
 
       {suppressDirectionalLabel && (
         <p className="text-xs text-text-faint">
-          Berechneter Zustand war {STATE_LABELS[state.overall_state]}, aber Confidence liegt unter{" "}
+          Berechneter Zustand war {STATE_LABELS[state.overall_state]}, aber Verlässlichkeit liegt unter{" "}
           {DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD}/100 — für eine Richtungsaussage zu unsicher, daher
           hier als &bdquo;{UNCLEAR_STATE_LABEL}&ldquo; angezeigt. Faktoren-Detail unten unverändert
           einsehbar.
@@ -298,7 +298,7 @@ export default function MarketStateCard({
       )}
 
       <div className="flex gap-4 text-xs text-text-faint flex-wrap">
-        <span>Confidence: {Math.round(state.confidence)}/100</span>
+        <span>Verlässlichkeit: {Math.round(state.confidence)}/100</span>
         <span>Datenabdeckung: {Math.round(state.data_coverage_pct)}%</span>
         <span>Signal-Stärke: {Math.round(confidenceBreakdown.signalStrengthPct)}%</span>
         <span>
