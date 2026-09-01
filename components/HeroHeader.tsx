@@ -281,7 +281,7 @@ export default function HeroHeader({
       </div>
 
       <div className="flex gap-4 text-xs text-text-faint flex-wrap">
-        <span>Confidence: {Math.round(state.confidence)}/100</span>
+        <span>Verlässlichkeit: {Math.round(state.confidence)}/100</span>
       </div>
 
       <p className="text-sm text-text-muted leading-relaxed">
