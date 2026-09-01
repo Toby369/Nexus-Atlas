@@ -38,10 +38,6 @@ export const kurznotizInfo = `So liest du das: Automatisch generierter Kurztext,
 
 So entsteht der Wert: Kein KI-Modell, keine freie Formulierung – reine Textzusammenfassung bereits vorhandener Werte. Wird alle 15 Minuten neu berechnet, unabhängig vom oben gewählten Zeitraum-Filter.`;
 
-export const exchangeComparisonInfo = `So liest du das: Grössere Abweichungen zwischen den Börsen können auf unterschiedliche Liquidität, regionale Nachfrage oder kurzfristige Marktineffizienzen hindeuten. Liefert eine Börse gerade keine aktuellen Daten, fehlt sie in der Liste, statt einen falschen Wert zu zeigen. Die Karte erscheint nur, wenn mindestens zwei Börsen aktuell Daten liefern.
-
-So entsteht der Wert: Zeigt Preis und Funding Rate desselben BTC-Perpetual über bis zu 6 Börsen (Bybit, Binance, OKX, Bitget, Bitunix, Pionex) im Vergleich, jeweils der letzte bekannte Datenpunkt je Börse. Die Abweichung wird in Prozent gegenüber Bybit als Referenzbörse berechnet; ab 0,15 % Abweichung wird der Wert farblich als auffällig markiert.`;
-
 export function exchangeDivergenceInfo(tfLabel: string): string {
   return `So liest du das: Bewegen sich die Börsen deutlich unterschiedlich (Divergenz), kann das auf eine Bewegung hindeuten, die nur auf einzelnen Börsen konzentriert ist statt breit vom Markt getragen zu werden – eine Divergenz ist dabei nicht automatisch bullisch oder bärisch zu werten. „UNAVAILABLE“ bei Bitunix bedeutet, dass diese Börse öffentlich kein Open Interest anbietet, kein fehlender Datenpunkt. Ein „*“ markiert Börsen, deren Historie für ${tfLabel} noch nicht vollständig zurückreicht.
 
