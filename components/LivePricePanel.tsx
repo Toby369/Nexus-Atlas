@@ -62,12 +62,14 @@ function formatPercent(value: number | null) {
   return `${(value * 100).toFixed(4)}%`;
 }
 
-// Nur fuer Chart-Tooltips (Hover-only, nie Teil des SSR-Outputs -- siehe
-// ClientTimestamp.tsx's Begruendung, warum das fuer tatsaechlich
-// gerenderten Text anders gehandhabt werden muss). formatTooltipTime von
+// Fuer Chart-Achsenbeschriftungen -- Recharts' ResponsiveContainer rendert
+// seine Kinder erst nach dem Mount (braucht die gemessene Breite/Hoehe),
+// darum ist auch dieser Text nie Teil des SSR-Outputs (siehe
+// ClientTimestamp.tsx's Begruendung, warum das fuer tatsaechlich beim SSR
+// gerenderten Text anders gehandhabt werden muesste). formatAxisTime von
 // TimeSeriesChart erwartet eine reine (string) => string Funktion, keine
 // Komponente.
-function clockTimeTooltip(iso: string) {
+function clockTimeLabel(iso: string) {
   return new Date(iso).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" });
 }
 
@@ -485,12 +487,7 @@ export default function LivePricePanel({
           <p className="text-xs text-text-muted uppercase tracking-wide mb-1">
             Preis · letzte {Math.round((priceSeries.length * 5) / 60)} Std
           </p>
-          <TimeSeriesChart
-            data={priceSeries}
-            color="#c99a5b"
-            formatValue={(v) => `$${formatUsd(v)}`}
-            formatTooltipTime={clockTimeTooltip}
-          />
+          <TimeSeriesChart data={priceSeries} color="#c99a5b" formatAxisTime={clockTimeLabel} />
         </div>
       </div>
 
@@ -636,12 +633,7 @@ export default function LivePricePanel({
           }
           info={<PanelInfo title="Funding Rate" content={fundingRateInfo} />}
         >
-          <TimeSeriesChart
-            data={fundingSeries}
-            color="#4fae7c"
-            formatValue={(v) => `${v.toFixed(4)}%`}
-            formatTooltipTime={clockTimeTooltip}
-          />
+          <TimeSeriesChart data={fundingSeries} color="#4fae7c" formatAxisTime={clockTimeLabel} />
         </ChartCard>
       </div>
     </div>
