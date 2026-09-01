@@ -1,11 +1,13 @@
 "use client";
 
+import { useState, type ReactNode } from "react";
 import PanelInfo from "@/components/PanelInfo";
 import {
   positioningRatiosInfo,
   takerFlowInfo,
   positioningAssessmentInfo,
 } from "@/lib/panelInfo";
+import type { PositioningSnapshot } from "@/lib/types";
 import { RelativeTime } from "@/components/ClientTimestamp";
 import { useDashboardPoll } from "@/components/DashboardPollProvider";
 
@@ -23,6 +25,39 @@ export default function PositioningPanel() {
   const okx = bundle.positioning_okx;
   const bitget = bundle.positioning_bitget;
   const signal = bundle.positioning_signal;
+  const [retailExpanded, setRetailExpanded] = useState(false);
+
+  // Nutzer-Feedback (01.09.2026): "Retail, Wert aller angezeigten Boersen
+  // Durchschnitt anzeigen, wenn antippen, kommt Anzeige wie aktuell" --
+  // ungewichteter Mittelwert ueber alle Boersen mit tatsaechlich
+  // vorhandener Retail-Ratio (kein erfundener Wert fuer fehlende Boersen).
+  // Bei nur einer verfuegbaren Boerse ist "Mittelwert" bedeutungslos, dann
+  // wird direkt deren Wert unter ihrem eigenen Namen gezeigt (kein Ø-Label,
+  // kein leerer Aufklapp-Pfeil ohne Inhalt).
+  const retailExchanges: { label: string; snapshot: PositioningSnapshot | null }[] = [
+    { label: "Binance", snapshot: binance },
+    { label: "Bybit", snapshot: bybit },
+    { label: "OKX", snapshot: okx },
+    { label: "Bitget", snapshot: bitget },
+  ];
+  const retailEntries = retailExchanges
+    .map(({ label, snapshot }) => ({
+      label,
+      long: snapshot?.global_long_account_ratio ?? null,
+      short: snapshot?.global_short_account_ratio ?? null,
+    }))
+    .filter(
+      (e): e is { label: string; long: number; short: number } =>
+        e.long !== null && e.short !== null
+    );
+  const retailAvgLong =
+    retailEntries.length > 0
+      ? retailEntries.reduce((sum, e) => sum + e.long, 0) / retailEntries.length
+      : null;
+  const retailAvgShort =
+    retailEntries.length > 0
+      ? retailEntries.reduce((sum, e) => sum + e.short, 0) / retailEntries.length
+      : null;
 
   if (!binance && !bybit && !okx && !bitget) {
     return (
@@ -53,39 +88,51 @@ export default function PositioningPanel() {
       )}
 
       <div className="space-y-3">
-        {binance && (
+        {retailEntries.length === 1 && (
           <RatioBar
-            label="Retail (Binance)"
-            long={binance.global_long_account_ratio}
-            short={binance.global_short_account_ratio}
+            label={`Retail (${retailEntries[0].label})`}
+            long={retailEntries[0].long}
+            short={retailEntries[0].short}
           />
+        )}
+        {retailEntries.length > 1 && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setRetailExpanded((e) => !e)}
+              aria-expanded={retailExpanded}
+              className="w-full text-left"
+            >
+              <RatioBar
+                label={`Retail (Ø ${retailEntries.length} Börsen)`}
+                long={retailAvgLong}
+                short={retailAvgShort}
+                adornment={
+                  <span className="text-text-faint text-[10px]">
+                    {retailExpanded ? "▾" : "▸"}
+                  </span>
+                }
+              />
+            </button>
+            {retailExpanded && (
+              <div className="mt-2 pl-3 border-l border-border/60 space-y-2">
+                {retailEntries.map((e) => (
+                  <RatioBar
+                    key={e.label}
+                    label={`Retail (${e.label})`}
+                    long={e.long}
+                    short={e.short}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         )}
         {binance && (
           <RatioBar
             label="Top Trader (Binance, Positionen)"
             long={binance.top_trader_long_position_ratio}
             short={binance.top_trader_short_position_ratio}
-          />
-        )}
-        {bybit && (
-          <RatioBar
-            label="Retail (Bybit)"
-            long={bybit.global_long_account_ratio}
-            short={bybit.global_short_account_ratio}
-          />
-        )}
-        {okx && (
-          <RatioBar
-            label="Retail (OKX)"
-            long={okx.global_long_account_ratio}
-            short={okx.global_short_account_ratio}
-          />
-        )}
-        {bitget && (
-          <RatioBar
-            label="Retail (Bitget)"
-            long={bitget.global_long_account_ratio}
-            short={bitget.global_short_account_ratio}
           />
         )}
       </div>
@@ -131,16 +178,21 @@ function RatioBar({
   label,
   long,
   short,
+  adornment,
 }: {
   label: string;
   long: number | null;
   short: number | null;
+  adornment?: ReactNode;
 }) {
   const longWidth = long !== null ? long * 100 : 0;
   return (
     <div>
       <div className="flex items-center justify-between text-xs mb-1">
-        <span className="text-text-muted">{label}</span>
+        <span className="text-text-muted flex items-center gap-1">
+          {label}
+          {adornment}
+        </span>
         <span className="tabular font-mono text-text-faint">
           {pct(long)} long · {pct(short)} short
         </span>
