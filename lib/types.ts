@@ -385,3 +385,16 @@ export interface MarketStateMatrix {
   data_coverage_pct: number | null;
   created_at: string;
 }
+
+// Naechster bekannter Termin je verfolgtem Wirtschaftsereignis (siehe
+// Edge Function collect-economic-calendar + lib/economicCalendar.ts fuer
+// die BTC-Einordnung je event_key). event_date ist ein reines Datum
+// (YYYY-MM-DD), keine Uhrzeit -- FRED liefert selbst keine Uhrzeit.
+export interface EconomicCalendarEvent {
+  event_key: string;
+  label: string;
+  event_date: string;
+  typical_time_et: string | null;
+  source: string;
+  updated_at: string;
+}
