@@ -12,7 +12,7 @@ import {
 } from "@dnd-kit/core";
 import {
   SortableContext,
-  verticalListSortingStrategy,
+  rectSortingStrategy,
   sortableKeyboardCoordinates,
   arrayMove,
   useSortable,
@@ -131,8 +131,13 @@ export default function DashboardLayout({ tiles }: { tiles: Record<string, React
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={order} strategy={verticalListSortingStrategy}>
-        <div className="space-y-4">
+      {/* rectSortingStrategy statt verticalListSortingStrategy: die Kacheln
+          stehen ab lg: in einem 2-spaltigen CSS-Grid nebeneinander statt nur
+          gestapelt -- die vertikale Strategie geht von genau einer Spalte
+          aus und wuerde beim Ziehen ueber Spalten hinweg falsch positionieren
+          (siehe dnd-kit-Doku: rectSortingStrategy fuer Grid-Layouts). */}
+      <SortableContext items={order} strategy={rectSortingStrategy}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
           {order.map((id, idx) => (
             <SortableTile
               key={id}
