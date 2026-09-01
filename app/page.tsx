@@ -415,7 +415,7 @@ export default async function Home({
         </div>
       </header>
 
-      <section className="flex-1 px-4 sm:px-6 py-8 max-w-3xl lg:max-w-7xl w-full mx-auto">
+      <section className="flex-1 px-4 sm:px-6 py-8 max-w-3xl lg:max-w-[1600px] w-full mx-auto">
         <div className="space-y-4">
           <DashboardPollProvider
             timeframe={timeframe}

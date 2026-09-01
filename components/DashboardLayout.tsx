@@ -54,6 +54,7 @@ function mergeOrder(saved: string[]): string[] {
 }
 
 const titleById = Object.fromEntries(DASHBOARD_TILES.map((t) => [t.id, t.title]));
+const fullWidthById = Object.fromEntries(DASHBOARD_TILES.map((t) => [t.id, Boolean(t.fullWidth)]));
 
 export default function DashboardLayout({ tiles }: { tiles: Record<string, ReactNode> }) {
   // Server-Render und erster Client-Render nutzen bewusst dieselbe
@@ -143,6 +144,7 @@ export default function DashboardLayout({ tiles }: { tiles: Record<string, React
               key={id}
               id={id}
               title={titleById[id] ?? id}
+              fullWidth={fullWidthById[id] ?? false}
               isMinimized={minimized.has(id)}
               onToggleMinimize={() => toggleMinimized(id)}
               onMoveUp={() => moveTile(id, -1)}
@@ -162,6 +164,7 @@ export default function DashboardLayout({ tiles }: { tiles: Record<string, React
 function SortableTile({
   id,
   title,
+  fullWidth,
   isMinimized,
   onToggleMinimize,
   onMoveUp,
@@ -172,6 +175,7 @@ function SortableTile({
 }: {
   id: string;
   title: string;
+  fullWidth: boolean;
   isMinimized: boolean;
   onToggleMinimize: () => void;
   onMoveUp: () => void;
@@ -185,6 +189,7 @@ function SortableTile({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+    gridColumn: fullWidth ? "1 / -1" : undefined,
   };
 
   return (
