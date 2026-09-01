@@ -633,36 +633,6 @@ export default function LivePricePanel({
 
       <ExchangeOiDivergenceCard entries={oiByExchange} tfLabel={selectedTf.label} />
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <Stat label="Mark Price" value={`$${formatUsd(latest.mark_price)}`} />
-        <Stat
-          label="Index Price"
-          value={`$${formatUsd(latest.index_price)}`}
-        />
-        <Stat
-          label="Funding Rate"
-          value={formatPercent(latest.funding_rate)}
-        />
-        <Stat
-          label="Open Interest"
-          value={`${formatUsd(latest.open_interest, 2)} BTC`}
-        />
-        <Stat
-          label="Open Interest (USD)"
-          value={`$${formatUsd(latest.open_interest_usd, 0)}`}
-        />
-        <Stat
-          label="Nächstes Funding"
-          value={
-            latest.next_funding_time_utc ? (
-              <ClockTime iso={latest.next_funding_time_utc} />
-            ) : (
-              "—"
-            )
-          }
-        />
-      </div>
-
       {anchorIso && (
         <div className="flex flex-col gap-1 text-xs pt-2 border-t border-border/60">
           <span className="text-text-faint">
@@ -682,6 +652,19 @@ export default function LivePricePanel({
       <div className="grid gap-3">
         <ChartCard
           title="Funding Rate (%)"
+          value={
+            <span
+              className={`tabular font-mono text-xs ${
+                latest.funding_rate === null
+                  ? "text-text-faint"
+                  : latest.funding_rate >= 0
+                  ? "text-up"
+                  : "text-down"
+              }`}
+            >
+              {formatPercent(latest.funding_rate)}
+            </span>
+          }
           info={<PanelInfo title="Funding Rate" content={fundingRateInfo} />}
         >
           <TimeSeriesChart
@@ -879,25 +862,16 @@ function ExchangeOiDivergenceCard({
   );
 }
 
-function Stat({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="rounded-lg border border-border bg-surface-raised p-4">
-      <p className="text-xs text-text-muted uppercase tracking-wide">
-        {label}
-      </p>
-      <p className="tabular font-mono text-lg font-medium text-text mt-1">{value}</p>
-    </div>
-  );
-}
-
 function ChartCard({
   title,
+  value,
   info,
   children,
 }: {
   title: string;
-  info?: React.ReactNode;
-  children: React.ReactNode;
+  value?: ReactNode;
+  info?: ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="rounded-lg border border-border bg-surface p-4">
@@ -905,7 +879,10 @@ function ChartCard({
         <p className="text-xs text-text-muted uppercase tracking-wide">
           {title}
         </p>
-        {info}
+        <div className="flex items-center gap-2">
+          {value}
+          {info}
+        </div>
       </div>
       {children}
     </div>
