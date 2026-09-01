@@ -6,7 +6,6 @@ import {
   Bar,
   XAxis,
   YAxis,
-  Tooltip,
   Cell,
   ReferenceLine,
 } from "recharts";
@@ -34,10 +33,6 @@ function toNetFlow(data: SpotPressurePoint[]): NetFlowPoint[] {
   }));
 }
 
-function formatBtc(value: number) {
-  return `${value >= 0 ? "+" : ""}${value.toFixed(2)} BTC`;
-}
-
 function clockOrDate(iso: string) {
   const d = new Date(iso);
   const now = Date.now();
@@ -49,7 +44,7 @@ function clockOrDate(iso: string) {
 
 export default function SpotPressureChart({
   data,
-  height = 140,
+  height = 160,
 }: {
   data: SpotPressurePoint[];
   height?: number;
@@ -90,7 +85,15 @@ export default function SpotPressureChart({
       <div style={{ height }} className="-ml-2">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={points} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
-            <XAxis dataKey="t" hide />
+            <XAxis
+              dataKey="t"
+              tickFormatter={(t) => clockOrDate(String(t))}
+              tick={{ fill: "#565c63", fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+              interval="preserveStartEnd"
+              minTickGap={40}
+            />
             <YAxis
               tickFormatter={(v) => `${v}`}
               width={40}
@@ -99,18 +102,6 @@ export default function SpotPressureChart({
               tickLine={false}
             />
             <ReferenceLine y={0} stroke="#262b31" />
-            <Tooltip
-              contentStyle={{
-                background: "#1a1e23",
-                border: "1px solid #262b31",
-                borderRadius: 8,
-                fontSize: 12,
-              }}
-              labelFormatter={(t) => clockOrDate(String(t))}
-              formatter={(value) => [formatBtc(Number(value)), "Netto-Taker-Flow"]}
-              labelStyle={{ color: "#8b9198" }}
-              itemStyle={{ color: "#e8e6e1" }}
-            />
             <Bar dataKey="net" isAnimationActive={false}>
               {points.map((p, i) => (
                 <Cell

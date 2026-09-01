@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-} from "recharts";
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis } from "recharts";
 
 interface Point {
   t: string; // ISO timestamp
@@ -17,14 +10,12 @@ interface Point {
 export default function TimeSeriesChart({
   data,
   color,
-  formatValue,
-  formatTooltipTime,
-  height = 90,
+  formatAxisTime,
+  height = 112,
 }: {
   data: Point[];
   color: string;
-  formatValue: (v: number) => string;
-  formatTooltipTime?: (t: string) => string;
+  formatAxisTime?: (t: string) => string;
   height?: number;
 }) {
   if (data.length < 2) {
@@ -50,22 +41,16 @@ export default function TimeSeriesChart({
               <stop offset="100%" stopColor={color} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <XAxis dataKey="t" hide />
-          <YAxis domain={["auto", "auto"]} hide />
-          <Tooltip
-            contentStyle={{
-              background: "#1a1e23",
-              border: "1px solid #262b31",
-              borderRadius: 8,
-              fontSize: 12,
-            }}
-            labelFormatter={(t) =>
-              formatTooltipTime ? formatTooltipTime(String(t)) : String(t)
-            }
-            formatter={(value) => [formatValue(Number(value)), ""]}
-            labelStyle={{ color: "#8b9198" }}
-            itemStyle={{ color: "#e8e6e1" }}
+          <XAxis
+            dataKey="t"
+            tickFormatter={(t) => (formatAxisTime ? formatAxisTime(String(t)) : String(t))}
+            tick={{ fill: "#565c63", fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+            interval="preserveStartEnd"
+            minTickGap={40}
           />
+          <YAxis domain={["auto", "auto"]} hide />
           <Area
             type="monotone"
             dataKey="v"

@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-} from "recharts";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis } from "recharts";
 import type { MarketSeriesPoint } from "@/lib/types";
 
 const PRICE_COLOR = "#c99a5b";
@@ -41,10 +34,6 @@ function normalize(data: MarketSeriesPoint[]): NormalizedPoint[] {
   }));
 }
 
-function formatPct(value: number) {
-  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
-}
-
 function clockOrDate(iso: string) {
   const d = new Date(iso);
   const now = Date.now();
@@ -56,7 +45,7 @@ function clockOrDate(iso: string) {
 
 export default function PriceOiComparisonChart({
   data,
-  height = 180,
+  height = 200,
 }: {
   data: MarketSeriesPoint[];
   height?: number;
@@ -97,7 +86,15 @@ export default function PriceOiComparisonChart({
       <div style={{ height }} className="-ml-2">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={points} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
-            <XAxis dataKey="t" hide />
+            <XAxis
+              dataKey="t"
+              tickFormatter={(t) => clockOrDate(String(t))}
+              tick={{ fill: "#565c63", fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+              interval="preserveStartEnd"
+              minTickGap={40}
+            />
             <YAxis
               domain={["auto", "auto"]}
               tickFormatter={(v) => `${v}%`}
@@ -105,21 +102,6 @@ export default function PriceOiComparisonChart({
               tick={{ fill: "#565c63", fontSize: 11 }}
               axisLine={false}
               tickLine={false}
-            />
-            <Tooltip
-              contentStyle={{
-                background: "#1a1e23",
-                border: "1px solid #262b31",
-                borderRadius: 8,
-                fontSize: 12,
-              }}
-              labelFormatter={(t) => clockOrDate(String(t))}
-              formatter={(value, name) => [
-                formatPct(Number(value)),
-                name === "price" ? "BTC Preis" : "Open Interest",
-              ]}
-              labelStyle={{ color: "#8b9198" }}
-              itemStyle={{ color: "#e8e6e1" }}
             />
             <Line
               type="monotone"
