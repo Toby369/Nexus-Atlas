@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import type {
   AnchoredSummary,
   DashboardPollBundle,
+  EconomicCalendarEvent,
   EtfFlowDay,
   LiquidationEvent,
   MarketSeriesPoint,
@@ -23,6 +24,7 @@ import PositioningPanel from "@/components/PositioningPanel";
 import NewsRiskPanel from "@/components/NewsRiskPanel";
 import LiquidationPanel from "@/components/LiquidationPanel";
 import EtfFlowPanel from "@/components/EtfFlowPanel";
+import EconomicCalendarPanel from "@/components/EconomicCalendarPanel";
 import SpotPressurePanel from "@/components/SpotPressurePanel";
 import MarketContextCard from "@/components/MarketContextCard";
 import MarketStateCard from "@/components/MarketStateCard";
@@ -228,6 +230,21 @@ async function getRecentEtfFlows(): Promise<EtfFlowDay[]> {
   return dedupeByDate(data ?? [], ETF_FLOW_LIMIT);
 }
 
+async function getUpcomingEconomicEvents(): Promise<EconomicCalendarEvent[]> {
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const { data, error } = await supabase
+    .from("economic_calendar_events")
+    .select("*")
+    .gte("event_date", todayIso)
+    .order("event_date", { ascending: true });
+
+  if (error) {
+    console.error("Fehler beim Laden des Wirtschaftskalenders:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
 // Serverseitig heruntergesamplete Preis/OI-Zeitreihe fuer den Standard-
 // Zeitraum, ueber dieselbe RPC wie der Client-Poll in LivePricePanel.tsx
 // (siehe dortiger Kommentar: PostgREST kappt Antworten hart bei 1000
@@ -345,6 +362,7 @@ export default async function Home({
     highImpactNews,
     recentLiquidations,
     recentEtfFlows,
+    upcomingEconomicEvents,
     oiSeriesData,
     oiReferenceSnapshot,
     dashboardBundle,
@@ -358,6 +376,7 @@ export default async function Home({
     getHighImpactNews(),
     getRecentLiquidations(),
     getRecentEtfFlows(),
+    getUpcomingEconomicEvents(),
     getMarketSeries(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getOiReferenceSnapshot(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getDashboardPollBundle(timeframeSinceIsoValue),
@@ -463,6 +482,9 @@ export default async function Home({
                       anchorIso={anchorIso}
                       initialAnchoredSummary={anchoredSummary}
                     />
+                  ),
+                  "economic-calendar": (
+                    <EconomicCalendarPanel initialEvents={upcomingEconomicEvents} />
                   ),
                   "live-price": (
                     <LivePricePanel

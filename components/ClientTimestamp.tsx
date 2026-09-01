@@ -60,6 +60,41 @@ export function ClockTime({ iso, className }: { iso: string; className?: string 
   return <span className={className}>{text ?? iso}</span>;
 }
 
+// Countdown fuer zukuenftige Termine (z.B. "in 3 Tagen", "heute") --
+// gleiche Hydration-Problematik wie RelativeTime (haengt von Date.now()
+// ab), gleiche Loesung. dateOnly=true, wenn iso ein reines Datum
+// (YYYY-MM-DD) ohne Uhrzeit ist -- dann wird auf Kalendertage statt volle
+// 24h-Bloecke gerundet (sonst wuerde "heute" oft faelschlich als bereits
+// vergangen erscheinen).
+export function formatDaysUntil(iso: string, nowMs: number, dateOnly = false): string {
+  const targetMs = dateOnly ? new Date(`${iso}T00:00:00Z`).getTime() : new Date(iso).getTime();
+  const nowRef = dateOnly ? new Date(new Date(nowMs).toISOString().slice(0, 10) + "T00:00:00Z").getTime() : nowMs;
+  const days = Math.round((targetMs - nowRef) / (24 * 60 * 60 * 1000));
+  if (days < 0) return "vergangen";
+  if (days === 0) return "heute";
+  if (days === 1) return "morgen";
+  return `in ${days} Tagen`;
+}
+
+export function DaysUntil({
+  iso,
+  dateOnly,
+  className,
+}: {
+  iso: string;
+  dateOnly?: boolean;
+  className?: string;
+}) {
+  const [text, setText] = useState<string | null>(null);
+
+  useEffect(() => {
+    const update = () => setText(formatDaysUntil(iso, Date.now(), dateOnly));
+    update();
+  }, [iso, dateOnly]);
+
+  return <span className={className}>{text ?? iso}</span>;
+}
+
 // Kurzes Datum (z.B. "28. Aug.") -- gleiche Hydration-Problematik wie
 // ClockTime (toLocaleDateString ohne explizite Zeitzone haengt vom
 // Laufzeit-Standort ab), gleiche Loesung.

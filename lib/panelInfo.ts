@@ -85,3 +85,7 @@ So entsteht der Wert: Führt fünf unabhängige Feature-Säulen (Trend: ADX/DMI 
 export const newsRiskInfo = `So liest du das: Als „markbewegend“ gilt eine Meldung ab einem Impact-Score von 75, der sich aus Kategorie (z. B. Fed, Treasury, ETF) und Keyword-Treffern ergibt. Die Einordnung ist eine automatisierte Klassifikation, keine redaktionelle Prüfung durch eine Person. Sie ist rein informativ und keine Anlageberatung.
 
 So entsteht der Wert: Zeigt markbewegende Nachrichten der letzten 72 Stunden. Quellen sind RSS-Feeds von Fed, BLS und SEC (primär, hohe Verlässlichkeit) sowie Google-News-Suchen zu BTC-Makro-Themen (Wire-Quellen, geringere Verlässlichkeit), alle 15 Minuten neu abgerufen. Kategorie und Richtung (positiv/negativ/neutral) werden regelbasiert über feste Schlüsselwortlisten bestimmt – kein KI-Modell.`;
+
+export const economicCalendarInfo = `So liest du das: Deckt gezielt die vier für BTC relevantesten US-Makrotermine ab (CPI, PCE, Nonfarm Payrolls, FOMC-Zinsentscheid) – kein vollständiger, globaler Wirtschaftskalender. Die BTC-Einordnung je Termin beschreibt die allgemein bekannte, historisch beobachtete Wirkungsrichtung, keine Prognose für den konkreten kommenden Termin und keine Anlageberatung.
+
+So entsteht der Wert: CPI/PCE/NFP-Termine kommen direkt von FRED (St. Louis Fed, fred/release/dates), der FOMC-Termin aus dem offiziell veröffentlichten Fed-Sitzungskalender. Einmal täglich aktualisiert – Kalendertermine ändern sich selten und meist mit Vorlauf.`;
