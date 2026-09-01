@@ -48,6 +48,26 @@ const RISK_FACTOR_LABELS: Record<string, string> = {
   elevated_volatility: "erhöhte Volatilität",
 };
 
+// Erklaerungstext je Risk-Factor (Nutzer-Feedback: "warn-muster erkannt:
+// kann das erklaert werden? idee: wenn ich es druecke kommt erklaerung").
+// Feste, allgemeine Erklaerung je Faktor-TYP (nicht pro Vorkommnis) --
+// dieselben fuenf Schwellenwerte/Bedingungen wie in compute-market-state
+// (Risk-Abschnitt), hier nur in Textform uebersetzt. warning_pattern ist
+// bewusst ein Meta-Signal: WELCHES der vier Muster genau vorliegt, steht
+// bereits in den Pattern-Badges darueber (eigener Hover-Tooltip je Muster).
+const RISK_FACTOR_EXPLANATIONS: Record<string, string> = {
+  warning_pattern:
+    "Mindestens eines von vier Warn-Mustern wurde erkannt: „Fragile Bullish“ (Struktur bullisch, aber Orderflow bestätigt nicht), „Distribution Warning“ (Preis nahe 20-Perioden-Hoch, aber fallender Orderflow), „Capitulation“ (RSI überverkauft + fallender Orderflow + überdurchschnittliche Liquidationen) oder „Short Squeeze“ (Positionierungs-Divergenz deutet auf Squeeze-Setup). Welches genau aktiv ist, zeigen die Muster-Badges oben (Hover für Details).",
+  low_mtf_alignment:
+    "Die Struktur über die drei Zeitrahmen 1H/4H/1D stimmt aktuell zu weniger als 60% (gewichtet) überein — die Zeitrahmen sind sich uneins, was die Gefahr einer plötzlichen Umkehr oder von Chop (richtungslosem Hin-und-Her) erhöht.",
+  funding_crowding:
+    "Die durchschnittliche Funding-Rate über alle Börsen liegt über ±0.05% — ein Zeichen für überhitzte, einseitige Positionierung (Crowding). Viele gleich positionierte Trader erhöhen das Risiko einer Liquidationskaskade/eines Squeeze in die Gegenrichtung.",
+  basis_crowding:
+    "Die Perpetual-Prämie gegenüber dem Spot-Preis (Basis) liegt über ±0.15% — dasselbe Crowding-Signal wie extreme Funding, nur über einen anderen Derivate-Kanal gemessen.",
+  elevated_volatility:
+    "Die durchschnittliche wahre Handelsspanne (ATR, 14 Perioden) liegt über 1.0% des Preises — deutlich über dem bisher beobachteten Normalbereich (Median ~0.67%). Grössere Kursausschläge sind aktuell wahrscheinlicher als üblich.",
+};
+
 const FACTOR_LABELS: Record<string, string> = {
   structure: "Struktur (1H)",
   momentum: "Momentum (RSI+MACD)",
@@ -196,6 +216,7 @@ export default function MarketStateCard({
   const [state, setState] = useState(initialState);
   const [lastSyncOk, setLastSyncOk] = useState(true);
   const [expanded, setExpanded] = useState(false);
+  const [expandedRiskFactor, setExpandedRiskFactor] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -320,15 +341,29 @@ export default function MarketStateCard({
       )}
 
       {state.risk_factors && state.risk_factors.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {state.risk_factors.map((f) => (
-            <span
-              key={f}
-              className="text-[11px] px-2 py-0.5 rounded-full border border-down/30 text-down/90"
-            >
-              {RISK_FACTOR_LABELS[f] ?? f}
-            </span>
-          ))}
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap gap-1.5">
+            {state.risk_factors.map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setExpandedRiskFactor((current) => (current === f ? null : f))}
+                aria-expanded={expandedRiskFactor === f}
+                className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
+                  expandedRiskFactor === f
+                    ? "border-down/60 bg-down/10 text-down"
+                    : "border-down/30 text-down/90 hover:border-down/50"
+                }`}
+              >
+                {RISK_FACTOR_LABELS[f] ?? f}
+              </button>
+            ))}
+          </div>
+          {expandedRiskFactor && state.risk_factors.includes(expandedRiskFactor) && (
+            <p className="text-xs text-text-muted leading-relaxed pl-0.5">
+              {RISK_FACTOR_EXPLANATIONS[expandedRiskFactor] ?? "Keine Erklärung verfügbar."}
+            </p>
+          )}
         </div>
       )}
 
