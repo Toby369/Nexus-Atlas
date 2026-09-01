@@ -762,12 +762,23 @@ function ExchangeComparisonCard({ snapshots }: { snapshots: MarketSnapshot[] }) 
   );
 }
 
+// Boersen, ueber die sich ein OI-Change-Durchschnitt ueberhaupt sinnvoll
+// bilden laesst -- Bitunix bewusst ausgeschlossen (liefert nachweislich
+// dauerhaft kein Open Interest, kein fehlender Einzelwert wie bei den
+// anderen Boersen).
+const OI_AVERAGEABLE_EXCHANGES = COMPARE_EXCHANGES.filter((ex) => ex !== "bitunix");
+
 // Zeigt OI-Change% je Boerse fuer denselben Zeitraum wie der Rest der
 // Seite -- macht sichtbar, welche Boersen tatsaechlich zur "Aggregiert"-
 // Summe im OI-Change-Kachel oben beitragen (Vorgabe: Exchange Divergence,
 // "welche Boerse treibt eine Bewegung"). Bitunix wird explizit als
 // "UNAVAILABLE" gefuehrt statt stillschweigend zu fehlen, da diese Boerse
 // nachweislich keine oeffentliche OI-Route hat (siehe collect-btc).
+//
+// Nutzer-Feedback (01.09.2026): analog zur "Retail"-Zusammenfassung in
+// Positionierung -- Standardansicht zeigt den ungewichteten Durchschnitt
+// ueber alle Boersen mit tatsaechlichem OI-Change-Wert, antippen klappt
+// die Boersen einzeln auf (bisheriges Verhalten bleibt dort unveraendert).
 function ExchangeOiDivergenceCard({
   entries,
   tfLabel,
@@ -775,8 +786,19 @@ function ExchangeOiDivergenceCard({
   entries: OiChangeByExchange[];
   tfLabel: string;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const byExchange = new Map(entries.map((e) => [e.exchange, e]));
   const anyIncomplete = entries.some((e) => !e.has_full_history);
+
+  const availableEntries = OI_AVERAGEABLE_EXCHANGES.map((ex) => byExchange.get(ex)).filter(
+    (e): e is OiChangeByExchange => !!e && e.oi_change_pct !== null
+  );
+  const avgOiChangePct =
+    availableEntries.length > 0
+      ? availableEntries.reduce((sum, e) => sum + (e.oi_change_pct as number), 0) /
+        availableEntries.length
+      : null;
+  const showAverage = availableEntries.length > 1;
 
   return (
     <section className="rounded-lg border border-border bg-surface p-5">
@@ -786,38 +808,68 @@ function ExchangeOiDivergenceCard({
         </h2>
         <PanelInfo title="OI je Börse" content={exchangeDivergenceInfo(tfLabel)} />
       </div>
-      <div className="space-y-2">
-        {COMPARE_EXCHANGES.map((ex) => {
-          const data = byExchange.get(ex);
-          const isUnavailable = ex === "bitunix";
 
-          return (
-            <div key={ex} className="flex items-center justify-between text-sm">
-              <span className="text-text-muted w-20 flex-shrink-0">
-                {EXCHANGE_LABELS[ex] ?? ex}
-              </span>
-              {isUnavailable ? (
-                <span className="tabular font-mono text-xs text-text-faint flex-1 text-right">
-                  UNAVAILABLE
+      {showAverage && (
+        <button
+          type="button"
+          onClick={() => setExpanded((e) => !e)}
+          aria-expanded={expanded}
+          className="w-full flex items-center justify-between text-sm mb-2"
+        >
+          <span className="text-text-muted flex items-center gap-1">
+            Ø {availableEntries.length} Börsen
+            <span className="text-text-faint text-[10px]">{expanded ? "▾" : "▸"}</span>
+          </span>
+          <span
+            className={`tabular font-mono ${
+              avgOiChangePct === null
+                ? "text-text-faint"
+                : avgOiChangePct >= 0
+                ? "text-up"
+                : "text-down"
+            }`}
+          >
+            {formatSignedPct(avgOiChangePct)}
+          </span>
+        </button>
+      )}
+
+      {(!showAverage || expanded) && (
+        <div
+          className={`space-y-2 ${showAverage ? "pl-3 border-l border-border/60" : ""}`}
+        >
+          {COMPARE_EXCHANGES.map((ex) => {
+            const data = byExchange.get(ex);
+            const isUnavailable = ex === "bitunix";
+
+            return (
+              <div key={ex} className="flex items-center justify-between text-sm">
+                <span className="text-text-muted w-20 flex-shrink-0">
+                  {EXCHANGE_LABELS[ex] ?? ex}
                 </span>
-              ) : data && data.oi_change_pct !== null ? (
-                <span
-                  className={`tabular font-mono flex-1 text-right ${
-                    data.oi_change_pct >= 0 ? "text-up" : "text-down"
-                  }`}
-                >
-                  {formatSignedPct(data.oi_change_pct)}
-                  {!data.has_full_history && " *"}
-                </span>
-              ) : (
-                <span className="tabular font-mono text-xs text-text-faint flex-1 text-right">
-                  —
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                {isUnavailable ? (
+                  <span className="tabular font-mono text-xs text-text-faint flex-1 text-right">
+                    UNAVAILABLE
+                  </span>
+                ) : data && data.oi_change_pct !== null ? (
+                  <span
+                    className={`tabular font-mono flex-1 text-right ${
+                      data.oi_change_pct >= 0 ? "text-up" : "text-down"
+                    }`}
+                  >
+                    {formatSignedPct(data.oi_change_pct)}
+                    {!data.has_full_history && " *"}
+                  </span>
+                ) : (
+                  <span className="tabular font-mono text-xs text-text-faint flex-1 text-right">
+                    —
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
       <p className="text-xs text-text-faint mt-3">
         Diese Börsen fliessen in &quot;Aggregiert&quot; ein. UNAVAILABLE = Börse
         bietet öffentlich kein Open Interest.
