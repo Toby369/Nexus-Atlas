@@ -89,3 +89,7 @@ So entsteht der Wert: Zeigt markbewegende Nachrichten der letzten 72 Stunden. Qu
 export const economicCalendarInfo = `So liest du das: Deckt gezielt die vier für BTC relevantesten US-Makrotermine ab (CPI, PCE, Nonfarm Payrolls, FOMC-Zinsentscheid) – kein vollständiger, globaler Wirtschaftskalender. Die BTC-Einordnung je Termin beschreibt die allgemein bekannte, historisch beobachtete Wirkungsrichtung, keine Prognose für den konkreten kommenden Termin und keine Anlageberatung.
 
 So entsteht der Wert: CPI/PCE/NFP-Termine kommen direkt von FRED (St. Louis Fed, fred/release/dates), der FOMC-Termin aus dem offiziell veröffentlichten Fed-Sitzungskalender. Einmal täglich aktualisiert – Kalendertermine ändern sich selten und meist mit Vorlauf.`;
+
+export const institutionalPlaybookInfo = `So liest du das: Ein reiner Lese-Leitfaden, keine eigene Datenquelle – zeigt, wie die bereits vorhandenen Kacheln (Gesamteinschätzung, Spot Pressure, OI Change, Liquidationen, Marktphase) sinnvoll zusammen gelesen werden können. Die Signal-Matrix greift dieselbe Long-Aufbau/Short-Aufbau/Short-Covering/Long-Abbau-Einteilung wieder auf, die auch in der Marktphasen-Kachel als „OI-Preis-Quadrant“ erscheint.
+
+So entsteht der Wert: Statischer, fest hinterlegter Text – kein KI-Modell, keine Berechnung, keine Aktualisierung nötig. Die vier Markt-Muster und die Tages-Routine sind Interpretationshilfen zur Orientierung, kein Handelssignal und keine Anlageberatung.`;

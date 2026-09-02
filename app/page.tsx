@@ -25,6 +25,7 @@ import NewsRiskPanel from "@/components/NewsRiskPanel";
 import LiquidationPanel from "@/components/LiquidationPanel";
 import EtfFlowPanel from "@/components/EtfFlowPanel";
 import EconomicCalendarPanel from "@/components/EconomicCalendarPanel";
+import InstitutionalPlaybookCard from "@/components/InstitutionalPlaybookCard";
 import SpotPressurePanel from "@/components/SpotPressurePanel";
 import MarketContextCard from "@/components/MarketContextCard";
 import MarketStateCard from "@/components/MarketStateCard";
@@ -512,6 +513,7 @@ export default async function Home({
                     <EtfFlowPanel initialFlows={recentEtfFlows} macroNews={highImpactNews} />
                   ),
                   "news-risk": <NewsRiskPanel initialNews={highImpactNews} />,
+                  "institutional-playbook": <InstitutionalPlaybookCard />,
                 }}
               />
             </DetailsToggle>
