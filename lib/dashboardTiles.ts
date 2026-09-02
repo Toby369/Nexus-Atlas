@@ -29,6 +29,10 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "liquidations", title: "Liquidationen" },
   { id: "etf-flow", title: "ETF-Flows & Makro" },
   { id: "news-risk", title: "News & Risiko" },
+  // fullWidth wie "live-price": drei Tabs mit mehreren Absaetzen je Tab
+  // waeren in einer einzelnen 1/3-Spalte zu eng/hoch fuer die Zeilen-
+  // Nachbarn (siehe fullWidth-Kommentar oben).
+  { id: "institutional-playbook", title: "Institutional Playbook", fullWidth: true },
 ];
 
 export const DASHBOARD_TILE_IDS = DASHBOARD_TILES.map((t) => t.id);
