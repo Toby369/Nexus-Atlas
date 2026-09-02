@@ -1,0 +1,104 @@
+//@version=5
+// Nexus Atlas - Order Block / Fair Value Gap
+//
+// Kombiniert zwei verwandte ICT/Smart-Money-Konzepte, die in der Praxis
+// fast immer zusammen betrachtet werden (daher ein Skript statt zwei,
+// gleiche Begruendung wie bei nexus-rsi-macd-divergence.pine fuer RSI+MACD):
+//
+// FAIR_VALUE_GAP (bullisch/baerisch): rein mechanische 3-Kerzen-Luecke --
+// Hoch der Kerze von vor 2 Bars liegt unter dem Tief der aktuellen Kerze
+// (bullisch) bzw. umgekehrt (baerisch). Kein Interpretationsspielraum, kein
+// Repainting (Vergleich ausschliesslich bereits abgeschlossener Kerzen zum
+// Bar-Close).
+//
+// ORDER_BLOCK (bullisch/baerisch): die letzte entgegengesetzt gefaerbte
+// Kerze vor einem bestaetigten Structure-Break (Schlusskurs durchbricht ein
+// vorheriges Pivot-High/-Low, dieselbe ta.pivothigh/-low-Erkennung wie in
+// nexus-liquidity-sweep.pine). Deutlich mehr Interpretationsspielraum als
+// FVG -- diese Definition ("letzte Gegenkerze vor dem Ausbruchsimpuls,
+// innerhalb obLookback Bars") ist eine von mehreren in der ICT-Community
+// gebraeuchlichen Varianten, keine "offizielle" Definition (die gibt es
+// nicht). Genau das war der Grund, warum dieses Signal in der Prioritaets-
+// liste unten in README.md zurueckgestellt wurde -- bewusst konservativ
+// parametrisiert (obLookback, pivotLen ueber input.* einstellbar) statt
+// eine einzelne "beste" Variante vorzutaeuschen.
+//
+// Luecke gegenueber Nexus Atlas: weder die 14-Faktoren-Engine noch die
+// 5-Saeulen-Regime-Matrix haben einen Struktur-/Imbalance-Faktor -- beide
+// sind zustands-/trendorientiert (siehe auch nexus-liquidity-sweep.pine).
+//
+// Setup: siehe README.md. Niemals als "Public" veroeffentlichen (Secret im
+// Klartext).
+indicator("Nexus Atlas - Order Block / FVG", overlay=true)
+
+minGapPct = input.float(0.05, title="FVG: Mindest-Luecke (%)", group="Fair Value Gap")
+
+pivotLen = input.int(5, title="OB: Pivot-Erkennungslaenge (links/rechts)", group="Order Block")
+obLookback = input.int(10, title="OB: Max. Ruecksuche nach Gegenkerze (Bars)", group="Order Block")
+
+// --- Fair Value Gap ---
+// Bullisch: aktuelles Tief liegt ueber dem Hoch von vor 2 Kerzen -- die
+// Kerze dazwischen ist der Impuls, der die Luecke erzeugt hat.
+bullFvg = low > high[2] and (low - high[2]) / high[2] >= minGapPct / 100
+// Baerisch: aktuelles Hoch liegt unter dem Tief von vor 2 Kerzen.
+bearFvg = high < low[2] and (low[2] - high) / low[2] >= minGapPct / 100
+
+if bullFvg
+    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"FAIR_VALUE_GAP_BULLISH","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+
+if bearFvg
+    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"FAIR_VALUE_GAP_BEARISH","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+
+// --- Order Block ---
+pivotHigh = ta.pivothigh(high, pivotLen, pivotLen)
+pivotLow = ta.pivotlow(low, pivotLen, pivotLen)
+
+var float lastPivotHigh = na
+var float lastPivotLow = na
+var bool bosUpFired = false
+var bool bosDownFired = false
+
+if not na(pivotHigh)
+    lastPivotHigh := pivotHigh
+    bosUpFired := false
+
+if not na(pivotLow)
+    lastPivotLow := pivotLow
+    bosDownFired := false
+
+// Structure Break: Schlusskurs durchbricht das zuletzt bestaetigte Pivot --
+// bosUpFired/bosDownFired verhindern Alert-Spam bei mehreren Bars in Folge
+// ueber/unter demselben Pivot (gleiches Muster wie highSwept/lowSwept in
+// nexus-liquidity-sweep.pine).
+bosUp = not na(lastPivotHigh) and close > lastPivotHigh and not bosUpFired
+bosDown = not na(lastPivotLow) and close < lastPivotLow and not bosDownFired
+
+if bosUp
+    bosUpFired := true
+
+if bosDown
+    bosDownFired := true
+
+hasBearishInLookback() =>
+    found = false
+    for i = 1 to obLookback
+        if close[i] < open[i]
+            found := true
+            break
+    found
+
+hasBullishInLookback() =>
+    found = false
+    for i = 1 to obLookback
+        if close[i] > open[i]
+            found := true
+            break
+    found
+
+// Nur alerten, wenn tatsaechlich eine Gegenkerze innerhalb obLookback
+// existiert -- sonst gibt es kein plausibles Order-Block-Level zu melden.
+if bosUp and hasBearishInLookback()
+    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"ORDER_BLOCK_BULLISH","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+
+if bosDown and hasBullishInLookback()
+    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"ORDER_BLOCK_BEARISH","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
