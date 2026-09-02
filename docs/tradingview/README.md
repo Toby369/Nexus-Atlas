@@ -13,6 +13,7 @@ oder der 5-Säulen-Regime-Matrix ein.
 - `nexus-squeeze-breakout.pine` — TTM-Squeeze-Release (Standard-Parameter)
 - `nexus-liquidity-sweep.pine` — Stop-Hunt-Erkennung an Swing-High/-Low
 - `nexus-rsi-macd-divergence.pine` — Regular Divergence (RSI + MACD-Histogramm getrennt)
+- `nexus-order-block-fvg.pine` — Fair Value Gap (3-Kerzen-Luecke) + Order Block (letzte Gegenkerze vor Structure Break)
 
 ## Setup (pro Skript identisch)
 
@@ -78,6 +79,31 @@ zu nah/weit auseinanderliegende Pivots). RSI und MACD-Histogramm werden
 einer Blackbox-Kombination zusammengeführt — so bleibt im Badge sichtbar,
 welcher Oszillator die Divergenz zeigt.
 
+## Order Block / Fair Value Gap — Implementierungsnotizen
+
+Als Nummer 3 der Prioritätsliste umgesetzt, in einem Skript kombiniert
+(gleiche Begründung wie bei RSI+MACD: werden in der Praxis fast immer
+zusammen betrachtet).
+
+**Fair Value Gap** (`FAIR_VALUE_GAP_BULLISH`/`FAIR_VALUE_GAP_BEARISH`): rein
+mechanischer 3-Kerzen-Vergleich (`low > high[2]` bzw. `high < low[2]`, mit
+einstellbarer Mindest-Lückengröße `minGapPct` gegen Rauschen aus winzigen
+Lücken). Kein Pivot, keine Verzögerung über den Bar-Close hinaus, kein
+Interpretationsspielraum.
+
+**Order Block** (`ORDER_BLOCK_BULLISH`/`ORDER_BLOCK_BEARISH`): nutzt
+dieselbe `ta.pivothigh`/`ta.pivotlow`-Erkennung wie `nexus-liquidity-
+sweep.pine` für einen bestätigten Structure Break (Schlusskurs durchbricht
+das zuletzt bestätigte Pivot), sucht dann rückwärts innerhalb `obLookback`
+Bars die letzte entgegengesetzt gefärbte Kerze — deren Bereich gilt als
+Order-Block-Zone. Es gibt keine einheitliche "offizielle" ICT-Definition
+für Order Blocks; diese Variante ist bewusst mechanisch und konservativ
+gehalten (fester Lookback statt unbegrenzter Rücksuche, `bosUpFired`/
+`bosDownFired`-Flags gegen Alert-Spam wie bei Liquidity Sweep) statt eine
+einzelne "beste" Interpretation vorzutäuschen — wer eine andere Definition
+bevorzugt, kann `obLookback`/`pivotLen` anpassen oder die Order-Block-Logik
+im Skript ersetzen, ohne die FVG-Hälfte zu berühren.
+
 ## Priorisierung der Alert-Typen (Begründung)
 
 Rangfolge nach Mehrwert/Lückenfüller-Grad gegenüber den bestehenden 14
@@ -96,10 +122,13 @@ Faktoren (`compute-market-state`) und der 5-Säulen-Regime-Matrix:
    keine explizite Divergenz-Erkennung (Preis macht neues Hoch,
    Momentum-Indikator nicht). Divergenz ist eine andere Dimension als der
    reine Momentum-Level und damit ein echter Zusatz, kein Duplikat.
-3. **Order Block / Fair Value Gap (ICT-Methodik)** — noch offen. Verbreitet
-   bei Pro-/Prop-Tradern, aber komplexer zu robustem Pine-Code zu bringen
-   (viele Interpretationsspielräume, mehr Parameter-Tuning nötig) und
-   liefert tendenziell mehr Rauschen als Signal ohne manuelle Kuratierung.
+3. **Order Block / Fair Value Gap (ICT-Methodik)** ✅ umgesetzt — Fair Value
+   Gap ist eine rein mechanische 3-Kerzen-Lücke ohne Interpretations-
+   spielraum. Order Block dagegen bewusst konservativ als "letzte Gegenkerze
+   vor einem bestätigten Structure-Break" definiert, mit einstellbarem
+   Lookback-Fenster — es gibt keine "offizielle" ICT-Definition, andere
+   Varianten sind möglich, aber diese ist mechanisch nachvollziehbar statt
+   eine einzelne "beste" Interpretation vorzutäuschen.
 
 **Nicht empfohlen als Ergänzung:** MTF-EMA-Alignment und CVD-Divergenz —
 beide inhaltlich bereits von Nexus intern abgedeckt (MTF-Alignment bzw.
