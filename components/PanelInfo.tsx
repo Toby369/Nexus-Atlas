@@ -17,9 +17,14 @@ import { useEffect, useRef, useState } from "react";
 export default function PanelInfo({
   title,
   content,
+  className = "",
 }: {
   title: string;
   content: string;
+  // Optionaler Zusatz-Abstand fuer Stellen, an denen das Icon direkt hinter
+  // Fliesstext/einem anderen Badge sitzt statt in einem eigenen Flex-Header
+  // (z.B. je Faktor-/Kennzahl-Zeile in MarketStateCard/RegimeMatrixCard).
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -51,7 +56,7 @@ export default function PanelInfo({
   }, [open]);
 
   return (
-    <div ref={containerRef} className="relative inline-block leading-none">
+    <div ref={containerRef} className={`relative inline-block leading-none ${className}`}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}

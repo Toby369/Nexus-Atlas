@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { MarketState } from "@/lib/types";
 import PanelInfo from "@/components/PanelInfo";
-import { marketStateInfo } from "@/lib/panelInfo";
+import { marketStateInfo, MARKET_STATE_FACTOR_INFO } from "@/lib/panelInfo";
 import {
   isDirectionalLabelSuppressed,
   UNCLEAR_STATE_LABEL,
@@ -394,6 +394,9 @@ export default function MarketStateCard({
                       <span className="text-text-muted">{FACTOR_LABELS[key] ?? key}: </span>
                       <span className={factorColor(factor.value)}>{factorLabel(factor.value)}</span>
                       {rawValue && <span className="text-text-faint"> ({rawValue})</span>}
+                      {MARKET_STATE_FACTOR_INFO[key] && (
+                        <PanelInfo title={FACTOR_LABELS[key] ?? key} content={MARKET_STATE_FACTOR_INFO[key]} className="ml-1" />
+                      )}
                     </div>
                   );
                 })}

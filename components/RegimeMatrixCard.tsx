@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { AnchoredSummary, MarketState, MarketStateMatrix, TradingViewSignal } from "@/lib/types";
 import PanelInfo from "@/components/PanelInfo";
-import { marketStateMatrixInfo } from "@/lib/panelInfo";
+import { marketStateMatrixInfo, REGIME_MATRIX_METRIC_INFO } from "@/lib/panelInfo";
 import { formatAnchorBadge } from "@/lib/anchor";
 import {
   DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD,
@@ -367,6 +367,7 @@ export default function RegimeMatrixCard({
             <span className="text-text-muted">ADX (14): </span>
             <span className="text-text">{fmtNum(matrix.adx_14, 1)}</span>
             <SignalBadge direction={trendDirection} />
+            <PanelInfo title="ADX (14)" content={REGIME_MATRIX_METRIC_INFO.adx} className="ml-1" />
           </div>
           <div>
             <span className="text-text-muted">+DI / −DI: </span>
@@ -374,15 +375,18 @@ export default function RegimeMatrixCard({
               {fmtNum(matrix.plus_di, 1)} / {fmtNum(matrix.minus_di, 1)}
             </span>
             <SignalBadge direction={trendDirection} />
+            <PanelInfo title="+DI / −DI" content={REGIME_MATRIX_METRIC_INFO.di} className="ml-1" />
           </div>
           <div>
             <span className="text-text-muted">Regressionssteigung: </span>
             <span className="text-text">{fmtNum(matrix.linreg_slope, 2)}</span>
             <SignalBadge direction={trendDirection} />
+            <PanelInfo title="Regressionssteigung" content={REGIME_MATRIX_METRIC_INFO.slope} className="ml-1" />
           </div>
           <div>
             <span className="text-text-muted">R²: </span>
             <span className="text-text">{fmtNum(matrix.linreg_r2, 2)}</span>
+            <PanelInfo title="R²" content={REGIME_MATRIX_METRIC_INFO.r2} className="ml-1" />
           </div>
 
           <div className="col-span-2 text-text-faint uppercase tracking-[0.1em] text-[10px] mt-1">
@@ -391,19 +395,23 @@ export default function RegimeMatrixCard({
           <div>
             <span className="text-text-muted">Garman-Klass Vol: </span>
             <span className="text-text">{fmtNum(matrix.garman_klass_vol, 4)}</span>
+            <PanelInfo title="Garman-Klass Vol" content={REGIME_MATRIX_METRIC_INFO.garmanKlassVol} className="ml-1" />
           </div>
           <div>
             <span className="text-text-muted">Bollinger-Breite: </span>
             <span className="text-text">{fmtNum(matrix.bb_width, 3)}</span>
+            <PanelInfo title="Bollinger-Breite" content={REGIME_MATRIX_METRIC_INFO.bbWidth} className="ml-1" />
           </div>
           <div>
             <span className="text-text-muted">Bollinger %b: </span>
             <span className="text-text">{fmtNum(matrix.bb_percent_b, 2)}</span>
             <SignalBadge direction={bbPercentBDir} />
+            <PanelInfo title="Bollinger %b" content={REGIME_MATRIX_METRIC_INFO.bbPercentB} className="ml-1" />
           </div>
           <div>
             <span className="text-text-muted">ATR-Ratio: </span>
             <span className="text-text">{fmtNum(matrix.atr_ratio, 2)}</span>
+            <PanelInfo title="ATR-Ratio" content={REGIME_MATRIX_METRIC_INFO.atrRatio} className="ml-1" />
           </div>
 
           <div className="col-span-2 text-text-faint uppercase tracking-[0.1em] text-[10px] mt-1">
@@ -413,21 +421,25 @@ export default function RegimeMatrixCard({
             <span className="text-text-muted">RSI (14): </span>
             <span className="text-text">{fmtNum(matrix.rsi_14, 1)}</span>
             <SignalBadge direction={rsiDir} />
+            <PanelInfo title="RSI (14)" content={REGIME_MATRIX_METRIC_INFO.rsi} className="ml-1" />
           </div>
           <div>
             <span className="text-text-muted">Dist.-Z SMA20: </span>
             <span className="text-text">{fmtNum(matrix.dist_zscore_sma20, 2)}</span>
             <SignalBadge direction={distZ20Dir} />
+            <PanelInfo title="Dist.-Z SMA20" content={REGIME_MATRIX_METRIC_INFO.distZ20} className="ml-1" />
           </div>
           <div>
             <span className="text-text-muted">Dist.-Z SMA50: </span>
             <span className="text-text">{fmtNum(matrix.dist_zscore_sma50, 2)}</span>
             <SignalBadge direction={distZ50Dir} />
+            <PanelInfo title="Dist.-Z SMA50" content={REGIME_MATRIX_METRIC_INFO.distZ50} className="ml-1" />
           </div>
           <div>
             <span className="text-text-muted">Dist.-Z SMA200: </span>
             <span className="text-text">{fmtNum(matrix.dist_zscore_sma200, 2)}</span>
             <SignalBadge direction={distZ200Dir} />
+            <PanelInfo title="Dist.-Z SMA200" content={REGIME_MATRIX_METRIC_INFO.distZ200} className="ml-1" />
           </div>
 
           <div className="col-span-2 text-text-faint uppercase tracking-[0.1em] text-[10px] mt-1">
@@ -437,20 +449,24 @@ export default function RegimeMatrixCard({
             <span className="text-text-muted">Funding-Z-Score: </span>
             <span className="text-text">{fmtNum(matrix.funding_zscore, 2)}</span>
             <SignalBadge direction={fundingZDir} />
+            <PanelInfo title="Funding-Z-Score" content={REGIME_MATRIX_METRIC_INFO.fundingZ} className="ml-1" />
           </div>
           <div>
             <span className="text-text-muted">CVD-Z-Score: </span>
             <span className="text-text">{fmtNum(matrix.cvd_zscore, 2)}</span>
             <SignalBadge direction={cvdZDir} />
+            <PanelInfo title="CVD-Z-Score" content={REGIME_MATRIX_METRIC_INFO.cvdZ} className="ml-1" />
           </div>
           <div>
             <span className="text-text-muted">Preis-Δ (6h): </span>
             <span className="text-text">{fmtPct(matrix.price_change_pct)}</span>
             <SignalBadge direction={priceChangeDir} />
+            <PanelInfo title="Preis-Δ (6h)" content={REGIME_MATRIX_METRIC_INFO.priceChange} className="ml-1" />
           </div>
           <div>
             <span className="text-text-muted">OI-Δ (6h): </span>
             <span className="text-text">{fmtPct(matrix.oi_change_pct)}</span>
+            <PanelInfo title="OI-Δ (6h)" content={REGIME_MATRIX_METRIC_INFO.oiChange} className="ml-1" />
           </div>
           <div className="col-span-2">
             <span className="text-text-muted">OI/Preis-Quadrant: </span>
@@ -460,6 +476,7 @@ export default function RegimeMatrixCard({
                 : "—"}
             </span>
             <SignalBadge direction={quadrantDir} />
+            <PanelInfo title="OI/Preis-Quadrant" content={REGIME_MATRIX_METRIC_INFO.oiPriceQuadrant} className="ml-1" />
           </div>
 
           <div className="col-span-2 text-text-faint uppercase tracking-[0.1em] text-[10px] mt-1">
@@ -468,11 +485,13 @@ export default function RegimeMatrixCard({
           <div>
             <span className="text-text-muted">Liq.-Cluster-Density: </span>
             <span className="text-text">{fmtNum(matrix.liq_cluster_density, 2)}</span>
+            <PanelInfo title="Liq.-Cluster-Density" content={REGIME_MATRIX_METRIC_INFO.liqClusterDensity} className="ml-1" />
           </div>
           <div>
             <span className="text-text-muted">Net-Taker-Flow: </span>
             <span className="text-text">{fmtNum(matrix.net_taker_flow_ratio, 3)}</span>
             <SignalBadge direction={netTakerFlowDir} />
+            <PanelInfo title="Net-Taker-Flow" content={REGIME_MATRIX_METRIC_INFO.netTakerFlow} className="ml-1" />
           </div>
         </div>
       )}
