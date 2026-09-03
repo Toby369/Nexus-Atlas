@@ -17,6 +17,14 @@ import {
   regimeColorClass,
   shouldSuppressRegimeDirectionalLabel,
   computeEngineDivergence,
+  trendVerdict,
+  signDirection,
+  rsiDirection,
+  bbPercentBDirection,
+  quadrantDirection,
+  SIGNAL_DIRECTION_LABEL,
+  SIGNAL_DIRECTION_COLOR,
+  type SignalDirection,
 } from "@/lib/marketRegime";
 import {
   TRADINGVIEW_SIGNAL_FRESHNESS_HOURS,
@@ -47,6 +55,17 @@ function fmtPct(v: number | null): string {
   if (v === null) return "—";
   const sign = v >= 0 ? "+" : "";
   return `${sign}${v.toFixed(2)}%`;
+}
+
+// Richtungs-Badge hinter einer Saeulen-Kennzahl (siehe lib/marketRegime.ts
+// fuer die Herleitung pro Kennzahl) -- gleiche farbliche Sprache wie
+// factorColor/factorLabel in MarketStateCard.tsx.
+function SignalBadge({ direction }: { direction: SignalDirection }) {
+  return (
+    <span className={`ml-1 ${SIGNAL_DIRECTION_COLOR[direction]}`}>
+      ({SIGNAL_DIRECTION_LABEL[direction]})
+    </span>
+  );
 }
 
 async function fetchLatestMatrix(): Promise<{ data: MarketStateMatrix | null; ok: boolean }> {
@@ -213,6 +232,21 @@ export default function RegimeMatrixCard({
     : null;
   const anchorRegimeChanged = anchorRegimeLabel !== null && anchorRegimeLabel !== displayLabel;
 
+  // Richtungs-Badges fuer die Saeulen-Kennzahlen (siehe lib/marketRegime.ts
+  // fuer die Herleitung je Kennzahl) -- einmal berechnet statt in der JSX
+  // wiederholt.
+  const trendDirection = trendVerdict(matrix.adx_14, matrix.plus_di, matrix.minus_di, matrix.linreg_slope);
+  const bbPercentBDir = bbPercentBDirection(matrix.bb_percent_b);
+  const rsiDir = rsiDirection(matrix.rsi_14);
+  const distZ20Dir = signDirection(matrix.dist_zscore_sma20, 0.25);
+  const distZ50Dir = signDirection(matrix.dist_zscore_sma50, 0.25);
+  const distZ200Dir = signDirection(matrix.dist_zscore_sma200, 0.25);
+  const fundingZDir = signDirection(matrix.funding_zscore, 0.25);
+  const cvdZDir = signDirection(matrix.cvd_zscore, 0.25);
+  const priceChangeDir = signDirection(matrix.price_change_pct);
+  const quadrantDir = quadrantDirection(matrix.oi_price_quadrant);
+  const netTakerFlowDir = signDirection(matrix.net_taker_flow_ratio, 0.05);
+
   return (
     <section className="rounded-lg border border-border bg-surface p-5 space-y-3">
       <div className="flex items-center justify-between">
@@ -332,16 +366,19 @@ export default function RegimeMatrixCard({
           <div>
             <span className="text-text-muted">ADX (14): </span>
             <span className="text-text">{fmtNum(matrix.adx_14, 1)}</span>
+            <SignalBadge direction={trendDirection} />
           </div>
           <div>
             <span className="text-text-muted">+DI / −DI: </span>
             <span className="text-text">
               {fmtNum(matrix.plus_di, 1)} / {fmtNum(matrix.minus_di, 1)}
             </span>
+            <SignalBadge direction={trendDirection} />
           </div>
           <div>
             <span className="text-text-muted">Regressionssteigung: </span>
             <span className="text-text">{fmtNum(matrix.linreg_slope, 2)}</span>
+            <SignalBadge direction={trendDirection} />
           </div>
           <div>
             <span className="text-text-muted">R²: </span>
@@ -362,6 +399,7 @@ export default function RegimeMatrixCard({
           <div>
             <span className="text-text-muted">Bollinger %b: </span>
             <span className="text-text">{fmtNum(matrix.bb_percent_b, 2)}</span>
+            <SignalBadge direction={bbPercentBDir} />
           </div>
           <div>
             <span className="text-text-muted">ATR-Ratio: </span>
@@ -374,18 +412,22 @@ export default function RegimeMatrixCard({
           <div>
             <span className="text-text-muted">RSI (14): </span>
             <span className="text-text">{fmtNum(matrix.rsi_14, 1)}</span>
+            <SignalBadge direction={rsiDir} />
           </div>
           <div>
             <span className="text-text-muted">Dist.-Z SMA20: </span>
             <span className="text-text">{fmtNum(matrix.dist_zscore_sma20, 2)}</span>
+            <SignalBadge direction={distZ20Dir} />
           </div>
           <div>
             <span className="text-text-muted">Dist.-Z SMA50: </span>
             <span className="text-text">{fmtNum(matrix.dist_zscore_sma50, 2)}</span>
+            <SignalBadge direction={distZ50Dir} />
           </div>
           <div>
             <span className="text-text-muted">Dist.-Z SMA200: </span>
             <span className="text-text">{fmtNum(matrix.dist_zscore_sma200, 2)}</span>
+            <SignalBadge direction={distZ200Dir} />
           </div>
 
           <div className="col-span-2 text-text-faint uppercase tracking-[0.1em] text-[10px] mt-1">
@@ -394,14 +436,17 @@ export default function RegimeMatrixCard({
           <div>
             <span className="text-text-muted">Funding-Z-Score: </span>
             <span className="text-text">{fmtNum(matrix.funding_zscore, 2)}</span>
+            <SignalBadge direction={fundingZDir} />
           </div>
           <div>
             <span className="text-text-muted">CVD-Z-Score: </span>
             <span className="text-text">{fmtNum(matrix.cvd_zscore, 2)}</span>
+            <SignalBadge direction={cvdZDir} />
           </div>
           <div>
             <span className="text-text-muted">Preis-Δ (6h): </span>
             <span className="text-text">{fmtPct(matrix.price_change_pct)}</span>
+            <SignalBadge direction={priceChangeDir} />
           </div>
           <div>
             <span className="text-text-muted">OI-Δ (6h): </span>
@@ -414,6 +459,7 @@ export default function RegimeMatrixCard({
                 ? QUADRANT_LABELS[matrix.oi_price_quadrant] ?? matrix.oi_price_quadrant
                 : "—"}
             </span>
+            <SignalBadge direction={quadrantDir} />
           </div>
 
           <div className="col-span-2 text-text-faint uppercase tracking-[0.1em] text-[10px] mt-1">
@@ -426,6 +472,7 @@ export default function RegimeMatrixCard({
           <div>
             <span className="text-text-muted">Net-Taker-Flow: </span>
             <span className="text-text">{fmtNum(matrix.net_taker_flow_ratio, 3)}</span>
+            <SignalBadge direction={netTakerFlowDir} />
           </div>
         </div>
       )}
