@@ -8,6 +8,13 @@
 // ADX-Trend-Staerke einen Trend-Filter, aber keinen Volumen-Filter fuer
 // Ausbrueche.
 //
+// HTF-Trendfilter (optional, Default an): Breakout muss mit dem 1h-Trend
+// (EMA50 vs. EMA200 auf 1h) uebereinstimmen. Sinnvoll hier, weil ein
+// Ausbruch MIT dem uebergeordneten Trend statistisch die hoehere
+// Trefferquote hat als ein Gegentrend-Ausbruch -- anders als bei
+// Reversal-Signalen (siehe nexus-liquidity-sweep.pine,
+// nexus-rsi-macd-divergence.pine), die bewusst OHNE diesen Filter bleiben.
+//
 // Setup: Indikator zu einem BTCUSDT-Chart hinzufuegen, dann ueber
 // "Alarm erstellen" -> Bedingung "Nexus Atlas - Volume Expansion Alert" ->
 // "Beliebiger alert()-Funktionsaufruf" -> unter "Benachrichtigungen" die
@@ -18,11 +25,18 @@ indicator("Nexus Atlas - Volume Expansion Alert", overlay=true)
 
 volMultiplier = input.float(2.0, title="Volumen-Multiplikator (x MA)")
 length = input.int(20, title="MA Periode")
+htfTrendFilter = input.bool(true, title="Nur mit 1h-Trend (EMA50/EMA200)")
 
 avgVol = ta.sma(volume, length)
 isHighVol = volume > (avgVol * volMultiplier)
-isBreakoutUp = ta.crossover(close, ta.highest(high[1], length)) and isHighVol
-isBreakoutDown = ta.crossunder(close, ta.lowest(low[1], length)) and isHighVol
+
+htfEma50 = request.security(syminfo.tickerid, "60", ta.ema(close, 50), lookahead=barmerge.lookahead_off)
+htfEma200 = request.security(syminfo.tickerid, "60", ta.ema(close, 200), lookahead=barmerge.lookahead_off)
+htfBullish = htfEma50 > htfEma200
+htfBearish = htfEma50 < htfEma200
+
+isBreakoutUp = ta.crossover(close, ta.highest(high[1], length)) and isHighVol and (not htfTrendFilter or htfBullish)
+isBreakoutDown = ta.crossunder(close, ta.lowest(low[1], length)) and isHighVol and (not htfTrendFilter or htfBearish)
 
 // Ticker bewusst hartcodiert statt syminfo.ticker: syminfo.ticker variiert
 // je nach Chart/Exchange (z.B. "BTCUSDT.P" bei manchen Perp-Listings) --

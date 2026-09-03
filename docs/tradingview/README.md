@@ -104,6 +104,61 @@ einzelne "beste" Interpretation vorzutäuschen — wer eine andere Definition
 bevorzugt, kann `obLookback`/`pivotLen` anpassen oder die Order-Block-Logik
 im Skript ersetzen, ohne die FVG-Hälfte zu berühren.
 
+## HTF-Trendfilter (1h) — Ergänzung für Intraday-Entries
+
+Auf Wunsch für Intraday-Trading mit 15m-Entry ergänzt: ein optionaler Filter
+(`input.bool`, Default an), der prüft, ob der 1h-Trend (`EMA50` vs. `EMA200`
+auf `request.security(syminfo.tickerid, "60", ...)`) mit der Signal-Richtung
+übereinstimmt. Zweck: weniger Gegentrend-Rauschen bei 15m-Alerts, ohne den
+15m-Chart als Entry-Timeframe aufzugeben.
+
+**Nicht** auf alle 6 Skripte pauschal angewendet — nur auf die drei
+Trendfortsetzungs-/Breakout-Signale, wo "mit dem übergeordneten Trend" eine
+höhere Trefferquote erwarten lässt:
+
+- ✅ `nexus-volume-expansion.pine` (Breakout mit Volumen-Bestätigung)
+- ✅ `nexus-squeeze-breakout.pine` (Volatilitäts-Release, gerichteter Impuls)
+- ✅ `nexus-order-block-fvg.pine` — nur die **FVG**-Hälfte (Impuls-Lücke in
+  Trendrichtung); die **Order-Block**-Hälfte bleibt ungefiltert, da sie an
+  einen Structure Break gekoppelt ist, der oft gerade den Beginn eines neuen
+  Trends markiert.
+
+Bewusst **ohne** Filter, weil es Reversal-/Erschöpfungssignale sind — ein
+Filter "nur mit übergeordnetem Trend" würde hier genau die Fälle
+unterdrücken, die das Signal fangen soll:
+
+- ❌ `nexus-liquidity-sweep.pine` (Sweep = Reversal-Hinweis, typischerweise
+  gegen den bestehenden Trend)
+- ❌ `nexus-rsi-macd-divergence.pine` (Divergenz = Momentum-Erschöpfung
+  während eines bestehenden Trends)
+- ❌ `nexus-vwap-stretch.pine` (Überdehnung = Erschöpfung, gleiche Logik)
+
+Kein Widerspruch zum "Nicht empfohlen"-Punkt unten (MTF-EMA-Alignment als
+eigener Signal-Typ): dort geht es um einen zusätzlichen, eigenständigen
+Badge-Typ (redundant zu Nexus' MTF-Alignment). Hier ist der 1h-EMA-Vergleich
+nur ein interner Filter innerhalb bestehender Signale, kein neuer,
+sichtbarer Signal-Typ.
+
+## Parameter verschärft (Rauschfilter, Ergänzung zum HTF-Filter)
+
+Zweiter Rauschfilter-Schritt, diesmal für die Reversal-Signale, die den
+HTF-Filter oben bewusst nicht bekommen haben (der würde dort das Signal
+selbst kaputtmachen):
+
+- **`nexus-liquidity-sweep.pine`**: `minWickPct` 0.05% → 0.12%.
+- **`nexus-vwap-stretch.pine`**: `stretchMult` 2.0 → 2.75 Stddev.
+- **`nexus-rsi-macd-divergence.pine`**: neuer Parameter `minPriceMovePct`
+  (Default 0.1%) — bisher zählte jedes neue Preis-Extremum als Divergenz-
+  Kandidat, egal wie knapp über/unter dem vorherigen. Verlangt jetzt einen
+  spürbaren Abstand (gleiche Prozent-Konvention wie `minGapPct`/
+  `minWickPct`), sowohl für die RSI- als auch die MACD-Histogramm-Hälfte.
+- **`nexus-order-block-fvg.pine`**: `minGapPct` 0.05% → 0.12% (FVG-Hälfte),
+  `obLookback` 10 → 6 Bars (OB-Hälfte, engerer Ruecksuche-Radius für
+  zeitliche Nähe zum Structure Break).
+
+Alle vier Werte sind weiterhin über `input.*` änderbar — die neuen Defaults
+sind eine Kalibrierung, kein Dogma.
+
 ## Priorisierung der Alert-Typen (Begründung)
 
 Rangfolge nach Mehrwert/Lückenfüller-Grad gegenüber den bestehenden 14

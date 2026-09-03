@@ -27,21 +27,40 @@
 // 5-Saeulen-Regime-Matrix haben einen Struktur-/Imbalance-Faktor -- beide
 // sind zustands-/trendorientiert (siehe auch nexus-liquidity-sweep.pine).
 //
+// HTF-Trendfilter (optional, Default an) -- NUR fuer FVG, nicht fuer Order
+// Block: eine FVG ist eine Impuls-/Trendfortsetzungs-Luecke (haeufiger und
+// zuverlaessiger MIT dem uebergeordneten Trend), waehrend Order Block per
+// Definition direkt an einen Structure Break gekoppelt ist -- der markiert
+// haeufig gerade den Beginn eines neuen (Gegen-)Trends. Ein htf-Filter
+// wuerde dort genau die Faelle unterdruecken, die das Signal eigentlich
+// zeigen soll. Gleiche Ueberlegung wie bei den Reversal-Signalen in
+// nexus-liquidity-sweep.pine und nexus-rsi-macd-divergence.pine.
+//
 // Setup: siehe README.md. Niemals als "Public" veroeffentlichen (Secret im
 // Klartext).
 indicator("Nexus Atlas - Order Block / FVG", overlay=true)
 
-minGapPct = input.float(0.05, title="FVG: Mindest-Luecke (%)", group="Fair Value Gap")
+// minGapPct von 0.05% auf 0.12% erhoeht, obLookback von 10 auf 6 Bars
+// verkuerzt (Rauschfilter fuer Intraday-Setups): groessere, damit
+// relevantere Luecken; engerer Ruecksuche-Radius, damit die gefundene
+// Gegenkerze noch zeitlich nah am Structure Break liegt.
+minGapPct = input.float(0.12, title="FVG: Mindest-Luecke (%)", group="Fair Value Gap")
+htfTrendFilter = input.bool(true, title="FVG nur mit 1h-Trend (EMA50/EMA200)", group="Fair Value Gap")
 
 pivotLen = input.int(5, title="OB: Pivot-Erkennungslaenge (links/rechts)", group="Order Block")
-obLookback = input.int(10, title="OB: Max. Ruecksuche nach Gegenkerze (Bars)", group="Order Block")
+obLookback = input.int(6, title="OB: Max. Ruecksuche nach Gegenkerze (Bars)", group="Order Block")
+
+htfEma50 = request.security(syminfo.tickerid, "60", ta.ema(close, 50), lookahead=barmerge.lookahead_off)
+htfEma200 = request.security(syminfo.tickerid, "60", ta.ema(close, 200), lookahead=barmerge.lookahead_off)
+htfBullish = htfEma50 > htfEma200
+htfBearish = htfEma50 < htfEma200
 
 // --- Fair Value Gap ---
 // Bullisch: aktuelles Tief liegt ueber dem Hoch von vor 2 Kerzen -- die
 // Kerze dazwischen ist der Impuls, der die Luecke erzeugt hat.
-bullFvg = low > high[2] and (low - high[2]) / high[2] >= minGapPct / 100
+bullFvg = low > high[2] and (low - high[2]) / high[2] >= minGapPct / 100 and (not htfTrendFilter or htfBullish)
 // Baerisch: aktuelles Hoch liegt unter dem Tief von vor 2 Kerzen.
-bearFvg = high < low[2] and (low[2] - high) / low[2] >= minGapPct / 100
+bearFvg = high < low[2] and (low[2] - high) / low[2] >= minGapPct / 100 and (not htfTrendFilter or htfBearish)
 
 if bullFvg
     alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"FAIR_VALUE_GAP_BULLISH","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
