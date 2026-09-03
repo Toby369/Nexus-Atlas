@@ -78,8 +78,25 @@ Quellen (vom Recherche-Agenten gefunden):
 - [A Reality Check For Data Snooping (White)](https://www.researchgate.net/publication/2551052_A_Reality_Check_For_Data_Snooping)
 - [Technical Analysis and Discrete False Discovery Rate](https://arxiv.org/pdf/1811.06766)
 
-## 7. Fazit
+## 7. Ergänzung: Spearman-Korrelation über die volle Stichprobe (N=297)
 
-Kein Trading-Signal, aber ein plausibles, verständliches Muster: Nexus' Trend-/Struktur-Faktoren laufen vor größeren BTC-Bewegungen tendenziell heiß — als **Risiko-/Volatilitäts-Hinweis** ("wir sind in einem Regime, in dem größere Swings wahrscheinlicher sind"), nicht als Richtungs-Prognose für die nächste Kerze. Bei N=14 ist das eine interessante Beobachtung, kein belastbares Ergebnis. Für mehr Robustheit bräuchte es entweder einen längeren Zeitraum (aktuell durch `backtest_states`-Historie auf 7 Wochen begrenzt) oder eine gröbere Event-Schwelle für mehr Samples, plus Bootstrap/FDR-Korrektur nach den in Abschnitt 6 skizzierten Standards.
+Der N=14-Befund aus Abschnitt 3 hat ein grundsätzliches Problem: er nutzt nur die seltenen Extremfälle und wirft die Information aller anderen Kerzen weg. Als robustere Ergänzung wurde die **Rangkorrelation (Spearman ρ)** zwischen dem Nexus-Zustand der vorangehenden 4h-Kerze und der tatsächlichen Bewegungsgröße der Folgekerze über **alle 297 Kerzen** im Zeitraum berechnet (statt nur die 14 Events) — deutlich mehr statistische Power, keine willkürliche Schwelle nötig.
+
+| Vergleich | Spearman ρ | t (df=295) | Signifikanz |
+|---|---|---|---|
+| \|Bewegung\| vs. `weighted_score` | 0,246 | 4,36 | p < 0,0001 |
+| \|Bewegung\| vs. `structure` | 0,258 | 4,59 | p < 0,0001 |
+| \|Bewegung\| vs. `trend_strength` | 0,232 | 4,10 | p < 0,0001 |
+| \|Bewegung\| vs. `trend_regime` | 0,182 | 3,18 | p ≈ 0,0016 |
+| \|Bewegung\| vs. `cvd` | 0,070 | 1,21 | p ≈ 0,23 (nicht signifikant) |
+| **Netto-Bewegung** (Richtung) vs. `weighted_score` | 0,017 | — | nicht signifikant |
+
+**Einordnung**: Score, `structure`, `trend_strength` und `trend_regime` bleiben auch nach Bonferroni-Korrektur für 5 Tests (α = 0,05/5 = 0,01, hier sogar strenger mit 0,002 getestet) signifikant — `cvd` nicht, deckt sich mit dem N=14-Befund. Die Effektstärke ist jedoch **schwach** (ρ² ≈ 3–7%, d. h. diese Faktoren erklären nur einen kleinen Teil der Streuung der Bewegungsgröße). Die Netto-Bewegung (Richtung) korreliert praktisch nicht mit dem Score (ρ=0,017) — bestätigt: die Faktoren sind ein **Volatilitäts-/Regime-Signal**, kein Richtungssignal.
+
+**Fazit dieser Ergänzung**: Der Effekt ist real und statistisch robust (nicht nur ein Artefakt der kleinen N=14-Stichprobe), aber schwach. Das rechtfertigt keine Kachel, die eine bevorstehende große Bewegung suggeriert — dafür ist der erklärte Varianzanteil zu gering.
+
+## 8. Fazit
+
+Kein Trading-Signal, aber ein plausibles, verständliches Muster: Nexus' Trend-/Struktur-Faktoren laufen vor größeren BTC-Bewegungen tendenziell heiß — als **schwacher Risiko-/Volatilitäts-Hinweis** ("wir sind in einem Regime, in dem größere Swings etwas wahrscheinlicher sind"), nicht als Richtungs-Prognose für die nächste Kerze. Der N=14-Befund aus Abschnitt 3 wurde in Abschnitt 7 durch eine Rangkorrelation über die volle Stichprobe (N=297) bestätigt — der Effekt ist statistisch real, aber schwach (ρ≈0,18–0,26). Für mehr Robustheit bräuchte es einen längeren Zeitraum (aktuell durch `backtest_states`-Historie auf 7 Wochen begrenzt) sowie eine multivariate Analyse (logistische Regression), um Kollinearität zwischen `structure`/`trend_regime`/`trend_strength` zu klären.
 
 Kein Automatismus, keine Anlageberatung.
