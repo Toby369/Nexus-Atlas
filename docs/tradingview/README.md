@@ -139,6 +139,26 @@ Badge-Typ (redundant zu Nexus' MTF-Alignment). Hier ist der 1h-EMA-Vergleich
 nur ein interner Filter innerhalb bestehender Signale, kein neuer,
 sichtbarer Signal-Typ.
 
+## Parameter verschärft (Rauschfilter, Ergänzung zum HTF-Filter)
+
+Zweiter Rauschfilter-Schritt, diesmal für die Reversal-Signale, die den
+HTF-Filter oben bewusst nicht bekommen haben (der würde dort das Signal
+selbst kaputtmachen):
+
+- **`nexus-liquidity-sweep.pine`**: `minWickPct` 0.05% → 0.12%.
+- **`nexus-vwap-stretch.pine`**: `stretchMult` 2.0 → 2.75 Stddev.
+- **`nexus-rsi-macd-divergence.pine`**: neuer Parameter `minPriceMovePct`
+  (Default 0.1%) — bisher zählte jedes neue Preis-Extremum als Divergenz-
+  Kandidat, egal wie knapp über/unter dem vorherigen. Verlangt jetzt einen
+  spürbaren Abstand (gleiche Prozent-Konvention wie `minGapPct`/
+  `minWickPct`), sowohl für die RSI- als auch die MACD-Histogramm-Hälfte.
+- **`nexus-order-block-fvg.pine`**: `minGapPct` 0.05% → 0.12% (FVG-Hälfte),
+  `obLookback` 10 → 6 Bars (OB-Hälfte, engerer Ruecksuche-Radius für
+  zeitliche Nähe zum Structure Break).
+
+Alle vier Werte sind weiterhin über `input.*` änderbar — die neuen Defaults
+sind eine Kalibrierung, kein Dogma.
+
 ## Priorisierung der Alert-Typen (Begründung)
 
 Rangfolge nach Mehrwert/Lückenfüller-Grad gegenüber den bestehenden 14

@@ -31,7 +31,9 @@
 // Niemals als "Public" veroeffentlichen (Secret im Klartext).
 indicator("Nexus Atlas - VWAP Extreme Stretch", overlay=true)
 
-stretchMult = input.float(2.0, title="Stddev-Multiplikator")
+// Default von 2.0 auf 2.75 Stddev erhoeht (Rauschfilter fuer Intraday-
+// Setups): deutlich selteneres, aber extremeres Ueberdehnungs-Signal.
+stretchMult = input.float(2.75, title="Stddev-Multiplikator")
 
 newSession = timeframe.change("D")
 [vwapValue, upperBand, lowerBand] = ta.vwap(close, newSession, stretchMult)

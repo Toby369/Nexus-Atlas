@@ -37,6 +37,12 @@ lbL = input.int(5, title="Pivot Lookback Left")
 lbR = input.int(5, title="Pivot Lookback Right")
 rangeLower = input.int(5, title="Min. Baranzahl zwischen Pivots")
 rangeUpper = input.int(60, title="Max. Baranzahl zwischen Pivots")
+// Neu (Rauschfilter fuer Intraday-Setups): bisher zaehlte jedes neue
+// Preis-Extremum, egal wie knapp -- ein Doppel-Top/-Boden auf Tick-Niveau
+// loeste bereits eine "Divergenz" aus. minPriceMovePct verlangt jetzt einen
+// spuerbaren Abstand zum vorherigen Extremum (gleiche Prozent-Konvention
+// wie minGapPct/minWickPct in den anderen Skripten).
+minPriceMovePct = input.float(0.1, title="Min. Abstand neues vs. vorheriges Preis-Extremum (%)")
 
 rsiValue = ta.rsi(close, 14)
 [macdLine, signalLine, histLine] = ta.macd(close, 12, 26, 9)
@@ -53,12 +59,14 @@ rsiPhFound = not na(rsiPH)
 
 // Bullish: Preis tieferes Low, RSI hoeheres Low (Abwaertsmomentum laesst nach)
 rsiOscHL = rsiValue[lbR] > ta.valuewhen(rsiPlFound, rsiValue[lbR], 1) and _inRange(rsiPlFound[1])
-rsiPriceLL = low[lbR] < ta.valuewhen(rsiPlFound, low[lbR], 1)
+rsiPrevLow = ta.valuewhen(rsiPlFound, low[lbR], 1)
+rsiPriceLL = low[lbR] < rsiPrevLow and (rsiPrevLow - low[lbR]) / rsiPrevLow >= minPriceMovePct / 100
 rsiBullDiv = rsiPriceLL and rsiOscHL and rsiPlFound
 
 // Bearish: Preis hoeheres High, RSI tieferes High (Aufwaertsmomentum laesst nach)
 rsiOscLH = rsiValue[lbR] < ta.valuewhen(rsiPhFound, rsiValue[lbR], 1) and _inRange(rsiPhFound[1])
-rsiPriceHH = high[lbR] > ta.valuewhen(rsiPhFound, high[lbR], 1)
+rsiPrevHigh = ta.valuewhen(rsiPhFound, high[lbR], 1)
+rsiPriceHH = high[lbR] > rsiPrevHigh and (high[lbR] - rsiPrevHigh) / rsiPrevHigh >= minPriceMovePct / 100
 rsiBearDiv = rsiPriceHH and rsiOscLH and rsiPhFound
 
 // --- MACD-Histogramm-Divergenz (dieselbe Vergleichslogik, anderer Oszillator) ---
@@ -68,11 +76,13 @@ macdPlFound = not na(macdPL)
 macdPhFound = not na(macdPH)
 
 macdOscHL = histLine[lbR] > ta.valuewhen(macdPlFound, histLine[lbR], 1) and _inRange(macdPlFound[1])
-macdPriceLL = low[lbR] < ta.valuewhen(macdPlFound, low[lbR], 1)
+macdPrevLow = ta.valuewhen(macdPlFound, low[lbR], 1)
+macdPriceLL = low[lbR] < macdPrevLow and (macdPrevLow - low[lbR]) / macdPrevLow >= minPriceMovePct / 100
 macdBullDiv = macdPriceLL and macdOscHL and macdPlFound
 
 macdOscLH = histLine[lbR] < ta.valuewhen(macdPhFound, histLine[lbR], 1) and _inRange(macdPhFound[1])
-macdPriceHH = high[lbR] > ta.valuewhen(macdPhFound, high[lbR], 1)
+macdPrevHigh = ta.valuewhen(macdPhFound, high[lbR], 1)
+macdPriceHH = high[lbR] > macdPrevHigh and (high[lbR] - macdPrevHigh) / macdPrevHigh >= minPriceMovePct / 100
 macdBearDiv = macdPriceHH and macdOscLH and macdPhFound
 
 if rsiBullDiv

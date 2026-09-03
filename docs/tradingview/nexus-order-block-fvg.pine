@@ -40,11 +40,15 @@
 // Klartext).
 indicator("Nexus Atlas - Order Block / FVG", overlay=true)
 
-minGapPct = input.float(0.05, title="FVG: Mindest-Luecke (%)", group="Fair Value Gap")
+// minGapPct von 0.05% auf 0.12% erhoeht, obLookback von 10 auf 6 Bars
+// verkuerzt (Rauschfilter fuer Intraday-Setups): groessere, damit
+// relevantere Luecken; engerer Ruecksuche-Radius, damit die gefundene
+// Gegenkerze noch zeitlich nah am Structure Break liegt.
+minGapPct = input.float(0.12, title="FVG: Mindest-Luecke (%)", group="Fair Value Gap")
 htfTrendFilter = input.bool(true, title="FVG nur mit 1h-Trend (EMA50/EMA200)", group="Fair Value Gap")
 
 pivotLen = input.int(5, title="OB: Pivot-Erkennungslaenge (links/rechts)", group="Order Block")
-obLookback = input.int(10, title="OB: Max. Ruecksuche nach Gegenkerze (Bars)", group="Order Block")
+obLookback = input.int(6, title="OB: Max. Ruecksuche nach Gegenkerze (Bars)", group="Order Block")
 
 htfEma50 = request.security(syminfo.tickerid, "60", ta.ema(close, 50), lookahead=barmerge.lookahead_off)
 htfEma200 = request.security(syminfo.tickerid, "60", ta.ema(close, 200), lookahead=barmerge.lookahead_off)

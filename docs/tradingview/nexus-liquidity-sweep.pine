@@ -29,7 +29,10 @@
 indicator("Nexus Atlas - Liquidity Sweep", overlay=true)
 
 pivotLen = input.int(5, title="Pivot-Erkennungslaenge (links/rechts)")
-minWickPct = input.float(0.05, title="Mindest-Ueberschuss ueber Pivot (%)")
+// Default von 0.05% auf 0.12% erhoeht (Rauschfilter fuer Intraday-Setups):
+// verlangt einen deutlicheren Docht-Ueberschuss ueber das Pivot, bevor ein
+// Sweep zaehlt -- weniger, aber entschiedenere Signale.
+minWickPct = input.float(0.12, title="Mindest-Ueberschuss ueber Pivot (%)")
 
 pivotHigh = ta.pivothigh(high, pivotLen, pivotLen)
 pivotLow = ta.pivotlow(low, pivotLen, pivotLen)
