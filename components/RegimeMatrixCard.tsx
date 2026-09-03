@@ -22,6 +22,7 @@ import {
   TRADINGVIEW_SIGNAL_FRESHNESS_HOURS,
   formatSignalBadge,
   isSignalFresh,
+  TRADINGVIEW_SIGNAL_INFO,
 } from "@/lib/tradingViewSignal";
 import { RelativeTime } from "@/components/ClientTimestamp";
 
@@ -298,12 +299,15 @@ export default function RegimeMatrixCard({
       )}
 
       {tradingViewSignal && isSignalFresh(tradingViewSignal.received_at) && (
-        <span
-          title={`Externes Signal, empfangen ${tradingViewSignal.received_at} — rein informativ, fließt nicht in Score/Verlässlichkeit/Regime ein.`}
-          className="inline-block text-[11px] px-2 py-0.5 rounded-full border border-accent/30 text-text-muted"
-        >
-          {formatSignalBadge(tradingViewSignal)}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span
+            title={`Externes Signal, empfangen ${tradingViewSignal.received_at} — rein informativ, fließt nicht in Score/Verlässlichkeit/Regime ein.`}
+            className="inline-block text-[11px] px-2 py-0.5 rounded-full border border-accent/30 text-text-muted"
+          >
+            {formatSignalBadge(tradingViewSignal)}
+          </span>
+          <PanelInfo title="TradingView-Signale" content={TRADINGVIEW_SIGNAL_INFO} />
+        </div>
       )}
 
       <p className="text-xs text-text-faint">
