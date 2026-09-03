@@ -44,3 +44,20 @@ export function isSignalFresh(receivedAtIso: string, nowMs: number = Date.now())
   const ageMs = nowMs - new Date(receivedAtIso).getTime();
   return ageMs >= 0 && ageMs <= TRADINGVIEW_SIGNAL_FRESHNESS_HOURS * 60 * 60 * 1000;
 }
+
+// Kurz-Glossar der 6 Pine-Script-Signale (docs/tradingview/) fuer das
+// PanelInfo-Popover neben dem Badge. Gleiches "Label: Text"-Format wie
+// ECONOMIC_EVENT_INTERPRETATION in lib/economicCalendar.ts.
+export const TRADINGVIEW_SIGNAL_INFO = `Liquidity Sweep: Preis reisst kurz über/unter ein vorheriges Hoch/Tief und kehrt zurück — oft ein Zeichen, dass Stop-Loss-Liquidität eingesammelt wurde, bevor die Bewegung in die Gegenrichtung läuft.
+
+Order Block: letzte Gegenkerze vor einem bestätigten Strukturbruch — mögliche Reaktionszone bei einem Rücktest. Eine von mehreren gebräuchlichen Definitionen, keine "offizielle".
+
+Fair Value Gap: reine 3-Kerzen-Preislücke — wird vom Markt oft teilweise wieder gefüllt, bevor der Trend weiterläuft.
+
+Volume Expansion: Ausbruch aus einer Range mit überdurchschnittlichem Volumen — Filter gegen Fehlausbrüche.
+
+Squeeze Release: Ende einer Volatilitäts-Kompression (Bollinger-Bänder innerhalb der Keltner-Channel) — erster gerichteter Impuls danach.
+
+RSI/MACD Divergence: Preis macht ein neues Extremum, der Oszillator bestätigt es nicht — klassisches Momentum-Erschöpfungssignal.
+
+Einordnung: reiner Kontext, kein Handelssignal. Stimmt ein Signal mit dem aktuellen Nexus-Zustand überein, ist das eine zusätzliche Bestätigung (Konfluenz); widerspricht es, eher Vorsicht statt dagegen zu handeln. Kein Automatismus, keine Anlageberatung.`;
