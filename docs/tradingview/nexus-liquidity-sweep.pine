@@ -18,6 +18,12 @@
 // `pivotLen` Bestaetigungs-Bars nach dem eigentlichen Extremum) -- das ist
 // Standardverhalten fuer Swing-Point-Detection, kein Bug/Repainting.
 //
+// Bewusst OHNE HTF-Trendfilter (anders als z.B. nexus-volume-expansion.pine):
+// ein Sweep ist ein Reversal-Signal -- ein Filter "nur mit uebergeordnetem
+// Trend" wuerde genau die Faelle unterdruecken, die dieses Signal fangen
+// soll (z.B. ein Sweep-Reversal nach unten waehrend eines 1h-Aufwaertstrends,
+// als moeglicher Top-Hinweis).
+//
 // Setup: siehe README.md. Niemals als "Public" veroeffentlichen (Secret
 // im Klartext).
 indicator("Nexus Atlas - Liquidity Sweep", overlay=true)

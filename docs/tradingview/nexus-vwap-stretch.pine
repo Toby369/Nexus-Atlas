@@ -21,6 +21,12 @@
 // der Faktor zeigen aehnliches Terrain, sind aber keine unabhaengigen
 // Bestaetigungen voneinander.
 //
+// Bewusst OHNE HTF-Trendfilter: wie die Divergenz- und Sweep-Signale ist
+// das ein Erschoepfungssignal (Ueberdehnung vom Session-VWAP), das
+// typischerweise gegen den kurzfristigen Impuls feuert -- ein Filter
+// "nur mit 1h-Trend" wuerde dem widersprechen (siehe
+// nexus-rsi-macd-divergence.pine).
+//
 // Setup: siehe nexus-volume-expansion.pine (gleiches Alarm-/Webhook-Setup).
 // Niemals als "Public" veroeffentlichen (Secret im Klartext).
 indicator("Nexus Atlas - VWAP Extreme Stretch", overlay=true)

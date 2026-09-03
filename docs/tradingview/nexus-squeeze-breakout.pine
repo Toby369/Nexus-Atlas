@@ -16,6 +16,10 @@
 // ("wir sind gerade in einer Kompression"), dieses Signal den EVENT-Moment
 // (Release + Richtung) -- komplementaer, aber inhaltlich nah beieinander.
 //
+// HTF-Trendfilter (optional, Default an): Release-Richtung muss mit dem
+// 1h-Trend (EMA50 vs. EMA200 auf 1h) uebereinstimmen -- gleiche Begruendung
+// wie in nexus-volume-expansion.pine (Breakout-Signal, kein Reversal-Signal).
+//
 // Setup: siehe nexus-volume-expansion.pine (gleiches Alarm-/Webhook-Setup).
 // Niemals als "Public" veroeffentlichen (Secret im Klartext).
 indicator("Nexus Atlas - Squeeze Breakout", overlay=false)
@@ -24,6 +28,7 @@ length = input.int(20, title="BB/KC Basis-Periode")
 bbMult = input.float(2.0, title="Bollinger-Multiplikator")
 kcMult = input.float(1.5, title="Keltner-Multiplikator")
 atrLength = input.int(20, title="ATR-Periode (KC)")
+htfTrendFilter = input.bool(true, title="Nur mit 1h-Trend (EMA50/EMA200)")
 
 basis = ta.sma(close, length)
 dev = bbMult * ta.stdev(close, length)
@@ -36,13 +41,18 @@ lowerKC = basis - atrValue * kcMult
 
 sqzOn = (lowerBB > lowerKC) and (upperBB < upperKC)
 
+htfEma50 = request.security(syminfo.tickerid, "60", ta.ema(close, 50), lookahead=barmerge.lookahead_off)
+htfEma200 = request.security(syminfo.tickerid, "60", ta.ema(close, 200), lookahead=barmerge.lookahead_off)
+htfBullish = htfEma50 > htfEma200
+htfBearish = htfEma50 < htfEma200
+
 // Release explizit an "war im Vorbalken noch in der Squeeze" gebunden,
 // statt sich allein auf die symmetrische Bandbreite um `basis` zu
 // verlassen -- macht die Bedingung robust, falls Basis/Mult je einmal
 // getrennt veraendert werden.
 sqzRelease = ta.crossunder(lowerBB, lowerKC) and sqzOn[1]
-isBullRelease = sqzRelease and close > basis
-isBearRelease = sqzRelease and close < basis
+isBullRelease = sqzRelease and close > basis and (not htfTrendFilter or htfBullish)
+isBearRelease = sqzRelease and close < basis and (not htfTrendFilter or htfBearish)
 
 if isBullRelease
     alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"SQUEEZE_RELEASE_BULL","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)

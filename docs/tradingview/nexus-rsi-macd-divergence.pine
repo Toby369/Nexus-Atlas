@@ -23,6 +23,12 @@
 // erst `lbR` Bars nach dem eigentlichen Extremum) -- Standardverhalten,
 // kein Repainting.
 //
+// Bewusst OHNE HTF-Trendfilter: Divergenz ist per Definition ein
+// Erschoepfungssignal, das typischerweise WAEHREND eines bestehenden
+// (uebergeordneten) Trends auftritt und dessen moegliches Ende anzeigt --
+// ein Filter "nur mit 1h-Trend" wuerde das Signal fast nie noch feuern
+// lassen (gleiche Ueberlegung wie in nexus-liquidity-sweep.pine).
+//
 // Setup: siehe README.md. Niemals als "Public" veroeffentlichen (Secret
 // im Klartext).
 indicator("Nexus Atlas - RSI/MACD Divergence", overlay=false)
