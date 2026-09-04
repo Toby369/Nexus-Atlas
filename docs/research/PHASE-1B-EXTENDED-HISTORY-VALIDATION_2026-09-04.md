@@ -70,3 +70,21 @@ Neue, nicht eingefrorene Modellversion `funding_only_v1_2y` (Familie `benchmark_
 **Konsequenz:** BULLISH/BEARISH n=0 in praktisch allen Zellen, kein Hit-Rate-Vergleich moeglich. Kein Threshold-Tuning vorgenommen (keine empirische Herleitung fuer einen neuen Wert vorhanden, deckt sich mit der in Phase 0 Abschnitt 2 festgehaltenen Regel "Coverage-Schwelle nicht ohne empirische Begruendung aendern" — gilt hier analog fuer Faktor-Schwellen).
 
 **Eigenstaendiger Erkenntniswert, unabhaengig vom eigentlichen Benchmark-Ziel:** der `funding`-Faktor traegt in der Produktions-Engine auf 1D-Basis mit der aktuellen Schwelle **praktisch nie** zum Score bei — er ist in >99.5% der Faelle neutral. Das ist eine begruendete Vermutung wert fuer eine spaetere, separate Research-Frage (nicht Teil dieser Phase): ob die Schwelle fuer 1D zu grob kalibriert ist, oder ob eine kontinuierliche/rangbasierte statt diskretisierte Nutzung des Faktors mehr Information erhalten wuerde. Nur als Hypothese festgehalten, nicht verfolgt.
+
+## 10. Threshold-Sweep fuer den funding-Faktor (Nachtrag 04.09.2026, Teil 2)
+
+**Herkunft der 0.0005-Schwelle geprueft** (Code-Kommentar in `compute-market-state`): uebernommen von `describeFunding()` in `collect-btc` ("keine doppelte Kalibrierung"), bewusst als seltenes Crowding-Extrem-Flag gedacht, explizit als "spaeter per Backtesting justierbar" markiert. Die Schwelle wird in Produktion (1H-Zyklus) und im 1D-Backtest auf denselben Werttyp angewendet (jeweils die *aktuellste* Funding-Rate zum Zeitpunkt, kein aufsummierter 1D-Wert) — kein Interval-Mismatch, sondern eine bewusste Seltenheits-Kalibrierung, deren Trefferquote (0.4%) empirisch sehr duenn ist.
+
+**Test: 5 engere Kandidaten-Schwellen** (0.00003 / 0.00005 / 0.0001 / 0.00015 / 0.0002, gegen die aktuelle 0.0005 als Referenz), jeweils Purging+Embargo (1 Tag) auf TRAIN (2024-09-04–2026-01-14) und VALIDATION (2026-01-15–2026-05-14), 3 Horizonte, beide Richtungen:
+
+| Schwelle | TRAIN n (BEARISH) | TRAIN Hit-Rate | VALIDATION n | VALIDATION Hit-Rate | Konsistent? |
+|---|---|---|---|---|---|
+| 0.00003 | 323-344 | 46-50% (≈ oder unter Baseline) | 26-33 | 62-72% (ueber Baseline) | **Nein** |
+| 0.00005 | 250-265 | 49-52% (≈ Baseline) | 11-20 | 67-91% (deutlich ueber Baseline) | **Nein** |
+| 0.0001 | 2-18 | 11-100% (voellig instabil) | 2-3 | 33-67% | Zu wenig n |
+| 0.00015 | 14 | 14-43% | 0 | — | Zu wenig n |
+| 0.0002 | 10 | 10-50% | 0 | — | Zu wenig n |
+
+**Befund: keine der getesteten Schwellen liefert einen stabilen, TRAIN-bestaetigten Edge.** Bei den beiden einzigen Schwellen mit ausreichend TRAIN-n (0.00003/0.00005) zeigt TRAIN **keinen** Edge (Hit-Rate ≈ Baseline oder leicht darunter) — die auffaellig hohen VALIDATION-Werte (bis 91%) sind bei n=10-33 nicht mehr als Rauschen, exakt dasselbe Muster wie der TRAIN-only-Befund in Abschnitt 4 (nur hier umgekehrt: VALIDATION-only, von TRAIN nicht bestaetigt). Alle engeren Schwellen (≥0.0001) haben schlicht zu wenig Beobachtungen fuer eine Aussage.
+
+**Empfehlung: Produktions-Schwelle NICHT aendern.** Keine der getesteten Alternativen ist empirisch besser begruendet als die bestehende 0.0005 — im Gegenteil, der Test liefert eine explizite, dokumentierte Bestaetigung, dass ein Wechsel aktuell nicht gerechtfertigt waere (statt der bisherigen impliziten Annahme "nicht angefasst, weil nie geprueft"). Sollte sich die Datenlage (mehr Jahre) deutlich verbessern, ist eine Wiederholung dieses Sweeps der richtige naechste Schritt, keine neue Methodik.
