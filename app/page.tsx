@@ -452,8 +452,11 @@ export default async function Home({
             />
 
             <DetailsToggle>
-              <MarketStateCard initialState={marketState} />
-
+              {/* Nutzer-Feedback vom 04.09.2026: Zeitraum/Event-Anker sind
+                  globale Steuerungen (wirken auf mehrere Kacheln unten,
+                  siehe timeframe/anchorIso-Props), sollten also vor der
+                  Gesamteinschaetzung stehen statt danach -- vorher wirkten
+                  sie wie ein Anhaengsel der Gesamteinschaetzung-Kachel. */}
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <p className="text-xs uppercase tracking-[0.2em] text-text-faint">
                   Zeitraum
@@ -471,6 +474,8 @@ export default async function Home({
                   <AnchorPicker />
                 </Suspense>
               </div>
+
+              <MarketStateCard initialState={marketState} />
 
               <DashboardLayout
                 tiles={{
