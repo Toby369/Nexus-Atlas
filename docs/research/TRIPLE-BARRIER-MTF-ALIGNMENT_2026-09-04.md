@@ -105,6 +105,28 @@ Das übersteht eine BH-FDR-Korrektur über die hier getesteten Zellen deutlich.
   Gewinnschwelle hebt. NICHT PROVEN im strengen Sinne dieser Session (Stichprobe zu klein für
   die höchste Beweisstufe) — aber der erste Fund, der diese Einstufung überhaupt verdient.
 
+## 5b. Nachtrag: 1h-Momentum-Zusatzfilter getestet und verworfen
+
+Deskriptiv fiel auf (innerhalb der bereits `mtf_aligned=true`-Trades): bei TP-Ausgängen zeigte
+das MACD-Histogramm der letzten 1h-Kerze deutlich häufiger in Trade-Richtung als bei
+SL-Ausgängen (LONG 67-72% vs. 55-57%, SHORT 63-64% vs. 58-60%). Als zusätzlicher,
+vorregistrierter Filter (`momentum_confirmed_1h`) mit derselben nicht-überlappenden
+Methodik getestet:
+
+| Richtung | TP% mit Momentum-Bestätigung | TP% ohne | Diff | p-Wert |
+|---|---|---|---|---|
+| LONG | 30,5% (n=141) | 39,7% (n=121) | -9,2pp | 0,12 |
+| SHORT | 35,2% (n=122) | 37,7% (n=106) | -2,5pp | 0,70 |
+| Kombiniert | 32,7% (n=263) | 38,8% (n=227) | -6,1pp | 0,16 |
+
+**Der Effekt kehrt sich um und ist nicht signifikant.** Die ursprüngliche deskriptive
+Beobachtung war ein Artefakt überlappender, autokorrelierter Kerzen (dieselbe
+Kausalitätsfalle wie beim naiven MTF-Test in Abschnitt 4, hier aber nicht durch
+Neuprüfung aufgelöst, sondern verschwunden). **Ergebnis: kein zusätzlicher Nutzen durch
+einen 1h-Momentum-Filter oben auf dem Trend-Alignment-Filter — verworfen.** Der
+Trend-Alignment-Filter (Abschnitt 4/5) bleibt der einzige Fund dieser Session, der die
+volle Prüfung übersteht.
+
 ## 6. Für Nexus / für Toby
 
 - Kein automatisches Handelssignal wird eingebaut — das bleibt eine bewusste Entscheidung.
