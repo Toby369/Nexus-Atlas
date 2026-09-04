@@ -33,6 +33,7 @@ import {
 import { useDashboardPoll } from "@/components/DashboardPollProvider";
 import { RelativeTime } from "@/components/ClientTimestamp";
 import StatusLineSummary, { type StatusLineItem } from "@/components/StatusLineSummary";
+import EntryFilterBadge from "@/components/EntryFilterBadge";
 
 const CUMULATIVE_ETF_DAYS = 5;
 const LIQUIDATION_LOOKBACK_HOURS = 6;
@@ -287,6 +288,8 @@ export default function HeroHeader({
       <p className="text-sm text-text-muted leading-relaxed">
         {buildCompactMarketStateSummary(state)}
       </p>
+
+      <EntryFilterBadge state={state} />
 
       {confirmation.primaryDirection && confirmation.totalComparable > 0 && (
         <p className="text-xs text-text-faint pt-2 border-t border-border/60">
