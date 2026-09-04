@@ -59,5 +59,14 @@ Mehr Historie hat die Validierungsschicht robuster gemacht (mehr Zellen ueberhau
 ## 8. Naechster sinnvoller Schritt (nicht Teil dieser Phase)
 
 - HAC/Newey-West oder eine echte MA(H-1)-Korrektur fuer die 168h/720h-p-Werte statt der aktuellen Rohzahl-Vereinfachung.
-- Funding-only-Benchmark (jetzt 100% 2-Jahres-Abdeckung, war in Phase 0 Abschnitt 12 als `NOT TESTABLE WITH CURRENT DATA` markiert) gegen Buy&Hold/Momentum-only/Trend-only.
 - Positioning/Orderbook/Options/OI+Price/Basis bleiben weiterhin nur ~30 Tage tief (Boersen-Cap) — dafuer hilft keine weitere Backfill-Iteration, nur Zeit.
+
+## 9. Funding-only Benchmark (Nachtrag 04.09.2026)
+
+Neue, nicht eingefrorene Modellversion `funding_only_v1_2y` (Familie `benchmark_funding_only`, `funding_only_signal_state()`) angelegt — Signal ausschliesslich aus dem bereits diskretisierten `funding`-Faktor, gleicher 2-Jahres-Split wie die anderen `_2y`-Modelle. `research_evaluate_purged`/`research_evaluate_nonoverlap_7d`/`backtest_populate_model_results` additiv um den Zweig erweitert.
+
+**Ergebnis: nicht auswertbar — aber aus einem anderen Grund als bisher vermutet.** Nicht Datenmangel (Funding-Historie ist jetzt 2 Jahre tief, 100% Abdeckung), sondern die bestehende Produktions-Schwelle selbst: `funding > 0.0005` (BEARISH) / `< -0.0005` (BULLISH), sonst NEUTRAL. Live gegen die vollen 730 Tage geprueft: **727 von 730 Tagen liegen bei NEUTRAL (0)**, nur 3 Tage ueberhaupt bei ±1. BTC-Perp-Funding bewegt sich auf 1D-Aggregation fast nie ausserhalb dieser Bandbreite — die Schwelle ist fuer taegliche Granularitaet zu weit gefasst.
+
+**Konsequenz:** BULLISH/BEARISH n=0 in praktisch allen Zellen, kein Hit-Rate-Vergleich moeglich. Kein Threshold-Tuning vorgenommen (keine empirische Herleitung fuer einen neuen Wert vorhanden, deckt sich mit der in Phase 0 Abschnitt 2 festgehaltenen Regel "Coverage-Schwelle nicht ohne empirische Begruendung aendern" — gilt hier analog fuer Faktor-Schwellen).
+
+**Eigenstaendiger Erkenntniswert, unabhaengig vom eigentlichen Benchmark-Ziel:** der `funding`-Faktor traegt in der Produktions-Engine auf 1D-Basis mit der aktuellen Schwelle **praktisch nie** zum Score bei — er ist in >99.5% der Faelle neutral. Das ist eine begruendete Vermutung wert fuer eine spaetere, separate Research-Frage (nicht Teil dieser Phase): ob die Schwelle fuer 1D zu grob kalibriert ist, oder ob eine kontinuierliche/rangbasierte statt diskretisierte Nutzung des Faktors mehr Information erhalten wuerde. Nur als Hypothese festgehalten, nicht verfolgt.
