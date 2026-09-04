@@ -1,6 +1,7 @@
 import Link from "next/link";
 import ChangePasswordForm from "@/components/ChangePasswordForm";
 import LogoutButton from "@/components/LogoutButton";
+import PushNotificationSettings from "@/components/PushNotificationSettings";
 
 // Kein eigener Session-Check hier noetig: proxy.ts's Auth-Gate (Phase 4)
 // deckt bereits jeden Pfad ausser der in lib/authGate.ts::PUBLIC_EXACT_PATHS
@@ -25,11 +26,19 @@ export default function AccountPage() {
         </div>
       </header>
 
-      <section className="flex-1 px-6 py-8 max-w-xs w-full mx-auto">
-        <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted mb-3">
-          Passwort ändern
-        </h2>
-        <ChangePasswordForm />
+      <section className="flex-1 px-6 py-8 max-w-xs w-full mx-auto space-y-8">
+        <div>
+          <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted mb-3">
+            Passwort ändern
+          </h2>
+          <ChangePasswordForm />
+        </div>
+        <div>
+          <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted mb-3">
+            Push-Benachrichtigungen
+          </h2>
+          <PushNotificationSettings />
+        </div>
       </section>
     </main>
   );
