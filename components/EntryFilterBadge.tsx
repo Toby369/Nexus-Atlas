@@ -20,7 +20,7 @@ const STYLES: Record<EntryFilterStatus, string> = {
 
 const INFO_TEXT = [
   "Was das ist: Backtest-validierter Einstiegsfilter fuer ein 15m/5m-Setup mit hohem Hebel (getestet mit 20x, TP 30%/SL 10% des Einsatzes).",
-  "So liest du das: \"Long-/Short-Setup bestätigt\" heisst, dass 1h-, 4h- und 1d-Struktur aktuell alle in dieselbe Richtung zeigen. In einem 2-Jahres-Backtest hob genau das die Trefferquote von ~25% (Basisrate) auf ~34% (nicht-ueberlappend geprueft, p=0,0002).",
+  "So liest du das: \"Long-/Short-Setup bestätigt\" heisst, dass die 4h-Struktur aktuell in Trade-Richtung zeigt. In einem 2-Jahres-Backtest hob genau das die Trefferquote von ~25% (Basisrate) auf ~33% (nicht-ueberlappend geprueft, n=543/546, p<0,0001, symmetrisch fuer Long und Short). 4h allein zeigte einen groesseren Effekt und mehr qualifizierende Trades als die urspruenglich getestete 1h+4h+1d-Kombination -- deshalb jetzt der massgebliche Filter.",
   "Wichtig: kein Handelssignal, keine Erfolgsgarantie -- eine statistisch gestuetzte, aber noch nicht endgueltig bewiesene Beobachtung auf begrenzter Stichprobe. Details in docs/research/TRIPLE-BARRIER-MTF-ALIGNMENT_2026-09-04.md.",
 ].join("\n\n");
 

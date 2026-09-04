@@ -20,55 +20,44 @@ function baseState(overrides: Partial<MarketState> = {}): MarketState {
   };
 }
 
+function withTimeframes(timeframes: Record<string, -1 | 0 | 1>): MarketState {
+  return baseState({
+    mtf_alignment: {
+      alignment_pct: 0,
+      dominant_direction: "ranging",
+      timeframes,
+      timeframe_count: Object.keys(timeframes).length,
+    },
+  });
+}
+
 describe("deriveEntryFilter", () => {
-  it("gibt long_ready, wenn alle 3 Zeitrahmen bullisch uebereinstimmen", () => {
-    const state = baseState({
-      mtf_alignment: {
-        alignment_pct: 100,
-        dominant_direction: "bullish",
-        timeframes: { "1h": 1, "4h": 1, "1d": 1 },
-        timeframe_count: 3,
-      },
-    });
-    expect(deriveEntryFilter(state).status).toBe("long_ready");
+  it("gibt long_ready, wenn 4h bullisch ist", () => {
+    expect(deriveEntryFilter(withTimeframes({ "1h": -1, "4h": 1, "1d": -1 })).status).toBe(
+      "long_ready"
+    );
   });
 
-  it("gibt short_ready, wenn alle 3 Zeitrahmen baerisch uebereinstimmen", () => {
-    const state = baseState({
-      mtf_alignment: {
-        alignment_pct: 100,
-        dominant_direction: "bearish",
-        timeframes: { "1h": -1, "4h": -1, "1d": -1 },
-        timeframe_count: 3,
-      },
-    });
-    expect(deriveEntryFilter(state).status).toBe("short_ready");
+  it("gibt short_ready, wenn 4h baerisch ist", () => {
+    expect(deriveEntryFilter(withTimeframes({ "1h": 1, "4h": -1, "1d": 1 })).status).toBe(
+      "short_ready"
+    );
   });
 
-  it("gibt not_aligned, wenn nicht alle Zeitrahmen uebereinstimmen", () => {
-    const state = baseState({
-      mtf_alignment: {
-        alignment_pct: 65,
-        dominant_direction: "bullish",
-        timeframes: { "1h": 1, "4h": 1, "1d": -1 },
-        timeframe_count: 3,
-      },
-    });
-    expect(deriveEntryFilter(state).status).toBe("not_aligned");
+  it("gibt not_aligned, wenn 4h range-gebunden (0) ist", () => {
+    expect(deriveEntryFilter(withTimeframes({ "4h": 0 })).status).toBe("not_aligned");
   });
 
-  it("gibt unavailable, wenn ein Zeitrahmen fehlt, auch bei 100% der verfuegbaren", () => {
-    // Regressionstest fuer den Bug, den der Kommentar in entryFilter.ts
-    // beschreibt: alignment_pct bezieht sich nur auf VERFUEGBARE Zeitrahmen.
-    const state = baseState({
-      mtf_alignment: {
-        alignment_pct: 100,
-        dominant_direction: "bullish",
-        timeframes: { "1h": 1, "4h": 1 },
-        timeframe_count: 2,
-      },
-    });
-    expect(deriveEntryFilter(state).status).toBe("unavailable");
+  it("ignoriert 1h/1d -- nur 4h zaehlt", () => {
+    // Regressionstest: 1h und 1d sind bullisch, 4h baerisch -- soll trotzdem
+    // short_ready sein, weil seit der Umstellung nur noch 4h massgeblich ist.
+    expect(deriveEntryFilter(withTimeframes({ "1h": 1, "4h": -1, "1d": 1 })).status).toBe(
+      "short_ready"
+    );
+  });
+
+  it("gibt unavailable, wenn der 4h-Zeitrahmen fehlt (veraltet)", () => {
+    expect(deriveEntryFilter(withTimeframes({ "1h": 1, "1d": 1 })).status).toBe("unavailable");
   });
 
   it("gibt unavailable, wenn mtf_alignment null ist", () => {
@@ -77,17 +66,5 @@ describe("deriveEntryFilter", () => {
 
   it("gibt unavailable, wenn state null ist", () => {
     expect(deriveEntryFilter(null).status).toBe("unavailable");
-  });
-
-  it("gibt not_aligned bei ranging trotz timeframe_count 3", () => {
-    const state = baseState({
-      mtf_alignment: {
-        alignment_pct: 100,
-        dominant_direction: "ranging",
-        timeframes: { "1h": 0, "4h": 0, "1d": 0 },
-        timeframe_count: 3,
-      },
-    });
-    expect(deriveEntryFilter(state).status).toBe("not_aligned");
   });
 });

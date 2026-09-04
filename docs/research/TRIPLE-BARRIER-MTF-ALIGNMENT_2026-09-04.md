@@ -139,3 +139,42 @@ volle Prüfung übersteht.
 
 Neue DB-Objekte: `research_triple_barrier_events()`, `research_triple_barrier_results`,
 `research_build_triple_barrier_context()`, `research_triple_barrier_context`.
+
+## 7. Vollfaktoren-Screen + Produktionsentscheidung (Nachtrag)
+
+Auf Wunsch ("können wir alle Signale so durchtesten wie vorhin") alle 9 in
+`research_triple_barrier_context` bereits verfügbaren Einzelfaktoren mit derselben
+nicht-überlappenden Methodik getestet (gepoolt LONG+SHORT, Train+Validation+Test),
+BH-FDR über alle 9 Kandidaten:
+
+| Signal | n (Bedingung erfüllt) | TP% (erfüllt) | TP% (nicht erfüllt) | Diff | p-Wert | BH-Fazit |
+|---|---|---|---|---|---|---|
+| **Struktur 4h allein** | 543 | 32,8% | 17,9% | +14,8pp | <0,0001 | ✅ |
+| Struktur 1h allein | 705 | 30,1% | 20,4% | +9,6pp | <0,0001 | ✅ |
+| Struktur 15m allein | 732 | 29,4% | 20,8% | +8,6pp | 0,0001 | ✅ |
+| Struktur 1h+4h+1d (Abschnitt 4) | 282 | 33,7% | 22,3% | +11,4pp | 0,0002 | ✅ |
+| Struktur 1d allein | 369 | 26,8% | 22,1% | +4,7pp | 0,125 | ❌ |
+| Trendstärke (ADX≥20 + DI-Richtung) | 732 | 24,0% | 26,1% | -2,0pp | 0,366 | ❌ |
+| Momentum 1h (Abschnitt 5b) | 727 | 24,8% | 25,9% | -1,1pp | 0,629 | ❌ |
+| CVD-Richtung (15m) | 732 | 25,4% | 24,9% | +0,5pp | 0,810 | ❌ |
+| RSI-Richtung (15m, >50/<50) | 732 | 24,7% | 24,9% | -0,1pp | 0,952 | ❌ |
+
+4 von 9 überleben die Korrektur — RSI, CVD, Trendstärke und 1h-Momentum bestätigen
+sich erneut als nicht hilfreich (konsistent mit Abschnitt 5b und den Kerzenmuster-
+Backtests). Die 4 signifikanten Struktur-Signale sind **nicht unabhängig**
+voneinander (dieselbe zugrundeliegende Trendrichtung, nur auf verschiedenen
+Zeitebenen gemessen) — das ist eine Erkenntnis, keine vier.
+
+**"4h-Struktur allein" ist die stärkste Einzelvariante:** grösserer Effekt
+(+14,8pp vs. +11,4pp) UND fast doppelt so viele qualifizierende Trades (543 vs.
+282 nicht-überlappend) als die ursprüngliche 3-Timeframe-Regel, da sie
+mathematisch eine schwächere (leichter erfüllbare) Bedingung ist, die die
+3-fache Übereinstimmung als Teilmenge enthält. Für LONG und SHORT einzeln
+symmetrisch bestätigt: 33,2%/18,2% (LONG) bzw. 32,3%/17,7% (SHORT), je
+n=257-288.
+
+**Produktionsentscheidung (auf Tobys Wunsch):** `lib/entryFilter.ts` nutzt jetzt
+**"4h-Struktur allein"** statt der 3-Timeframe-Regel als Einstiegsfilter-Basis —
+mehr qualifizierende Signale bei zugleich grösserem gemessenem Effekt. Weiterhin
+derselbe bereits von `compute-market-state` berechnete Wert
+(`mtf_alignment.timeframes["4h"]`), keine neue Berechnung.
