@@ -1,0 +1,105 @@
+{
+  "core": {
+    "variant": "core (price/derivatives only, 12 features)",
+    "n_features": 12,
+    "features": [
+      "rsi_14",
+      "macd_histogram",
+      "adx_14",
+      "di_diff",
+      "ema50_dist_pct",
+      "ema200_dist_pct",
+      "vwap_dist_pct",
+      "cvd_delta",
+      "structure_ord",
+      "avg_funding_rate",
+      "macro_ord",
+      "sentiment_ord"
+    ],
+    "n_total_rows": 533,
+    "n_oos": 320,
+    "fold_n": [
+      64,
+      64,
+      64,
+      64,
+      64
+    ],
+    "fold_hit_rates": [
+      0.5156,
+      0.5469,
+      0.4531,
+      0.5156,
+      0.4219
+    ],
+    "folds_above_majority_baseline": "1/5",
+    "oos_hit_rate": 0.4906,
+    "majority_baseline": 0.5188,
+    "bootstrap_difference_pp": -2.81,
+    "bootstrap_p_value": 0.2494,
+    "bootstrap_ci_95": [
+      0.4433,
+      0.5397
+    ],
+    "gate1_power": "INSUFFICIENT_DATA",
+    "gate1_rationale": "n=320: achieved power=0.432 for effect=+5.00% against baseline=0.519 (< target 0.80). Required n for target power: 780.",
+    "gate2_coverage": "PASS",
+    "gate2_rationale": "All 12 required features meet the 100% coverage threshold.",
+    "gate3_performance": "FAIL",
+    "gate3_rationale": "observed hit-rate difference=-0.028 vs baseline=0.519 (95% CI [0.443, 0.540], p=0.2494, n_valid_replicates=5000/5000). Statistically significant: False (alpha=0.05). Practically relevant: False (threshold=+5.00%, NOT yet finalized -- see PowerGateConfig docstring / Phase 3 Section 6.2). Favorable direction: False."
+  },
+  "core_onchain": {
+    "variant": "core_onchain (12 core + 5 on-chain features)",
+    "n_features": 17,
+    "features": [
+      "rsi_14",
+      "macd_histogram",
+      "adx_14",
+      "di_diff",
+      "ema50_dist_pct",
+      "ema200_dist_pct",
+      "vwap_dist_pct",
+      "cvd_delta",
+      "structure_ord",
+      "avg_funding_rate",
+      "macro_ord",
+      "sentiment_ord",
+      "onchain_sopr",
+      "onchain_mvrv",
+      "onchain_lth_net_position_change_btc",
+      "onchain_stablecoin_supply_chg_pct",
+      "onchain_whale_addr_count"
+    ],
+    "n_total_rows": 523,
+    "n_oos": 315,
+    "fold_n": [
+      63,
+      63,
+      63,
+      63,
+      63
+    ],
+    "fold_hit_rates": [
+      0.4921,
+      0.5556,
+      0.4127,
+      0.5873,
+      0.4444
+    ],
+    "folds_above_majority_baseline": "2/5",
+    "oos_hit_rate": 0.4984,
+    "majority_baseline": 0.5302,
+    "bootstrap_difference_pp": -3.17,
+    "bootstrap_p_value": 0.2576,
+    "bootstrap_ci_95": [
+      0.444,
+      0.5533
+    ],
+    "gate1_power": "INSUFFICIENT_DATA",
+    "gate1_rationale": "n=315: achieved power=0.427 for effect=+5.00% against baseline=0.530 (< target 0.80). Required n for target power: 777.",
+    "gate2_coverage": "PASS",
+    "gate2_rationale": "All 17 required features meet the 100% coverage threshold.",
+    "gate3_performance": "FAIL",
+    "gate3_rationale": "observed hit-rate difference=-0.032 vs baseline=0.530 (95% CI [0.444, 0.553], p=0.2576, n_valid_replicates=5000/5000). Statistically significant: False (alpha=0.05). Practically relevant: False (threshold=+5.00%, NOT yet finalized -- see PowerGateConfig docstring / Phase 3 Section 6.2). Favorable direction: False."
+  }
+}

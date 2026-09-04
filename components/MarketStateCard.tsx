@@ -57,7 +57,7 @@ const RISK_FACTOR_LABELS: Record<string, string> = {
 // bereits in den Pattern-Badges darueber (eigener Hover-Tooltip je Muster).
 const RISK_FACTOR_EXPLANATIONS: Record<string, string> = {
   warning_pattern:
-    "Mindestens eines von vier Warn-Mustern wurde erkannt: „Fragile Bullish“ (Struktur bullisch, aber Orderflow bestätigt nicht), „Distribution Warning“ (Preis nahe 20-Perioden-Hoch, aber fallender Orderflow), „Capitulation“ (RSI überverkauft + fallender Orderflow + überdurchschnittliche Liquidationen) oder „Short Squeeze“ (Positionierungs-Divergenz deutet auf Squeeze-Setup). Welches genau aktiv ist, zeigen die Muster-Badges oben (Hover für Details).",
+    "Mindestens eines von vier Warn-Mustern wurde erkannt: „Fragile Bullish“ (Struktur bullisch, aber Orderflow bestätigt nicht), „Distribution Warning“ (Preis nahe 20-Perioden-Hoch, aber fallender Orderflow), „Capitulation“ (RSI überverkauft + fallender Orderflow + überdurchschnittliche Liquidationen) oder „Short Squeeze“ (Positionierungs-Divergenz deutet auf Squeeze-Setup). Welches genau aktiv ist, zeigen die Muster-Badges oben — Ⓘ dort antippen für Details.",
   low_mtf_alignment:
     "Die Struktur über die drei Zeitrahmen 1H/4H/1D stimmt aktuell zu weniger als 60% (gewichtet) überein — die Zeitrahmen sind sich uneins, was die Gefahr einer plötzlichen Umkehr oder von Chop (richtungslosem Hin-und-Her) erhöht.",
   funding_crowding:
@@ -331,10 +331,10 @@ export default function MarketStateCard({
           {patterns.map((p) => (
             <span
               key={p.name}
-              title={p.note}
-              className="text-[11px] px-2 py-0.5 rounded-full border border-accent/30 text-text-muted"
+              className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border border-accent/30 text-text-muted"
             >
               {p.name}
+              <PanelInfo title={p.name} content={p.note} />
             </span>
           ))}
         </div>
