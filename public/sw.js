@@ -51,3 +51,42 @@ self.addEventListener("fetch", (event) => {
   }
   // Alles andere: kein respondWith -> normaler, ungecachter Netzwerk-Passthrough.
 });
+
+// Push-Benachrichtigungen (siehe lib/webPush.ts, app/api/push/*,
+// components/PushNotificationSettings.tsx, Supabase Edge Function
+// send-state-change-push). Payload ist JSON: { title, body, url }.
+self.addEventListener("push", (event) => {
+  let payload = { title: "Nexus Atlas", body: "", url: "/" };
+  try {
+    if (event.data) payload = { ...payload, ...event.data.json() };
+  } catch {
+    // Kein/kein gueltiges JSON -- Default-Payload oben wird verwendet.
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      data: { url: payload.url || "/" },
+    }),
+  );
+});
+
+// Klick auf die Benachrichtigung: bestehenden Dashboard-Tab fokussieren
+// statt immer einen neuen zu oeffnen, falls einer bereits offen ist.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || "/";
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.startsWith(self.location.origin) && "focus" in client) {
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+    }),
+  );
+});
