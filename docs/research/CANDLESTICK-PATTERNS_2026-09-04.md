@@ -101,7 +101,51 @@ Trefferquoten klar **unter** Baseline mit falscher Vorzeichenrichtung (z.B. Doji
   Morning/Evening Star) auf 1D nur 2–13 Validation-Ereignisse haben und damit strukturell
   nicht ausreichend statistische Power besitzen, um einen moderaten Edge sauber zu verwerfen.
 
-## 5. Für Nexus
+## 5. Erweiterung: Timeframes 15m / 1h / 4h (Nutzer-Wunsch)
+
+Nutzer wollte gezielt die Timeframes **15m, 1h, 4h** getestet haben (statt/zusätzlich zu 1D).
+15m-Kerzen existierten bis dahin gar nicht in der DB — zurückgefüllt via `backfill-history`
+(Binance-Futures-Klines, `candles`-Tabelle) für die vollen 2 Jahre (2024-09-04 bis
+2026-09-04, 70'151 Kerzen). 4h war bereits vollständig vorhanden (4'384 Kerzen). Die
+`market_features`-Neuberechnung für 15m ist NICHT gelaufen (Edge-Function-Ressourcenlimit bei
+~70k Zeilen) — irrelevant für diesen Test, da die Muster-Erkennung/-Auswertung ausschließlich
+auf rohen OHLC-Daten aus `candles` arbeitet, nicht auf `market_features`.
+
+**Horizonte (vorregistriert, konsistente Regel über alle Intraday-Intervalle: 4/12/24 Kerzen
+vorwärts, Embargo = längster getesteter Horizont):**
+- 15m → 1h / 3h / 6h vorwärts (4/12/24 Kerzen), Embargo 0.25 Tage
+- 1h → 4h / 12h / 24h vorwärts (4/12/24 Kerzen), Embargo 1 Tag (bereits oben getestet)
+- 4h → 16h / 48h / 96h vorwärts (4/12/24 Kerzen), Embargo 4 Tage
+
+Gleiche Splits, gleiche Purge-Logik, gleiche BH-FDR-Korrektur — jetzt **kumulativ über alle
+4 getesteten Intervalle (1D/1H/4H/15M) gemeinsam**, exakt dasselbe Prinzip wie bei
+`research_bh_fdr` im Modellvergleich (Korrektur wirkt über alle je eingefügten Zeilen, nicht
+pro Lauf zurückgesetzt — verhindert "FDR-Shopping" durch wiederholte Neustarts).
+
+**Ereignishäufigkeiten:** 15m — Engulfing ~6'600, Doji ~6'400, Evening/Morning Star
+1'200–1'300, Hammer/Hanging Man 1'400–1'600. 4h — Engulfing ~420, Doji ~480,
+Evening/Morning Star 62–64, Hammer/Hanging Man 82–105.
+
+**Ergebnis: 192 Zellen insgesamt getestet (alle 4 Intervalle × Train/Validation). 0 von 192
+überleben die BH-FDR-Korrektur.** Niedrigste Rohwerte, alle auf 15m (größte Stichproben):
+
+| Muster | Intervall | Horizont | Split | n | Trefferquote | Baseline | p-Wert | BH-kritisch |
+|---|---|---|---|---|---|---|---|---|
+| doji (BEARISH) | 15m | 1h | validation | 557 | 55.5% | 50.1% | 0.0108 | 0.0003 |
+| hanging_man (BEARISH) | 15m | 6h | validation | 209 | 59.8% | 51.2% | 0.0129 | 0.0005 |
+| hanging_man (BEARISH) | 15m | 3h | validation | 209 | 59.3% | 50.8% | 0.0140 | 0.0008 |
+| doji (BULLISH) | 15m | 1h | validation | 560 | 54.8% | 49.9% | 0.0204 | 0.0021 |
+
+Auch mit den stichprobenstärksten Zellen der gesamten Analyse (n=557/560 auf 15m) verfehlt der
+niedrigste Rohwert (0.0108) den BH-kritischen Wert bei 192 gleichzeitigen Tests um mehr als das
+30-Fache — dasselbe Verhältnis wie beim ursprünglichen 1D/1H-Test. Kein Timeframe-Wechsel
+ändert die Kernaussage.
+
+**Fazit für 15m/1h/4h:** identisch zu Abschnitt 4 — SUPPORTED, dass kein robuster Edge
+nachweisbar ist, auf keinem der vier getesteten Timeframes. Keine Code-Änderung an der
+Produktions-Engine.
+
+## 6. Für Nexus
 
 Keine Handlungsempfehlung, keine Code-Änderung an der Produktions-Engine. Bestätigt die
 bereits bestehende Produktentscheidung: `market_states.patterns` (z.B. "Short Squeeze") sind
