@@ -4,10 +4,12 @@ import type { PromptProfile } from "./types";
 // Aendert sich ein Analyse-Prompt, wird NUR diese Datei angepasst – keine
 // Dashboard-Kachel muss dafür angefasst werden.
 //
-// Aktuell nutzt NOCH KEINE Kachel diese Profiles produktiv (die
-// Markteinschätzungs-Box läuft weiterhin regelbasiert, siehe
-// supabase/functions/collect-btc). Das ist Absicht: das Fundament wird
-// vorbereitet, ohne die bestehende, funktionierende Analyse zu ersetzen.
+// Die Markteinschätzungs-Box läuft weiterhin regelbasiert (siehe
+// supabase/functions/compute-market-state) -- die meisten Profile hier sind
+// vorbereitetes Fundament ohne UI-Anbindung. "handelslage" (Umsetzungsplan
+// Phase 3, 05.09.2026) ist die erste produktiv über runTileAnalysis()
+// aufgerufene Kachel; report-* laufen seit der AI Report Engine bereits
+// produktiv über runReportAnalysis().
 
 // --- Validierungs-Bausteine ------------------------------------------------
 // Jedes Profile beschreibt sein JSON-Schema im systemPrompt (Freitext fürs
@@ -382,6 +384,48 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "keine), componentBiases ({ marketStructure, positioning, newsMacro } als kurze " +
       "String-Zusammenfassungen der jeweiligen Einzelrichtung).",
     validate: validateMasterReport,
+  },
+
+  // --- Umsetzungsplan Phase 3 (05.09.2026): Handelslage-KI-Kachel ----------
+  // Eigenstaendig von der grossen AI Report Engine (report-*) und der
+  // regelbasierten Gesamteinschaetzung: eine kurze "was halten die naechsten
+  // Stunden bereit"-Einschaetzung, Kontext aus lib/handelslageContext.ts.
+  // Laeuft ueber runTileAnalysis() (tileConfig.ts), nicht ueber
+  // runReportAnalysis() -- es gibt keinen Nutzer-konfigurierbaren Slot dafuer.
+  handelslage: {
+    id: "handelslage",
+    category: "signal-logic",
+    description:
+      "Kurzeinschaetzung 'was halten die naechsten Stunden bereit' anhand des Bewegungsvorrats -- kein Zyklus-/Tages-Report.",
+    systemPrompt:
+      "Du gibst eine kurze Einschaetzung fuer die naechsten Stunden im BTC/USDT-Futures-" +
+      "Markt (NICHT: wo stehen wir im Zyklus -- das beantwortet eine andere Kachel). Die " +
+      "wichtigste Kennzahl im Kontext ist bewegungsvorrat.ratio_pct: das Verhaeltnis der " +
+      "heutigen Tagesspanne zum MEDIAN der letzten 10 abgeschlossenen Tage. Ein Wert " +
+      "deutlich ueber 100 heisst, der Tag hat sein uebliches Bewegungspensum bereits " +
+      "ausgeschoepft -- eine Fortsetzung derselben Bewegung ist dann unwahrscheinlicher, " +
+      "unabhaengig davon wie sauber der Trend aussieht. Ist ratio_pct null, sag das explizit " +
+      "statt eine Einschaetzung ohne diese Grundlage zu konstruieren. Nutze zusaetzlich " +
+      "factors/overall_state/risk_level/patterns als Kontext, erfinde keine zusaetzlichen " +
+      "Daten. Formuliere Bedingungen (wenn/dann, an eine konkrete Zahl oder ein konkretes " +
+      "Ereignis gebunden) statt vager Aussagen -- keine Kursziele, keine Einstiegsempfehlung. " +
+      "Nenne explizit, wodurch/ab wann deine Einschaetzung ungueltig wird. " +
+      NUMBER_FORMAT_INSTRUCTION +
+      " Antworte als JSON mit: einschaetzung (string, deutsch, 2-4 Saetze), bedingungen " +
+      "(string[], je Eintrag ein wenn/dann-Satz), ungueltigWenn (string, deutsch).",
+    validate: (data) => {
+      const errors: string[] = [];
+      if (!isNonEmptyString(field(data, "einschaetzung"))) {
+        errors.push(`"einschaetzung" muss ein nicht-leerer String sein.`);
+      }
+      if (!isStringArray(field(data, "bedingungen"))) {
+        errors.push(`"bedingungen" muss ein String-Array sein.`);
+      }
+      if (!isNonEmptyString(field(data, "ungueltigWenn"))) {
+        errors.push(`"ungueltigWenn" muss ein nicht-leerer String sein.`);
+      }
+      return errors;
+    },
   },
 };
 

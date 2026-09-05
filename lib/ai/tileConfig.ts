@@ -8,9 +8,10 @@ import type { TileAIConfig } from "./types";
 // (siehe router.ts / AUTO_CATEGORY_PROVIDER). Ein expliziter aiProvider
 // erzwingt einen bestimmten Anbieter.
 //
-// Aktuell wird KEINE dieser Konfigurationen von der UI aufgerufen – die
-// Kacheln bestehen weiterhin unveraendert. Das ist die vorbereitete
-// Konfiguration fuer den Moment, in dem AI-Kacheln aktiviert werden.
+// Die meisten Eintraege hier sind weiterhin vorbereitete Konfiguration ohne
+// UI-Anbindung (die jeweilige Kachel bleibt regelbasiert). "handelslage" ist
+// seit Umsetzungsplan Phase 3 (05.09.2026) die erste tatsaechlich produktiv
+// aufgerufene -- siehe app/api/handelslage/generate/route.ts.
 
 export const tileConfigs: Record<string, TileAIConfig> = {
   "open-interest": {
@@ -66,6 +67,17 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     aiProvider: "auto", // -> anthropic (signal-logic)
     promptProfile: "signal-analysis",
     fallbackProviders: ["deepseek"],
+  },
+  // Umsetzungsplan Phase 3 (05.09.2026): erste tatsaechlich aus der UI
+  // aufgerufene Kachel dieser Konfiguration (siehe app/api/handelslage/
+  // generate/route.ts) -- Provider-Aufloesung/Fallback-Kette waren zuvor
+  // nur ueber runReportAnalysis() (report_configs-Slots) im produktiven
+  // Einsatz, hier zum ersten Mal ueber runTileAnalysis()/"auto".
+  handelslage: {
+    tileId: "handelslage",
+    aiProvider: "auto", // -> anthropic (signal-logic)
+    promptProfile: "handelslage",
+    fallbackProviders: ["google", "openai"],
   },
 };
 

@@ -398,3 +398,24 @@ export interface EconomicCalendarEvent {
   source: string;
   updated_at: string;
 }
+
+// Ergebnis der Handelslage-KI-Kachel (Umsetzungsplan Phase 3, 05.09.2026,
+// siehe lib/handelslageContext.ts + app/api/handelslage/generate/route.ts).
+// "result" ist die vom Modell gelieferte, gegen das handelslage-Prompt-
+// Profile validierte JSON-Antwort (einschaetzung/bedingungen/ungueltigWenn).
+export interface HandelslageResult {
+  einschaetzung: string;
+  bedingungen: string[];
+  ungueltigWenn: string;
+}
+
+export interface HandelslageSnapshot {
+  id: number;
+  generated_at: string;
+  provider: string | null;
+  model: string | null;
+  bewegungsvorrat_pct: number | null;
+  result: HandelslageResult | null;
+  status: "ok" | "error";
+  error: string | null;
+}

@@ -6,6 +6,7 @@ import type {
   DashboardPollBundle,
   EconomicCalendarEvent,
   EtfFlowDay,
+  HandelslageSnapshot,
   LiquidationEvent,
   MarketSeriesPoint,
   MarketSnapshot,
@@ -30,6 +31,7 @@ import SpotPressurePanel from "@/components/SpotPressurePanel";
 import MarketContextCard from "@/components/MarketContextCard";
 import MarketStateCard from "@/components/MarketStateCard";
 import RegimeMatrixCard from "@/components/RegimeMatrixCard";
+import HandelslageCard from "@/components/HandelslageCard";
 import TimeframeSelector from "@/components/TimeframeSelector";
 import AnchorPicker from "@/components/AnchorPicker";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -247,6 +249,24 @@ async function getUpcomingEconomicEvents(): Promise<EconomicCalendarEvent[]> {
   return data ?? [];
 }
 
+// Umsetzungsplan Phase 3 (05.09.2026): letzter zwischengespeicherter
+// Handelslage-Stand -- reines Lesen, kein AI-Aufruf (der passiert nur ueber
+// POST /api/handelslage/generate, siehe HandelslageCard.tsx).
+async function getLatestHandelslage(): Promise<HandelslageSnapshot | null> {
+  const { data, error } = await supabase
+    .from("handelslage_snapshots")
+    .select("*")
+    .order("generated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Fehler beim Laden der Handelslage:", error.message);
+    return null;
+  }
+  return data;
+}
+
 // Serverseitig heruntergesamplete Preis/OI-Zeitreihe fuer den Standard-
 // Zeitraum, ueber dieselbe RPC wie der Client-Poll in LivePricePanel.tsx
 // (siehe dortiger Kommentar: PostgREST kappt Antworten hart bei 1000
@@ -365,6 +385,7 @@ export default async function Home({
     recentLiquidations,
     recentEtfFlows,
     upcomingEconomicEvents,
+    latestHandelslage,
     oiSeriesData,
     oiReferenceSnapshot,
     dashboardBundle,
@@ -379,6 +400,7 @@ export default async function Home({
     getRecentLiquidations(),
     getRecentEtfFlows(),
     getUpcomingEconomicEvents(),
+    getLatestHandelslage(),
     getMarketSeries(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getOiReferenceSnapshot(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getDashboardPollBundle(timeframeSinceIsoValue),
@@ -495,6 +517,7 @@ export default async function Home({
                   "economic-calendar": (
                     <EconomicCalendarPanel initialEvents={upcomingEconomicEvents} />
                   ),
+                  handelslage: <HandelslageCard initialSnapshot={latestHandelslage} />,
                   "live-price": (
                     <LivePricePanel
                       timeframe={timeframe}
