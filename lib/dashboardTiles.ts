@@ -30,6 +30,7 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "live-price", title: "Preis & Open Interest", fullWidth: true },
   { id: "spot-pressure", title: "Spot Pressure" },
   { id: "orderbook-walls", title: "Orderbuch-Wände" },
+  { id: "divergence-radar", title: "Divergenz-Radar" },
   { id: "positioning", title: "Positionierung" },
   { id: "liquidations", title: "Liquidationen" },
   { id: "etf-flow", title: "ETF-Flows & Makro" },

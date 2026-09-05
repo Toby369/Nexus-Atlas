@@ -407,6 +407,9 @@ export interface HandelslageResult {
   einschaetzung: string;
   bedingungen: string[];
   ungueltigWenn: string;
+  // Optional, da vor Divergenz-Radar (05.09.2026) generierte Snapshots dieses
+  // Feld noch nicht haben -- kein rueckwirkend erfundener Wert fuer sie.
+  bias?: "bullish" | "bearish" | "neutral";
 }
 
 export interface HandelslageSnapshot {

@@ -409,10 +409,14 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "factors/overall_state/risk_level/patterns als Kontext, erfinde keine zusaetzlichen " +
       "Daten. Formuliere Bedingungen (wenn/dann, an eine konkrete Zahl oder ein konkretes " +
       "Ereignis gebunden) statt vager Aussagen -- keine Kursziele, keine Einstiegsempfehlung. " +
-      "Nenne explizit, wodurch/ab wann deine Einschaetzung ungueltig wird. " +
+      "Nenne explizit, wodurch/ab wann deine Einschaetzung ungueltig wird. Gib zusaetzlich " +
+      "bias an: bullish/bearish nur, wenn deine Einschaetzung tatsaechlich eine Richtung " +
+      "fuer die naechsten Stunden nahelegt, sonst neutral -- keine erzwungene Richtung nur " +
+      "um das Feld zu befuellen. " +
       NUMBER_FORMAT_INSTRUCTION +
       " Antworte als JSON mit: einschaetzung (string, deutsch, 2-4 Saetze), bedingungen " +
-      "(string[], je Eintrag ein wenn/dann-Satz), ungueltigWenn (string, deutsch).",
+      "(string[], je Eintrag ein wenn/dann-Satz), ungueltigWenn (string, deutsch), " +
+      `bias (einer von ${BIAS_3.join("/")}).`,
     validate: (data) => {
       const errors: string[] = [];
       if (!isNonEmptyString(field(data, "einschaetzung"))) {
@@ -423,6 +427,9 @@ export const promptProfiles: Record<string, PromptProfile> = {
       }
       if (!isNonEmptyString(field(data, "ungueltigWenn"))) {
         errors.push(`"ungueltigWenn" muss ein nicht-leerer String sein.`);
+      }
+      if (!isEnum(field(data, "bias"), BIAS_3)) {
+        errors.push(`"bias" muss einer von ${BIAS_3.join(", ")} sein.`);
       }
       return errors;
     },

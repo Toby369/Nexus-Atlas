@@ -20,6 +20,7 @@ import type {
 import { getTimeframe, parseTimeframe, type TimeframeId } from "@/lib/timeframes";
 import { buildLiveLeverageMap } from "@/lib/leverageMapContext";
 import { buildCycleIndicators } from "@/lib/cycleIndicatorsContext";
+import { buildDivergenceRadar } from "@/lib/divergenceRadarContext";
 import { parseAnchorParam } from "@/lib/anchor";
 import { TRADINGVIEW_SIGNAL_FRESHNESS_HOURS } from "@/lib/tradingViewSignal";
 import { DEFAULT_SERIES_EXCHANGE } from "@/lib/exchanges";
@@ -37,6 +38,7 @@ import RegimeMatrixCard from "@/components/RegimeMatrixCard";
 import HandelslageCard from "@/components/HandelslageCard";
 import QuizTile from "@/components/QuizTile";
 import OrderbookWallCard from "@/components/OrderbookWallCard";
+import DivergenceRadarCard from "@/components/DivergenceRadarCard";
 import LeverageMapCard from "@/components/LeverageMapCard";
 import CycleIndicatorsCard from "@/components/CycleIndicatorsCard";
 import TimeframeSelector from "@/components/TimeframeSelector";
@@ -429,6 +431,7 @@ export default async function Home({
     latestLeverageMap,
     cycleIndicators,
     latestOrderbookWalls,
+    divergenceRadar,
     oiSeriesData,
     oiReferenceSnapshot,
     dashboardBundle,
@@ -447,6 +450,7 @@ export default async function Home({
     buildLiveLeverageMap(),
     buildCycleIndicators(),
     getLatestOrderbookWalls(),
+    buildDivergenceRadar(),
     getMarketSeries(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getOiReferenceSnapshot(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getDashboardPollBundle(timeframeSinceIsoValue),
@@ -588,6 +592,7 @@ export default async function Home({
                   ),
                   "spot-pressure": <SpotPressurePanel timeframe={timeframe} />,
                   "orderbook-walls": <OrderbookWallCard walls={latestOrderbookWalls} />,
+                  "divergence-radar": <DivergenceRadarCard radar={divergenceRadar} />,
                   positioning: <PositioningPanel />,
                   liquidations: (
                     <LiquidationPanel
