@@ -419,3 +419,27 @@ export interface HandelslageSnapshot {
   status: "ok" | "error";
   error: string | null;
 }
+
+// Lernplattform-Kachel (Leitner-Karteikasten), Nutzer-Wunsch "wie im
+// Trading Journal" -- siehe lib/leitner.ts fuer die Uebergangsregeln.
+export interface QuizCard {
+  id: number;
+  question: string;
+  answer: string;
+  explanation: string | null;
+  category: string | null;
+  active: boolean;
+  created_at: string;
+}
+
+export interface QuizProgressRow {
+  card_id: number;
+  box: number;
+  due_at: string;
+  last_seen_at: string | null;
+  correct_streak: number;
+  total_correct: number;
+  total_hard: number;
+  total_wrong: number;
+  history: { t: number; grade: string }[];
+}

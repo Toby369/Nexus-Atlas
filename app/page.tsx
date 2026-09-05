@@ -34,6 +34,7 @@ import MarketContextCard from "@/components/MarketContextCard";
 import MarketStateCard from "@/components/MarketStateCard";
 import RegimeMatrixCard from "@/components/RegimeMatrixCard";
 import HandelslageCard from "@/components/HandelslageCard";
+import QuizTile from "@/components/QuizTile";
 import LeverageMapCard from "@/components/LeverageMapCard";
 import CycleIndicatorsCard from "@/components/CycleIndicatorsCard";
 import TimeframeSelector from "@/components/TimeframeSelector";
@@ -455,6 +456,12 @@ export default async function Home({
             AI Reports
           </Link>
           <Link
+            href="/lernen"
+            className="text-xs text-text-faint hover:text-text-muted underline decoration-dotted"
+          >
+            Lernen
+          </Link>
+          <Link
             href="/account"
             className="text-xs text-text-faint hover:text-text-muted underline decoration-dotted"
           >
@@ -526,6 +533,7 @@ export default async function Home({
                     <EconomicCalendarPanel initialEvents={upcomingEconomicEvents} />
                   ),
                   handelslage: <HandelslageCard initialSnapshot={latestHandelslage} />,
+                  lernen: <QuizTile />,
                   "leverage-map": <LeverageMapCard map={latestLeverageMap} />,
                   "cycle-indicators": <CycleIndicatorsCard data={cycleIndicators} />,
                   "live-price": (

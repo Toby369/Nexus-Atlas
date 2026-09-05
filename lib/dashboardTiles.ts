@@ -20,6 +20,7 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "market-context", title: "Marktkontext" },
   { id: "regime-matrix", title: "Marktphase" },
   { id: "handelslage", title: "Handelslage" },
+  { id: "lernen", title: "Lernen" },
   { id: "leverage-map", title: "Liquidations-/Hebelkarte" },
   { id: "cycle-indicators", title: "Zyklus-Indikatoren" },
   // Bewusst als drittes Element platziert (nicht ans Ende): fuellt genau die
