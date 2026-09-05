@@ -443,3 +443,19 @@ export interface QuizProgressRow {
   total_wrong: number;
   history: { t: number; grade: string }[];
 }
+
+// Neuester Orderbuch-Schnappschuss je Boerse (Tabelle orderbook_snapshots,
+// Edge Function collect-orderbook, alle 5 Min) -- *_wall_* ist das groesste
+// Einzel-Level innerhalb der erfassten Tiefe, sofern deutlich ueber dem
+// Median der erfassten Level, sonst NULL. Siehe OrderbookWallCard.tsx.
+export interface OrderbookWallSnapshot {
+  exchange: string;
+  timestamp_utc: string;
+  mid_price: number | null;
+  depth_imbalance: number | null;
+  bid_wall_price: number | null;
+  bid_wall_usd: number | null;
+  ask_wall_price: number | null;
+  ask_wall_usd: number | null;
+  status: string;
+}

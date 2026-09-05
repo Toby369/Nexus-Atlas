@@ -14,6 +14,7 @@ import type {
   MarketStateMatrix,
   NewsEvent,
   OiChangeByExchange,
+  OrderbookWallSnapshot,
   TradingViewSignal,
 } from "@/lib/types";
 import { getTimeframe, parseTimeframe, type TimeframeId } from "@/lib/timeframes";
@@ -35,6 +36,7 @@ import MarketStateCard from "@/components/MarketStateCard";
 import RegimeMatrixCard from "@/components/RegimeMatrixCard";
 import HandelslageCard from "@/components/HandelslageCard";
 import QuizTile from "@/components/QuizTile";
+import OrderbookWallCard from "@/components/OrderbookWallCard";
 import LeverageMapCard from "@/components/LeverageMapCard";
 import CycleIndicatorsCard from "@/components/CycleIndicatorsCard";
 import TimeframeSelector from "@/components/TimeframeSelector";
@@ -272,6 +274,39 @@ async function getLatestHandelslage(): Promise<HandelslageSnapshot | null> {
   return data;
 }
 
+const ORDERBOOK_EXCHANGES = ["binance", "bybit", "okx"] as const;
+
+// Nutzer-Wunsch nach einer "Bookmap"-Ansicht: kein Live-L2-Feed (siehe
+// Kommentar in OrderbookWallCard.tsx), aber die bereits erfasste groesste
+// Wand je Seite/Boerse -- reines Lesen, kein Live-Feed, alle 5 Min neu von
+// collect-orderbook geschrieben.
+async function getLatestOrderbookWalls(): Promise<OrderbookWallSnapshot[]> {
+  const { data, error } = await supabase
+    .from("orderbook_snapshots")
+    .select(
+      "exchange, timestamp_utc, mid_price, depth_imbalance, bid_wall_price, bid_wall_usd, ask_wall_price, ask_wall_usd, status"
+    )
+    .eq("symbol", "BTCUSDT")
+    .order("timestamp_utc", { ascending: false })
+    .limit(20);
+
+  if (error) {
+    console.error("Fehler beim Laden der Orderbuch-Waende:", error.message);
+    return [];
+  }
+
+  // limit(20) deckt mehrere Erfassungszyklen ab, falls eine Boerse
+  // zwischenzeitlich fehlschlug -- pro Boerse wird nur die neueste Zeile
+  // behalten.
+  const latestByExchange = new Map<string, OrderbookWallSnapshot>();
+  for (const row of (data ?? []) as OrderbookWallSnapshot[]) {
+    if (!latestByExchange.has(row.exchange)) latestByExchange.set(row.exchange, row);
+  }
+  return ORDERBOOK_EXCHANGES.map((ex) => latestByExchange.get(ex)).filter(
+    (row): row is OrderbookWallSnapshot => Boolean(row)
+  );
+}
+
 // Serverseitig heruntergesamplete Preis/OI-Zeitreihe fuer den Standard-
 // Zeitraum, ueber dieselbe RPC wie der Client-Poll in LivePricePanel.tsx
 // (siehe dortiger Kommentar: PostgREST kappt Antworten hart bei 1000
@@ -393,6 +428,7 @@ export default async function Home({
     latestHandelslage,
     latestLeverageMap,
     cycleIndicators,
+    latestOrderbookWalls,
     oiSeriesData,
     oiReferenceSnapshot,
     dashboardBundle,
@@ -410,6 +446,7 @@ export default async function Home({
     getLatestHandelslage(),
     buildLiveLeverageMap(),
     buildCycleIndicators(),
+    getLatestOrderbookWalls(),
     getMarketSeries(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getOiReferenceSnapshot(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getDashboardPollBundle(timeframeSinceIsoValue),
@@ -550,6 +587,7 @@ export default async function Home({
                     />
                   ),
                   "spot-pressure": <SpotPressurePanel timeframe={timeframe} />,
+                  "orderbook-walls": <OrderbookWallCard walls={latestOrderbookWalls} />,
                   positioning: <PositioningPanel />,
                   liquidations: (
                     <LiquidationPanel

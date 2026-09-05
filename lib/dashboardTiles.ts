@@ -29,6 +29,7 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "economic-calendar", title: "Wirtschaftskalender" },
   { id: "live-price", title: "Preis & Open Interest", fullWidth: true },
   { id: "spot-pressure", title: "Spot Pressure" },
+  { id: "orderbook-walls", title: "Orderbuch-Wände" },
   { id: "positioning", title: "Positionierung" },
   { id: "liquidations", title: "Liquidationen" },
   { id: "etf-flow", title: "ETF-Flows & Makro" },
