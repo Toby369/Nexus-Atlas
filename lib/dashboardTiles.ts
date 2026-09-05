@@ -7,12 +7,17 @@ export interface DashboardTileMeta {
   id: string;
   title: string;
   // Ab lg: (3-spaltiges Grid, siehe DashboardLayout.tsx) spannt diese Kachel
-  // alle 3 Spalten statt einer -- fuer "live-price" gesetzt, weil sie Preis,
-  // OI Change, Chart, Kurznotiz UND OI-je-Boerse buendelt und dadurch weit
-  // hoeher ist als jede andere Kachel: ohne volle Breite haette ihre Zeile
-  // die Grid-Zeilenhoehe der kompletten Zeile diktiert und riesige leere
-  // Flaechen unter den kuerzeren Nachbarn erzeugt (Nutzer-Report 01.09.2026:
-  // "kacheln bis weiter an rand. und ordnung!").
+  // alle 3 Spalten statt einer -- fuer "institutional-playbook" gesetzt
+  // (drei Tabs mit mehreren Absaetzen je Tab waeren in 1/3-Spalte zu eng).
+  // Ehemals auch fuer "live-price" gesetzt (Preis+OI Change+Chart+Kurznotiz+
+  // OI-je-Boerse in einer Kachel gebuendelt) -- Nutzer-Feedback 05.09.2026
+  // ("kann noch nicht alle Kacheln individuell Groesse einstellen und
+  // verschieben") fuehrte dazu, diese 5 Abschnitte wieder in eigenstaendige
+  // Kacheln aufzuteilen (siehe components/LivePriceDataProvider.tsx). Jede
+  // Kachel ist jetzt selbst per Hoehen-Resize/Breiten-Buttons steuerbar,
+  // wodurch das urspruengliche Problem (grosse leere Flaechen unter
+  // kuerzeren Nachbarn in derselben Grid-Zeile) nicht mehr zwingend
+  // zurueckkehrt wie vor der Buendelung.
   fullWidth?: boolean;
 }
 
@@ -23,11 +28,16 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "lernen", title: "Lernen" },
   { id: "leverage-map", title: "Liquidations-/Hebelkarte" },
   { id: "cycle-indicators", title: "Zyklus-Indikatoren" },
-  // Bewusst als drittes Element platziert (nicht ans Ende): fuellt genau die
-  // Luecke, die die vollbreite "live-price"-Kachel direkt danach in Zeile 1,
-  // Spalte 3 sonst leer laesst (siehe fullWidth-Kommentar oben).
   { id: "economic-calendar", title: "Wirtschaftskalender" },
-  { id: "live-price", title: "Preis & Open Interest", fullWidth: true },
+  // Vormals eine einzige fullWidth-Kachel "live-price" -- seit 05.09.2026
+  // in 5 eigenstaendige, individuell verschieb-/groessenbare Kacheln
+  // aufgeteilt (siehe fullWidth-Kommentar oben + LivePriceDataProvider.tsx
+  // fuer den weiterhin gemeinsamen State/Polling).
+  { id: "btc-price", title: "BTC Preis" },
+  { id: "oi-change", title: "OI Change" },
+  { id: "kurznotiz", title: "Kurznotiz (Gesamteinschätzung)" },
+  { id: "oi-by-exchange", title: "OI je Börse" },
+  { id: "funding-rate", title: "Funding Rate" },
   { id: "spot-pressure", title: "Spot Pressure" },
   { id: "orderbook-walls", title: "Orderbuch-Wände" },
   { id: "divergence-radar", title: "Divergenz-Radar" },
@@ -38,9 +48,6 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "liquidations", title: "Liquidationen" },
   { id: "etf-flow", title: "ETF-Flows & Makro" },
   { id: "news-risk", title: "News & Risiko" },
-  // fullWidth wie "live-price": drei Tabs mit mehreren Absaetzen je Tab
-  // waeren in einer einzelnen 1/3-Spalte zu eng/hoch fuer die Zeilen-
-  // Nachbarn (siehe fullWidth-Kommentar oben).
   { id: "institutional-playbook", title: "Institutional Playbook", fullWidth: true },
 ];
 

@@ -15,10 +15,13 @@ import { getTimeframe, type TimeframeId } from "@/lib/timeframes";
 // pollen -- ihre gesamte bestehende Ableitungslogik (Klassifizierung,
 // Coverage%, etc.) bleibt unveraendert, nur die Datenquelle wechselt.
 //
-// LivePricePanel ist bewusst NICHT angebunden: dessen Boersen-Auswahl ist
-// Nutzer-gesteuert (nicht immer DEFAULT_SERIES_EXCHANGE) und haette eine
-// deutlich groessere, riskantere Restrukturierung erfordert fuer einen
-// kleineren Zusatznutzen -- es pollt weiterhin unabhaengig.
+// Die aus der ehemaligen LivePricePanel hervorgegangenen Kacheln
+// (BtcPriceCard, OiChangeCard, OiByExchangeCard, FundingRateCard, siehe
+// LivePriceDataProvider.tsx) sind bewusst NICHT angebunden: deren
+// Boersen-Auswahl ist Nutzer-gesteuert (nicht immer DEFAULT_SERIES_EXCHANGE)
+// und haette eine deutlich groessere, riskantere Restrukturierung erfordert
+// fuer einen kleineren Zusatznutzen -- sie pollen weiterhin unabhaengig
+// ueber ihren eigenen Provider.
 
 const REFRESH_INTERVAL_MS = 30_000;
 const SERIES_MAX_POINTS = 500;

@@ -6,7 +6,6 @@ import type {
   DashboardPollBundle,
   EconomicCalendarEvent,
   EscalationSnapshot,
-  EscalationTriggerRecord,
   EtfFlowDay,
   HandelslageSnapshot,
   LiquidationEvent,
@@ -29,7 +28,12 @@ import { detectEscalationTriggers } from "@/lib/escalationContext";
 import { parseAnchorParam } from "@/lib/anchor";
 import { TRADINGVIEW_SIGNAL_FRESHNESS_HOURS } from "@/lib/tradingViewSignal";
 import { DEFAULT_SERIES_EXCHANGE } from "@/lib/exchanges";
-import LivePricePanel from "@/components/LivePricePanel";
+import LivePriceDataProvider from "@/components/LivePriceDataProvider";
+import BtcPriceCard from "@/components/BtcPriceCard";
+import OiChangeCard from "@/components/OiChangeCard";
+import KurznotizCard from "@/components/KurznotizCard";
+import OiByExchangeCard from "@/components/OiByExchangeCard";
+import FundingRateCard from "@/components/FundingRateCard";
 import PositioningPanel from "@/components/PositioningPanel";
 import NewsRiskPanel from "@/components/NewsRiskPanel";
 import LiquidationPanel from "@/components/LiquidationPanel";
@@ -90,7 +94,7 @@ async function getSnapshotHistory(limit = 180): Promise<MarketSnapshot[]> {
 
 // ENTFERNT (Single-Source-of-Truth-Merge): fruehere, eigenstaendige,
 // regelbasierte market_commentary-Abfrage. Die "Kurznotiz" in
-// LivePricePanel.tsx nutzt jetzt denselben marketState-Wert wie
+// LivePriceDataProvider.tsx nutzt jetzt denselben marketState-Wert wie
 // MarketStateCard (siehe getLatestMarketState() unten), zusammengefasst
 // ueber lib/marketStateSummary.ts::buildCompactMarketStateSummary() -- kein
 // zweiter, unabhaengiger Rechenweg mehr.
@@ -372,7 +376,7 @@ async function getLatestOrderbookWalls(): Promise<OrderbookWallSnapshot[]> {
 }
 
 // Serverseitig heruntergesamplete Preis/OI-Zeitreihe fuer den Standard-
-// Zeitraum, ueber dieselbe RPC wie der Client-Poll in LivePricePanel.tsx
+// Zeitraum, ueber dieselbe RPC wie der Client-Poll in LivePriceDataProvider.tsx
 // (siehe dortiger Kommentar: PostgREST kappt Antworten hart bei 1000
 // Zeilen, daher serverseitiges Downsampling statt einer Tabellenabfrage).
 async function getMarketSeries(
@@ -394,7 +398,7 @@ async function getMarketSeries(
 
 // Naechstgelegener Datenpunkt vor dem Zeitraumbeginn, fuer die OI-Change%/
 // BTC-Change%-Berechnung. Ueber dieselbe get_market_reference_snapshot-RPC
-// wie der Client-Poll in LivePricePanel.tsx -- versteht auch "aggregated"
+// wie der Client-Poll in LivePriceDataProvider.tsx -- versteht auch "aggregated"
 // (OI-Summe ueber alle Boersen) und faellt intern auf den aeltesten
 // verfuegbaren Punkt zurueck statt zu approximieren, falls die Historie
 // noch nicht so weit zurueckreicht.
@@ -445,7 +449,7 @@ async function getDashboardPollBundle(
 }
 
 // OI-Change% je Boerse fuer denselben Zeitraum wie die uebrige Seite --
-// gleiche RPC wie der Client-Poll in LivePricePanel.tsx.
+// gleiche RPC wie der Client-Poll in LivePriceDataProvider.tsx.
 async function getOiChangeByExchange(sinceIso: string): Promise<OiChangeByExchange[]> {
   const { data, error } = await supabase.rpc("get_oi_change_by_exchange", {
     p_since: sinceIso,
@@ -466,7 +470,7 @@ export default async function Home({
   // gesteuert vom TimeframeSelector unten. BTC-Change, OI-Change, Chart,
   // Spot-Flow und das Marktkontext-Assessment werden alle mit demselben
   // aufgeloesten Zeitraum berechnet -- keine unabhaengigen/versteckten
-  // Zeitraeume mehr (vorher: LivePricePanel, SpotPressurePanel und
+  // Zeitraeume mehr (vorher: LivePriceDataProvider, SpotPressurePanel und
   // MarketContextCard hatten je einen eigenen, nicht synchronisierten
   // Zeitraum-Zustand).
   const { tf, anchor } = await searchParams;
@@ -477,7 +481,7 @@ export default async function Home({
   // festen Zeitraum oben -- dieselbe server-seitige Aufloesungs-/
   // Weiterreichungs-Logik wie bei "tf" (AnchorPicker schreibt den
   // Roh-Query-Param, hier wird er einmal zentral geparst/validiert und als
-  // fertiger ISO-String an LiquidationPanel/LivePricePanel gereicht).
+  // fertiger ISO-String an LiquidationPanel/LivePriceDataProvider gereicht).
   const anchorDate = parseAnchorParam(anchor);
   const anchorIso = anchorDate ? anchorDate.toISOString() : null;
 
@@ -628,61 +632,65 @@ export default async function Home({
 
               <MarketStateCard initialState={marketState} />
 
-              <DashboardLayout
-                tiles={{
-                  "market-context": <MarketContextCard timeframe={timeframe} />,
-                  "regime-matrix": (
-                    <RegimeMatrixCard
-                      initialMatrix={marketStateMatrix}
-                      marketState={marketState}
-                      initialTradingViewSignal={latestTradingViewSignal}
-                      anchorIso={anchorIso}
-                      initialAnchoredSummary={anchoredSummary}
-                    />
-                  ),
-                  "economic-calendar": (
-                    <EconomicCalendarPanel initialEvents={upcomingEconomicEvents} />
-                  ),
-                  handelslage: <HandelslageCard initialSnapshot={latestHandelslage} />,
-                  lernen: <QuizTile />,
-                  "leverage-map": <LeverageMapCard map={latestLeverageMap} />,
-                  "cycle-indicators": <CycleIndicatorsCard data={cycleIndicators} />,
-                  "live-price": (
-                    <LivePricePanel
-                      timeframe={timeframe}
-                      initialSnapshots={snapshots}
-                      initialMarketState={marketState}
-                      initialSeriesData={oiSeriesData}
-                      initialReferenceSnapshot={oiReferenceSnapshot}
-                      initialFetchedSinceIso={timeframeSinceIsoValue}
-                      initialOiByExchange={oiByExchange}
-                      anchorIso={anchorIso}
-                      initialAnchoredSummary={anchoredSummary}
-                    />
-                  ),
-                  "spot-pressure": <SpotPressurePanel timeframe={timeframe} />,
-                  "orderbook-walls": <OrderbookWallCard walls={latestOrderbookWalls} />,
-                  "divergence-radar": <DivergenceRadarCard radar={divergenceRadar} />,
-                  positioning: <PositioningPanel />,
-                  liquidations: (
-                    <LiquidationPanel
-                      initialEvents={recentLiquidations}
-                      anchorIso={anchorIso}
-                      initialAnchoredSummary={anchoredSummary}
-                    />
-                  ),
-                  "etf-flow": (
-                    <EtfFlowPanel initialFlows={recentEtfFlows} macroNews={highImpactNews} />
-                  ),
-                  "news-risk": <NewsRiskPanel initialNews={highImpactNews} />,
-                  "news-analysis": <NewsAnalysisCard initialSnapshot={latestNewsAnalysis} />,
-                  "signal-engine": <SignalEngineCard initialSnapshot={latestSignalEngine} />,
-                  escalation: (
-                    <EscalationCard initialTriggers={escalationTriggers} initialSnapshot={latestEscalation} />
-                  ),
-                  "institutional-playbook": <InstitutionalPlaybookCard />,
-                }}
-              />
+              <LivePriceDataProvider
+                timeframe={timeframe}
+                initialSnapshots={snapshots}
+                initialMarketState={marketState}
+                initialSeriesData={oiSeriesData}
+                initialReferenceSnapshot={oiReferenceSnapshot}
+                initialFetchedSinceIso={timeframeSinceIsoValue}
+                initialOiByExchange={oiByExchange}
+                anchorIso={anchorIso}
+                initialAnchoredSummary={anchoredSummary}
+              >
+                <DashboardLayout
+                  tiles={{
+                    "market-context": <MarketContextCard timeframe={timeframe} />,
+                    "regime-matrix": (
+                      <RegimeMatrixCard
+                        initialMatrix={marketStateMatrix}
+                        marketState={marketState}
+                        initialTradingViewSignal={latestTradingViewSignal}
+                        anchorIso={anchorIso}
+                        initialAnchoredSummary={anchoredSummary}
+                      />
+                    ),
+                    "economic-calendar": (
+                      <EconomicCalendarPanel initialEvents={upcomingEconomicEvents} />
+                    ),
+                    handelslage: <HandelslageCard initialSnapshot={latestHandelslage} />,
+                    lernen: <QuizTile />,
+                    "leverage-map": <LeverageMapCard map={latestLeverageMap} />,
+                    "cycle-indicators": <CycleIndicatorsCard data={cycleIndicators} />,
+                    "btc-price": <BtcPriceCard />,
+                    "oi-change": <OiChangeCard />,
+                    kurznotiz: <KurznotizCard />,
+                    "oi-by-exchange": <OiByExchangeCard />,
+                    "funding-rate": <FundingRateCard />,
+                    "spot-pressure": <SpotPressurePanel timeframe={timeframe} />,
+                    "orderbook-walls": <OrderbookWallCard walls={latestOrderbookWalls} />,
+                    "divergence-radar": <DivergenceRadarCard radar={divergenceRadar} />,
+                    positioning: <PositioningPanel />,
+                    liquidations: (
+                      <LiquidationPanel
+                        initialEvents={recentLiquidations}
+                        anchorIso={anchorIso}
+                        initialAnchoredSummary={anchoredSummary}
+                      />
+                    ),
+                    "etf-flow": (
+                      <EtfFlowPanel initialFlows={recentEtfFlows} macroNews={highImpactNews} />
+                    ),
+                    "news-risk": <NewsRiskPanel initialNews={highImpactNews} />,
+                    "news-analysis": <NewsAnalysisCard initialSnapshot={latestNewsAnalysis} />,
+                    "signal-engine": <SignalEngineCard initialSnapshot={latestSignalEngine} />,
+                    escalation: (
+                      <EscalationCard initialTriggers={escalationTriggers} initialSnapshot={latestEscalation} />
+                    ),
+                    "institutional-playbook": <InstitutionalPlaybookCard />,
+                  }}
+                />
+              </LivePriceDataProvider>
             </DetailsToggle>
           </DashboardPollProvider>
         </div>
