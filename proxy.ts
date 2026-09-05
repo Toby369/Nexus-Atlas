@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { isPublicPath } from "@/lib/authGate";
+import { isAuthorizedServiceRoleRequest, isPublicPath } from "@/lib/authGate";
 
 // Phase 4: vollstaendiges Auth-Gate fuer die gesamte Anwendung (vorher nur
 // /reports + /api/reports -- siehe Git-Historie fuer die urspruengliche,
@@ -28,6 +28,20 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (isPublicPath(pathname)) {
+    return NextResponse.next();
+  }
+
+  // Server-zu-Server-Aufrufe (aktuell nur report-scheduler) duerfen sich
+  // statt einer Nutzer-Session mit dem SUPABASE_SERVICE_ROLE_KEY als Bearer-
+  // Token ausweisen -- siehe lib/authGate.ts fuer die vollstaendige
+  // Begruendung (Audit-Fund 05.09.2026).
+  if (
+    isAuthorizedServiceRoleRequest(
+      pathname,
+      request.headers.get("Authorization"),
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    )
+  ) {
     return NextResponse.next();
   }
 

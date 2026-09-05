@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { isPublicPath, PUBLIC_EXACT_PATHS, PUBLIC_PREFIXES } from "./authGate";
+import {
+  isAuthorizedServiceRoleRequest,
+  isPublicPath,
+  PUBLIC_EXACT_PATHS,
+  PUBLIC_PREFIXES,
+} from "./authGate";
 
 describe("isPublicPath", () => {
   it("lässt die Login-Seite ohne Session durch (sonst Redirect-Schleife)", () => {
@@ -67,5 +72,38 @@ describe("isPublicPath", () => {
     for (const prefix of PUBLIC_PREFIXES) {
       expect(isPublicPath(`${prefix}anything`)).toBe(true);
     }
+  });
+});
+
+describe("isAuthorizedServiceRoleRequest", () => {
+  it("laesst report-scheduler mit korrektem Service-Role-Bearer-Token durch", () => {
+    expect(
+      isAuthorizedServiceRoleRequest("/api/reports/run", "Bearer geheim-123", "geheim-123")
+    ).toBe(true);
+  });
+
+  it("sperrt bei falschem Token", () => {
+    expect(
+      isAuthorizedServiceRoleRequest("/api/reports/run", "Bearer falsch", "geheim-123")
+    ).toBe(false);
+  });
+
+  it("sperrt, wenn kein Authorization-Header mitgeschickt wurde", () => {
+    expect(isAuthorizedServiceRoleRequest("/api/reports/run", null, "geheim-123")).toBe(false);
+  });
+
+  it("sperrt, wenn SUPABASE_SERVICE_ROLE_KEY serverseitig nicht gesetzt ist (kein Vergleich gegen 'Bearer undefined')", () => {
+    expect(
+      isAuthorizedServiceRoleRequest("/api/reports/run", "Bearer undefined", undefined)
+    ).toBe(false);
+  });
+
+  it("gilt NICHT fuer andere Pfade -- kein pauschaler Service-Role-Bypass fuers ganze /api", () => {
+    expect(
+      isAuthorizedServiceRoleRequest("/api/ai/analyze", "Bearer geheim-123", "geheim-123")
+    ).toBe(false);
+    expect(
+      isAuthorizedServiceRoleRequest("/api/reports/config", "Bearer geheim-123", "geheim-123")
+    ).toBe(false);
   });
 });

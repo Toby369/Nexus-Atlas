@@ -43,3 +43,32 @@ export function isPublicPath(pathname: string): boolean {
   if (PUBLIC_EXACT_PATHS.has(pathname)) return true;
   return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
+
+// Audit-Fund 05.09.2026: /api/reports/run ist zu Recht NICHT public (siehe
+// oben), aber report-scheduler (Supabase Edge Function, pg_cron alle 5 Min)
+// ruft genau diese Route als Server-zu-Server-fetch OHNE Nutzer-Session auf --
+// das Auth-Gate hat das seit Phase 4 (vollstaendiges Gate statt nur /reports)
+// ausnahmslos mit 401 abgelehnt, unbemerkt, weil report-scheduler den Fehler
+// nur in seiner eigenen (nirgends gelesenen) Response protokolliert statt ihn
+// sichtbar zu machen. report_runs hatte dadurch seit dem 27.08.2026 keine neue
+// Zeile mehr, obwohl alle 4 Report-Slots aktiv und terminiert sind.
+//
+// Fix: report-scheduler darf sich stattdessen mit dem SUPABASE_SERVICE_ROLE_KEY
+// als Bearer-Token ausweisen -- KEIN neues Secret, sondern derselbe Key, den
+// die Edge Function ohnehin automatisch von der Supabase-Plattform injiziert
+// bekommt und den /api/reports/run selbst schon fuer supabaseAdmin nutzt
+// (lib/supabaseAdmin.ts). Vertrauensniveau ist identisch zu einem direkten
+// DB-Zugriff mit diesem Key -- nur eben ueber HTTP statt Postgres-Wire-
+// Protokoll. Der normale Login-Session-Weg (z.B. der "Jetzt ausfuehren"-
+// Button im Dashboard) bleibt fuer alle anderen Aufrufer unveraendert.
+export const SERVICE_ROLE_BEARER_PATHS: ReadonlySet<string> = new Set(["/api/reports/run"]);
+
+export function isAuthorizedServiceRoleRequest(
+  pathname: string,
+  authorizationHeader: string | null,
+  expectedServiceRoleKey: string | undefined
+): boolean {
+  if (!SERVICE_ROLE_BEARER_PATHS.has(pathname)) return false;
+  if (!expectedServiceRoleKey || !authorizationHeader) return false;
+  return authorizationHeader === `Bearer ${expectedServiceRoleKey}`;
+}
