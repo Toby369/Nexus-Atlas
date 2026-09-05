@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type {
+  EconomicCalendarEvent,
   EtfFlowDay,
   LiquidationEvent,
   MarketRegime,
@@ -34,6 +35,7 @@ import { useDashboardPoll } from "@/components/DashboardPollProvider";
 import { RelativeTime } from "@/components/ClientTimestamp";
 import StatusLineSummary, { type StatusLineItem } from "@/components/StatusLineSummary";
 import EntryFilterBadge from "@/components/EntryFilterBadge";
+import TradingHoursBadge from "@/components/TradingHoursBadge";
 
 const CUMULATIVE_ETF_DAYS = 5;
 const LIQUIDATION_LOOKBACK_HOURS = 6;
@@ -112,6 +114,7 @@ export default function HeroHeader({
   recentEtfFlows,
   recentLiquidations,
   highImpactNews,
+  upcomingEconomicEvents,
 }: {
   initialState: MarketState | null;
   initialRegime: MarketRegime | null;
@@ -127,6 +130,11 @@ export default function HeroHeader({
   recentEtfFlows: EtfFlowDay[];
   recentLiquidations: LiquidationEvent[];
   highImpactNews: NewsEvent[];
+  // Statisch pro Seitenaufruf, dieselbe SSR-Quelle wie EconomicCalendarPanel
+  // (getUpcomingEconomicEvents() in app/page.tsx) -- die Handelszeiten-Kachel
+  // rechnet rein clientseitig gegen die Systemzeit weiter, braucht also
+  // keinen eigenen Live-Poll dieser sich ohnehin selten aendernden Termine.
+  upcomingEconomicEvents: EconomicCalendarEvent[];
 }) {
   const [state, setState] = useState(initialState);
   const [regime, setRegime] = useState(initialRegime);
@@ -290,6 +298,7 @@ export default function HeroHeader({
       </p>
 
       <EntryFilterBadge state={state} />
+      <TradingHoursBadge events={upcomingEconomicEvents} />
 
       {confirmation.primaryDirection && confirmation.totalComparable > 0 && (
         <p className="text-xs text-text-faint pt-2 border-t border-border/60">

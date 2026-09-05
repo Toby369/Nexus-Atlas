@@ -451,6 +451,7 @@ export default async function Home({
               recentEtfFlows={recentEtfFlows}
               recentLiquidations={recentLiquidations}
               highImpactNews={highImpactNews}
+              upcomingEconomicEvents={upcomingEconomicEvents}
             />
 
             <DetailsToggle>
