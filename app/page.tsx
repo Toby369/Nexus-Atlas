@@ -53,6 +53,7 @@ import NewsAnalysisCard from "@/components/NewsAnalysisCard";
 import SignalEngineCard from "@/components/SignalEngineCard";
 import EscalationCard from "@/components/EscalationCard";
 import YoutubeMonitorCard from "@/components/YoutubeMonitorCard";
+import { getYoutubeMonitorConfig } from "@/lib/youtubeMonitorContext";
 import LeverageMapCard from "@/components/LeverageMapCard";
 import CycleIndicatorsCard from "@/components/CycleIndicatorsCard";
 import TimeframeSelector from "@/components/TimeframeSelector";
@@ -522,6 +523,7 @@ export default async function Home({
     escalationTriggers,
     latestEscalation,
     latestYoutubeAnalyses,
+    youtubeMonitorConfig,
     oiSeriesData,
     oiReferenceSnapshot,
     dashboardBundle,
@@ -546,6 +548,7 @@ export default async function Home({
     detectEscalationTriggers(),
     getLatestEscalation(),
     getLatestYoutubeAnalyses(),
+    getYoutubeMonitorConfig(),
     getMarketSeries(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getOiReferenceSnapshot(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getDashboardPollBundle(timeframeSinceIsoValue),
@@ -708,7 +711,12 @@ export default async function Home({
                     escalation: (
                       <EscalationCard initialTriggers={escalationTriggers} initialSnapshot={latestEscalation} />
                     ),
-                    "youtube-monitor": <YoutubeMonitorCard initialAnalyses={latestYoutubeAnalyses} />,
+                    "youtube-monitor": (
+                      <YoutubeMonitorCard
+                        initialAnalyses={latestYoutubeAnalyses}
+                        initialConfig={youtubeMonitorConfig}
+                      />
+                    ),
                     "institutional-playbook": <InstitutionalPlaybookCard />,
                   }}
                 />

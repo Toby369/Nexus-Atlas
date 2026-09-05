@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import {
-  searchRecentBtcVideos,
+  getYoutubeMonitorConfig,
+  findRecentVideoCandidates,
   filterUnseenVideos,
   MAX_NEW_VIDEOS_PER_RUN,
 } from "@/lib/youtubeMonitorContext";
@@ -53,8 +54,12 @@ export async function POST() {
   }
 
   let candidates;
+  let channelErrors: string[] = [];
   try {
-    candidates = await filterUnseenVideos(await searchRecentBtcVideos());
+    const config = await getYoutubeMonitorConfig();
+    const found = await findRecentVideoCandidates(config);
+    channelErrors = found.channelErrors;
+    candidates = await filterUnseenVideos(found.candidates);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ success: false, error: message }, { status: 502 });
@@ -62,7 +67,11 @@ export async function POST() {
 
   if (candidates.length === 0) {
     return NextResponse.json(
-      { success: false, error: "Keine neuen BTC/Krypto-Videos in den letzten 24h gefunden." },
+      {
+        success: false,
+        error: "Keine neuen Videos in den letzten 24h gefunden.",
+        channelErrors,
+      },
       { status: 422 }
     );
   }
@@ -111,5 +120,6 @@ export async function POST() {
     analyzed: inserted.length,
     checked: candidates.length,
     newAnalyses: inserted,
+    channelErrors,
   });
 }
