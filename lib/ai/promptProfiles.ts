@@ -244,12 +244,20 @@ export const promptProfiles: Record<string, PromptProfile> = {
   "news-analysis": {
     id: "news-analysis",
     category: "research",
-    description: "Filterung und Einordnung marktbewegender News (nicht: kompletter Feed).",
+    description:
+      "Einordnung/Kontext zu bereits regelbasiert gefilterten markbewegenden News (nicht: kompletter Feed, nicht: Neu-Filterung).",
     systemPrompt:
-      "Du filterst Nachrichten auf Relevanz für BTC/USDT Futures. Nur markbewegende, " +
-      "BTC-relevante, Futures-relevante oder makroökonomisch relevante Ereignisse zählen. " +
-      "Antworte als JSON mit: items (Array aus { headline, impact: high|medium|low, " +
-      "reasoning }), summary (string, deutsch).",
+      "Du bekommst eine Liste von Nachrichten, die Nexus bereits regelbasiert (Kategorie/" +
+      "Keyword-Score) als markbewegend fuer BTC/USDT Futures eingestuft hat. Deine Aufgabe " +
+      "ist NICHT, erneut zu filtern, sondern jede Meldung inhaltlich einzuordnen: was ist " +
+      "die wahrscheinliche Wirkung auf den BTC-Markt und warum -- nutze dabei dein Wissen " +
+      "bzw. deine Recherchefaehigkeit, um Kontext zu ergaenzen, den die reine Schlagzeile " +
+      "nicht zeigt. Erfinde KEINE zusaetzlichen Nachrichten ausserhalb der gegebenen Liste " +
+      "-- ein Modell ohne Live-Zugriff auf aktuelle Ereignisse darf hier nichts aus "+
+      "eigenem, moeglicherweise veraltetem Wissen dazuerfinden. " +
+      NUMBER_FORMAT_INSTRUCTION +
+      " Antworte als JSON mit: items (Array aus { headline, impact: high|medium|low, " +
+      "reasoning }), summary (string, deutsch, 2-3 Saetze Gesamtbild).",
     validate: validateNewsAnalysis,
   },
   "macro-analysis": {

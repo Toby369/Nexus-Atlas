@@ -12,6 +12,7 @@ import type {
   MarketSnapshot,
   MarketState,
   MarketStateMatrix,
+  NewsAnalysisSnapshot,
   NewsEvent,
   OiChangeByExchange,
   OrderbookWallSnapshot,
@@ -39,6 +40,7 @@ import HandelslageCard from "@/components/HandelslageCard";
 import QuizTile from "@/components/QuizTile";
 import OrderbookWallCard from "@/components/OrderbookWallCard";
 import DivergenceRadarCard from "@/components/DivergenceRadarCard";
+import NewsAnalysisCard from "@/components/NewsAnalysisCard";
 import LeverageMapCard from "@/components/LeverageMapCard";
 import CycleIndicatorsCard from "@/components/CycleIndicatorsCard";
 import TimeframeSelector from "@/components/TimeframeSelector";
@@ -167,6 +169,24 @@ async function getHighImpactNews(): Promise<NewsEvent[]> {
   }
 
   return data ?? [];
+}
+
+// News-Kachel (KI-Ergaenzung, 05.09.2026): letzter zwischengespeicherter
+// Stand -- reines Lesen, kein AI-Aufruf (der passiert nur ueber POST
+// /api/news-analysis/generate, siehe NewsAnalysisCard.tsx).
+async function getLatestNewsAnalysis(): Promise<NewsAnalysisSnapshot | null> {
+  const { data, error } = await supabase
+    .from("news_analysis_snapshots")
+    .select("*")
+    .order("generated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Fehler beim Laden der News-Einordnung:", error.message);
+    return null;
+  }
+  return data;
 }
 
 // Stichprobenerfassung (~25s alle 5 Min je Boerse) -- letzte Fenster fuer
@@ -432,6 +452,7 @@ export default async function Home({
     cycleIndicators,
     latestOrderbookWalls,
     divergenceRadar,
+    latestNewsAnalysis,
     oiSeriesData,
     oiReferenceSnapshot,
     dashboardBundle,
@@ -451,6 +472,7 @@ export default async function Home({
     buildCycleIndicators(),
     getLatestOrderbookWalls(),
     buildDivergenceRadar(),
+    getLatestNewsAnalysis(),
     getMarketSeries(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getOiReferenceSnapshot(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getDashboardPollBundle(timeframeSinceIsoValue),
@@ -605,6 +627,7 @@ export default async function Home({
                     <EtfFlowPanel initialFlows={recentEtfFlows} macroNews={highImpactNews} />
                   ),
                   "news-risk": <NewsRiskPanel initialNews={highImpactNews} />,
+                  "news-analysis": <NewsAnalysisCard initialSnapshot={latestNewsAnalysis} />,
                   "institutional-playbook": <InstitutionalPlaybookCard />,
                 }}
               />

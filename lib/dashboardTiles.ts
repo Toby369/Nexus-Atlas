@@ -31,6 +31,7 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "spot-pressure", title: "Spot Pressure" },
   { id: "orderbook-walls", title: "Orderbuch-Wände" },
   { id: "divergence-radar", title: "Divergenz-Radar" },
+  { id: "news-analysis", title: "News-Einordnung (KI)" },
   { id: "positioning", title: "Positionierung" },
   { id: "liquidations", title: "Liquidationen" },
   { id: "etf-flow", title: "ETF-Flows & Makro" },

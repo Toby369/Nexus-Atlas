@@ -462,3 +462,29 @@ export interface OrderbookWallSnapshot {
   ask_wall_usd: number | null;
   status: string;
 }
+
+// KI-Einordnung bereits regelbasiert als markbewegend eingestufter News
+// (News-Kachel, KI-Ergaenzung 05.09.2026, erster mit Perplexity aktivierter
+// Slot) -- siehe lib/newsAnalysisContext.ts + lib/ai/promptProfiles.ts
+// ("news-analysis"). "items" bewusst auf die von Nexus bereits gelieferten
+// Schlagzeilen beschraenkt (Prompt untersagt dem Modell, neue zu erfinden).
+export interface NewsAnalysisItem {
+  headline: string;
+  impact: "high" | "medium" | "low";
+  reasoning: string;
+}
+
+export interface NewsAnalysisResult {
+  items: NewsAnalysisItem[];
+  summary: string;
+}
+
+export interface NewsAnalysisSnapshot {
+  id: number;
+  generated_at: string;
+  provider: string | null;
+  model: string | null;
+  result: NewsAnalysisResult | null;
+  status: "ok" | "error";
+  error: string | null;
+}
