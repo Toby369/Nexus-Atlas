@@ -37,6 +37,7 @@ import DashboardPollProvider from "@/components/DashboardPollProvider";
 import HeroHeader from "@/components/HeroHeader";
 import DetailsToggle from "@/components/DetailsToggle";
 import LogoutButton from "@/components/LogoutButton";
+import RefreshButton from "@/components/RefreshButton";
 
 export const revalidate = 0;
 
@@ -416,6 +417,7 @@ export default async function Home({
           </h1>
         </div>
         <div className="flex items-center gap-4">
+          <RefreshButton />
           <Link
             href="/reports"
             className="text-xs text-text-faint hover:text-text-muted underline decoration-dotted"
