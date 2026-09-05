@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   DndContext,
   closestCenter,
@@ -20,11 +20,21 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { DASHBOARD_TILES, DASHBOARD_TILE_IDS } from "@/lib/dashboardTiles";
 
-const STORAGE_KEY = "nexus-atlas-dashboard-layout-v1";
+const STORAGE_KEY = "nexus-atlas-dashboard-layout-v2";
+
+// Spaltenbreite als 1-3 (bei lg: 3-spaltiges Grid, siehe Render unten) statt
+// freier Pixelwerte -- Nutzer-Wunsch "wie im Trading Journal selbst
+// vergroessern", aber ohne eine ganze Grid-Layout-Bibliothek (react-grid-
+// layout o.ae.) nachzuziehen: passt sich damit sauber in dasselbe CSS-Grid
+// ein, das DASHBOARD_TILES.fullWidth bereits nutzt.
+const MIN_WIDTH = 1;
+const MAX_WIDTH = 3;
 
 interface StoredLayout {
   order: string[];
   minimized: string[];
+  widths?: Record<string, number>;
+  heights?: Record<string, number>;
 }
 
 // Kein Nutzerkonto-System vorhanden -- localStorage ist die bewusst gewaehlte
@@ -42,6 +52,28 @@ function loadStoredLayout(): StoredLayout | null {
   }
 }
 
+function sanitizeWidths(raw: unknown): Record<string, number> {
+  if (!raw || typeof raw !== "object") return {};
+  const result: Record<string, number> = {};
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (DASHBOARD_TILE_IDS.includes(id) && typeof value === "number" && Number.isFinite(value)) {
+      result[id] = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(value)));
+    }
+  }
+  return result;
+}
+
+function sanitizeHeights(raw: unknown): Record<string, number> {
+  if (!raw || typeof raw !== "object") return {};
+  const result: Record<string, number> = {};
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (DASHBOARD_TILE_IDS.includes(id) && typeof value === "number" && Number.isFinite(value) && value > 0) {
+      result[id] = value;
+    }
+  }
+  return result;
+}
+
 // Gespeicherte Reihenfolge mit der aktuellen Kachel-Registry abgleichen:
 // unbekannte/entfernte IDs rausfiltern, neu hinzugekommene Kacheln ans Ende
 // anhaengen -- damit ein spaeter ergaenztes Panel nicht verschwindet, nur
@@ -54,7 +86,11 @@ function mergeOrder(saved: string[]): string[] {
 }
 
 const titleById = Object.fromEntries(DASHBOARD_TILES.map((t) => [t.id, t.title]));
-const fullWidthById = Object.fromEntries(DASHBOARD_TILES.map((t) => [t.id, Boolean(t.fullWidth)]));
+// Default-Spaltenbreite (1-3): vormals hart codiertes fullWidth wird zum
+// Startwert, bleibt aber ab jetzt vom Nutzer pro Kachel veraenderbar.
+const defaultWidthById = Object.fromEntries(
+  DASHBOARD_TILES.map((t) => [t.id, t.fullWidth ? MAX_WIDTH : MIN_WIDTH]),
+);
 
 export default function DashboardLayout({ tiles }: { tiles: Record<string, ReactNode> }) {
   // Server-Render und erster Client-Render nutzen bewusst dieselbe
@@ -63,6 +99,8 @@ export default function DashboardLayout({ tiles }: { tiles: Record<string, React
   // Effekt nachgeladen, um einen Hydration-Mismatch zu vermeiden.
   const [order, setOrder] = useState<string[]>(DASHBOARD_TILE_IDS);
   const [minimized, setMinimized] = useState<Set<string>>(new Set());
+  const [widths, setWidths] = useState<Record<string, number>>({});
+  const [heights, setHeights] = useState<Record<string, number>>({});
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -75,6 +113,8 @@ export default function DashboardLayout({ tiles }: { tiles: Record<string, React
       if (stored) {
         setOrder(mergeOrder(stored.order));
         setMinimized(new Set(stored.minimized.filter((id) => DASHBOARD_TILE_IDS.includes(id))));
+        setWidths(sanitizeWidths(stored.widths));
+        setHeights(sanitizeHeights(stored.heights));
       }
       setHydrated(true);
     });
@@ -85,14 +125,14 @@ export default function DashboardLayout({ tiles }: { tiles: Record<string, React
     try {
       window.localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ order, minimized: Array.from(minimized) }),
+        JSON.stringify({ order, minimized: Array.from(minimized), widths, heights }),
       );
     } catch {
       // localStorage kann in privaten Modi/eingeschraenkten Umgebungen
       // fehlschlagen -- das Layout bleibt dann nur fuer die Sitzung
       // erhalten, kein Fehlerzustand fuer den Nutzer.
     }
-  }, [order, minimized, hydrated]);
+  }, [order, minimized, widths, heights, hydrated]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -130,6 +170,19 @@ export default function DashboardLayout({ tiles }: { tiles: Record<string, React
     });
   }
 
+  function changeWidth(id: string, direction: -1 | 1) {
+    setWidths((prev) => {
+      const current = prev[id] ?? defaultWidthById[id] ?? MIN_WIDTH;
+      const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, current + direction));
+      if (next === current) return prev;
+      return { ...prev, [id]: next };
+    });
+  }
+
+  const handleHeightChange = useCallback((id: string, height: number) => {
+    setHeights((prev) => (prev[id] === height ? prev : { ...prev, [id]: height }));
+  }, []);
+
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       {/* rectSortingStrategy statt verticalListSortingStrategy: die Kacheln
@@ -144,13 +197,17 @@ export default function DashboardLayout({ tiles }: { tiles: Record<string, React
               key={id}
               id={id}
               title={titleById[id] ?? id}
-              fullWidth={fullWidthById[id] ?? false}
+              width={widths[id] ?? defaultWidthById[id] ?? MIN_WIDTH}
+              height={heights[id]}
               isMinimized={minimized.has(id)}
               onToggleMinimize={() => toggleMinimized(id)}
               onMoveUp={() => moveTile(id, -1)}
               onMoveDown={() => moveTile(id, 1)}
               canMoveUp={idx > 0}
               canMoveDown={idx < order.length - 1}
+              onNarrower={() => changeWidth(id, -1)}
+              onWider={() => changeWidth(id, 1)}
+              onHeightChange={handleHeightChange}
             >
               {tiles[id]}
             </SortableTile>
@@ -164,36 +221,48 @@ export default function DashboardLayout({ tiles }: { tiles: Record<string, React
 function SortableTile({
   id,
   title,
-  fullWidth,
+  width,
+  height,
   isMinimized,
   onToggleMinimize,
   onMoveUp,
   onMoveDown,
   canMoveUp,
   canMoveDown,
+  onNarrower,
+  onWider,
+  onHeightChange,
   children,
 }: {
   id: string;
   title: string;
-  fullWidth: boolean;
+  width: number;
+  height: number | undefined;
   isMinimized: boolean;
   onToggleMinimize: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
   canMoveUp: boolean;
   canMoveDown: boolean;
+  onNarrower: () => void;
+  onWider: () => void;
+  onHeightChange: (id: string, height: number) => void;
   children: ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  // col-span-Klassen als volle, statische Literale (nicht per Template-
+  // String zusammengesetzt) -- Tailwinds Compiler erkennt Klassennamen nur,
+  // wenn sie so im Quelltext stehen, siehe Vorgabe "kein new dependency" +
+  // hier: keine per-Wert generierten, vom Scanner uebersehenen Klassen.
+  const widthClass = width >= 3 ? "lg:col-span-3" : width === 2 ? "lg:col-span-2" : "lg:col-span-1";
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    gridColumn: fullWidth ? "1 / -1" : undefined,
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
+    <div ref={setNodeRef} style={style} className={widthClass}>
       <div className="flex items-center gap-1 max-sm:gap-0.5 mb-1.5">
         <button
           type="button"
@@ -230,6 +299,29 @@ function SortableTile({
         <span className="flex-1 truncate text-[10px] uppercase tracking-[0.12em] text-text-faint">
           {title}
         </span>
+        {/* Breite nur ab lg: sichtbar/relevant -- darunter ist das Grid
+            ohnehin einspaltig (grid-cols-1), Breitenaenderung haette keinen
+            sichtbaren Effekt. */}
+        <div className="hidden lg:flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={onNarrower}
+            disabled={width <= MIN_WIDTH}
+            aria-label={`${title} schmaler machen`}
+            className="flex items-center justify-center px-1 text-[10px] text-text-faint hover:text-text-muted disabled:opacity-20"
+          >
+            ◀
+          </button>
+          <button
+            type="button"
+            onClick={onWider}
+            disabled={width >= MAX_WIDTH}
+            aria-label={`${title} breiter machen`}
+            className="flex items-center justify-center px-1 text-[10px] text-text-faint hover:text-text-muted disabled:opacity-20"
+          >
+            ▶
+          </button>
+        </div>
         <button
           type="button"
           onClick={onToggleMinimize}
@@ -239,7 +331,63 @@ function SortableTile({
           {isMinimized ? "+" : "−"}
         </button>
       </div>
-      {!isMinimized && children}
+      {!isMinimized && (
+        <ResizableTileBody id={id} height={height} onResize={onHeightChange}>
+          {children}
+        </ResizableTileBody>
+      )}
+    </div>
+  );
+}
+
+// Freies Vergroessern/Verkleinern der Hoehe per nativem Browser-Resize-Griff
+// (CSS resize:vertical) statt einer Grid-Layout-Bibliothek -- Nutzer-Wunsch
+// "selbst vergroessern wie im Trading Journal". Persistiert wird nur eine
+// tatsaechliche Nutzer-Ziehgeste: Hoehe wird bei pointerdown gemerkt und nur
+// bei pointerup uebernommen, wenn sie sich seither veraendert hat -- reine
+// Inhaltsaenderungen (neue Daten, Tab-Wechsel) loesen kein pointerdown/-up
+// auf diesem Element aus und ueberschreiben die gespeicherte Hoehe daher nie.
+function ResizableTileBody({
+  id,
+  height,
+  onResize,
+  children,
+}: {
+  id: string;
+  height: number | undefined;
+  onResize: (id: string, height: number) => void;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const startHeightRef = useRef<number | null>(null);
+
+  function handlePointerDown() {
+    if (ref.current) {
+      startHeightRef.current = ref.current.getBoundingClientRect().height;
+    }
+  }
+
+  useEffect(() => {
+    function handlePointerUp() {
+      if (startHeightRef.current == null || !ref.current) return;
+      const endHeight = ref.current.getBoundingClientRect().height;
+      if (Math.abs(endHeight - startHeightRef.current) > 1) {
+        onResize(id, Math.round(endHeight));
+      }
+      startHeightRef.current = null;
+    }
+    window.addEventListener("pointerup", handlePointerUp);
+    return () => window.removeEventListener("pointerup", handlePointerUp);
+  }, [id, onResize]);
+
+  return (
+    <div
+      ref={ref}
+      onPointerDown={handlePointerDown}
+      style={{ height: height ? `${height}px` : undefined }}
+      className="overflow-auto resize-y"
+    >
+      {children}
     </div>
   );
 }
