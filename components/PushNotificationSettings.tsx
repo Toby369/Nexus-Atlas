@@ -170,8 +170,11 @@ export default function PushNotificationSettings() {
       {error && <span className="text-xs text-down">{error}</span>}
 
       <p className="text-xs text-text-faint pt-1">
-        Benachrichtigt bei Zustandswechsel der Gesamteinschätzung (z.B. Mixed → Bullisch) — kein
-        Handelssignal, keine Anlageberatung.
+        Benachrichtigt bei Zustandswechsel der Gesamteinschätzung (z.B. Mixed → Bullisch), bei
+        neuem/gewechseltem Einstiegsfilter-Setup (4h-Struktur long/short) und bei neu
+        aufgetretenen Risiko-Faktoren (z.B. Funding-Extrem, erhöhte Volatilität) — jeweils nur
+        beim Übergang, nicht wiederholt solange der Zustand anhält. Kein Handelssignal, keine
+        Anlageberatung.
       </p>
     </div>
   );
