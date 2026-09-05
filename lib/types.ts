@@ -488,3 +488,25 @@ export interface NewsAnalysisSnapshot {
   status: "ok" | "error";
   error: string | null;
 }
+
+// Signal-Engine-Kachel (Thema KI, Punkt 2/2, 05.09.2026, zweiter aktivierter
+// Slot mit Anthropic als primaerem Provider) -- Konsistenzpruefung der
+// bestehenden regelbasierten Gesamteinschaetzung (market_states), kein
+// eigener Bias. Siehe lib/signalEngineContext.ts + lib/ai/promptProfiles.ts
+// ("signal-analysis").
+export interface SignalEngineResult {
+  isConsistent: boolean;
+  confidence: number;
+  summary: string;
+  concerns: string[];
+}
+
+export interface SignalEngineSnapshot {
+  id: number;
+  generated_at: string;
+  provider: string | null;
+  model: string | null;
+  result: SignalEngineResult | null;
+  status: "ok" | "error";
+  error: string | null;
+}

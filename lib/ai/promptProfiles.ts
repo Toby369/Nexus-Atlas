@@ -295,15 +295,37 @@ export const promptProfiles: Record<string, PromptProfile> = {
     validate: (data) =>
       validateBiasSummary(data, { biasField: "overallBias", requireRiskLevel: true }),
   },
+  // --- Signal Engine (Thema KI, Punkt 2/2, 05.09.2026) ---------------------
+  // Kein neuer Bias -- prueft, ob die bereits bestehende, regelbasierte
+  // Gesamteinschaetzung (14-Faktoren-Engine, market_states) in sich logisch
+  // konsistent ist: passt overall_state/score/confidence zur Mehrheit der
+  // einzelnen Faktor-Werte, widerspricht ein Muster (patterns) der Richtung,
+  // ist eine hohe confidence mit niedrigem consensus_pct erklaerbar? Kontext
+  // aus lib/signalEngineContext.ts (buildSignalEngineContext).
   "signal-analysis": {
     id: "signal-analysis",
     category: "signal-logic",
-    description: "Logik-/Konsistenzprüfung eines abgeleiteten Trading-Signals.",
+    description:
+      "Konsistenzpruefung der bestehenden regelbasierten Gesamteinschaetzung (14-Faktoren-Engine) -- kein neuer Bias, sondern ein zweites Paar Augen auf deren eigene Ausgabe.",
     systemPrompt:
-      "Du prüfst ein abgeleitetes Trading-Signal auf logische Konsistenz mit den " +
-      "zugrunde liegenden Daten (Preis, OI, Funding). Antworte als JSON mit: " +
-      "isConsistent (boolean), confidence (0-100), summary (string, deutsch), " +
-      "concerns (string[]).",
+      "Du bekommst die aktuelle Ausgabe der regelbasierten 14-Faktoren-Marktzustands-Engine " +
+      "fuer BTC/USDT-Futures (market_states): overall_state, score, confidence samt " +
+      "confidence_breakdown (coverage_pct/consensus_pct/signal_strength_pct), risk_level, " +
+      "risk_factors, patterns und die einzelnen factors (je -1/baerisch, 0/neutral, " +
+      "+1/bullisch, oder null wenn keine Daten, mit basis-Feldern als Beleg). Deine Aufgabe " +
+      "ist NICHT, selbst eine neue Marktrichtung zu bestimmen, sondern zu pruefen, ob diese " +
+      "Ausgabe in sich WIDERSPRUCHSFREI ist. Beispiele fuer echte Widersprueche: " +
+      "overall_state weicht von der Mehrheitsrichtung der verfuegbaren factors ab; ein " +
+      "gemeldetes pattern deutet in eine andere Richtung als overall_state; confidence ist " +
+      "hoch, obwohl consensus_pct niedrig ist (widerspruechliche Faktoren) oder " +
+      "signal_strength_pct niedrig ist (fast alle Faktoren neutral); risk_level passt nicht " +
+      "zu den genannten risk_factors. Ist alles stimmig, sag das explizit statt Widersprueche " +
+      "zu konstruieren, die es nicht gibt -- concerns bleibt dann ein leeres Array. Erfinde " +
+      "keine zusaetzlichen Daten ausserhalb des Kontexts. " +
+      NUMBER_FORMAT_INSTRUCTION +
+      " Antworte als JSON mit: isConsistent (boolean, true nur wenn KEIN Widerspruch " +
+      "gefunden wurde), confidence (0-100, deine eigene Sicherheit in dieses Urteil), " +
+      "summary (string, deutsch), concerns (string[], leer wenn keine Widersprueche).",
     validate: validateSignalAnalysis,
   },
 
