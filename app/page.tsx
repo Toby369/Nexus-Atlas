@@ -19,6 +19,7 @@ import type {
   OrderbookWallSnapshot,
   SignalEngineSnapshot,
   TradingViewSignal,
+  YoutubeVideoAnalysis,
 } from "@/lib/types";
 import { getTimeframe, parseTimeframe, type TimeframeId } from "@/lib/timeframes";
 import { buildLiveLeverageMap } from "@/lib/leverageMapContext";
@@ -51,6 +52,7 @@ import DivergenceRadarCard from "@/components/DivergenceRadarCard";
 import NewsAnalysisCard from "@/components/NewsAnalysisCard";
 import SignalEngineCard from "@/components/SignalEngineCard";
 import EscalationCard from "@/components/EscalationCard";
+import YoutubeMonitorCard from "@/components/YoutubeMonitorCard";
 import LeverageMapCard from "@/components/LeverageMapCard";
 import CycleIndicatorsCard from "@/components/CycleIndicatorsCard";
 import TimeframeSelector from "@/components/TimeframeSelector";
@@ -233,6 +235,23 @@ async function getLatestEscalation(): Promise<EscalationSnapshot | null> {
     return null;
   }
   return data;
+}
+
+// Krypto-YouTube-Monitor (Thema KI, 05.09.2026): letzte gespeicherte
+// Analysen -- reines Lesen, kein API-Aufruf (der passiert nur ueber POST
+// /api/youtube-monitor/generate, siehe YoutubeMonitorCard.tsx).
+async function getLatestYoutubeAnalyses(): Promise<YoutubeVideoAnalysis[]> {
+  const { data, error } = await supabase
+    .from("youtube_video_analyses")
+    .select("*")
+    .order("published_at", { ascending: false })
+    .limit(8);
+
+  if (error) {
+    console.error("Fehler beim Laden der YouTube-Analysen:", error.message);
+    return [];
+  }
+  return data ?? [];
 }
 
 // Stichprobenerfassung (~25s alle 5 Min je Boerse) -- letzte Fenster fuer
@@ -502,6 +521,7 @@ export default async function Home({
     latestSignalEngine,
     escalationTriggers,
     latestEscalation,
+    latestYoutubeAnalyses,
     oiSeriesData,
     oiReferenceSnapshot,
     dashboardBundle,
@@ -525,6 +545,7 @@ export default async function Home({
     getLatestSignalEngine(),
     detectEscalationTriggers(),
     getLatestEscalation(),
+    getLatestYoutubeAnalyses(),
     getMarketSeries(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getOiReferenceSnapshot(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getDashboardPollBundle(timeframeSinceIsoValue),
@@ -687,6 +708,7 @@ export default async function Home({
                     escalation: (
                       <EscalationCard initialTriggers={escalationTriggers} initialSnapshot={latestEscalation} />
                     ),
+                    "youtube-monitor": <YoutubeMonitorCard initialAnalyses={latestYoutubeAnalyses} />,
                     "institutional-playbook": <InstitutionalPlaybookCard />,
                   }}
                 />

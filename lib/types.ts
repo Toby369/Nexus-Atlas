@@ -542,3 +542,29 @@ export interface EscalationSnapshot {
   status: "ok" | "error";
   error: string | null;
 }
+
+// Krypto-YouTube-Monitor (Thema KI, 05.09.2026) -- findet neue BTC/Krypto-
+// relevante YouTube-Videos (YouTube Data API v3, kostenloses Tageskontingent)
+// und laesst sie per Gemini direkt per Video-URL analysieren (Google-
+// Free-Tier). Siehe lib/youtubeMonitorContext.ts (Suche) + lib/ai/
+// youtubeVideoAnalysis.ts (Analyse).
+export interface YoutubeVideoAnalysisResult {
+  bias: "bullish" | "bearish" | "neutral";
+  confidence: number;
+  relevance: "high" | "medium" | "low";
+  summary: string;
+}
+
+export interface YoutubeVideoAnalysis {
+  id: number;
+  video_id: string;
+  channel_title: string | null;
+  title: string;
+  published_at: string;
+  url: string;
+  generated_at: string;
+  model: string | null;
+  result: YoutubeVideoAnalysisResult | null;
+  status: "ok" | "error";
+  error: string | null;
+}
