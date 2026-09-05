@@ -5,6 +5,8 @@ import type {
   AnchoredSummary,
   DashboardPollBundle,
   EconomicCalendarEvent,
+  EscalationSnapshot,
+  EscalationTriggerRecord,
   EtfFlowDay,
   HandelslageSnapshot,
   LiquidationEvent,
@@ -23,6 +25,7 @@ import { getTimeframe, parseTimeframe, type TimeframeId } from "@/lib/timeframes
 import { buildLiveLeverageMap } from "@/lib/leverageMapContext";
 import { buildCycleIndicators } from "@/lib/cycleIndicatorsContext";
 import { buildDivergenceRadar } from "@/lib/divergenceRadarContext";
+import { detectEscalationTriggers } from "@/lib/escalationContext";
 import { parseAnchorParam } from "@/lib/anchor";
 import { TRADINGVIEW_SIGNAL_FRESHNESS_HOURS } from "@/lib/tradingViewSignal";
 import { DEFAULT_SERIES_EXCHANGE } from "@/lib/exchanges";
@@ -43,6 +46,7 @@ import OrderbookWallCard from "@/components/OrderbookWallCard";
 import DivergenceRadarCard from "@/components/DivergenceRadarCard";
 import NewsAnalysisCard from "@/components/NewsAnalysisCard";
 import SignalEngineCard from "@/components/SignalEngineCard";
+import EscalationCard from "@/components/EscalationCard";
 import LeverageMapCard from "@/components/LeverageMapCard";
 import CycleIndicatorsCard from "@/components/CycleIndicatorsCard";
 import TimeframeSelector from "@/components/TimeframeSelector";
@@ -204,6 +208,24 @@ async function getLatestSignalEngine(): Promise<SignalEngineSnapshot | null> {
 
   if (error) {
     console.error("Fehler beim Laden der Signal-Engine-Pruefung:", error.message);
+    return null;
+  }
+  return data;
+}
+
+// Eskalations-Kachel ("gezielte Eskalation", 05.09.2026): letzter
+// zwischengespeicherter Stand -- reines Lesen, kein AI-Aufruf (der passiert
+// nur ueber POST /api/escalation/generate, siehe EscalationCard.tsx).
+async function getLatestEscalation(): Promise<EscalationSnapshot | null> {
+  const { data, error } = await supabase
+    .from("escalation_snapshots")
+    .select("*")
+    .order("generated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Fehler beim Laden der Eskalations-Auswertung:", error.message);
     return null;
   }
   return data;
@@ -474,6 +496,8 @@ export default async function Home({
     divergenceRadar,
     latestNewsAnalysis,
     latestSignalEngine,
+    escalationTriggers,
+    latestEscalation,
     oiSeriesData,
     oiReferenceSnapshot,
     dashboardBundle,
@@ -495,6 +519,8 @@ export default async function Home({
     buildDivergenceRadar(),
     getLatestNewsAnalysis(),
     getLatestSignalEngine(),
+    detectEscalationTriggers(),
+    getLatestEscalation(),
     getMarketSeries(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getOiReferenceSnapshot(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getDashboardPollBundle(timeframeSinceIsoValue),
@@ -651,6 +677,9 @@ export default async function Home({
                   "news-risk": <NewsRiskPanel initialNews={highImpactNews} />,
                   "news-analysis": <NewsAnalysisCard initialSnapshot={latestNewsAnalysis} />,
                   "signal-engine": <SignalEngineCard initialSnapshot={latestSignalEngine} />,
+                  escalation: (
+                    <EscalationCard initialTriggers={escalationTriggers} initialSnapshot={latestEscalation} />
+                  ),
                   "institutional-playbook": <InstitutionalPlaybookCard />,
                 }}
               />

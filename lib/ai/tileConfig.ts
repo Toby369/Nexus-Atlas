@@ -79,7 +79,27 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     promptProfile: "handelslage",
     fallbackProviders: ["google", "openai"],
   },
+  // Eskalations-Kachel ("gezielte Eskalation", 05.09.2026): aiProvider hier
+  // ist nur ein Platzhalter -- app/api/escalation/generate/route.ts ruft
+  // runTileAnalysis() mehrfach mit explizitem providerOverride auf (je ein
+  // konfigurierter, unabhaengiger Provider). Bewusst KEINE fallbackProviders:
+  // faellt einer der drei Provider aus, soll er als fehlgeschlagen gelten
+  // statt durch einen anderen Vendor ersetzt zu werden -- sonst waere die
+  // "unabhaengige dritte Meinung" heimlich eine zweite Meinung desselben
+  // Vendors wie ein anderer Ensemble-Slot.
+  escalation: {
+    tileId: "escalation",
+    aiProvider: "anthropic",
+    promptProfile: "escalation-analysis",
+    fallbackProviders: [],
+  },
 };
+
+// Provider-Ensemble fuer die Eskalations-Kachel -- drei unabhaengige
+// Vendors, bewusst ohne Perplexity (Web-Suche wuerde hier externe, nicht im
+// Kontext enthaltene Informationen einbringen statt einer unabhaengigen
+// Lesart DERSELBEN Daten).
+export const ESCALATION_PROVIDER_ENSEMBLE = ["anthropic", "google", "mistral"] as const;
 
 export function getTileConfig(tileId: string): TileAIConfig {
   const config = tileConfigs[tileId];

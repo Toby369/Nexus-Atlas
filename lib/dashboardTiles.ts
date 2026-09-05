@@ -33,6 +33,7 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "divergence-radar", title: "Divergenz-Radar" },
   { id: "news-analysis", title: "News-Einordnung (KI)" },
   { id: "signal-engine", title: "Signal Engine (KI)" },
+  { id: "escalation", title: "Eskalation: Zweitmeinungen (KI)" },
   { id: "positioning", title: "Positionierung" },
   { id: "liquidations", title: "Liquidationen" },
   { id: "etf-flow", title: "ETF-Flows & Makro" },

@@ -510,3 +510,35 @@ export interface SignalEngineSnapshot {
   status: "ok" | "error";
   error: string | null;
 }
+
+// Eskalations-Kachel (Thema KI, "gezielte Eskalation", 05.09.2026) -- kein
+// Dauerbetrieb mehrerer Provider, sondern eine gezielte Zweit-/Drittmeinung
+// nur wenn eines der bestehenden Mechanismen (Signal-Engine, Divergenz-
+// Radar, Report-Master) bereits einen Widerspruch/eine Divergenz meldet.
+// Siehe lib/escalationContext.ts (Trigger-Erkennung) + lib/
+// escalationConsensus.ts (reine Konsens-Logik) + lib/ai/promptProfiles.ts
+// ("escalation-analysis").
+export interface EscalationTriggerRecord {
+  source: "signal-engine" | "divergence-radar" | "report-master";
+  label: string;
+  detail: string[];
+}
+
+export interface EscalationRead {
+  provider: string;
+  model: string;
+  bias: "bullish" | "bearish" | "neutral";
+  confidence: number;
+  summary: string;
+}
+
+export interface EscalationSnapshot {
+  id: number;
+  generated_at: string;
+  trigger_reasons: EscalationTriggerRecord[];
+  reads: EscalationRead[];
+  failed_providers: string[];
+  consensus: "AGREEMENT" | "DIVERGENCE" | "INCONCLUSIVE" | null;
+  status: "ok" | "error";
+  error: string | null;
+}

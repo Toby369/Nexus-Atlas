@@ -464,6 +464,38 @@ export const promptProfiles: Record<string, PromptProfile> = {
       return errors;
     },
   },
+
+  // --- Eskalations-Kachel ("gezielte Eskalation", 05.09.2026) --------------
+  // Wird NICHT ueber "auto" geroutet, sondern von app/api/escalation/
+  // generate/route.ts mit mehreren expliziten providerOverride-Werten
+  // parallel aufgerufen (siehe lib/escalationContext.ts fuer die
+  // Trigger-Erkennung: nur wenn Signal-Engine/Divergenz-Radar/Report-Master
+  // bereits einen Widerspruch melden). Jeder Provider bekommt DIESELBE
+  // rohe Gesamteinschaetzung und liefert unabhaengig bias/confidence/
+  // summary -- die Auswertung (Konsens/Divergenz zwischen den Providern)
+  // passiert danach rein regelbasiert in lib/escalationConsensus.ts, nicht
+  // durch ein weiteres Modell.
+  "escalation-analysis": {
+    id: "escalation-analysis",
+    category: "signal-logic",
+    description:
+      "Unabhaengige Zweitmeinung zur Gesamteinschaetzung, ausgeloest nur wenn Nexus intern bereits eine Divergenz/einen Widerspruch erkannt hat.",
+    systemPrompt:
+      "Nexus hat bei einem oder mehreren internen Pruefmechanismen bereits eine Divergenz oder " +
+      "einen Widerspruch festgestellt (trigger_reasons im Kontext, je mit einer konkreten " +
+      "Begruendung). Du bekommst zusaetzlich die aktuelle rohe Ausgabe der regelbasierten " +
+      "14-Faktoren-Marktzustands-Engine (market_state: factors, overall_state, score, " +
+      "confidence, confidence_breakdown, risk_level, patterns). Bilde DEINE EIGENE, " +
+      "unabhaengige Einschaetzung anhand der Faktoren -- kopiere nicht einfach overall_state. " +
+      "Ordne in der summary explizit ein, ob der gemeldete Widerspruch aus deiner Sicht " +
+      "nachvollziehbar ist (z.B. weil die Faktoren tatsaechlich gemischt sind) oder ob eine " +
+      "Seite davon eher ein Ausreisser ist. Erfinde keine zusaetzlichen Daten ausserhalb des " +
+      "Kontexts. " +
+      NUMBER_FORMAT_INSTRUCTION +
+      " Antworte als JSON mit: bias (bullish|bearish|neutral), confidence (0-100, deine " +
+      "eigene Sicherheit), summary (string, deutsch, 2-3 Saetze).",
+    validate: (data) => validateBiasSummary(data),
+  },
 };
 
 export function getPromptProfile(id: string): PromptProfile {
