@@ -4,6 +4,7 @@ import {
   formatSignalType,
   formatSignalBadge,
   isSignalFresh,
+  inferSignalDirection,
 } from "./tradingViewSignal";
 
 describe("formatSignalType", () => {
@@ -58,5 +59,39 @@ describe("isSignalFresh", () => {
   it("ist nicht frisch, wenn der Zeitstempel (Uhr-Versatz) in der Zukunft liegt", () => {
     const receivedAt = new Date(now + 60_000).toISOString();
     expect(isSignalFresh(receivedAt, now)).toBe(false);
+  });
+});
+
+describe("inferSignalDirection", () => {
+  it("erkennt explizite BULLISH/BEARISH-Typen", () => {
+    expect(inferSignalDirection("FAIR_VALUE_GAP_BULLISH")).toBe("bullish");
+    expect(inferSignalDirection("ORDER_BLOCK_BEARISH")).toBe("bearish");
+    expect(inferSignalDirection("RSI_BULLISH_DIVERGENCE")).toBe("bullish");
+    expect(inferSignalDirection("MACD_BEARISH_DIVERGENCE")).toBe("bearish");
+  });
+
+  it("erkennt die _BULL/_BEAR-Kurzform", () => {
+    expect(inferSignalDirection("VOLUME_EXPANSION_BULL")).toBe("bullish");
+    expect(inferSignalDirection("VOLUME_EXPANSION_BEAR")).toBe("bearish");
+    expect(inferSignalDirection("SQUEEZE_RELEASE_BULL")).toBe("bullish");
+    expect(inferSignalDirection("SQUEEZE_RELEASE_BEAR")).toBe("bearish");
+  });
+
+  it("liest LIQUIDITY_SWEEP_LOW/HIGH als Reversal-Hinweis (Sweep tief = bullisch, hoch = baerisch)", () => {
+    expect(inferSignalDirection("LIQUIDITY_SWEEP_LOW")).toBe("bullish");
+    expect(inferSignalDirection("LIQUIDITY_SWEEP_HIGH")).toBe("bearish");
+  });
+
+  it("liest VWAP_STRETCH_LO/HI ebenso als Erschoepfungs-Reversal", () => {
+    expect(inferSignalDirection("VWAP_STRETCH_LO")).toBe("bullish");
+    expect(inferSignalDirection("VWAP_STRETCH_HI")).toBe("bearish");
+  });
+
+  it("liefert null statt einer geratenen Richtung fuer unbekannte Typen", () => {
+    expect(inferSignalDirection("SOME_FUTURE_SIGNAL")).toBeNull();
+  });
+
+  it("ist gross-/kleinschreibungs-unabhaengig", () => {
+    expect(inferSignalDirection("fair_value_gap_bullish")).toBe("bullish");
   });
 });

@@ -18,10 +18,12 @@ import {
   computeOnchainVsPriceDivergence,
   computeWallPersistence,
   findCorroboratingLiquidation,
+  computeTradingViewVsStateDivergence,
   type DivergenceStatus,
   type OnchainDivergence,
   type WallPersistence,
 } from "./divergenceRadar";
+import { inferSignalDirection, isSignalFresh, TRADINGVIEW_SIGNAL_FRESHNESS_HOURS } from "./tradingViewSignal";
 import type { MarketState, HandelslageSnapshot } from "./types";
 
 const SYMBOL = "BTCUSDT";
@@ -50,6 +52,7 @@ export interface DivergenceRadarResult {
   spotVsFutures: DivergenceStatus;
   cycleVsMomentum: DivergenceStatus;
   handelslageVsState: DivergenceStatus;
+  tradingViewVsState: DivergenceStatus;
   onchainVsPrice: OnchainDivergence;
   wallPersistence: WallPersistenceRow[];
   liquidationCorroborations: LiquidationCorroboration[];
@@ -81,6 +84,24 @@ async function getLatestHandelslage(): Promise<HandelslageSnapshot | null> {
     return null;
   }
   return data;
+}
+
+async function getFreshTradingViewDirection(): Promise<"bullish" | "bearish" | null> {
+  const cutoff = new Date(Date.now() - TRADINGVIEW_SIGNAL_FRESHNESS_HOURS * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from("tradingview_signals")
+    .select("signal_type, received_at")
+    .gte("received_at", cutoff)
+    .order("received_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("divergenceRadarContext: Fehler bei tradingview_signals:", error.message);
+    return null;
+  }
+  if (!data || !isSignalFresh(data.received_at)) return null;
+  return inferSignalDirection(data.signal_type);
 }
 
 async function getSpotVerdict() {
@@ -223,7 +244,7 @@ async function getLiquidationCorroborations(
 }
 
 export async function buildDivergenceRadar(): Promise<DivergenceRadarResult> {
-  const [marketState, handelslage, spotVerdict, cycleIndicators, onchain, wallPersistence, leverageMap] =
+  const [marketState, handelslage, spotVerdict, cycleIndicators, onchain, wallPersistence, leverageMap, tvDirection] =
     await Promise.all([
       getLatestMarketState(),
       getLatestHandelslage(),
@@ -232,6 +253,7 @@ export async function buildDivergenceRadar(): Promise<DivergenceRadarResult> {
       getSoprAndPricePosition(),
       getWallPersistenceRows(),
       buildLiveLeverageMap(),
+      getFreshTradingViewDirection(),
     ]);
 
   const clusters = (leverageMap?.clusters ?? []).map((c) => ({ price: c.price, side: c.side }));
@@ -249,6 +271,7 @@ export async function buildDivergenceRadar(): Promise<DivergenceRadarResult> {
       handelslage?.status === "ok" ? handelslage.result?.bias : undefined,
       marketState?.overall_state ?? null
     ),
+    tradingViewVsState: computeTradingViewVsStateDivergence(tvDirection, marketState?.overall_state ?? null),
     onchainVsPrice: computeOnchainVsPriceDivergence(
       onchain.sopr,
       onchain.distFromHighPct,

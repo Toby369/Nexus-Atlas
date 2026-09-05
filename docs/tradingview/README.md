@@ -185,6 +185,29 @@ Faktoren (`compute-market-state`) und der 5-Säulen-Regime-Matrix:
    Varianten sind möglich, aber diese ist mechanisch nachvollziehbar statt
    eine einzelne "beste" Interpretation vorzutäuschen.
 
+## Divergenz-Radar (05.09.2026) — Richtungs-Ableitung aus signal_type
+
+Der Divergenz-Radar (`lib/divergenceRadar.ts::computeTradingViewVsStateDivergence`)
+vergleicht ein frisches (≤24h) TradingView-Signal gegen `overall_state` der
+14-Faktoren-Engine. Da die Alerts keine eigene Richtungs-Spalte mitschicken,
+leitet `lib/tradingViewSignal.ts::inferSignalDirection` die Richtung aus dem
+`signal_type`-Namen ab:
+
+- Enthält `BULLISH`/`BEARISH` oder endet auf `_BULL`/`_BEAR` → direkt
+  übernommen (10 der 14 aktuellen Typen).
+- Endet auf `_LOW`/`_LO` → `bullish`, endet auf `_HIGH`/`_HI` → `bearish`
+  (Liquidity Sweep, VWAP Stretch) — folgt derselben Umkehr-Logik, die oben
+  bereits für diese beiden Skripte beschrieben ist (Sweep/Überdehnung nach
+  oben = Reversal-Hinweis nach unten, umgekehrt für unten).
+- Unbekannter zukünftiger `signal_type` → `null` (kein Vergleich, kein
+  Raten).
+
+**Bei einem neuen Alert-Typ**: entweder an diese Namenskonvention halten
+(`..._BULLISH`/`..._BEARISH`/`..._BULL`/`..._BEAR`/`..._HIGH`/`..._LOW`),
+oder `inferSignalDirection` explizit um den neuen Typ ergänzen — sonst
+bleibt der Divergenz-Vergleich für dieses Signal `NOT_COMPARABLE`, das
+Kontext-Badge selbst funktioniert trotzdem unverändert weiter.
+
 **Nicht empfohlen als Ergänzung:** MTF-EMA-Alignment und CVD-Divergenz —
 beide inhaltlich bereits von Nexus intern abgedeckt (MTF-Alignment bzw.
 Futures-Orderflow/CVD-Faktor), würden nur redundante Badges ohne neue

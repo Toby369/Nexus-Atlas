@@ -74,6 +74,23 @@ export function computeCycleVsMomentumDivergence(
   return bandDirection === momentum ? "AGREEMENT" : "DIVERGENCE";
 }
 
+// --- TradingView-Signal vs. interner Zustand -------------------------------
+// Nachgeholt (05.09.2026): war urspruenglich zurueckgestellt, weil die
+// Webhook-Alerts keine Pflicht-Richtung mitschicken. Loesung: alle 6
+// Pine-Skripte senden einen von 14 bekannten signal_type-Strings, deren
+// Richtung sich verlaesslich aus dem Namen ableiten laesst (siehe
+// lib/tradingViewSignal.ts::inferSignalDirection) -- kein Raten aus
+// Freitext, nur das Auswerten einer bereits vorhandenen Namenskonvention.
+export function computeTradingViewVsStateDivergence(
+  signalDirection: "bullish" | "bearish" | null,
+  overallState: MarketState["overall_state"] | null
+): EngineDivergenceStatus {
+  if (signalDirection === null || overallState === null) return "NOT_COMPARABLE";
+  if (overallState !== "BULLISH" && overallState !== "BEARISH") return "NOT_COMPARABLE";
+  const stateDirection = overallState === "BULLISH" ? "bullish" : "bearish";
+  return signalDirection === stateDirection ? "AGREEMENT" : "DIVERGENCE";
+}
+
 // --- 4. Handelslage-KI-Bias vs. Gesamteinschaetzung ------------------------
 // Analog zu computeEngineDivergence (Market State vs. Regime Matrix), nur
 // mit der KI-Kurzeinschaetzung als zweiter "Engine". bias ist optional --

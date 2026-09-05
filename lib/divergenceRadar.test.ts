@@ -7,6 +7,7 @@ import {
   computeOnchainVsPriceDivergence,
   computeWallPersistence,
   findCorroboratingLiquidation,
+  computeTradingViewVsStateDivergence,
 } from "./divergenceRadar";
 import type { MarketState, MarketStateFactor } from "./types";
 
@@ -71,6 +72,20 @@ describe("computeCycleVsMomentumDivergence", () => {
     expect(
       computeCycleVsMomentumDivergence("Deutlich unter Trendkanal", factors({ momentum: -1 }))
     ).toBe("AGREEMENT");
+  });
+});
+
+describe("computeTradingViewVsStateDivergence", () => {
+  it("AGREEMENT bei gleicher Richtung", () => {
+    expect(computeTradingViewVsStateDivergence("bullish", "BULLISH")).toBe("AGREEMENT");
+  });
+  it("DIVERGENCE bei entgegengesetzter Richtung", () => {
+    expect(computeTradingViewVsStateDivergence("bearish", "BULLISH")).toBe("DIVERGENCE");
+  });
+  it("NOT_COMPARABLE ohne Signal-Richtung oder bei MIXED/INSUFFICIENT_DATA", () => {
+    expect(computeTradingViewVsStateDivergence(null, "BULLISH")).toBe("NOT_COMPARABLE");
+    expect(computeTradingViewVsStateDivergence("bullish", "MIXED")).toBe("NOT_COMPARABLE");
+    expect(computeTradingViewVsStateDivergence("bullish", null)).toBe("NOT_COMPARABLE");
   });
 });
 

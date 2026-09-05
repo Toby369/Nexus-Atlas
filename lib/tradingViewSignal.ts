@@ -45,6 +45,27 @@ export function isSignalFresh(receivedAtIso: string, nowMs: number = Date.now())
   return ageMs >= 0 && ageMs <= TRADINGVIEW_SIGNAL_FRESHNESS_HOURS * 60 * 60 * 1000;
 }
 
+// Richtungs-Ableitung fuer den TradingView-vs-internem-Zustand-Vergleich
+// (Divergenz-Radar, 05.09.2026). Bewusst NICHT aus beliebigem Freitext
+// geraten -- alle 6 Pine-Skripte in docs/tradingview/*.pine senden exakt
+// einen von 14 bekannten signal_type-Strings, 10 davon bereits explizit mit
+// "BULLISH"/"BEARISH"/"_BULL"/"_BEAR" im Namen. Die restlichen 4
+// (LIQUIDITY_SWEEP_HIGH/LOW, VWAP_STRETCH_HI/LO) folgen der im README
+// dokumentierten Umkehr-Logik: ein Sweep/eine Ueberdehnung nach OBEN ist ein
+// Erschoepfungs-/Reversal-Hinweis nach UNTEN, und umgekehrt -- dieselbe
+// Lesart, die docs/tradingview/README.md fuer diese beiden Skripte bereits
+// beschreibt ("Stop-Hunt vor einer Umkehr", "Ueberdehnung = Erschoepfung").
+// Ein unbekannter kuenftiger signal_type liefert bewusst null statt einer
+// geratenen Richtung.
+export function inferSignalDirection(signalType: string): "bullish" | "bearish" | null {
+  const upper = signalType.toUpperCase();
+  if (upper.includes("BULLISH") || upper.endsWith("_BULL")) return "bullish";
+  if (upper.includes("BEARISH") || upper.endsWith("_BEAR")) return "bearish";
+  if (upper.endsWith("_LOW") || upper.endsWith("_LO")) return "bullish";
+  if (upper.endsWith("_HIGH") || upper.endsWith("_HI")) return "bearish";
+  return null;
+}
+
 // Kurz-Glossar der 6 Pine-Script-Signale (docs/tradingview/) fuer das
 // PanelInfo-Popover neben dem Badge. Gleiches "Label: Text"-Format wie
 // ECONOMIC_EVENT_INTERPRETATION in lib/economicCalendar.ts.

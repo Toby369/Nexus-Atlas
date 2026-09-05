@@ -11,16 +11,31 @@ purged/embargo Evaluation über `backtest_states` (2 Jahre, point-in-time-safe
 rekonstruierte Faktoren) plus BH-FDR-Korrektur, ausschliesslich TRAIN- und
 VALIDATION-Split (TEST-Set bleibt geschützt, siehe `PHASE-0-RECONCILIATION.md`).
 
-## 1. Nicht testbar (Datenlage)
+**Nachtrag (spaeter am 05.09.2026):** Distribution Warning liess sich entgegen
+der ersten Einschaetzung doch nachholen (Abschnitt 2.3) -- `range_high_20`/
+`atr_14` wurden direkt aus der rohen, unveraenderlichen `candles`-Tabelle per
+rueckwaertsgerichteten Fenster-Funktionen rekonstruiert, ohne die potenziell
+nicht-Point-in-time-sichere `market_features`-Tabelle anzufassen. Capitulation
+und Short Squeeze bleiben nicht testbar -- siehe Abschnitt 1 mit den jetzt
+konkret ermittelten Fallzahlen.
+
+## 1. Nicht testbar (Datenlage, mit konkreten Zahlen)
 
 | Muster | Grund |
 |---|---|
-| Distribution Warning | Braucht `range_high_20`/`atr_14` aus `market_features` -- diese Rohspalten sind NICHT Teil der point-in-time-sicheren `backtest_states.factors`-Basis (nur `structure_trend`/`bos`/`choch`). Ein Join gegen die rohe `market_features`-Tabelle würde das etablierte Leakage-Schutzkonzept dieser Tabelle umgehen -- bewusst nicht gemacht. |
-| Capitulation | Braucht die Live-RPC `get_liquidation_intelligence` (Liquidationsvolumen relativ zu OI) -- nicht in `backtest_states` rekonstruiert. |
-| Short Squeeze | Hängt an `positioning_signals.explanation` (Freitext), nicht am gespeicherten `positioning`-Faktorwert selbst -- nicht rekonstruierbar. |
+| Capitulation | RSI<30 + cvd=bärisch allein hat volle 2-Jahres-Historie (770 Kandidaten bei 1H), aber die dritte Bedingung (Liquidationsvolumen >3% des OI, `get_liquidation_intelligence`) braucht `liquidation_events`, das erst seit dem 24.08.2026 existiert. Nur **4 Kandidaten** (vor Anwendung des Liquidations-Filters!) fallen ueberhaupt in dieses Fenster -- zu wenig fuer jede Aussage. |
+| Short Squeeze | `positioning_signals.explanation` enthaelt "Short-Squeeze" 113 Mal, aber die Tabelle existiert ebenfalls erst seit dem 24.08.2026 -- **alle 113 Faelle liegen vollstaendig im geschuetzten TEST-Zeitraum** (ab 15.05.2026), 0 in TRAIN/VALIDATION. Nicht auswertbar, ohne das Testset anzutasten. |
 | Funding-Basis Divergenz | `basis`-Faktor hat in `backtest_states` nur bei 128 von 17'835 1H-Zeilen (0,7%) überhaupt einen Wert (Spot-Preis-Datenlücke) -- 0 Divergenz-Events gefunden, zu wenig Datenbasis für jede Aussage. |
 | CVD-Orderbook Divergenz | `orderbook_snapshots` (Basis des `orderbook`-Faktors) existiert erst seit dem 26.08.2026. Alle 57 gefundenen Divergenz-Events liegen dadurch vollständig im geschützten TEST-Zeitraum (ab 15.05.2026) -- 0 Events in TRAIN/VALIDATION, keine Auswertung möglich, ohne das Testset anzutasten. |
 | Engine Divergence (Market State vs. Regime Matrix, score-basiert) | Nur 3 echte Richtungs-Divergenzen (Score ≥+3/≤-3 UND Regime `TREND_EXPANSION_*` in Gegenrichtung) in 2 Jahren -- zu selten für jeden Backtest. Zum Vergleich: 69 Fälle, in denen beide Engines übereinstimmen. Diese Seltenheit ist selbst ein Befund: die beiden Engines widersprechen sich in ihrer GERICHTETEN Aussage praktisch nie -- die im Fallbeispiel vom 29.08. beobachtete Diskrepanz lag am (haeufigeren) `NOT_COMPARABLE`-Fall (Market State `MIXED`), nicht an einer echten Richtungs-Divergenz. |
+
+**Gemeinsames Muster:** alle vier hier gelisteten Faelle scheitern an derselben
+Ursache -- die zugrunde liegende Rohtabelle (`liquidation_events`,
+`positioning_signals`, `orderbook_snapshots` fuer den Faktor, bzw. schlicht zu
+wenige Score-Extremwerte) existiert erst seit dem 24.-26.08.2026, also nach dem
+TRAIN/VALIDATION/TEST-Cutoff (Validation endet 14.05.2026). Das loest sich mit
+der Zeit von selbst -- in ein paar Monaten haben diese Tabellen genug
+TRAIN/VALIDATION-Historie fuer einen echten Test.
 
 ## 2. Testbar -- Ergebnisse
 
@@ -78,6 +93,50 @@ ADX-basierten `trend_strength` widerspricht, setzt sich `structure` im
 kurzfristigen Fenster öfter durch als der unbedingte Basiswert. Erste
 empirische Antwort auf die dort offen gelassene Frage.
 
+### 2.3 Distribution Warning (Preis nahe 20-Perioden-Hoch, cvd=bärisch) -- kein signifikanter Effekt
+
+`range_high_20` (rollierendes 20-Perioden-Maximum der Hochs) und `atr_14`
+(einfacher gleitender Durchschnitt der True Range, 14 Perioden) direkt aus
+`candles` rekonstruiert -- reine rückwärtsgerichtete Fensterfunktionen auf
+unveränderlichen historischen OHLC-Daten, kein Bezug zu `market_features`
+nötig. **Hinweis zur Genauigkeit:** dies ist eine SMA-basierte ATR-Näherung,
+nicht zwingend identisch mit der in `compute-market-state` verwendeten
+Berechnung (deren genaue Glättungsmethode aus dem Edge-Function-Code allein
+nicht ersichtlich ist) -- für die hier getestete Kernfrage (grober Abstand
+zum 20er-Hoch relativ zur Volatilität) ausreichend genau.
+
+| Interval | Split | Horizont | n | Trefferquote | Baseline | Edge |
+|---|---|---|---|---|---|---|
+| 1H | train | 4h | 223 | 55,2% | 48,6% | +6,6pp |
+| 1H | train | 12h | 223 | 55,2% | 47,6% | +7,6pp |
+| 1H | validation | 4h/12h/24h | 15 | 60,0% | 51,3-52,1% | +7,9 bis +8,7pp |
+| 4H | train | 96h | 49 | 61,2% | 44,7% | +16,5pp |
+
+Durchgängig **richtig gerichtet** (Preis fällt öfter als der Basiswert,
+passend zur Warnung) -- anders als bei Fragile Bullish keine Umkehrung.
+**Aber:** keine einzige Zelle übersteht die kumulative BH-FDR-Korrektur
+(bester Wert: 1H/4H train, p=0,020, gebraucht würde p≤0,003 bei Rang 16).
+Bei nur 15 Validierungs-Fällen (1H) ist die Stichprobe zudem sehr klein.
+**Fazit:** Richtung stimmt mit der Namensgebung überein, aber der Effekt ist
+(noch) nicht stark/robust genug, um die Mehrfachvergleichs-Korrektur zu
+bestehen -- weder Bestätigung noch Widerlegung des Musters.
+
+## 2.4 TradingView-Signal vs. Gesamteinschätzung -- nachgeholt, kein Backtest (Live-Feature)
+
+Die ursprünglich zurückgestellte Lücke aus der Divergenz-Recherche wurde
+nachgeholt, aber als **Live-Vergleich im Divergenz-Radar**, nicht als
+Backtest -- `tradingview_signals` hat nur wenige Tage Historie, zu wenig für
+jede statistische Aussage. Die Blockade war lösbar: alle 6 Pine-Skripte
+senden bereits einen von 14 festen `signal_type`-Strings, 10 davon explizit
+mit `BULLISH`/`BEARISH`/`_BULL`/`_BEAR` im Namen; die restlichen 4
+(`LIQUIDITY_SWEEP_HIGH/LOW`, `VWAP_STRETCH_HI/LO`) folgen der im
+TradingView-README bereits dokumentierten Umkehr-Logik (Sweep/Überdehnung
+nach oben = Reversal-Hinweis nach unten). Kein Raten -- reines Auswerten
+einer bereits vorhandenen, im eigenen Pine-Code festgelegten Namenskonvention.
+Siehe `lib/tradingViewSignal.ts::inferSignalDirection` +
+`lib/divergenceRadar.ts::computeTradingViewVsStateDivergence` +
+`docs/tradingview/README.md` (neuer Abschnitt "Divergenz-Radar").
+
 ## 3. Wichtige Einschränkungen (Ehrlichkeits-Hinweis)
 
 - **SUPPORTED, nicht PROVEN** (gleiche Sprachregelung wie in den Model-B/C/D-
@@ -113,13 +172,14 @@ empirische Antwort auf die dort offen gelassene Frage.
    Bullish" ggf. NICHT mehr pauschal als risikoerhöhendes `warning_pattern`
    werten, sondern -- vorbehaltlich TEST-Set-Bestätigung -- ergebnisoffen
    neu benennen.
-3. Sobald `orderbook_snapshots` genug TRAIN/VALIDATION-Historie hat (in
-   einigen Monaten), CVD-Orderbook-Divergenz nachholen -- Infrastruktur
-   (`research_pattern_events`, gleiche Pipeline) steht bereits.
-4. Distribution Warning/Capitulation liessen sich nachholen, wenn
-   `range_high_20`/`atr_14`/RSI zusätzlich point-in-time-sicher in
-   `backtest_states` aufgenommen würden -- aktuell ausserhalb des Umfangs
-   dieser Auswertung.
+3. Sobald `orderbook_snapshots`/`positioning_signals`/`liquidation_events`
+   genug TRAIN/VALIDATION-Historie haben (in einigen Monaten, sie laufen
+   bereits produktiv), CVD-Orderbook-Divergenz, Short Squeeze und
+   Capitulation nachholen -- Infrastruktur (`research_pattern_events`,
+   gleiche Pipeline) steht bereits, es fehlt nur Kalenderzeit.
+4. TradingView-vs-Zustand ist jetzt live im Divergenz-Radar sichtbar
+   (Abschnitt 2.4) -- sobald genug frische Alerts vorliegen, könnte ein
+   künftiger Durchlauf dieses Backtests sie ebenfalls statistisch prüfen.
 
 ## Referenzen
 

@@ -17,6 +17,7 @@ const INFO_TEXT = [
   "WICHTIG: jedes Paar hier ist ein plausibles, regelbasiertes Muster -- KEINES davon wurde gegen echte Preis-Outcomes gebacktestet (anders als z. B. die 1H+4H+1D-Struktur-Uebereinstimmung, die als einziges Nexus-Muster eine echte, gemessene Signalstaerke hat). \"Vorhanden\" heisst hier nicht \"belegt wirksam\".",
   "On-Chain vs. Preis (SOPR): rein deskriptiv -- ein separater multivariater Backtest dieser Session fand On-Chain-Kennzahlen NICHT hilfreich als eigenstaendigen Preis-Praediktor. Diese Zeile ist eine Beobachtungshilfe, kein geprueftes Signal.",
   "Wand-Persistenz und Liquidations-Korroboration sind reine Beobachtungen (haelt eine Orderbuch-Wand, gab es kuerzlich eine echte Liquidation nahe einem geschaetzten Cluster) -- kein Backtest, keine Trefferquote.",
+  "TradingView-Signal vs. Gesamteinschaetzung: die Richtung wird aus dem Namen des Alert-Typs abgeleitet (z. B. \"..._BULLISH\", \"..._BEARISH\", oder bei Liquidity-Sweep/VWAP-Stretch aus der dokumentierten Umkehr-Logik) -- kein Raten, aber auch kein vom Pine-Script selbst mitgeschicktes Feld. Zeigt \"Nicht vergleichbar\", solange kein frisches Signal (24h) vorliegt.",
 ].join("\n\n");
 
 const STATUS_LABELS: Record<DivergenceStatus, string> = {
@@ -99,6 +100,7 @@ export default function DivergenceRadarCard({ radar }: { radar: DivergenceRadarR
         <PairRow label="Spot-Flow vs. Futures-Orderflow (CVD)" status={radar.spotVsFutures} />
         <PairRow label="Log-Preiskanal vs. Momentum" status={radar.cycleVsMomentum} />
         <PairRow label="Handelslage-KI vs. Gesamteinschätzung" status={radar.handelslageVsState} />
+        <PairRow label="TradingView-Signal vs. Gesamteinschätzung" status={radar.tradingViewVsState} />
       </div>
 
       <div className="pt-2 border-t border-border space-y-1">
