@@ -18,6 +18,7 @@ import type {
 } from "@/lib/types";
 import { getTimeframe, parseTimeframe, type TimeframeId } from "@/lib/timeframes";
 import { buildLiveLeverageMap } from "@/lib/leverageMapContext";
+import { buildCycleIndicators } from "@/lib/cycleIndicatorsContext";
 import { parseAnchorParam } from "@/lib/anchor";
 import { TRADINGVIEW_SIGNAL_FRESHNESS_HOURS } from "@/lib/tradingViewSignal";
 import { DEFAULT_SERIES_EXCHANGE } from "@/lib/exchanges";
@@ -34,6 +35,7 @@ import MarketStateCard from "@/components/MarketStateCard";
 import RegimeMatrixCard from "@/components/RegimeMatrixCard";
 import HandelslageCard from "@/components/HandelslageCard";
 import LeverageMapCard from "@/components/LeverageMapCard";
+import CycleIndicatorsCard from "@/components/CycleIndicatorsCard";
 import TimeframeSelector from "@/components/TimeframeSelector";
 import AnchorPicker from "@/components/AnchorPicker";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -389,6 +391,7 @@ export default async function Home({
     upcomingEconomicEvents,
     latestHandelslage,
     latestLeverageMap,
+    cycleIndicators,
     oiSeriesData,
     oiReferenceSnapshot,
     dashboardBundle,
@@ -405,6 +408,7 @@ export default async function Home({
     getUpcomingEconomicEvents(),
     getLatestHandelslage(),
     buildLiveLeverageMap(),
+    buildCycleIndicators(),
     getMarketSeries(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getOiReferenceSnapshot(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getDashboardPollBundle(timeframeSinceIsoValue),
@@ -523,6 +527,7 @@ export default async function Home({
                   ),
                   handelslage: <HandelslageCard initialSnapshot={latestHandelslage} />,
                   "leverage-map": <LeverageMapCard map={latestLeverageMap} />,
+                  "cycle-indicators": <CycleIndicatorsCard data={cycleIndicators} />,
                   "live-price": (
                     <LivePricePanel
                       timeframe={timeframe}
