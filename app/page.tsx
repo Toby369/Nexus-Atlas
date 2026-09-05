@@ -17,6 +17,7 @@ import type {
   TradingViewSignal,
 } from "@/lib/types";
 import { getTimeframe, parseTimeframe, type TimeframeId } from "@/lib/timeframes";
+import { buildLiveLeverageMap } from "@/lib/leverageMapContext";
 import { parseAnchorParam } from "@/lib/anchor";
 import { TRADINGVIEW_SIGNAL_FRESHNESS_HOURS } from "@/lib/tradingViewSignal";
 import { DEFAULT_SERIES_EXCHANGE } from "@/lib/exchanges";
@@ -32,6 +33,7 @@ import MarketContextCard from "@/components/MarketContextCard";
 import MarketStateCard from "@/components/MarketStateCard";
 import RegimeMatrixCard from "@/components/RegimeMatrixCard";
 import HandelslageCard from "@/components/HandelslageCard";
+import LeverageMapCard from "@/components/LeverageMapCard";
 import TimeframeSelector from "@/components/TimeframeSelector";
 import AnchorPicker from "@/components/AnchorPicker";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -386,6 +388,7 @@ export default async function Home({
     recentEtfFlows,
     upcomingEconomicEvents,
     latestHandelslage,
+    latestLeverageMap,
     oiSeriesData,
     oiReferenceSnapshot,
     dashboardBundle,
@@ -401,6 +404,7 @@ export default async function Home({
     getRecentEtfFlows(),
     getUpcomingEconomicEvents(),
     getLatestHandelslage(),
+    buildLiveLeverageMap(),
     getMarketSeries(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getOiReferenceSnapshot(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getDashboardPollBundle(timeframeSinceIsoValue),
@@ -518,6 +522,7 @@ export default async function Home({
                     <EconomicCalendarPanel initialEvents={upcomingEconomicEvents} />
                   ),
                   handelslage: <HandelslageCard initialSnapshot={latestHandelslage} />,
+                  "leverage-map": <LeverageMapCard map={latestLeverageMap} />,
                   "live-price": (
                     <LivePricePanel
                       timeframe={timeframe}

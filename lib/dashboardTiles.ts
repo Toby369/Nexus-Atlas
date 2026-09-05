@@ -20,6 +20,7 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "market-context", title: "Marktkontext" },
   { id: "regime-matrix", title: "Marktphase" },
   { id: "handelslage", title: "Handelslage" },
+  { id: "leverage-map", title: "Liquidations-/Hebelkarte" },
   // Bewusst als drittes Element platziert (nicht ans Ende): fuellt genau die
   // Luecke, die die vollbreite "live-price"-Kachel direkt danach in Zeile 1,
   // Spalte 3 sonst leer laesst (siehe fullWidth-Kommentar oben).
