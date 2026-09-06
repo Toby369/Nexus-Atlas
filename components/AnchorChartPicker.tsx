@@ -84,7 +84,7 @@ export default function AnchorChartPicker({
 
   const [timeframe, setTimeframe] = useState<IntervalId>("1h");
   const [loading, setLoading] = useState(true);
-  // Checkbox "Auswahl aktiv" (Nutzer-Wunsch 06.09.2026): ohne aktivierte
+  // Checkbox "Anker-Auswahl aktiv" (Nutzer-Wunsch 06.09.2026): ohne aktivierte
   // Auswahl reagiert der Chart auf Klicks nicht -- man kann frei zoomen/
   // schauen, ohne versehentlich einen neuen Anker-Zeitraum zu starten.
   const [selectionActive, setSelectionActive] = useState(false);
@@ -264,7 +264,7 @@ export default function AnchorChartPicker({
             checked={selectionActive}
             onChange={(e) => setSelectionActive(e.target.checked)}
           />
-          Auswahl aktiv
+          Anker-Auswahl aktiv
         </label>
       </div>
 
