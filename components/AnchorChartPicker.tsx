@@ -251,13 +251,16 @@ export default function AnchorChartPicker({
 
       <div ref={containerRef} className="relative h-[240px] w-full">
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center text-xs text-text-faint">
+          <div className="absolute inset-0 z-10 flex items-center justify-center text-xs text-text-faint">
             Lade Kerzen…
           </div>
         )}
         {overlay && (
+          // z-index noetig: lightweight-charts haengt sein Canvas
+          // imperativ (ausserhalb von React) in denselben Container --
+          // ohne z-index landet diese Markierung optisch dahinter.
           <div
-            className="absolute top-0 bottom-0 bg-accent/15 border-x border-accent/40 pointer-events-none"
+            className="absolute top-0 bottom-0 z-10 bg-accent/15 border-x border-accent/40 pointer-events-none"
             style={{ left: overlay.left, width: overlay.width }}
           />
         )}
