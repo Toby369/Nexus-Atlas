@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import type { AnchoredSummary, MarketState, MarketStateMatrix, TradingViewSignal } from "@/lib/types";
 import PanelInfo from "@/components/PanelInfo";
 import { marketStateMatrixInfo, REGIME_MATRIX_METRIC_INFO } from "@/lib/panelInfo";
-import { formatAnchorBadge } from "@/lib/anchor";
+import { formatAnchorBadge, formatAnchorRangeBadge } from "@/lib/anchor";
 import {
   DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD,
   UNCLEAR_STATE_LABEL,
@@ -111,6 +111,7 @@ export default function RegimeMatrixCard({
   marketState,
   initialTradingViewSignal,
   anchorIso,
+  anchorEndIso,
   initialAnchoredSummary,
 }: {
   initialMatrix: MarketStateMatrix | null;
@@ -126,6 +127,9 @@ export default function RegimeMatrixCard({
   // LivePricePanel/LiquidationPanel, hier nur regime_at_anchor/
   // confidence_at_anchor ausgewertet statt Preis/OI.
   anchorIso: string | null;
+  // Optionales Ende eines Anker-ZEITRAUMS (06.09.2026, Kerzenchart-Anker) --
+  // null beim bisherigen Einzel-Anker-Verhalten ("bis jetzt").
+  anchorEndIso: string | null;
   initialAnchoredSummary: AnchoredSummary | null;
 }) {
   const [matrix, setMatrix] = useState(initialMatrix);
@@ -158,6 +162,7 @@ export default function RegimeMatrixCard({
     const load = async () => {
       const { data, error } = await supabase.rpc("get_anchored_summary", {
         p_anchor: anchorIso,
+        p_anchor_end: anchorEndIso,
       });
       if (cancelled) return;
       if (error) {
@@ -172,7 +177,7 @@ export default function RegimeMatrixCard({
       cancelled = true;
       clearInterval(interval);
     };
-  }, [anchorIso]);
+  }, [anchorIso, anchorEndIso]);
 
   if (!matrix) {
     return (
@@ -293,7 +298,9 @@ export default function RegimeMatrixCard({
       {anchorIso && (
         <div className="space-y-0.5">
           <p className="text-xs text-text-faint">
-            Seit Anker ({formatAnchorBadge(new Date(anchorIso))}):
+            {anchoredSummary?.anchor_end_timestamp_utc
+              ? formatAnchorRangeBadge(new Date(anchorIso), new Date(anchoredSummary.anchor_end_timestamp_utc))
+              : `Seit Anker (${formatAnchorBadge(new Date(anchorIso))}):`}
           </p>
           {anchorRegimeLabel ? (
             <p className="text-xs text-text-muted">

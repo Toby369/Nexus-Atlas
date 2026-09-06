@@ -6,7 +6,7 @@ import PanelInfo from "@/components/PanelInfo";
 import { ClockTime, ShortDate } from "@/components/ClientTimestamp";
 import { oiChangeInfo, btcOiChartInfo } from "@/lib/panelInfo";
 import { formatSignedPct } from "@/lib/livePriceFormat";
-import { formatAnchorBadge } from "@/lib/anchor";
+import { formatAnchorBadge, formatAnchorRangeBadge } from "@/lib/anchor";
 import { SERIES_EXCHANGES, type SeriesExchangeId } from "@/lib/exchanges";
 
 // Aus der ehemaligen LivePricePanel.tsx herausgeloest (Nutzer-Feedback
@@ -107,7 +107,9 @@ export default function OiChangeCard() {
       {anchorIso && (
         <div className="flex flex-col gap-1 text-xs pt-2 border-t border-border/60">
           <span className="text-text-faint">
-            Seit Anker ({formatAnchorBadge(new Date(anchorIso))}):
+            {anchoredSummary?.anchor_end_timestamp_utc
+              ? formatAnchorRangeBadge(new Date(anchorIso), new Date(anchoredSummary.anchor_end_timestamp_utc))
+              : `Seit Anker (${formatAnchorBadge(new Date(anchorIso))}):`}
           </span>
           {anchoredSummary ? (
             <span className="tabular font-mono text-text-muted">

@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import type { AnchoredSummary, LiquidationEvent, LiquidationIntelligence } from "@/lib/types";
 import PanelInfo from "@/components/PanelInfo";
 import { liquidationsInfo } from "@/lib/panelInfo";
-import { formatAnchorBadge } from "@/lib/anchor";
+import { formatAnchorBadge, formatAnchorRangeBadge } from "@/lib/anchor";
 
 const REFRESH_INTERVAL_MS = 60_000;
 const LOOKBACK_HOURS = 6;
@@ -76,9 +76,13 @@ async function fetchRecentLiquidations(): Promise<{
 // (Long-/Short-Liquidationen seit einem frei waehlbaren Ankerpunkt) --
 // unabhaengig vom festen LOOKBACK_HOURS-Fenster oben. Kein eigener
 // Lade-Loop bei fehlendem Anker (haeufigster Fall), Aufrufer prueft das.
-async function fetchAnchoredSummary(anchorIso: string): Promise<AnchoredSummary | null> {
+async function fetchAnchoredSummary(
+  anchorIso: string,
+  anchorEndIso: string | null
+): Promise<AnchoredSummary | null> {
   const { data, error } = await supabase.rpc("get_anchored_summary", {
     p_anchor: anchorIso,
+    p_anchor_end: anchorEndIso,
   });
 
   if (error) {
@@ -128,6 +132,7 @@ function describeVelocityTrend(
 export default function LiquidationPanel({
   initialEvents,
   anchorIso,
+  anchorEndIso,
   initialAnchoredSummary,
 }: {
   initialEvents: LiquidationEvent[];
@@ -135,6 +140,7 @@ export default function LiquidationPanel({
   // ist (haeufigster Fall) -- server-seitig aufgeloest in app/page.tsx,
   // dasselbe Muster wie "timeframe".
   anchorIso: string | null;
+  anchorEndIso: string | null;
   initialAnchoredSummary: AnchoredSummary | null;
 }) {
   const [events, setEvents] = useState(initialEvents);
@@ -147,7 +153,7 @@ export default function LiquidationPanel({
       const [{ data, ok }, intel, anchored] = await Promise.all([
         fetchRecentLiquidations(),
         fetchIntelligence(),
-        anchorIso ? fetchAnchoredSummary(anchorIso) : Promise.resolve(null),
+        anchorIso ? fetchAnchoredSummary(anchorIso, anchorEndIso) : Promise.resolve(null),
       ]);
       setLastSyncOk(ok);
       if (ok) setEvents(data);
@@ -157,7 +163,7 @@ export default function LiquidationPanel({
     load();
     const interval = setInterval(load, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [anchorIso]);
+  }, [anchorIso, anchorEndIso]);
 
   const longNotional = events
     .filter((e) => e.side === "long")
@@ -276,7 +282,9 @@ export default function LiquidationPanel({
       {anchorIso && (
         <div className="flex flex-col gap-1 text-xs pt-2 border-t border-border/60">
           <span className="text-text-faint">
-            Seit Anker ({formatAnchorBadge(new Date(anchorIso))}):
+            {anchoredSummary?.anchor_end_timestamp_utc
+              ? formatAnchorRangeBadge(new Date(anchorIso), new Date(anchoredSummary.anchor_end_timestamp_utc))
+              : `Seit Anker (${formatAnchorBadge(new Date(anchorIso))}):`}
           </span>
           {anchoredSummary ? (
             <span className="tabular font-mono text-text-muted">

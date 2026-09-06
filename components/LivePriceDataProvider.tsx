@@ -152,6 +152,7 @@ export default function LivePriceDataProvider({
   initialFetchedSinceIso,
   initialOiByExchange,
   anchorIso,
+  anchorEndIso,
   initialAnchoredSummary,
   children,
 }: {
@@ -167,6 +168,9 @@ export default function LivePriceDataProvider({
   initialOiByExchange: OiChangeByExchange[];
   // Phase 1 "Anchored Analytics": null, solange kein Event-Anker gesetzt ist.
   anchorIso: string | null;
+  // Optionales Ende eines Anker-ZEITRAUMS (06.09.2026, Kerzenchart-Anker) --
+  // null beim bisherigen Einzel-Anker-Verhalten ("bis jetzt").
+  anchorEndIso: string | null;
   initialAnchoredSummary: AnchoredSummary | null;
   children: ReactNode;
 }) {
@@ -217,7 +221,10 @@ export default function LivePriceDataProvider({
     if (!anchorIso) return;
     let cancelled = false;
     const load = async () => {
-      const { data, error } = await supabase.rpc("get_anchored_summary", { p_anchor: anchorIso });
+      const { data, error } = await supabase.rpc("get_anchored_summary", {
+        p_anchor: anchorIso,
+        p_anchor_end: anchorEndIso,
+      });
       if (cancelled) return;
       if (error) {
         console.error("Fehler beim Laden der Anchored Summary:", error.message);
@@ -231,7 +238,7 @@ export default function LivePriceDataProvider({
       cancelled = true;
       clearInterval(interval);
     };
-  }, [anchorIso]);
+  }, [anchorIso, anchorEndIso]);
 
   // Eigener Effekt pro Zeitraum+Boerse: aendert sich timeframe (von aussen
   // ueber die URL) oder seriesExchange (lokal), wird die alte Polling-

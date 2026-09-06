@@ -26,7 +26,7 @@ import { buildLiveLeverageMap } from "@/lib/leverageMapContext";
 import { buildCycleIndicators } from "@/lib/cycleIndicatorsContext";
 import { buildDivergenceRadar } from "@/lib/divergenceRadarContext";
 import { detectEscalationTriggers } from "@/lib/escalationContext";
-import { parseAnchorParam } from "@/lib/anchor";
+import { parseAnchorParam, parseAnchorEndParam } from "@/lib/anchor";
 import { TRADINGVIEW_SIGNAL_FRESHNESS_HOURS } from "@/lib/tradingViewSignal";
 import { DEFAULT_SERIES_EXCHANGE } from "@/lib/exchanges";
 import LivePriceDataProvider from "@/components/LivePriceDataProvider";
@@ -283,11 +283,15 @@ async function getRecentLiquidations(): Promise<LiquidationEvent[]> {
 // frei waehlbaren Ankerpunkt -- unabhaengig vom festen "tf"-Zeitraum.
 // Frueher Ausstieg ohne DB-Aufruf, wenn kein Anker gesetzt ist (haeufigster
 // Fall), statt die RPC unnoetig mit einem null-Parameter aufzurufen.
-async function getAnchoredSummary(anchorIso: string | null): Promise<AnchoredSummary | null> {
+async function getAnchoredSummary(
+  anchorIso: string | null,
+  anchorEndIso: string | null
+): Promise<AnchoredSummary | null> {
   if (!anchorIso) return null;
 
   const { data, error } = await supabase.rpc("get_anchored_summary", {
     p_anchor: anchorIso,
+    p_anchor_end: anchorEndIso,
   });
 
   if (error) {
@@ -484,7 +488,7 @@ async function getOiChangeByExchange(sinceIso: string): Promise<OiChangeByExchan
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ tf?: string; anchor?: string }>;
+  searchParams: Promise<{ tf?: string; anchor?: string; anchorEnd?: string }>;
 }) {
   // Einzige Zeitraum-Quelle fuer die gesamte Seite: der "tf"-URL-Query-Param,
   // gesteuert vom TimeframeSelector unten. BTC-Change, OI-Change, Chart,
@@ -493,7 +497,7 @@ export default async function Home({
   // Zeitraeume mehr (vorher: LivePriceDataProvider, SpotPressurePanel und
   // MarketContextCard hatten je einen eigenen, nicht synchronisierten
   // Zeitraum-Zustand).
-  const { tf, anchor } = await searchParams;
+  const { tf, anchor, anchorEnd } = await searchParams;
   const timeframe = parseTimeframe(tf);
   const timeframeSinceIsoValue = timeframeSinceIso(timeframe);
 
@@ -504,6 +508,10 @@ export default async function Home({
   // fertiger ISO-String an LiquidationPanel/LivePriceDataProvider gereicht).
   const anchorDate = parseAnchorParam(anchor);
   const anchorIso = anchorDate ? anchorDate.toISOString() : null;
+  // Optionales Ende eines Anker-ZEITRAUMS (06.09.2026, Kerzenchart-Anker
+  // per Klick+Ziehen) -- null beim bisherigen Einzel-Anker-Verhalten.
+  const anchorEndDate = parseAnchorEndParam(anchorEnd, anchorDate);
+  const anchorEndIso = anchorEndDate ? anchorEndDate.toISOString() : null;
 
   const [
     snapshots,
@@ -553,7 +561,7 @@ export default async function Home({
     getOiReferenceSnapshot(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getDashboardPollBundle(timeframeSinceIsoValue),
     getOiChangeByExchange(timeframeSinceIsoValue),
-    getAnchoredSummary(anchorIso),
+    getAnchoredSummary(anchorIso, anchorEndIso),
     getLatestTradingViewSignal(),
   ]);
 
@@ -665,6 +673,7 @@ export default async function Home({
                 initialFetchedSinceIso={timeframeSinceIsoValue}
                 initialOiByExchange={oiByExchange}
                 anchorIso={anchorIso}
+                anchorEndIso={anchorEndIso}
                 initialAnchoredSummary={anchoredSummary}
               >
                 <DashboardLayout
@@ -676,6 +685,7 @@ export default async function Home({
                         marketState={marketState}
                         initialTradingViewSignal={latestTradingViewSignal}
                         anchorIso={anchorIso}
+                        anchorEndIso={anchorEndIso}
                         initialAnchoredSummary={anchoredSummary}
                       />
                     ),
@@ -699,6 +709,7 @@ export default async function Home({
                       <LiquidationPanel
                         initialEvents={recentLiquidations}
                         anchorIso={anchorIso}
+                        anchorEndIso={anchorEndIso}
                         initialAnchoredSummary={anchoredSummary}
                       />
                     ),

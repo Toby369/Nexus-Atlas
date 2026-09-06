@@ -141,6 +141,10 @@ export interface AnchoredSummaryPoint {
 
 export interface AnchoredSummary {
   anchor_timestamp_utc: string;
+  // Nutzer-Wunsch (06.09.2026, Kerzenchart-Anker per Klick+Ziehen): Ende
+  // eines fest gewaehlten Anker-ZEITRAUMS -- null beim bisherigen
+  // Einzel-Anker-Verhalten ("seit Anker bis jetzt", unveraendert).
+  anchor_end_timestamp_utc: string | null;
   granularity_used: "5m" | "1h" | "4h" | "1d";
   price_at_anchor: number | null;
   price_current: number | null;
