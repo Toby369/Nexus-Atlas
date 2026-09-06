@@ -84,19 +84,28 @@ export default function AnchorChartPicker({
 
   const [timeframe, setTimeframe] = useState<IntervalId>("1h");
   const [loading, setLoading] = useState(true);
+  // Checkbox "Auswahl aktiv" (Nutzer-Wunsch 06.09.2026): ohne aktivierte
+  // Auswahl reagiert der Chart auf Klicks nicht -- man kann frei zoomen/
+  // schauen, ohne versehentlich einen neuen Anker-Zeitraum zu starten.
+  const [selectionActive, setSelectionActive] = useState(false);
   const [pickStart, setPickStart] = useState<UTCTimestamp | null>(null);
   const [pickEnd, setPickEnd] = useState<UTCTimestamp | null>(null);
   const [hoverTime, setHoverTime] = useState<UTCTimestamp | null>(null);
   const [overlay, setOverlay] = useState<OverlayRect | null>(null);
 
-  // Klick-/Crosshair-Handler lesen den zuletzt gewaehlten Start/Ende ueber
-  // Refs statt ueber die React-State-Closure -- die Chart-Instanz samt
-  // Event-Subscriptions wird nur einmal beim Mount erzeugt (siehe Effekt
-  // unten), die Handler muessen aber trotzdem immer den AKTUELLEN
-  // Auswahlstand sehen. Die Refs werden bewusst nur in einem eigenen Effekt
-  // synchronisiert (nie waehrend des Renders selbst).
+  // Klick-/Crosshair-Handler lesen den zuletzt gewaehlten Start/Ende sowie
+  // den Auswahl-aktiv-Status ueber Refs statt ueber die React-State-
+  // Closure -- die Chart-Instanz samt Event-Subscriptions wird nur einmal
+  // beim Mount erzeugt (siehe Effekt unten), die Handler muessen aber
+  // trotzdem immer den AKTUELLEN Stand sehen. Die Refs werden bewusst nur
+  // in einem eigenen Effekt synchronisiert (nie waehrend des Renders
+  // selbst).
+  const selectionActiveRef = useRef(false);
   const pickStartRef = useRef<UTCTimestamp | null>(null);
   const pickEndRef = useRef<UTCTimestamp | null>(null);
+  useEffect(() => {
+    selectionActiveRef.current = selectionActive;
+  }, [selectionActive]);
   useEffect(() => {
     pickStartRef.current = pickStart;
   }, [pickStart]);
@@ -128,7 +137,7 @@ export default function AnchorChartPicker({
     seriesRef.current = series;
 
     const handleClick = (param: MouseEventParams<Time>) => {
-      if (!param.time) return;
+      if (!selectionActiveRef.current || !param.time) return;
       const t = param.time as UTCTimestamp;
       if (pickStartRef.current === null) {
         setPickStart(t);
@@ -145,7 +154,12 @@ export default function AnchorChartPicker({
       }
     };
     const handleCrosshairMove = (param: MouseEventParams<Time>) => {
-      if (pickStartRef.current === null || pickEndRef.current !== null) return;
+      if (
+        !selectionActiveRef.current ||
+        pickStartRef.current === null ||
+        pickEndRef.current !== null
+      )
+        return;
       setHoverTime(param.time ? (param.time as UTCTimestamp) : null);
     };
 
@@ -244,10 +258,21 @@ export default function AnchorChartPicker({
             </button>
           ))}
         </div>
+        <label className="flex items-center gap-1.5 text-[11px] text-text-faint">
+          <input
+            type="checkbox"
+            checked={selectionActive}
+            onChange={(e) => setSelectionActive(e.target.checked)}
+          />
+          Auswahl aktiv
+        </label>
+      </div>
+
+      {selectionActive && (
         <p className="text-[11px] text-text-faint">
           Kerze anklicken (Start), dann Ziel-Kerze anklicken (Ende)
         </p>
-      </div>
+      )}
 
       <div ref={containerRef} className="relative h-[240px] w-full">
         {loading && (
