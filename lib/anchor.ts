@@ -6,6 +6,14 @@
 // ein Anker ersetzt die festen Zeitraeume nicht, sondern ist eine
 // zusaetzliche, davon unabhaengige Betrachtung.
 export const ANCHOR_PARAM = "anchor";
+// Optionales Ende eines Anker-ZEITRAUMS (statt "ab Anker bis jetzt") --
+// Nutzer-Wunsch 06.09.2026: per Klick+Ziehen auf einem Kerzenchart einen
+// festen Start+Ende waehlen, analog zu TradingViews "Fixed Range"-Tool.
+// Fehlt dieser Param (haeufigster Fall, manueller Einzel-Anker), bleibt das
+// bisherige Verhalten (Anker bis jetzt) unveraendert -- siehe
+// get_anchored_summary/get_market_series (p_anchor_end/p_until, beide
+// default null = "bis jetzt").
+export const ANCHOR_END_PARAM = "anchorEnd";
 
 // Parst den rohen "anchor"-URL-Query-Param sicher zu einem Date -- null bei
 // fehlendem/ungueltigem Wert ODER wenn der Wert in der Zukunft liegt. Ein
@@ -28,6 +36,34 @@ export function formatAnchorBadge(date: Date): string {
   const iso = date.toISOString();
   const [datePart, timePart] = iso.split("T");
   return `Anchored to: ${datePart} ${timePart.slice(0, 5)} UTC`;
+}
+
+function formatUtcMinute(date: Date): string {
+  const [datePart, timePart] = date.toISOString().split("T");
+  return `${datePart} ${timePart.slice(0, 5)}`;
+}
+
+// Badge fuer einen Anker-ZEITRAUM (Start+Ende, per Chart-Drag gewaehlt) --
+// eigene Funktion statt formatAnchorBadge zu ueberladen, da die Bedeutung
+// eine andere ist ("zwischen X und Y" statt "seit X bis jetzt").
+export function formatAnchorRangeBadge(start: Date, end: Date): string {
+  return `Anker: ${formatUtcMinute(start)} → ${formatUtcMinute(end)} UTC`;
+}
+
+// Parst das Ende eines Anker-Zeitraums: dieselben Regeln wie
+// parseAnchorParam (kein ungueltiger/zukuenftiger Wert), zusaetzlich muss
+// es NACH dem Start liegen -- ein Ende vor/gleich dem Start ist kein
+// gueltiger Zeitraum und wird als "kein Ende gesetzt" behandelt (faellt auf
+// das bisherige "bis jetzt"-Verhalten zurueck statt einen Fehler zu werfen).
+export function parseAnchorEndParam(
+  value: string | null | undefined,
+  start: Date | null
+): Date | null {
+  if (!start) return null;
+  const end = parseAnchorParam(value);
+  if (!end) return null;
+  if (end.getTime() <= start.getTime()) return null;
+  return end;
 }
 
 // Formatiert einen Anker fuer ein <input type="datetime-local">-Feld

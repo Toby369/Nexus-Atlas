@@ -1,10 +1,13 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   ANCHOR_PARAM,
+  ANCHOR_END_PARAM,
   formatAnchorBadge,
+  formatAnchorRangeBadge,
   formatAnchorInputValue,
   parseAnchorInputValue,
   parseAnchorParam,
+  parseAnchorEndParam,
 } from "./anchor";
 
 describe("ANCHOR_PARAM", () => {
@@ -57,6 +60,47 @@ describe("formatAnchorBadge", () => {
   it("padded einstellige Stunden/Minuten korrekt (ISO liefert das bereits)", () => {
     const date = new Date("2026-01-05T04:07:00.000Z");
     expect(formatAnchorBadge(date)).toBe("Anchored to: 2026-01-05 04:07 UTC");
+  });
+});
+
+describe("ANCHOR_END_PARAM", () => {
+  it("ist ein stabiler, von ANCHOR_PARAM verschiedener Query-Param-Name", () => {
+    expect(ANCHOR_END_PARAM).toBe("anchorEnd");
+    expect(ANCHOR_END_PARAM).not.toBe(ANCHOR_PARAM);
+  });
+});
+
+describe("parseAnchorEndParam", () => {
+  const start = new Date("2026-08-15T14:00:00.000Z");
+
+  it("liefert null ohne gesetzten Start", () => {
+    expect(parseAnchorEndParam("2026-08-15T16:00:00.000Z", null)).toBeNull();
+  });
+
+  it("liefert null fuer fehlenden/ungueltigen Wert", () => {
+    expect(parseAnchorEndParam(null, start)).toBeNull();
+    expect(parseAnchorEndParam("kein-datum", start)).toBeNull();
+  });
+
+  it("liefert null, wenn das Ende vor oder gleich dem Start liegt", () => {
+    expect(parseAnchorEndParam("2026-08-15T14:00:00.000Z", start)).toBeNull();
+    expect(parseAnchorEndParam("2026-08-15T13:00:00.000Z", start)).toBeNull();
+  });
+
+  it("parst ein gueltiges Ende nach dem Start", () => {
+    const result = parseAnchorEndParam("2026-08-15T16:00:00.000Z", start);
+    expect(result).not.toBeNull();
+    expect(result!.toISOString()).toBe("2026-08-15T16:00:00.000Z");
+  });
+});
+
+describe("formatAnchorRangeBadge", () => {
+  it("formatiert als 'Anker: Start → Ende UTC'", () => {
+    const start = new Date("2026-08-15T14:23:00.000Z");
+    const end = new Date("2026-08-16T09:05:00.000Z");
+    expect(formatAnchorRangeBadge(start, end)).toBe(
+      "Anker: 2026-08-15 14:23 → 2026-08-16 09:05 UTC"
+    );
   });
 });
 
