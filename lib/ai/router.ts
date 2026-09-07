@@ -76,14 +76,18 @@ export async function runTileAnalysis<T = unknown>(
   ];
 
   const attempted: AIProviderId[] = [];
-  let lastError: unknown;
+  // Ein Fehler PRO Provider, nicht nur der letzte -- sonst verdeckt z.B. ein
+  // "deepseek: nicht konfiguriert"-Fallback-Fehler den eigentlich
+  // interessanten Fehler des primaeren Providers (Bug gefunden 07.09.2026:
+  // Anthropic-Ausfaelle waren dadurch fuer den Nutzer unsichtbar).
+  const errors: string[] = [];
 
   for (const providerId of providerChain) {
     const provider = getProvider(providerId);
 
     if (!provider.isConfigured()) {
       attempted.push(providerId);
-      lastError = new Error(`${providerId}: nicht konfiguriert (kein API-Key gesetzt).`);
+      errors.push(`${providerId}: nicht konfiguriert (kein API-Key gesetzt).`);
       continue;
     }
 
@@ -116,17 +120,15 @@ export async function runTileAnalysis<T = unknown>(
       };
     } catch (err) {
       attempted.push(providerId);
-      lastError = err;
+      errors.push(err instanceof Error ? err.message : String(err));
       // Naechster Provider in der Kette wird versucht.
     }
   }
 
-  const errorMessage =
-    lastError instanceof Error ? lastError.message : String(lastError);
   throw new Error(
     `AI Router: alle Provider fuer Kachel "${tileId}" fehlgeschlagen (${attempted.join(
       " -> "
-    )}). Letzter Fehler: ${errorMessage}`
+    )}). Fehler: ${errors.join(" | ")}`
   );
 }
 
@@ -165,14 +167,17 @@ export async function runReportAnalysis<T = unknown>(
   ];
 
   const attempted: AIProviderId[] = [];
-  let lastError: unknown;
+  // Siehe runTileAnalysis() oben: ein Fehler PRO Provider, nicht nur der
+  // letzte -- sonst verdeckt ein Fallback-Fehler den eigentlich
+  // interessanten Fehler des primaeren Providers.
+  const errors: string[] = [];
 
   for (const providerId of providerChain) {
     const provider = getProvider(providerId);
 
     if (!provider.isConfigured()) {
       attempted.push(providerId);
-      lastError = new Error(`${providerId}: nicht konfiguriert (kein API-Key gesetzt).`);
+      errors.push(`${providerId}: nicht konfiguriert (kein API-Key gesetzt).`);
       continue;
     }
 
@@ -196,14 +201,13 @@ export async function runReportAnalysis<T = unknown>(
       return { ...result, promptProfile: profile.id, attemptedProviders: attempted };
     } catch (err) {
       attempted.push(providerId);
-      lastError = err;
+      errors.push(err instanceof Error ? err.message : String(err));
     }
   }
 
-  const errorMessage = lastError instanceof Error ? lastError.message : String(lastError);
   throw new Error(
     `AI Router: alle Provider fuer Report-Profile "${options.promptProfile}" fehlgeschlagen (${attempted.join(
       " -> "
-    )}). Letzter Fehler: ${errorMessage}`
+    )}). Fehler: ${errors.join(" | ")}`
   );
 }

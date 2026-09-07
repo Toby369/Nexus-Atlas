@@ -82,6 +82,11 @@ export async function POST() {
 
   const reads: EscalationRead[] = [];
   const failedProviders: string[] = [];
+  // Nur fuer die Fehlermeldung unten -- failed_providers (DB-Spalte/UI-
+  // Badge) bleibt bewusst eine reine Provider-ID-Liste, der Grund landet
+  // separat im "error"-Freitext (07.09.2026: sonst verschwindet der
+  // eigentliche Fehlergrund wie bei runTileAnalysis() zuvor).
+  const failureReasons: string[] = [];
 
   settled.forEach((outcome, i) => {
     const providerId = ESCALATION_PROVIDER_ENSEMBLE[i];
@@ -95,11 +100,13 @@ export async function POST() {
       });
     } else {
       failedProviders.push(providerId);
+      const reason = outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason);
+      failureReasons.push(`${providerId}: ${reason}`);
     }
   });
 
   if (reads.length < 2) {
-    const message = `Zu wenige Provider haben geantwortet fuer eine Konsens-Auswertung (${reads.length}/${ESCALATION_PROVIDER_ENSEMBLE.length} erfolgreich, fehlgeschlagen: ${failedProviders.join(", ") || "keine"}).`;
+    const message = `Zu wenige Provider haben geantwortet fuer eine Konsens-Auswertung (${reads.length}/${ESCALATION_PROVIDER_ENSEMBLE.length} erfolgreich). ${failureReasons.join(" | ") || "Keine Fehlgeschlagenen."}`;
 
     await supabaseAdmin.from("escalation_snapshots").insert({
       trigger_reasons: triggers,
