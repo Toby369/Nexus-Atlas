@@ -66,7 +66,10 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     tileId: "signal-engine",
     aiProvider: "auto", // -> anthropic (signal-logic)
     promptProfile: "signal-analysis",
-    fallbackProviders: ["deepseek"],
+    // OpenRouter zusaetzlich zu DeepSeek (Nutzer-Wunsch 07.09.2026, im
+    // Rahmen des Ausfalls von Anthropic ohne funktionierenden Fallback
+    // entdeckt) -- ueber report_runs bereits nachweislich produktiv nutzbar.
+    fallbackProviders: ["deepseek", "openrouter"],
   },
   // Umsetzungsplan Phase 3 (05.09.2026): erste tatsaechlich aus der UI
   // aufgerufene Kachel dieser Konfiguration (siehe app/api/handelslage/
@@ -95,11 +98,14 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   },
 };
 
-// Provider-Ensemble fuer die Eskalations-Kachel -- drei unabhaengige
-// Vendors, bewusst ohne Perplexity (Web-Suche wuerde hier externe, nicht im
-// Kontext enthaltene Informationen einbringen statt einer unabhaengigen
-// Lesart DERSELBEN Daten).
-export const ESCALATION_PROVIDER_ENSEMBLE = ["anthropic", "google", "mistral"] as const;
+// Provider-Ensemble fuer die Eskalations-Kachel -- unabhaengige Vendors,
+// bewusst ohne Perplexity (Web-Suche wuerde hier externe, nicht im Kontext
+// enthaltene Informationen einbringen statt einer unabhaengigen Lesart
+// DERSELBEN Daten). OpenRouter als viertes Mitglied ergaenzt (Nutzer-Wunsch
+// 07.09.2026) -- computeEscalationConsensus()/die "min. 2 Reads"-Schwelle in
+// der Route sind unabhaengig von der Ensemble-Groesse, keine Anpassung dort
+// noetig.
+export const ESCALATION_PROVIDER_ENSEMBLE = ["anthropic", "google", "mistral", "openrouter"] as const;
 
 export function getTileConfig(tileId: string): TileAIConfig {
   const config = tileConfigs[tileId];

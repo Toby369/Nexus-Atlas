@@ -7,9 +7,8 @@ import PanelInfo from "@/components/PanelInfo";
 
 // Eskalations-Kachel ("gezielte Eskalation" statt Dauerbetrieb mehrerer KIs,
 // 05.09.2026) -- holt mehrere unabhaengige AI-Meinungen (siehe
-// lib/ai/tileConfig.ts ESCALATION_PROVIDER_ENSEMBLE: Anthropic, Google,
-// Mistral) NUR ein, wenn Nexus intern bereits eine Divergenz/einen
-// Widerspruch erkannt hat. initialTriggers kommt aus einer kostenlosen
+// lib/ai/tileConfig.ts ESCALATION_PROVIDER_ENSEMBLE) NUR ein, wenn Nexus
+// intern bereits eine Divergenz/einen Widerspruch erkannt hat. initialTriggers kommt aus einer kostenlosen
 // DB-Pruefung (lib/escalationContext.ts::detectEscalationTriggers, reine
 // Reads, kein AI-Aufruf) -- der Button ist nur aktiv, wenn mindestens ein
 // Trigger aktiv ist.

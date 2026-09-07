@@ -54,9 +54,24 @@ async function callMessages(
   }
 
   const json = await res.json();
-  const content = json?.content?.[0]?.text;
+  // NICHT content[0] annehmen: Claude Sonnet 5 laeuft standardmaessig mit
+  // adaptivem "Thinking" (kein expliziter thinking-Parameter noetig), das
+  // steht in der Antwort als eigener Block VOR dem Text-Block -- content[0]
+  // waere dann der thinking-Block (kein .text-Feld), nicht der Text
+  // (Bug gefunden 07.09.2026, sichtbar erst nach Fix des Router-Fallback-
+  // Fehlerschluckens). Robust: den ersten Block mit type "text" suchen.
+  const textBlock = Array.isArray(json?.content)
+    ? json.content.find((block: { type?: string }) => block?.type === "text")
+    : undefined;
+  const content = textBlock?.text;
   if (typeof content !== "string") {
-    throw new Error("anthropic: unerwartetes Antwortformat.");
+    throw new Error(
+      `anthropic: unerwartetes Antwortformat (kein text-Block gefunden, Typen: ${
+        Array.isArray(json?.content)
+          ? json.content.map((b: { type?: string }) => b?.type).join(", ")
+          : typeof json?.content
+      }).`
+    );
   }
 
   return {
