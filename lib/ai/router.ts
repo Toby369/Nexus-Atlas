@@ -22,11 +22,17 @@ import { getTileConfig } from "./tileConfig";
 // Default-Zuordnung fuer aiProvider: "auto", nach Prompt-Profile-Kategorie.
 // Entspricht der Rollen-Doku (Abschnitt 12), ist aber austauschbar, ohne
 // dass tileConfig.ts oder die Kacheln selbst angepasst werden muessten.
+//
+// "signal-logic" -> google statt anthropic (Nutzer-Entscheidung 07.09.2026,
+// nach einem Anthropic-Ausfall am selben Tag): Anthropic bleibt fuer
+// Signal-Engine/Handelslage als LETZTER Fallback erhalten (siehe deren
+// fallbackProviders in tileConfig.ts), springt also nur ein, wenn alle
+// anderen konfigurierten Provider ebenfalls scheitern -- nicht mehr primaer.
 const AUTO_CATEGORY_PROVIDER: Record<PromptProfileCategory, AIProviderId> = {
   "market-mechanics": "xai", // Grok: Krypto-/Marktmechanik
   research: "perplexity", // Web Research, News, externe Quellen
   orchestration: "openai", // Gesamtanalyse, Entscheidungslogik
-  "signal-logic": "anthropic", // Logik-/Signal-Review
+  "signal-logic": "google", // Logik-/Signal-Review
 };
 
 function resolveProviderId(

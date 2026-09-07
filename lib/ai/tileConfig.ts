@@ -64,12 +64,13 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   },
   "signal-engine": {
     tileId: "signal-engine",
-    aiProvider: "auto", // -> anthropic (signal-logic)
+    aiProvider: "auto", // -> google (signal-logic)
     promptProfile: "signal-analysis",
-    // OpenRouter zusaetzlich zu DeepSeek (Nutzer-Wunsch 07.09.2026, im
-    // Rahmen des Ausfalls von Anthropic ohne funktionierenden Fallback
-    // entdeckt) -- ueber report_runs bereits nachweislich produktiv nutzbar.
-    fallbackProviders: ["deepseek", "openrouter"],
+    // Anthropic bewusst ans ENDE verschoben (Nutzer-Entscheidung 07.09.2026,
+    // nach einem Anthropic-Ausfall am selben Tag): springt nur noch ein,
+    // wenn OpenRouter UND DeepSeek (letzterer ohne gesetzten Key ohnehin
+    // ein Sofort-Fehlschlag) beide scheitern -- nicht mehr primaer.
+    fallbackProviders: ["openrouter", "deepseek", "anthropic"],
   },
   // Umsetzungsplan Phase 3 (05.09.2026): erste tatsaechlich aus der UI
   // aufgerufene Kachel dieser Konfiguration (siehe app/api/handelslage/
@@ -78,9 +79,12 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   // Einsatz, hier zum ersten Mal ueber runTileAnalysis()/"auto".
   handelslage: {
     tileId: "handelslage",
-    aiProvider: "auto", // -> anthropic (signal-logic)
+    aiProvider: "auto", // -> google (signal-logic)
     promptProfile: "handelslage",
-    fallbackProviders: ["google", "openai"],
+    // Anthropic bewusst ans ENDE verschoben, siehe Kommentar bei
+    // "signal-engine" oben -- dieselbe Nutzer-Entscheidung, google ist
+    // jetzt primaer statt Fallback.
+    fallbackProviders: ["openai", "anthropic"],
   },
   // Eskalations-Kachel ("gezielte Eskalation", 05.09.2026): aiProvider hier
   // ist nur ein Platzhalter -- app/api/escalation/generate/route.ts ruft
