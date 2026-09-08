@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { YoutubeVideoAnalysis } from "@/lib/types";
 import type { YoutubeMonitorConfig } from "@/lib/youtubeMonitorContext";
+import { computeYoutubeConsensus } from "@/lib/youtubeConsensus";
 import { RelativeTime } from "@/components/ClientTimestamp";
 import PanelInfo from "@/components/PanelInfo";
 
@@ -22,6 +23,7 @@ const INFO_TEXT = [
   "Kostenlos: sowohl die YouTube-API (Google-Gratiskontingent) als auch die Gemini-Video-Analyse (Google-Free-Tier, Flash-Modelle) laufen ohne Kreditkarte -- pro Lauf werden aber nur wenige neue Videos analysiert (Kostenkontrolle ueber das Free-Tier-Anfragelimit).",
   "Kanaele erkennst du an Handle (z.B. @CoinBureau), voller Kanal-URL oder roher Kanal-ID -- wird beim Speichern serverseitig aufgeloest. Freitext-Suche findet auch unbekannte Quellen, kann aber Off-Topic-Treffer liefern (dafuer gibt es das relevance-Feld).",
   "Kein Handelssignal -- die im Video vertretene Meinung ist nicht Nexus' eigene Einschaetzung. Wird NICHT automatisch aktualisiert -- ein neuer Suchlauf entsteht nur per Klick auf \"Neu pruefen\".",
+  "Kanal-Vergleich: zeigt die JEWEILS NEUESTE Einschaetzung jedes konfigurierten Kanals nebeneinander -- \"einig\" wenn alle dieselbe Richtung vertreten, \"mehrheitlich\" mit den abweichenden Kanaelen einzeln benannt, oder \"gespalten\" bei echtem Patt ohne Mehrheit. Erscheint erst ab 2 Kanaelen mit erfolgreicher Analyse.",
 ].join("\n\n");
 
 const BIAS_STYLES: Record<string, string> = {
@@ -41,6 +43,23 @@ const RELEVANCE_LABELS: Record<string, string> = {
   medium: "Mittel relevant",
   low: "Kaum relevant",
 };
+
+const AGREEMENT_LABELS: Record<string, string> = {
+  einig: "Einig",
+  mehrheitlich: "Mehrheitlich",
+  gespalten: "Gespalten",
+};
+
+const AGREEMENT_STYLES: Record<string, string> = {
+  einig: "border-up/40 bg-up/10 text-up",
+  mehrheitlich: "border-border text-text-muted",
+  gespalten: "border-down/40 bg-down/10 text-down",
+};
+
+// Videoliste bleibt uebersichtlich (juengste zuerst); der Kanal-Vergleich
+// (weiter unten) nutzt trotzdem den vollen, ungekuerzten `analyses`-State,
+// damit auch selten postende Kanaele darin vorkommen.
+const VISIBLE_VIDEO_COUNT = 8;
 
 export default function YoutubeMonitorCard({
   initialAnalyses,
@@ -64,6 +83,8 @@ export default function YoutubeMonitorCard({
   const [configError, setConfigError] = useState<string | null>(null);
   const [channelWarnings, setChannelWarnings] = useState<string[]>([]);
 
+  const consensus = useMemo(() => computeYoutubeConsensus(analyses), [analyses]);
+
   async function handleGenerate() {
     setLoading(true);
     setError(null);
@@ -78,7 +99,12 @@ export default function YoutubeMonitorCard({
 
       const newAnalyses = json.newAnalyses as YoutubeVideoAnalysis[];
       if (newAnalyses.length > 0) {
-        setAnalyses((prev) => [...newAnalyses, ...prev].slice(0, 8));
+        // Bewusst NICHT auf 8 gekuerzt (anders als vorher) -- der
+        // Kanal-Vergleich unten braucht von jedem konfigurierten Kanal die
+        // letzte Analyse, sonst wuerden selten postende Kanaele nach ein
+        // paar Laeufen aus dem State fallen. Die sichtbare Videoliste
+        // begrenzt sich selbst ueber VISIBLE_VIDEO_COUNT beim Rendern.
+        setAnalyses((prev) => [...newAnalyses, ...prev]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -210,8 +236,48 @@ export default function YoutubeMonitorCard({
         <p className="text-xs text-text-faint">Noch keine Videos analysiert.</p>
       )}
 
+      {consensus && (
+        <div className="rounded-md border border-border/60 p-2.5 space-y-2">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-xs font-medium text-text">
+              Kanal-Vergleich ({consensus.channelsCompared} Kanäle)
+            </p>
+            <span
+              className={`px-1.5 py-0.5 text-[10px] rounded-md border font-medium ${AGREEMENT_STYLES[consensus.agreementLevel]}`}
+            >
+              {AGREEMENT_LABELS[consensus.agreementLevel]}
+            </span>
+          </div>
+          <p className="text-[10px] text-text-faint">
+            {consensus.bullishCount} bullish · {consensus.bearishCount} bearish ·{" "}
+            {consensus.neutralCount} neutral
+          </p>
+          {consensus.agreementLevel !== "einig" && consensus.outliers.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-[10px] uppercase tracking-wide text-text-faint">
+                Abweichende Meinung
+              </p>
+              {consensus.outliers.map((o) => (
+                <div key={o.channelTitle} className="flex items-start gap-1.5">
+                  <span
+                    className={`shrink-0 px-1.5 py-0.5 text-[10px] rounded-md border font-medium ${
+                      BIAS_STYLES[o.bias] ?? BIAS_STYLES.neutral
+                    }`}
+                  >
+                    {BIAS_LABELS[o.bias] ?? o.bias}
+                  </span>
+                  <p className="text-xs text-text-faint">
+                    <span className="text-text-muted">{o.channelTitle}:</span> {o.summary}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="space-y-2">
-        {analyses.map((a) => (
+        {analyses.slice(0, VISIBLE_VIDEO_COUNT).map((a) => (
           <div key={a.id} className="rounded-md border border-border/60 p-2.5 space-y-1">
             <div className="flex items-start justify-between gap-2">
               <a

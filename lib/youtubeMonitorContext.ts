@@ -26,7 +26,14 @@ const DEFAULT_SEARCH_QUERY = "Bitcoin BTC";
 // Kostenkontrolle: jede Analyse ist ein Gemini-Aufruf (Free-Tier-Limit ca.
 // 10-15 Anfragen/Minute, 1500/Tag) -- pro Lauf werden bewusst nur wenige
 // neue Videos analysiert statt alle Treffer auf einmal.
-export const MAX_NEW_VIDEOS_PER_RUN = 3;
+//
+// Angehoben 08.09.2026 (Nutzer-Wunsch, nach Ausweitung auf 6 feste Kanaele):
+// 3 war zu knapp, um bei einem Lauf jeden konfigurierten Kanal abzudecken --
+// der Kanal-Vergleich (lib/youtubeConsensus.ts) braucht dafuer moeglichst
+// von jedem Kanal die aktuelle Einschaetzung. 8 deckt 6 Kanaele plus Puffer
+// ab und bleibt weit unter dem Free-Tier-Minutenlimit (sequentielle Analyse,
+// keine Parallelisierung).
+export const MAX_NEW_VIDEOS_PER_RUN = 8;
 
 export interface YoutubeVideoCandidate {
   videoId: string;

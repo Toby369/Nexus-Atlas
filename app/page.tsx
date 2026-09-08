@@ -262,11 +262,16 @@ async function getLatestTradeDebate(): Promise<TradeDebateSnapshot | null> {
 // Analysen -- reines Lesen, kein API-Aufruf (der passiert nur ueber POST
 // /api/youtube-monitor/generate, siehe YoutubeMonitorCard.tsx).
 async function getLatestYoutubeAnalyses(): Promise<YoutubeVideoAnalysis[]> {
+  // 40 statt 8: der Kanal-Vergleich (lib/youtubeConsensus.ts) braucht von
+  // JEDEM konfigurierten Kanal die neueste Analyse -- bei 8 wuerde ein
+  // besonders aktiver Kanal die anderen aus der Liste verdraengen. Die
+  // sichtbare Videoliste in YoutubeMonitorCard bleibt trotzdem auf die
+  // juengsten 8 begrenzt (nur die Vergleichslogik sieht mehr).
   const { data, error } = await supabase
     .from("youtube_video_analyses")
     .select("*")
     .order("published_at", { ascending: false })
-    .limit(8);
+    .limit(40);
 
   if (error) {
     console.error("Fehler beim Laden der YouTube-Analysen:", error.message);
