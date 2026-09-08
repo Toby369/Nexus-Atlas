@@ -547,6 +547,46 @@ export interface EscalationSnapshot {
   error: string | null;
 }
 
+// Trade-Debate-Kachel (Nutzer-Idee 07.09.2026, TradingAgents-Architektur
+// [arXiv:2412.20138]): zwei gegensaetzlich geprompte Analysten (Bull/Bear)
+// + ein Referee/CIO, siehe lib/ai/promptProfiles.ts "trade-bull-analyst"/
+// "trade-bear-analyst"/"trade-referee" fuer die genauen Schemata.
+export interface TradeDebateAnalystResult {
+  bias: "long" | "short";
+  entry_price: number;
+  invalidation_price: number;
+  target_price: number;
+  risk_reward: number;
+  confidence: number;
+  reasoning: string;
+}
+
+export interface TradeDebateAnalystRead {
+  provider: string;
+  model: string;
+  result: TradeDebateAnalystResult;
+}
+
+export interface TradeDebateRefereeResult {
+  verdict: "long" | "short" | "wait";
+  divergence_detected: boolean;
+  synthesis: string;
+  invalidation_level: number | null;
+}
+
+export interface TradeDebateSnapshot {
+  id: number;
+  generated_at: string;
+  bull_read: TradeDebateAnalystRead | null;
+  bear_read: TradeDebateAnalystRead | null;
+  referee_provider: string | null;
+  referee_model: string | null;
+  referee_result: TradeDebateRefereeResult | null;
+  verdict: "long" | "short" | "wait" | null;
+  status: "ok" | "error";
+  error: string | null;
+}
+
 // Krypto-YouTube-Monitor (Thema KI, 05.09.2026) -- findet neue BTC/Krypto-
 // relevante YouTube-Videos (YouTube Data API v3, kostenloses Tageskontingent)
 // und laesst sie per Gemini direkt per Video-URL analysieren (Google-

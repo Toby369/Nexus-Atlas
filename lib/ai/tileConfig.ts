@@ -100,6 +100,35 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     promptProfile: "escalation-analysis",
     fallbackProviders: [],
   },
+  // Trade-Debate-Kachel (Nutzer-Idee 07.09.2026): app/api/trade-debate/
+  // generate/route.ts ruft Bull und Bear mit je eigenem, ABSICHTLICH
+  // unterschiedlichem primaeren Vendor auf (kein gemeinsamer Modell-Bias
+  // in beiden "Seiten" der Debatte), danach den Referee mit beiden
+  // Ergebnissen im Kontext. Anders als bei "escalation" MIT
+  // fallbackProviders -- hier soll ein einzelner Provider-Ausfall nicht
+  // gleich die ganze Debatte platzen lassen (es gibt nur 2 Analysten, kein
+  // Ensemble mit Redundanz).
+  "trade-debate-bull": {
+    tileId: "trade-debate-bull",
+    aiProvider: "google",
+    promptProfile: "trade-bull-analyst",
+    fallbackProviders: ["openrouter"],
+  },
+  "trade-debate-bear": {
+    tileId: "trade-debate-bear",
+    aiProvider: "openrouter",
+    promptProfile: "trade-bear-analyst",
+    fallbackProviders: ["google"],
+  },
+  // Referee bekommt Anthropic primaer (urspruengliche Nutzer-Idee: "KI Nr.
+  // 3" als Pruefinstanz) -- mit robusten Fallbacks, nachdem Anthropic am
+  // 07.09.2026 kurzzeitig ausfiel (siehe Signal-Engine/Handelslage oben).
+  "trade-debate-referee": {
+    tileId: "trade-debate-referee",
+    aiProvider: "anthropic",
+    promptProfile: "trade-referee",
+    fallbackProviders: ["google", "openrouter"],
+  },
 };
 
 // Provider-Ensemble fuer die Eskalations-Kachel -- unabhaengige Vendors,

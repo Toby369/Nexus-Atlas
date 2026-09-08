@@ -18,6 +18,7 @@ import type {
   OiChangeByExchange,
   OrderbookWallSnapshot,
   SignalEngineSnapshot,
+  TradeDebateSnapshot,
   TradingViewSignal,
   YoutubeVideoAnalysis,
 } from "@/lib/types";
@@ -52,6 +53,7 @@ import DivergenceRadarCard from "@/components/DivergenceRadarCard";
 import NewsAnalysisCard from "@/components/NewsAnalysisCard";
 import SignalEngineCard from "@/components/SignalEngineCard";
 import EscalationCard from "@/components/EscalationCard";
+import TradeDebateCard from "@/components/TradeDebateCard";
 import YoutubeMonitorCard from "@/components/YoutubeMonitorCard";
 import { getYoutubeMonitorConfig } from "@/lib/youtubeMonitorContext";
 import LeverageMapCard from "@/components/LeverageMapCard";
@@ -233,6 +235,24 @@ async function getLatestEscalation(): Promise<EscalationSnapshot | null> {
 
   if (error) {
     console.error("Fehler beim Laden der Eskalations-Auswertung:", error.message);
+    return null;
+  }
+  return data;
+}
+
+// Trade-Debate-Kachel (Nutzer-Idee 07.09.2026): letzter zwischengespeicherter
+// Stand -- reines Lesen, kein AI-Aufruf (der passiert nur ueber POST
+// /api/trade-debate/generate, siehe TradeDebateCard.tsx).
+async function getLatestTradeDebate(): Promise<TradeDebateSnapshot | null> {
+  const { data, error } = await supabase
+    .from("trade_debate_snapshots")
+    .select("*")
+    .order("generated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Fehler beim Laden der Trade-Debate-Auswertung:", error.message);
     return null;
   }
   return data;
@@ -530,6 +550,7 @@ export default async function Home({
     latestSignalEngine,
     escalationTriggers,
     latestEscalation,
+    latestTradeDebate,
     latestYoutubeAnalyses,
     youtubeMonitorConfig,
     oiSeriesData,
@@ -555,6 +576,7 @@ export default async function Home({
     getLatestSignalEngine(),
     detectEscalationTriggers(),
     getLatestEscalation(),
+    getLatestTradeDebate(),
     getLatestYoutubeAnalyses(),
     getYoutubeMonitorConfig(),
     getMarketSeries(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
@@ -722,6 +744,7 @@ export default async function Home({
                     escalation: (
                       <EscalationCard initialTriggers={escalationTriggers} initialSnapshot={latestEscalation} />
                     ),
+                    "trade-debate": <TradeDebateCard initialSnapshot={latestTradeDebate} />,
                     "youtube-monitor": (
                       <YoutubeMonitorCard
                         initialAnalyses={latestYoutubeAnalyses}

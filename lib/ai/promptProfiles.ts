@@ -115,6 +115,62 @@ function validateBiasSummary(
   return errors;
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function isNullableFiniteNumber(value: unknown): value is number | null {
+  return value === null || isFiniteNumber(value);
+}
+
+const TRADE_DEBATE_VERDICTS = ["long", "short", "wait"] as const;
+
+// Bull-/Bear-Analyst teilen sich dasselbe Schema, nur der erwartete
+// bias-Wert unterscheidet sich (fix "long" bzw. fix "short" -- kein
+// Enum, jedes Profile hat nur EINEN gueltigen Wert).
+function validateTradeDebateAnalyst(data: unknown, expectedBias: "long" | "short"): string[] {
+  const errors: string[] = [];
+  if (field(data, "bias") !== expectedBias) {
+    errors.push(`"bias" muss "${expectedBias}" sein, war: ${JSON.stringify(field(data, "bias"))}`);
+  }
+  if (!isFiniteNumber(field(data, "entry_price"))) {
+    errors.push(`"entry_price" muss eine Zahl sein.`);
+  }
+  if (!isFiniteNumber(field(data, "invalidation_price"))) {
+    errors.push(`"invalidation_price" muss eine Zahl sein.`);
+  }
+  if (!isFiniteNumber(field(data, "target_price"))) {
+    errors.push(`"target_price" muss eine Zahl sein.`);
+  }
+  if (!isFiniteNumber(field(data, "risk_reward"))) {
+    errors.push(`"risk_reward" muss eine Zahl sein.`);
+  }
+  if (!isConfidence(field(data, "confidence"))) {
+    errors.push(`"confidence" muss eine Zahl zwischen 0 und 100 sein.`);
+  }
+  if (!isNonEmptyString(field(data, "reasoning"))) {
+    errors.push(`"reasoning" muss ein nicht-leerer String sein.`);
+  }
+  return errors;
+}
+
+function validateTradeReferee(data: unknown): string[] {
+  const errors: string[] = [];
+  if (!isEnum(field(data, "verdict"), TRADE_DEBATE_VERDICTS)) {
+    errors.push(`"verdict" muss einer von [${TRADE_DEBATE_VERDICTS.join(", ")}] sein.`);
+  }
+  if (typeof field(data, "divergence_detected") !== "boolean") {
+    errors.push(`"divergence_detected" muss ein Boolean sein.`);
+  }
+  if (!isNonEmptyString(field(data, "synthesis"))) {
+    errors.push(`"synthesis" muss ein nicht-leerer String sein.`);
+  }
+  if (!isNullableFiniteNumber(field(data, "invalidation_level"))) {
+    errors.push(`"invalidation_level" muss eine Zahl oder null sein.`);
+  }
+  return errors;
+}
+
 function validateNewsAnalysis(data: unknown): string[] {
   const errors: string[] = [];
   const items = field(data, "items");
@@ -495,6 +551,118 @@ export const promptProfiles: Record<string, PromptProfile> = {
       " Antworte als JSON mit: bias (bullish|bearish|neutral), confidence (0-100, deine " +
       "eigene Sicherheit), summary (string, deutsch, 2-3 Saetze).",
     validate: (data) => validateBiasSummary(data),
+  },
+
+  // --- Trade-Debate-Kachel (Nutzer-Idee 07.09.2026, nach TradingAgents-
+  // Architektur [arXiv:2412.20138] recherchiert) -----------------------------
+  // Zwei gegensaetzlich geprompte Analysten (Bull/Bear) + ein Referee/CIO.
+  // Werden NICHT ueber "auto" geroutet, sondern von app/api/trade-debate/
+  // generate/route.ts mit expliziten providerOverride-Werten aufgerufen
+  // (siehe tileConfig.ts trade-debate-bull/-bear/-referee) -- unterschiedliche
+  // Vendors fuer Bull/Bear, damit nicht derselbe Modell-Bias in beiden
+  // "Seiten" steckt. Beide Analysten bekommen DENSELBEN Marktdaten-Kontext
+  // (lib/tradeDebateContext.ts) mit unterschiedlichem System-Prompt --
+  // strukturierte Zahlen, kein Chart-Bild (Recherche 07.09.2026: reduziert
+  // Halluzination nachweislich).
+  "trade-bull-analyst": {
+    id: "trade-bull-analyst",
+    category: "signal-logic",
+    description: "Sucht aktiv nach einem Long-Setup anhand TA (EMAs/VWAP/Pivots) + Nexus-Derivatedaten.",
+    systemPrompt:
+      "Du bist der BULLISHE Analyst in einem zweiseitigen Trade-Review fuer BTC/USDT: ein " +
+      "zweiter, unabhaengiger Analyst sucht parallel und ohne deine Antwort zu kennen nach " +
+      "einem Short-Setup, ein dritter Referee vergleicht am Ende beide Reports. Deine " +
+      "Aufgabe: suche aktiv nach einem plausiblen LONG-Setup anhand des Kontexts -- " +
+      "Trend-Alignment ueber die Timeframes (EMA20/50/100/200 je 1h/4h/1d), Position " +
+      "relativ zu Weekly-/Monthly-/Swing-VWAP und den Pivot-Punkten (z.B. Bounce an einem " +
+      "Support-Pivot oder PP), sowie Nexus-Derivatedaten (fallende/negative Funding Rate = " +
+      "Shorts zahlen Longs, steigendes Open Interest bei stabilem/steigendem Preis = " +
+      "Akkumulation). EMA800 ist NUR ein grober, in der Szene gebraeuchlicher Makro-Filter " +
+      "auf kleineren Timeframes -- kein etablierter institutioneller Standard wie EMA50/200, " +
+      "gewichte ihn entsprechend niedriger. " +
+      "WICHTIG: Nutze AUSSCHLIESSLICH die im Kontext gelieferten Zahlen -- erfinde niemals " +
+      "Indikatorwerte, Preise oder Ereignisse, die dort nicht stehen. Findest du KEIN " +
+      "plausibles Long-Setup (z.B. weil Trend und Derivatedaten klar dagegensprechen), sag " +
+      "das ehrlich und setze confidence entsprechend niedrig, statt ein schwaches Setup zu " +
+      "konstruieren. Widersprechen sich reine TA-Indikatoren und Nexus-Derivatedaten " +
+      "(Funding/OI/Liquidations-Cluster), haben die Derivatedaten Prioritaet -- TA-" +
+      "Indikatoren sind nachlaufend, Derivatedaten zeigen die aktuelle Positionierung. " +
+      "Gib einen konkreten Einstiegspreis, ein Invalidierungs-Level (wo dein Setup falsch " +
+      "waere, z.B. Bruch eines Pivots/EMA) und ein Kursziel an. " +
+      NUMBER_FORMAT_INSTRUCTION +
+      " Antworte als JSON mit: bias (immer 'long'), entry_price (number), " +
+      "invalidation_price (number), target_price (number), risk_reward (number, z.B. 2.5 " +
+      "fuer ein Verhaeltnis von 1:2.5), confidence (0-100), reasoning (string, deutsch, " +
+      "3-5 Saetze, referenziert konkrete Werte aus dem Kontext).",
+    validate: (data) => validateTradeDebateAnalyst(data, "long"),
+  },
+
+  "trade-bear-analyst": {
+    id: "trade-bear-analyst",
+    category: "signal-logic",
+    description: "Sucht aktiv nach einem Short-Setup anhand TA (EMAs/VWAP/Pivots) + Nexus-Derivatedaten.",
+    systemPrompt:
+      "Du bist der BAERISCHE Analyst in einem zweiseitigen Trade-Review fuer BTC/USDT: ein " +
+      "zweiter, unabhaengiger Analyst sucht parallel und ohne deine Antwort zu kennen nach " +
+      "einem Long-Setup, ein dritter Referee vergleicht am Ende beide Reports. Deine " +
+      "Aufgabe: suche aktiv nach einem plausiblen SHORT-Setup anhand des Kontexts -- " +
+      "Rejection an einem Resistance-Pivot (R1-R3) oder deutliche Ueberdehnung (grosser " +
+      "Abstand zu EMA20/50 relativ zum ATR), Liquidations-Cluster knapp OBERHALB des " +
+      "aktuellen Preises (moegliches Liquidity-Sweep-/Short-Squeeze-Ziel, das der Markt " +
+      "anlaufen und danach abverkaufen koennte), sowie stark positive Funding Rate " +
+      "(ueberhebelte Longs = Crowding-Risiko auf der Long-Seite). EMA800 ist NUR ein " +
+      "grober, in der Szene gebraeuchlicher Makro-Filter auf kleineren Timeframes -- kein " +
+      "etablierter institutioneller Standard wie EMA50/200, gewichte ihn entsprechend " +
+      "niedriger. " +
+      "WICHTIG: Nutze AUSSCHLIESSLICH die im Kontext gelieferten Zahlen -- erfinde niemals " +
+      "Indikatorwerte, Preise oder Ereignisse, die dort nicht stehen. Findest du KEIN " +
+      "plausibles Short-Setup, sag das ehrlich und setze confidence entsprechend niedrig, " +
+      "statt ein schwaches Setup zu konstruieren. Widersprechen sich reine TA-Indikatoren " +
+      "und Nexus-Derivatedaten (Funding/OI/Liquidations-Cluster), haben die Derivatedaten " +
+      "Prioritaet -- TA-Indikatoren sind nachlaufend, Derivatedaten zeigen die aktuelle " +
+      "Positionierung. Gib einen konkreten Einstiegspreis, ein Invalidierungs-Level (wo " +
+      "dein Setup falsch waere, z.B. Reclaim eines Pivots/EMA) und ein Kursziel an. " +
+      NUMBER_FORMAT_INSTRUCTION +
+      " Antworte als JSON mit: bias (immer 'short'), entry_price (number), " +
+      "invalidation_price (number), target_price (number), risk_reward (number, z.B. 2.5 " +
+      "fuer ein Verhaeltnis von 1:2.5), confidence (0-100), reasoning (string, deutsch, " +
+      "3-5 Saetze, referenziert konkrete Werte aus dem Kontext).",
+    validate: (data) => validateTradeDebateAnalyst(data, "short"),
+  },
+
+  "trade-referee": {
+    id: "trade-referee",
+    category: "signal-logic",
+    description: "Prueft Bull- und Bear-Setup gegeneinander und faellt die finale Entscheidung (inkl. WAIT).",
+    systemPrompt:
+      "Du bist der Risk Manager/CIO in einem zweiseitigen Trade-Review fuer BTC/USDT. Du " +
+      "bekommst im Kontext: die urspruengliche, strukturierte Marktdatengrundlage (dieselbe, " +
+      "die beide Analysten hatten, unter market_data), den vollstaendigen Report des " +
+      "BULLISHEN Analysten (bull_analysis) und den vollstaendigen Report des BAERISCHEN " +
+      "Analysten (bear_analysis). Deine Aufgabe: " +
+      "1) Pruefe BEIDE Reports auf Plausibilitaet -- widersprechen die genannten Zahlen " +
+      "(entry/invalidation/target) den tatsaechlichen Werten in market_data? Benenne das " +
+      "explizit, falls ja. " +
+      "2) Ein Setup mit einem Risk/Reward unter 1:2 gilt als nicht handelbar, unabhaengig " +
+      "von der Richtung. " +
+      "3) Widersprechen sich reine TA-Argumente (EMAs/Pivots/VWAP) und Nexus-Derivatedaten " +
+      "(Open Interest/Funding/Liquidations-Cluster) in einem der beiden Reports, haben die " +
+      "Derivatedaten IMMER Prioritaet -- TA-Indikatoren sind nachlaufend. " +
+      "4) Bei einem echten, nicht aufloesbaren Widerspruch zwischen Bull und Bear " +
+      "(z.B. Bull begruendet mit einem EMA-Cross, aber Bear zeigt einen massiven " +
+      "Liquidations-Cluster direkt darunter) ist 'wait' das korrekte Urteil, kein " +
+      "erzwungener Kompromiss -- ein 'wait'-Urteil ist ein vollwertiges, oft richtiges " +
+      "Ergebnis, kein Ausweichen. " +
+      "Erfinde niemals eigene Zahlen ausserhalb von market_data oder den beiden Analysten-" +
+      "Reports. " +
+      NUMBER_FORMAT_INSTRUCTION +
+      " Antworte als JSON mit: verdict (long|short|wait), divergence_detected (boolean, " +
+      "true wenn Bull und Bear sich in der Kernrichtung widersprechen), synthesis (string, " +
+      "deutsch, 3-5 Saetze, fasst die Entscheidung zusammen inkl. ob einer der beiden " +
+      "Analysten einen Fehler gemacht hat), invalidation_level (number oder null -- das aus " +
+      "deiner Sicht massgebliche Level, ab dem die Entscheidung ungueltig wird; null nur " +
+      "bei verdict='wait' ohne aktiv gehaltene Position).",
+    validate: validateTradeReferee,
   },
 };
 
