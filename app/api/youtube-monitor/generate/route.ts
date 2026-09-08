@@ -8,7 +8,14 @@ import {
 } from "@/lib/youtubeMonitorContext";
 import { analyzeYoutubeVideo } from "@/lib/ai/youtubeVideoAnalysis";
 import { checkAndRecordRateLimit } from "@/lib/rateLimit";
+import { computeYoutubeConsensus } from "@/lib/youtubeConsensus";
 import type { YoutubeVideoAnalysis } from "@/lib/types";
+
+// Wie viele juengste Analysen (ueber alle Kanaele) fuer den Kanal-Vergleich
+// geladen werden -- dieselbe Grosszuegigkeit wie in app/page.tsx (dort
+// begruendet: bei nur 8 wuerde ein besonders aktiver Kanal die anderen aus
+// der Liste verdraengen und der Vergleich waere unvollstaendig).
+const CONSENSUS_LOOKBACK = 40;
 
 // POST /api/youtube-monitor/generate
 //
@@ -23,6 +30,13 @@ import type { YoutubeVideoAnalysis } from "@/lib/types";
 //
 // Auth: proxy.ts sperrt diese Route wie jede andere /api/*-Route hinter
 // eine Login-Session -- keine eigene Pruefung noetig.
+
+// Bis zu MAX_NEW_VIDEOS_PER_RUN sequentielle Gemini-Video-Analysen (siehe
+// lib/youtubeMonitorContext.ts, keine Parallelisierung wegen Free-Tier-
+// Minutenlimit) koennen laenger als Vercels unkonfigurierten Default
+// dauern -- 60s ist das Maximum, das der Hobby-Plan erlaubt (08.09.2026,
+// im Rahmen des taeglichen youtube-monitor-scheduler-Crons ergaenzt).
+export const maxDuration = 60;
 
 const RATE_LIMIT_WINDOW_MINUTES = 30;
 const RATE_LIMIT_MAX_REQUESTS = 5;
@@ -115,11 +129,25 @@ export async function POST() {
     }
   }
 
+  // Kanal-Vergleich ueber die juengsten Analysen (nicht nur den aktuellen
+  // Batch) -- derselbe Grund wie in app/page.tsx: nur so ist jeder
+  // konfigurierte Kanal vertreten, auch wenn er in diesem Lauf keine neue
+  // Analyse geliefert hat. 08.09.2026, Nutzer-Wunsch: taeglicher
+  // automatischer Check soll eine Push-Nachricht mit dieser Einschaetzung
+  // ausloesen koennen (siehe youtube-monitor-scheduler Edge Function).
+  const { data: recentAnalyses } = await supabaseAdmin
+    .from("youtube_video_analyses")
+    .select("*")
+    .order("published_at", { ascending: false })
+    .limit(CONSENSUS_LOOKBACK);
+  const consensus = computeYoutubeConsensus(recentAnalyses ?? []);
+
   return NextResponse.json({
     success: true,
     analyzed: inserted.length,
     checked: candidates.length,
     newAnalyses: inserted,
     channelErrors,
+    consensus,
   });
 }

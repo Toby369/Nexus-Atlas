@@ -61,7 +61,16 @@ export function isPublicPath(pathname: string): boolean {
 // DB-Zugriff mit diesem Key -- nur eben ueber HTTP statt Postgres-Wire-
 // Protokoll. Der normale Login-Session-Weg (z.B. der "Jetzt ausfuehren"-
 // Button im Dashboard) bleibt fuer alle anderen Aufrufer unveraendert.
-export const SERVICE_ROLE_BEARER_PATHS: ReadonlySet<string> = new Set(["/api/reports/run"]);
+//
+// /api/youtube-monitor/generate ergaenzt (08.09.2026, Nutzer-Wunsch:
+// taeglich automatischer YouTube-Check 30 Min nach dem verlaesslichsten
+// Kanal-Post + Push-Benachrichtigung) -- dieselbe Begruendung, neue Edge
+// Function "youtube-monitor-scheduler" ruft die Route per pg_cron ohne
+// Nutzer-Session auf.
+export const SERVICE_ROLE_BEARER_PATHS: ReadonlySet<string> = new Set([
+  "/api/reports/run",
+  "/api/youtube-monitor/generate",
+]);
 
 export function isAuthorizedServiceRoleRequest(
   pathname: string,

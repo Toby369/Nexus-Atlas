@@ -98,6 +98,16 @@ describe("isAuthorizedServiceRoleRequest", () => {
     ).toBe(false);
   });
 
+  it("laesst youtube-monitor-scheduler mit korrektem Service-Role-Bearer-Token durch", () => {
+    expect(
+      isAuthorizedServiceRoleRequest(
+        "/api/youtube-monitor/generate",
+        "Bearer geheim-123",
+        "geheim-123"
+      )
+    ).toBe(true);
+  });
+
   it("gilt NICHT fuer andere Pfade -- kein pauschaler Service-Role-Bypass fuers ganze /api", () => {
     expect(
       isAuthorizedServiceRoleRequest("/api/ai/analyze", "Bearer geheim-123", "geheim-123")
