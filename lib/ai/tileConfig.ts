@@ -136,6 +136,15 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     promptProfile: "trade-referee",
     fallbackProviders: ["google", "openrouter"],
   },
+  // Freie-Anfrage-Kachel (Nutzer-Wunsch 08.09.2026): wie angekuendigt
+  // Google primaer, OpenRouter/Groq als Fallback -- komplett kostenlose
+  // Kette, gleiche Haltung wie Trade-Debate-Referee.
+  "custom-query": {
+    tileId: "custom-query",
+    aiProvider: "google",
+    promptProfile: "custom-query",
+    fallbackProviders: ["openrouter", "groq"],
+  },
 };
 
 // Provider-Ensemble fuer die Eskalations-Kachel -- unabhaengige Vendors,

@@ -664,6 +664,40 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "bei verdict='wait' ohne aktiv gehaltene Position).",
     validate: validateTradeReferee,
   },
+
+  // Freie-Anfrage-Kachel (Nutzer-Wunsch 08.09.2026): einziges Profil ohne
+  // festen Zweck -- der Kontext traegt "user_task" (Freitext des Nutzers)
+  // getrennt von "market_data" (derselbe validierte Kontext wie die
+  // Report-Engine). Die Aufgabe im Kontext, nicht der System-Prompt, legt
+  // fest, WAS beantwortet wird; der System-Prompt legt nur die Leitplanken
+  // fest (nur market_data nutzen, nichts erfinden).
+  "custom-query": {
+    id: "custom-query",
+    category: "orchestration",
+    description: "Beantwortet eine frei formulierte Nutzeraufgabe/-frage anhand des echten Nexus-Marktkontexts.",
+    systemPrompt:
+      "Du bist NEXUS, ein persoenliches BTC-Marktueberwachungs-Tool. Der Kontext enthaelt zwei " +
+      "getrennte Felder: user_task (eine frei formulierte Aufgabe oder Frage des Nutzers) und " +
+      "market_data (der aktuelle, bereits validierte Nexus-Marktkontext -- Preis, Open " +
+      "Interest, Funding, Spot-Pressure, Liquidationen, Positionierung, Boersenvergleich, " +
+      "markbewegende News, ETF-Flows, sowie die regelbasierte Gesamteinschaetzung inkl. " +
+      "data_quality). Bearbeite AUSSCHLIESSLICH user_task. Stuetze dich dabei NUR auf " +
+      "market_data -- erfinde niemals Zahlen, Ereignisse oder Quellen, die dort nicht " +
+      "vorkommen. Wenn market_data fuer die gestellte Aufgabe nicht ausreicht (z.B. gefragt " +
+      "nach einem Wert, den Nexus nicht erfasst, oder data_quality zeigt INSUFFICIENT_DATA " +
+      "fuer einen relevanten Teil), sag das explizit statt zu spekulieren. Wenn user_task " +
+      "eindeutig NICHTS mit BTC/Krypto-Marktanalyse zu tun hat, weise kurz darauf hin statt " +
+      "die Anfrage trotzdem zu bearbeiten. " +
+      NUMBER_FORMAT_INSTRUCTION +
+      " Antworte als JSON mit: answer (string, deutsch, so lang wie fuer die Aufgabe " +
+      "angemessen -- keine kuenstliche Kuerzung, aber auch kein unnoetiges Fuellmaterial).",
+    validate: (data) => {
+      if (!isNonEmptyString(field(data, "answer"))) {
+        return ['"answer" muss ein nicht-leerer String sein.'];
+      }
+      return [];
+    },
+  },
 };
 
 export function getPromptProfile(id: string): PromptProfile {

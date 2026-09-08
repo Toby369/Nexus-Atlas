@@ -19,6 +19,7 @@ import type {
   OrderbookWallSnapshot,
   SignalEngineSnapshot,
   TradeDebateSnapshot,
+  CustomQueryRun,
   TradingViewSignal,
   YoutubeVideoAnalysis,
 } from "@/lib/types";
@@ -54,6 +55,7 @@ import NewsAnalysisCard from "@/components/NewsAnalysisCard";
 import SignalEngineCard from "@/components/SignalEngineCard";
 import EscalationCard from "@/components/EscalationCard";
 import TradeDebateCard from "@/components/TradeDebateCard";
+import CustomQueryCard from "@/components/CustomQueryCard";
 import YoutubeMonitorCard from "@/components/YoutubeMonitorCard";
 import { getYoutubeMonitorConfig } from "@/lib/youtubeMonitorContext";
 import LeverageMapCard from "@/components/LeverageMapCard";
@@ -256,6 +258,23 @@ async function getLatestTradeDebate(): Promise<TradeDebateSnapshot | null> {
     return null;
   }
   return data;
+}
+
+// Freie-Anfrage-Kachel (Nutzer-Wunsch 08.09.2026): letzte gespeicherte
+// Anfragen -- reines Lesen, kein AI-Aufruf (der passiert nur ueber POST
+// /api/custom-query/generate, siehe CustomQueryCard.tsx).
+async function getLatestCustomQueries(): Promise<CustomQueryRun[]> {
+  const { data, error } = await supabase
+    .from("custom_query_runs")
+    .select("*")
+    .order("generated_at", { ascending: false })
+    .limit(10);
+
+  if (error) {
+    console.error("Fehler beim Laden der freien Anfragen:", error.message);
+    return [];
+  }
+  return data ?? [];
 }
 
 // Krypto-YouTube-Monitor (Thema KI, 05.09.2026): letzte gespeicherte
@@ -556,6 +575,7 @@ export default async function Home({
     escalationTriggers,
     latestEscalation,
     latestTradeDebate,
+    latestCustomQueries,
     latestYoutubeAnalyses,
     youtubeMonitorConfig,
     oiSeriesData,
@@ -582,6 +602,7 @@ export default async function Home({
     detectEscalationTriggers(),
     getLatestEscalation(),
     getLatestTradeDebate(),
+    getLatestCustomQueries(),
     getLatestYoutubeAnalyses(),
     getYoutubeMonitorConfig(),
     getMarketSeries(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
@@ -750,6 +771,7 @@ export default async function Home({
                       <EscalationCard initialTriggers={escalationTriggers} initialSnapshot={latestEscalation} />
                     ),
                     "trade-debate": <TradeDebateCard initialSnapshot={latestTradeDebate} />,
+                    "custom-query": <CustomQueryCard initialRuns={latestCustomQueries} />,
                     "youtube-monitor": (
                       <YoutubeMonitorCard
                         initialAnalyses={latestYoutubeAnalyses}

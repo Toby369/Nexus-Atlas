@@ -612,3 +612,15 @@ export interface YoutubeVideoAnalysis {
   status: "ok" | "error";
   error: string | null;
 }
+
+export interface CustomQueryRun {
+  id: number;
+  generated_at: string;
+  prompt: string;
+  provider: string | null;
+  model: string | null;
+  answer: string | null;
+  market_data_generated_at: string | null;
+  status: "ok" | "error";
+  error: string | null;
+}

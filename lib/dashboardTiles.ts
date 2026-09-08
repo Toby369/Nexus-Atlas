@@ -45,6 +45,7 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "signal-engine", title: "Signal Engine (KI)" },
   { id: "escalation", title: "Eskalation: Zweitmeinungen (KI)" },
   { id: "trade-debate", title: "Trade-Debate (KI)" },
+  { id: "custom-query", title: "Freie Anfrage (KI)" },
   { id: "youtube-monitor", title: "Krypto-YouTube-Monitor (KI)" },
   { id: "positioning", title: "Positionierung" },
   { id: "liquidations", title: "Liquidationen" },
