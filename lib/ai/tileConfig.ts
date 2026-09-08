@@ -120,12 +120,19 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     promptProfile: "trade-bear-analyst",
     fallbackProviders: ["google"],
   },
-  // Referee bekommt Anthropic primaer (urspruengliche Nutzer-Idee: "KI Nr.
-  // 3" als Pruefinstanz) -- mit robusten Fallbacks, nachdem Anthropic am
-  // 07.09.2026 kurzzeitig ausfiel (siehe Signal-Engine/Handelslage oben).
+  // Referee-Provider (Nutzer-Entscheidung 08.09.2026, "ich moechte
+  // kostenlos"): Anthropic (kostenpflichtig, kein Gratis-Tier) durch Groq
+  // ersetzt -- erwartetes Modell GROQ_MODEL="openai/gpt-oss-120b" (Groq
+  // Free-Tier, kein Kreditkarten-Zwang). Laut Recherche (Artificial-
+  // Analysis-Intelligence-Index, 08.09.2026) klar staerker bei Reasoning/
+  // Mathe als Mistral Small (Index 24 vs. 15-20) und ein von Bull (Google)
+  // und Bear (OpenRouter) unabhaengiger dritter Vendor -- kein Modell-Bias
+  // mit einer der beiden Debatten-Seiten. Fallback-Kette bewusst OHNE
+  // Anthropic: die ganze Trade-Debate-Kachel soll durchgehend kostenlos
+  // bleiben, auch im Fallback-Fall.
   "trade-debate-referee": {
     tileId: "trade-debate-referee",
-    aiProvider: "anthropic",
+    aiProvider: "groq",
     promptProfile: "trade-referee",
     fallbackProviders: ["google", "openrouter"],
   },

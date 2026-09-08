@@ -17,7 +17,7 @@ const INFO_TEXT = [
   "Was das ist: zwei gegensaetzlich geprompte KI-Analysten (nicht dieselbe Frage zweimal, sondern bewusst ein Long- und ein Short-Suchauftrag) analysieren unabhaengig voneinander denselben strukturierten Datensatz (EMAs 20/50/100/200/800, Weekly-/Monthly-/Swing-VWAP, Pivot-Punkte, plus Nexus-Funding/OI/Liquidations-Cluster/14-Faktoren-Zustand) -- kein Chart-Bild, nur Zahlen (reduziert Halluzination).",
   "Ein dritter KI-Referee bekommt beide Reports + dieselbe Datengrundlage, prueft sie auf Plausibilitaet (inkl. Risk/Reward >= 1:2) und faellt die finale Entscheidung: long, short, oder wait -- ein 'wait'-Urteil bei einem echten Widerspruch zwischen Bull und Bear ist ein vollwertiges Ergebnis, kein Ausweichen.",
   "EMA800 ist eine in der Krypto-Szene gebraeuchliche, aber KEINE etablierte institutionelle Kennzahl wie EMA50/200 -- wird trotzdem mitgegeben, aber von den Analysten niedriger gewichtet.",
-  "Wird NICHT automatisch aktualisiert -- jeder Lauf kostet 3 bezahlte AI-Aufrufe (Bull, Bear, Referee) und entsteht nur per Klick.",
+  "Wird NICHT automatisch aktualisiert -- jeder Lauf macht 3 KI-Aufrufe (Bull, Bear, Referee), alle ueber kostenlose Gratis-Tiers (Google, OpenRouter, Groq), und entsteht nur per Klick.",
   "Kein Handelssignal, keine Anlageberatung -- eine strukturierte Analysehilfe, die eigene Entscheidung bleibt bei dir.",
 ].join("\n\n");
 
