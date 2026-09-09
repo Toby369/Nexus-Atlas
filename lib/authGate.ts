@@ -53,20 +53,25 @@ export function isPublicPath(pathname: string): boolean {
 // sichtbar zu machen. report_runs hatte dadurch seit dem 27.08.2026 keine neue
 // Zeile mehr, obwohl alle 4 Report-Slots aktiv und terminiert sind.
 //
-// Fix: report-scheduler darf sich stattdessen mit dem SUPABASE_SERVICE_ROLE_KEY
-// als Bearer-Token ausweisen -- KEIN neues Secret, sondern derselbe Key, den
-// die Edge Function ohnehin automatisch von der Supabase-Plattform injiziert
-// bekommt und den /api/reports/run selbst schon fuer supabaseAdmin nutzt
-// (lib/supabaseAdmin.ts). Vertrauensniveau ist identisch zu einem direkten
-// DB-Zugriff mit diesem Key -- nur eben ueber HTTP statt Postgres-Wire-
-// Protokoll. Der normale Login-Session-Weg (z.B. der "Jetzt ausfuehren"-
-// Button im Dashboard) bleibt fuer alle anderen Aufrufer unveraendert.
-//
 // /api/youtube-monitor/generate ergaenzt (08.09.2026, Nutzer-Wunsch:
 // taeglich automatischer YouTube-Check 30 Min nach dem verlaesslichsten
 // Kanal-Post + Push-Benachrichtigung) -- dieselbe Begruendung, neue Edge
 // Function "youtube-monitor-scheduler" ruft die Route per pg_cron ohne
 // Nutzer-Session auf.
+//
+// Fund 09.09.2026 (Nutzer-Meldung "keine Push-Nachricht bekommen"): die
+// urspruengliche Loesung (SUPABASE_SERVICE_ROLE_KEY als Bearer-Token, "kein
+// neues Secret") hat in Produktion NIE zuverlaessig funktioniert -- Live-Test
+// gegen youtube-monitor-scheduler ergab weiterhin 401 "Nicht authentifiziert",
+// UND report_runs hatte trotz des angeblichen Fixes seit dem 27.08.2026 immer
+// noch keine neue Zeile. Ursache nicht abschliessend geklaert (moeglich:
+// process.env.SUPABASE_SERVICE_ROLE_KEY in proxy.ts driftet vom aktuellen,
+// automatisch von Supabase injizierten Wert der Edge Functions ab) --
+// unabhaengig davon ist das Wiederverwenden des Service-Role-Keys (voller
+// DB-Bypass) als HTTP-Bearer-Token ohnehin ein unnoetig hohes Risiko fuer
+// einen reinen Cron-Trigger. Ersetzt durch ein dediziertes, eng geschnittenes
+// CRON_SECRET -- eigener Wert, eigenes Vercel-Env-Var, eigenes Supabase-Edge-
+// Function-Secret, unabhaengig vom DB-Master-Key rotierbar.
 export const SERVICE_ROLE_BEARER_PATHS: ReadonlySet<string> = new Set([
   "/api/reports/run",
   "/api/youtube-monitor/generate",
@@ -75,9 +80,9 @@ export const SERVICE_ROLE_BEARER_PATHS: ReadonlySet<string> = new Set([
 export function isAuthorizedServiceRoleRequest(
   pathname: string,
   authorizationHeader: string | null,
-  expectedServiceRoleKey: string | undefined
+  expectedCronSecret: string | undefined
 ): boolean {
   if (!SERVICE_ROLE_BEARER_PATHS.has(pathname)) return false;
-  if (!expectedServiceRoleKey || !authorizationHeader) return false;
-  return authorizationHeader === `Bearer ${expectedServiceRoleKey}`;
+  if (!expectedCronSecret || !authorizationHeader) return false;
+  return authorizationHeader === `Bearer ${expectedCronSecret}`;
 }
