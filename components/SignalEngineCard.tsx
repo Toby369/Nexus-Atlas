@@ -17,7 +17,7 @@ import PanelInfo from "@/components/PanelInfo";
 
 const INFO_TEXT = [
   "Was das ist: eine KI-Konsistenzpruefung der bestehenden regelbasierten Gesamteinschaetzung (14-Faktoren-Engine, siehe MarketStateCard) -- kein eigener Bias und keine zweite Marktmeinung, sondern ein zweites Paar Augen auf deren eigene Ausgabe (passt overall_state zur Mehrheit der Faktoren, widerspricht ein gemeldetes Muster der Richtung, ist eine hohe confidence bei niedrigem Konsens erklaerbar).",
-  "Primaerer Provider ist Anthropic (Claude) -- faellt er aus, springt DeepSeek ein.",
+  "Primaerer Provider ist Google (Gemini) -- faellt er aus, springt zuerst OpenRouter ein, dann DeepSeek, zuletzt Anthropic.",
   "Wird NICHT automatisch aktualisiert -- jeder neue Stand kostet einen bezahlten AI-Aufruf und entsteht nur per Klick auf \"Neu generieren\". Ohne vorhandene Gesamteinschaetzung gibt es nichts zu pruefen (kein AI-Aufruf, kein Snapshot).",
   "Kein Handelssignal -- ein 'isConsistent: false' heisst nur, dass die Engine-Ausgabe sich selbst widerspricht, nicht, dass der Markt in eine bestimmte Richtung geht.",
 ].join("\n\n");

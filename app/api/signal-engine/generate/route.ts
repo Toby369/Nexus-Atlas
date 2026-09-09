@@ -8,8 +8,10 @@ import type { SignalEngineResult } from "@/lib/types";
 // POST /api/signal-engine/generate
 //
 // Thema KI, Punkt 2/2 (05.09.2026) -- zweite ueber runTileAnalysis()/"auto"
-// aufgerufene Kachel, mit Anthropic als primaerem Provider (Fallback:
-// DeepSeek, siehe tileConfig.ts). Prueft die bestehende regelbasierte
+// aufgerufene Kachel, primaerer Provider ist Google (Fallback-Kette
+// openrouter/deepseek/anthropic, siehe tileConfig.ts -- Anthropic seit
+// 07.09.2026 bewusst ans Ende verschoben, war urspruenglich primaer).
+// Prueft die bestehende regelbasierte
 // Gesamteinschaetzung (14-Faktoren-Engine) auf innere Konsistenz -- kein
 // eigener Bias. Bewusst nur ueber POST -- das Lesen der Kachel liest
 // ausschliesslich den zwischengespeicherten letzten Stand, nur ein

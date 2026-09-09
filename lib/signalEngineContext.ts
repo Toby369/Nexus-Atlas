@@ -1,8 +1,10 @@
 // Kontext-Builder fuer die Signal-Engine-Kachel (Thema KI, Punkt 2/2,
-// 05.09.2026) -- zweite ueber runTileAnalysis() aktivierte Kachel, mit
-// Anthropic als primaerem Provider (siehe lib/ai/tileConfig.ts
-// "signal-engine" -> "auto" -> "signal-logic"-Kategorie -> Anthropic,
-// Fallback DeepSeek).
+// 05.09.2026) -- zweite ueber runTileAnalysis() aktivierte Kachel. Primaerer
+// Provider ist Google (siehe lib/ai/tileConfig.ts "signal-engine" -> "auto"
+// -> "signal-logic"-Kategorie -> Google, Fallback-Kette openrouter/deepseek/
+// anthropic). Anthropic bewusst ans Ende der Kette verschoben (Nutzer-
+// Entscheidung 07.09.2026, nach einem Anthropic-Ausfall) -- war urspruenglich
+// primaer, siehe Git-Historie.
 //
 // Aufgabe dieser Kachel: ein unabhaengiges "zweites Paar Augen" auf die
 // bereits bestehende, regelbasierte Gesamteinschaetzung (market_states,
