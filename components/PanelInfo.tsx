@@ -40,7 +40,7 @@ export default function PanelInfo({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [desktopPosition, setDesktopPosition] = useState<{ top: number; right: number } | null>(
+  const [desktopPosition, setDesktopPosition] = useState<{ top: number; left: number } | null>(
     null
   );
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -54,10 +54,20 @@ export default function PanelInfo({
         setDesktopPosition(null);
         return;
       }
+      // Popover oeffnet unterhalb, linksbuendig mit dem Button -- geklemmt
+      // auf den Viewport, damit es nie ueber den rechten ODER linken Rand
+      // hinausragt. Bugfix 09.09.2026 (Nutzer-Meldung: Tooltip am linken
+      // Bildschirmrand abgeschnitten): die vorherige rechts-verankerte
+      // Berechnung (Popover haengt vom Button aus nach LINKS) ergab bei
+      // Buttons, die nicht nah am rechten Bildschirmrand sitzen, eine
+      // rechnerisch negative linke Kante -- die Klemmung griff nur auf den
+      // rechten Rand, nicht auf ein Abrutschen nach links. Eine direkte
+      // links-Position ist robust per Konstruktion: sie kann per Definition
+      // nie kleiner als VIEWPORT_MARGIN werden.
       const rect = buttonRef.current.getBoundingClientRect();
-      const maxRight = Math.max(VIEWPORT_MARGIN, window.innerWidth - POPOVER_WIDTH - VIEWPORT_MARGIN);
-      const right = Math.min(Math.max(window.innerWidth - rect.right, VIEWPORT_MARGIN), maxRight);
-      setDesktopPosition({ top: rect.bottom + 8, right });
+      const maxLeft = Math.max(VIEWPORT_MARGIN, window.innerWidth - POPOVER_WIDTH - VIEWPORT_MARGIN);
+      const left = Math.min(Math.max(rect.left, VIEWPORT_MARGIN), maxLeft);
+      setDesktopPosition({ top: rect.bottom + 8, left });
     }
 
     computePosition();
@@ -109,10 +119,10 @@ export default function PanelInfo({
             aria-label={title}
             style={
               desktopPosition
-                ? { top: desktopPosition.top, right: desktopPosition.right }
+                ? { top: desktopPosition.top, left: desktopPosition.left }
                 : undefined
             }
-            className="fixed left-4 right-4 top-1/2 z-50 -translate-y-1/2 rounded-lg border border-accent/25 bg-surface-raised p-4 shadow-lg sm:left-auto sm:w-72 sm:translate-y-0"
+            className="fixed left-4 right-4 top-1/2 z-50 -translate-y-1/2 rounded-lg border border-accent/25 bg-surface-raised p-4 shadow-lg sm:right-auto sm:w-72 sm:translate-y-0"
           >
             <p className="text-xs font-semibold text-text mb-1.5">{title}</p>
             <div className="space-y-2">
