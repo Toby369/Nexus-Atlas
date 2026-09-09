@@ -3,7 +3,11 @@ import type {
   LiquidationCorroboration,
   WallPersistenceRow,
 } from "@/lib/divergenceRadarContext";
-import type { DivergenceStatus, SpotPressureVsPriceDivergence } from "@/lib/divergenceRadar";
+import type {
+  DivergenceStatus,
+  SpotPressureVsPriceDivergence,
+  RsiDivergenceVsTrendResult,
+} from "@/lib/divergenceRadar";
 import PanelInfo from "@/components/PanelInfo";
 
 // Divergenz-Radar (05.09.2026) -- Antwort auf die Recherche "bei welchen
@@ -19,6 +23,7 @@ const INFO_TEXT = [
   "On-Chain vs. Preis (SOPR): rein deskriptiv -- ein separater multivariater Backtest dieser Session fand On-Chain-Kennzahlen NICHT hilfreich als eigenstaendigen Preis-Praediktor. Diese Zeile ist eine Beobachtungshilfe, kein geprueftes Signal.",
   "Wand-Persistenz und Liquidations-Korroboration sind reine Beobachtungen (haelt eine Orderbuch-Wand, gab es kuerzlich eine echte Liquidation nahe einem geschaetzten Cluster) -- kein Backtest, keine Trefferquote.",
   "TradingView-Signal vs. Gesamteinschaetzung: die Richtung wird aus dem Namen des Alert-Typs abgeleitet (z. B. \"..._BULLISH\", \"..._BEARISH\", oder bei Liquidity-Sweep/VWAP-Stretch aus der dokumentierten Umkehr-Logik) -- kein Raten, aber auch kein vom Pine-Script selbst mitgeschicktes Feld. Zeigt \"Nicht vergleichbar\", solange kein frisches Signal (24h) vorliegt.",
+  "RSI/MACD-Divergenz vs. Trendregime: die klassische Divergenz-Lesart (Preis macht neues Extremum, Oszillator bestaetigt nicht) gilt selbst in der Trading-Literatur nur dann als aussagekraeftig, wenn sie NICHT gegen einen intakten Trend laeuft -- in einem starken Trend kann der Oszillator lange unbestaetigt bleiben, ohne dass die erwartete Umkehr eintritt. \"Gegen intakten Trend\" heisst: eine bullische Divergenz waehrend trend_regime baerisch ist (oder umgekehrt) -- niedrigere Ueberzeugungskraft. \"Ohne Gegentrend\" heisst: kein klarer Trend (Range) oder die Richtung passt bereits -- die Divergenz ist glaubwuerdiger. Nutzt dasselbe frische (24h) TradingView-Signal wie oben, aber ausschliesslich die 4 Divergenz-Signaltypen.",
 ].join("\n\n");
 
 const STATUS_LABELS: Record<DivergenceStatus, string> = {
@@ -83,6 +88,31 @@ function SpotPressureVsPriceRow({ status }: { status: SpotPressureVsPriceDiverge
   );
 }
 
+const RSI_DIVERGENCE_LABELS: Record<RsiDivergenceVsTrendResult, string> = {
+  GEGEN_INTAKTEN_TREND: "Gegen intakten Trend (geringere Überzeugungskraft)",
+  OHNE_GEGENTREND: "Ohne Gegentrend (kein klarer Trend oder Richtung passt)",
+  NOT_COMPARABLE: "Nicht vergleichbar",
+};
+
+const RSI_DIVERGENCE_STYLES: Record<RsiDivergenceVsTrendResult, string> = {
+  GEGEN_INTAKTEN_TREND: "border-down/40 bg-down/10 text-down",
+  OHNE_GEGENTREND: "border-up/40 bg-up/10 text-up",
+  NOT_COMPARABLE: "border-border text-text-faint",
+};
+
+function RsiDivergenceVsTrendRow({ status }: { status: RsiDivergenceVsTrendResult }) {
+  return (
+    <div className="flex items-center justify-between gap-2 text-xs">
+      <span className="text-text-muted">RSI/MACD-Divergenz vs. Trendregime</span>
+      <span
+        className={`px-2 py-0.5 text-[11px] rounded-md border font-medium ${RSI_DIVERGENCE_STYLES[status]}`}
+      >
+        {RSI_DIVERGENCE_LABELS[status]}
+      </span>
+    </div>
+  );
+}
+
 const WALL_LABELS: Record<WallPersistenceRow["bidWallPersistence"], string> = {
   NEU: "neu",
   GEHALTEN: "hält",
@@ -130,6 +160,7 @@ export default function DivergenceRadarCard({ radar }: { radar: DivergenceRadarR
         <PairRow label="Log-Preiskanal vs. Momentum" status={radar.cycleVsMomentum} />
         <PairRow label="Handelslage-KI vs. Gesamteinschätzung" status={radar.handelslageVsState} />
         <PairRow label="TradingView-Signal vs. Gesamteinschätzung" status={radar.tradingViewVsState} />
+        <RsiDivergenceVsTrendRow status={radar.rsiDivergenceVsTrend} />
       </div>
 
       <div className="pt-2 border-t border-border space-y-1">

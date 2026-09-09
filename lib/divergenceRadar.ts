@@ -175,6 +175,33 @@ export function computeSpotPressureVsPriceDivergence(
   return "AGREEMENT";
 }
 
+// --- 6c. RSI/MACD-Divergenz (TradingView) vs. Trendregime ------------------
+// Nutzer-Wunsch (09.09.2026): die klassische Divergenz-Lesart ("Preis macht
+// ein neues Extremum, der Oszillator bestaetigt es nicht") gilt selbst in
+// der Trading-Literatur nur dann als aussagekraeftig, wenn sie NICHT gegen
+// einen intakten Trend laeuft -- in einem starken Trend kann der Oszillator
+// lange unbestaetigt bleiben, ohne dass die erwartete Umkehr eintritt
+// (klassische Fehlerquelle bei reinen Divergenz-Tradern). trend_regime
+// (EMA50/200-basiert, siehe 14-Faktoren-Engine) ist das bereits vorhandene
+// Mass fuer "intakter Trend": +1/-1 = im Trend, 0 = kein klarer Trend/Range.
+//
+// Wie bei jedem anderen Paar hier: ein plausibles, regelbasiertes Muster,
+// KEIN gebacktestetes Signal (siehe Datei-Kommentar oben).
+export type RsiDivergenceVsTrendResult =
+  | "GEGEN_INTAKTEN_TREND"
+  | "OHNE_GEGENTREND"
+  | "NOT_COMPARABLE";
+
+export function computeRsiDivergenceVsTrendRegime(
+  divergenceDirection: "bullish" | "bearish" | null,
+  trendRegime: -1 | 0 | 1 | null
+): RsiDivergenceVsTrendResult {
+  if (divergenceDirection === null || trendRegime === null) return "NOT_COMPARABLE";
+  if (divergenceDirection === "bullish" && trendRegime === -1) return "GEGEN_INTAKTEN_TREND";
+  if (divergenceDirection === "bearish" && trendRegime === 1) return "GEGEN_INTAKTEN_TREND";
+  return "OHNE_GEGENTREND";
+}
+
 // --- 6. Orderbuch-Wand: Persistenz zwischen zwei Schnappschuessen ----------
 export type WallPersistence = "NEU" | "GEHALTEN" | "VERSCHWUNDEN" | "KEINE_DATEN";
 

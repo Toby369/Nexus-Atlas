@@ -9,6 +9,7 @@ import {
   computeWallPersistence,
   findCorroboratingLiquidation,
   computeTradingViewVsStateDivergence,
+  computeRsiDivergenceVsTrendRegime,
 } from "./divergenceRadar";
 import type { MarketState, MarketStateFactor } from "./types";
 
@@ -112,6 +113,27 @@ describe("computeTradingViewVsStateDivergence", () => {
     expect(computeTradingViewVsStateDivergence(null, "BULLISH")).toBe("NOT_COMPARABLE");
     expect(computeTradingViewVsStateDivergence("bullish", "MIXED")).toBe("NOT_COMPARABLE");
     expect(computeTradingViewVsStateDivergence("bullish", null)).toBe("NOT_COMPARABLE");
+  });
+});
+
+describe("computeRsiDivergenceVsTrendRegime", () => {
+  it("GEGEN_INTAKTEN_TREND bei bullischer Divergenz waehrend baerischem Trendregime", () => {
+    expect(computeRsiDivergenceVsTrendRegime("bullish", -1)).toBe("GEGEN_INTAKTEN_TREND");
+  });
+  it("GEGEN_INTAKTEN_TREND bei baerischer Divergenz waehrend bullischem Trendregime", () => {
+    expect(computeRsiDivergenceVsTrendRegime("bearish", 1)).toBe("GEGEN_INTAKTEN_TREND");
+  });
+  it("OHNE_GEGENTREND bei Divergenz ohne klaren Trend (Range)", () => {
+    expect(computeRsiDivergenceVsTrendRegime("bullish", 0)).toBe("OHNE_GEGENTREND");
+    expect(computeRsiDivergenceVsTrendRegime("bearish", 0)).toBe("OHNE_GEGENTREND");
+  });
+  it("OHNE_GEGENTREND, wenn die Richtung bereits zum Trend passt", () => {
+    expect(computeRsiDivergenceVsTrendRegime("bullish", 1)).toBe("OHNE_GEGENTREND");
+    expect(computeRsiDivergenceVsTrendRegime("bearish", -1)).toBe("OHNE_GEGENTREND");
+  });
+  it("NOT_COMPARABLE ohne frisches Divergenz-Signal oder ohne Trendregime-Wert", () => {
+    expect(computeRsiDivergenceVsTrendRegime(null, 1)).toBe("NOT_COMPARABLE");
+    expect(computeRsiDivergenceVsTrendRegime("bullish", null)).toBe("NOT_COMPARABLE");
   });
 });
 

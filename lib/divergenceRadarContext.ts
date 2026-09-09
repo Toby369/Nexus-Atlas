@@ -20,9 +20,11 @@ import {
   computeWallPersistence,
   findCorroboratingLiquidation,
   computeTradingViewVsStateDivergence,
+  computeRsiDivergenceVsTrendRegime,
   type DivergenceStatus,
   type OnchainDivergence,
   type SpotPressureVsPriceDivergence,
+  type RsiDivergenceVsTrendResult,
   type WallPersistence,
 } from "./divergenceRadar";
 import { inferSignalDirection, isSignalFresh, TRADINGVIEW_SIGNAL_FRESHNESS_HOURS } from "./tradingViewSignal";
@@ -56,6 +58,7 @@ export interface DivergenceRadarResult {
   cycleVsMomentum: DivergenceStatus;
   handelslageVsState: DivergenceStatus;
   tradingViewVsState: DivergenceStatus;
+  rsiDivergenceVsTrend: RsiDivergenceVsTrendResult;
   onchainVsPrice: OnchainDivergence;
   wallPersistence: WallPersistenceRow[];
   liquidationCorroborations: LiquidationCorroboration[];
@@ -101,6 +104,36 @@ async function getFreshTradingViewDirection(): Promise<"bullish" | "bearish" | n
 
   if (error) {
     console.error("divergenceRadarContext: Fehler bei tradingview_signals:", error.message);
+    return null;
+  }
+  if (!data || !isSignalFresh(data.received_at)) return null;
+  return inferSignalDirection(data.signal_type);
+}
+
+// Nur die 4 RSI/MACD-Divergenz-Signaltypen (nexus-rsi-macd-divergence.pine)
+// -- die anderen 10 TradingView-Signaltypen (Breakout/Sweep/Squeeze/Order
+// Block etc.) haben nichts mit Oszillator-Divergenz zu tun und sollen hier
+// nicht miteinfliessen, anders als bei getFreshTradingViewDirection() oben.
+const RSI_MACD_DIVERGENCE_SIGNAL_TYPES = [
+  "RSI_BULLISH_DIVERGENCE",
+  "RSI_BEARISH_DIVERGENCE",
+  "MACD_BULLISH_DIVERGENCE",
+  "MACD_BEARISH_DIVERGENCE",
+];
+
+async function getFreshRsiMacdDivergenceDirection(): Promise<"bullish" | "bearish" | null> {
+  const cutoff = new Date(Date.now() - TRADINGVIEW_SIGNAL_FRESHNESS_HOURS * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from("tradingview_signals")
+    .select("signal_type, received_at")
+    .in("signal_type", RSI_MACD_DIVERGENCE_SIGNAL_TYPES)
+    .gte("received_at", cutoff)
+    .order("received_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("divergenceRadarContext: Fehler bei tradingview_signals (RSI/MACD-Divergenz):", error.message);
     return null;
   }
   if (!data || !isSignalFresh(data.received_at)) return null;
@@ -273,6 +306,7 @@ export async function buildDivergenceRadar(): Promise<DivergenceRadarResult> {
     wallPersistence,
     leverageMap,
     tvDirection,
+    rsiMacdDivergenceDirection,
   ] = await Promise.all([
     getLatestMarketState(),
     getLatestHandelslage(),
@@ -282,6 +316,7 @@ export async function buildDivergenceRadar(): Promise<DivergenceRadarResult> {
     getWallPersistenceRows(),
     buildLiveLeverageMap(),
     getFreshTradingViewDirection(),
+    getFreshRsiMacdDivergenceDirection(),
   ]);
   const spotVerdict: SpotPressureVerdict | null = spotPressure.verdict;
 
@@ -304,6 +339,10 @@ export async function buildDivergenceRadar(): Promise<DivergenceRadarResult> {
       marketState?.overall_state ?? null
     ),
     tradingViewVsState: computeTradingViewVsStateDivergence(tvDirection, marketState?.overall_state ?? null),
+    rsiDivergenceVsTrend: computeRsiDivergenceVsTrendRegime(
+      rsiMacdDivergenceDirection,
+      marketState?.factors?.["trend_regime"]?.value ?? null
+    ),
     onchainVsPrice: computeOnchainVsPriceDivergence(
       onchain.sopr,
       onchain.distFromHighPct,
