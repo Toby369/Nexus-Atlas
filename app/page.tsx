@@ -62,10 +62,9 @@ import LeverageMapCard from "@/components/LeverageMapCard";
 import CycleIndicatorsCard from "@/components/CycleIndicatorsCard";
 import TimeframeSelector from "@/components/TimeframeSelector";
 import AnchorPicker from "@/components/AnchorPicker";
-import DashboardLayout from "@/components/DashboardLayout";
+import DashboardTabNav from "@/components/DashboardTabNav";
 import DashboardPollProvider from "@/components/DashboardPollProvider";
 import HeroHeader from "@/components/HeroHeader";
-import DetailsToggle from "@/components/DetailsToggle";
 import LogoutButton from "@/components/LogoutButton";
 import RefreshButton from "@/components/RefreshButton";
 
@@ -686,33 +685,37 @@ export default async function Home({
               upcomingEconomicEvents={upcomingEconomicEvents}
             />
 
-            <DetailsToggle>
-              {/* Nutzer-Feedback vom 04.09.2026: Zeitraum/Event-Anker sind
-                  globale Steuerungen (wirken auf mehrere Kacheln unten,
-                  siehe timeframe/anchorIso-Props), sollten also vor der
-                  Gesamteinschaetzung stehen statt danach -- vorher wirkten
-                  sie wie ein Anhaengsel der Gesamteinschaetzung-Kachel. */}
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <p className="text-xs uppercase tracking-[0.2em] text-text-faint">
-                  Zeitraum
-                </p>
-                <Suspense fallback={<div className="h-6" />}>
-                  <TimeframeSelector current={timeframe} />
-                </Suspense>
-              </div>
+            {/* Nutzer-Feedback vom 04.09.2026: Zeitraum/Event-Anker sind
+                globale Steuerungen (wirken auf mehrere Kacheln unten, siehe
+                timeframe/anchorIso-Props), sollten also vor der
+                Gesamteinschaetzung stehen statt danach -- vorher wirkten sie
+                wie ein Anhaengsel der Gesamteinschaetzung-Kachel. Nicht mehr
+                hinter dem "Alle Details anzeigen"-Toggle (entfernt
+                09.09.2026, siehe DashboardTabNav) -- Zeitraum/Event-Anker/
+                Gesamteinschaetzung sind zu grundlegend, um sie hinter einem
+                Klick zu verstecken; die Tab-Navigation darunter uebernimmt
+                jetzt die Aufgabe, die Ansicht kompakt zu halten. */}
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <p className="text-xs uppercase tracking-[0.2em] text-text-faint">
+                Zeitraum
+              </p>
+              <Suspense fallback={<div className="h-6" />}>
+                <TimeframeSelector current={timeframe} />
+              </Suspense>
+            </div>
 
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <p className="text-xs uppercase tracking-[0.2em] text-text-faint">
-                  Event-Anker
-                </p>
-                <Suspense fallback={<div className="h-6" />}>
-                  <AnchorPicker />
-                </Suspense>
-              </div>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <p className="text-xs uppercase tracking-[0.2em] text-text-faint">
+                Event-Anker
+              </p>
+              <Suspense fallback={<div className="h-6" />}>
+                <AnchorPicker />
+              </Suspense>
+            </div>
 
-              <MarketStateCard initialState={marketState} />
+            <MarketStateCard initialState={marketState} />
 
-              <LivePriceDataProvider
+            <LivePriceDataProvider
                 timeframe={timeframe}
                 initialSnapshots={snapshots}
                 initialMarketState={marketState}
@@ -724,7 +727,7 @@ export default async function Home({
                 anchorEndIso={anchorEndIso}
                 initialAnchoredSummary={anchoredSummary}
               >
-                <DashboardLayout
+                <DashboardTabNav
                   tiles={{
                     "market-context": <MarketContextCard timeframe={timeframe} />,
                     "regime-matrix": (
@@ -782,7 +785,6 @@ export default async function Home({
                   }}
                 />
               </LivePriceDataProvider>
-            </DetailsToggle>
           </DashboardPollProvider>
         </div>
       </section>

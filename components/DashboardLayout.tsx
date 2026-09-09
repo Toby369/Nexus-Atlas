@@ -14,11 +14,11 @@ import {
   SortableContext,
   rectSortingStrategy,
   sortableKeyboardCoordinates,
-  arrayMove,
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { DASHBOARD_TILES, DASHBOARD_TILE_IDS } from "@/lib/dashboardTiles";
+import { visibleOrder, reorderWithinSubset, swapWithinSubset } from "@/lib/dashboardTabReorder";
 
 const STORAGE_KEY = "nexus-atlas-dashboard-layout-v2";
 
@@ -92,7 +92,19 @@ const defaultWidthById = Object.fromEntries(
   DASHBOARD_TILES.map((t) => [t.id, t.fullWidth ? MAX_WIDTH : MIN_WIDTH]),
 );
 
-export default function DashboardLayout({ tiles }: { tiles: Record<string, ReactNode> }) {
+export default function DashboardLayout({
+  tiles,
+  tileIds,
+}: {
+  tiles: Record<string, ReactNode>;
+  // Kachel-IDs des aktuell aktiven Tabs (siehe components/DashboardTabNav.tsx
+  // + lib/dashboardTabs.ts, 09.09.2026) -- die volle, persistierte
+  // Reihenfolge/Breiten/Hoehen/Minimiert-Zustand bleiben unveraendert EIN
+  // globales Set ueber ALLE Kacheln, nur die sichtbare/verschiebbare Menge
+  // wird pro Aufruf auf dieses Tab eingeschraenkt (siehe
+  // lib/dashboardTabReorder.ts).
+  tileIds: string[];
+}) {
   // Server-Render und erster Client-Render nutzen bewusst dieselbe
   // Default-Reihenfolge (kein Zugriff auf localStorage moeglich/erlaubt vor
   // der Hydration) -- der gespeicherte Zustand wird erst danach in einem
@@ -142,23 +154,11 @@ export default function DashboardLayout({ tiles }: { tiles: Record<string, React
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    setOrder((prev) => {
-      const oldIndex = prev.indexOf(String(active.id));
-      const newIndex = prev.indexOf(String(over.id));
-      if (oldIndex === -1 || newIndex === -1) return prev;
-      return arrayMove(prev, oldIndex, newIndex);
-    });
+    setOrder((prev) => reorderWithinSubset(prev, tileIds, String(active.id), String(over.id)));
   }
 
   function moveTile(id: string, direction: -1 | 1) {
-    setOrder((prev) => {
-      const idx = prev.indexOf(id);
-      const swapWith = idx + direction;
-      if (idx === -1 || swapWith < 0 || swapWith >= prev.length) return prev;
-      const next = [...prev];
-      [next[idx], next[swapWith]] = [next[swapWith], next[idx]];
-      return next;
-    });
+    setOrder((prev) => swapWithinSubset(prev, tileIds, id, direction));
   }
 
   function toggleMinimized(id: string) {
@@ -183,6 +183,11 @@ export default function DashboardLayout({ tiles }: { tiles: Record<string, React
     setHeights((prev) => (prev[id] === height ? prev : { ...prev, [id]: height }));
   }, []);
 
+  // Nur die Kacheln des aktuell aktiven Tabs sind sicht-/verschiebbar --
+  // die volle Reihenfolge (order) bleibt intern trotzdem das globale Array
+  // ueber ALLE Kacheln (siehe lib/dashboardTabReorder.ts).
+  const visible = visibleOrder(order, tileIds);
+
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       {/* rectSortingStrategy statt verticalListSortingStrategy: die Kacheln
@@ -190,9 +195,9 @@ export default function DashboardLayout({ tiles }: { tiles: Record<string, React
           gestapelt -- die vertikale Strategie geht von genau einer Spalte
           aus und wuerde beim Ziehen ueber Spalten hinweg falsch positionieren
           (siehe dnd-kit-Doku: rectSortingStrategy fuer Grid-Layouts). */}
-      <SortableContext items={order} strategy={rectSortingStrategy}>
+      <SortableContext items={visible} strategy={rectSortingStrategy}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-          {order.map((id, idx) => (
+          {visible.map((id, idx) => (
             <SortableTile
               key={id}
               id={id}
@@ -204,7 +209,7 @@ export default function DashboardLayout({ tiles }: { tiles: Record<string, React
               onMoveUp={() => moveTile(id, -1)}
               onMoveDown={() => moveTile(id, 1)}
               canMoveUp={idx > 0}
-              canMoveDown={idx < order.length - 1}
+              canMoveDown={idx < visible.length - 1}
               onNarrower={() => changeWidth(id, -1)}
               onWider={() => changeWidth(id, 1)}
               onHeightChange={handleHeightChange}
