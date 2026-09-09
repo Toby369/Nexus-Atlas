@@ -9,10 +9,11 @@
 import { supabase } from "./supabase";
 import { buildCycleIndicators } from "./cycleIndicatorsContext";
 import { buildLiveLeverageMap } from "./leverageMapContext";
-import { classifySpotPressure } from "./spotPressure";
+import { classifySpotPressure, type SpotPressureVerdict } from "./spotPressure";
 import {
   computeOptionsVsSentimentDivergence,
   computeSpotVsFuturesDivergence,
+  computeSpotPressureVsPriceDivergence,
   computeCycleVsMomentumDivergence,
   computeHandelslageVsStateDivergence,
   computeOnchainVsPriceDivergence,
@@ -21,6 +22,7 @@ import {
   computeTradingViewVsStateDivergence,
   type DivergenceStatus,
   type OnchainDivergence,
+  type SpotPressureVsPriceDivergence,
   type WallPersistence,
 } from "./divergenceRadar";
 import { inferSignalDirection, isSignalFresh, TRADINGVIEW_SIGNAL_FRESHNESS_HOURS } from "./tradingViewSignal";
@@ -50,6 +52,7 @@ export interface LiquidationCorroboration {
 export interface DivergenceRadarResult {
   optionsVsSentiment: DivergenceStatus;
   spotVsFutures: DivergenceStatus;
+  spotPressureVsPrice: SpotPressureVsPriceDivergence;
   cycleVsMomentum: DivergenceStatus;
   handelslageVsState: DivergenceStatus;
   tradingViewVsState: DivergenceStatus;
@@ -104,15 +107,18 @@ async function getFreshTradingViewDirection(): Promise<"bullish" | "bearish" | n
   return inferSignalDirection(data.signal_type);
 }
 
-async function getSpotVerdict() {
+async function getSpotVerdictAndPriceChange(): Promise<{
+  verdict: SpotPressureVerdict | null;
+  priceChangePct: number | null;
+}> {
   const sinceIso = new Date(Date.now() - SPOT_WINDOW_MINUTES * 60 * 1000).toISOString();
   const { data, error } = await supabase.rpc("get_spot_pressure_summary", { p_since: sinceIso });
   if (error) {
     console.error("divergenceRadarContext: Fehler bei get_spot_pressure_summary:", error.message);
-    return null;
+    return { verdict: null, priceChangePct: null };
   }
   const summary = data?.[0] ?? null;
-  if (!summary) return null;
+  if (!summary) return { verdict: null, priceChangePct: null };
 
   const sumBuy = summary.sum_taker_buy_vol;
   const sumSell = summary.sum_taker_sell_vol;
@@ -123,8 +129,22 @@ async function getSpotVerdict() {
       : null;
   const expectedCandles = Math.max(1, Math.round(SPOT_WINDOW_MINUTES / 5));
 
-  return classifySpotPressure({ netFlowPct, candleCount: summary.candle_count, expectedCandles })
-    .verdict;
+  const verdict = classifySpotPressure({
+    netFlowPct,
+    candleCount: summary.candle_count,
+    expectedCandles,
+  }).verdict;
+
+  // Gleiches Fenster/dieselbe Summary wie SpotPressurePanel.tsx nutzt --
+  // first_price/last_price sind bereits Teil von get_spot_pressure_summary,
+  // kein zweiter Datenpfad noetig.
+  const priceChangePct =
+    summary.first_price !== null && summary.first_price !== undefined &&
+    summary.last_price !== null && summary.last_price !== undefined && summary.first_price !== 0
+      ? ((summary.last_price - summary.first_price) / summary.first_price) * 100
+      : null;
+
+  return { verdict, priceChangePct };
 }
 
 async function getSoprAndPricePosition(): Promise<{
@@ -244,17 +264,26 @@ async function getLiquidationCorroborations(
 }
 
 export async function buildDivergenceRadar(): Promise<DivergenceRadarResult> {
-  const [marketState, handelslage, spotVerdict, cycleIndicators, onchain, wallPersistence, leverageMap, tvDirection] =
-    await Promise.all([
-      getLatestMarketState(),
-      getLatestHandelslage(),
-      getSpotVerdict(),
-      buildCycleIndicators(),
-      getSoprAndPricePosition(),
-      getWallPersistenceRows(),
-      buildLiveLeverageMap(),
-      getFreshTradingViewDirection(),
-    ]);
+  const [
+    marketState,
+    handelslage,
+    spotPressure,
+    cycleIndicators,
+    onchain,
+    wallPersistence,
+    leverageMap,
+    tvDirection,
+  ] = await Promise.all([
+    getLatestMarketState(),
+    getLatestHandelslage(),
+    getSpotVerdictAndPriceChange(),
+    buildCycleIndicators(),
+    getSoprAndPricePosition(),
+    getWallPersistenceRows(),
+    buildLiveLeverageMap(),
+    getFreshTradingViewDirection(),
+  ]);
+  const spotVerdict: SpotPressureVerdict | null = spotPressure.verdict;
 
   const clusters = (leverageMap?.clusters ?? []).map((c) => ({ price: c.price, side: c.side }));
   const liquidationCorroborations = await getLiquidationCorroborations(clusters);
@@ -263,6 +292,9 @@ export async function buildDivergenceRadar(): Promise<DivergenceRadarResult> {
     optionsVsSentiment: marketState ? computeOptionsVsSentimentDivergence(marketState) : "NOT_COMPARABLE",
     spotVsFutures:
       marketState && spotVerdict ? computeSpotVsFuturesDivergence(spotVerdict, marketState) : "NOT_COMPARABLE",
+    spotPressureVsPrice: spotVerdict
+      ? computeSpotPressureVsPriceDivergence(spotVerdict, spotPressure.priceChangePct)
+      : "NOT_COMPARABLE",
     cycleVsMomentum:
       marketState && cycleIndicators.logPriceChannel
         ? computeCycleVsMomentumDivergence(cycleIndicators.logPriceChannel.currentBandLabel, marketState)

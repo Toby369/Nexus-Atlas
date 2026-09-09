@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeOptionsVsSentimentDivergence,
   computeSpotVsFuturesDivergence,
+  computeSpotPressureVsPriceDivergence,
   computeCycleVsMomentumDivergence,
   computeHandelslageVsStateDivergence,
   computeOnchainVsPriceDivergence,
@@ -54,6 +55,31 @@ describe("computeSpotVsFuturesDivergence", () => {
     expect(computeSpotVsFuturesDivergence("INSUFFICIENT_DATA", factors({ cvd: 1 }))).toBe(
       "NOT_COMPARABLE"
     );
+  });
+});
+
+describe("computeSpotPressureVsPriceDivergence", () => {
+  it("ABSORPTION_BULLISH wenn Taker-Sell dominiert aber Preis steigt", () => {
+    expect(computeSpotPressureVsPriceDivergence("SELLING_PRESSURE", 0.4)).toBe(
+      "ABSORPTION_BULLISH"
+    );
+  });
+  it("ABSORPTION_BEARISH wenn Taker-Buy dominiert aber Preis faellt", () => {
+    expect(computeSpotPressureVsPriceDivergence("BUYING_PRESSURE", -0.4)).toBe(
+      "ABSORPTION_BEARISH"
+    );
+  });
+  it("AGREEMENT wenn Taker-Richtung und Preisrichtung uebereinstimmen", () => {
+    expect(computeSpotPressureVsPriceDivergence("BUYING_PRESSURE", 0.4)).toBe("AGREEMENT");
+    expect(computeSpotPressureVsPriceDivergence("SELLING_PRESSURE", -0.4)).toBe("AGREEMENT");
+  });
+  it("NOT_COMPARABLE bei NEUTRAL/INSUFFICIENT_DATA", () => {
+    expect(computeSpotPressureVsPriceDivergence("NEUTRAL", 0.4)).toBe("NOT_COMPARABLE");
+    expect(computeSpotPressureVsPriceDivergence("INSUFFICIENT_DATA", 0.4)).toBe("NOT_COMPARABLE");
+  });
+  it("NOT_COMPARABLE ohne Preisaenderung oder bei einem Mini-Wackeln um 0%", () => {
+    expect(computeSpotPressureVsPriceDivergence("SELLING_PRESSURE", null)).toBe("NOT_COMPARABLE");
+    expect(computeSpotPressureVsPriceDivergence("SELLING_PRESSURE", 0.01)).toBe("NOT_COMPARABLE");
   });
 });
 

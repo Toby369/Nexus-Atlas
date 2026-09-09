@@ -133,6 +133,48 @@ export function computeOnchainVsPriceDivergence(
   return "NOT_COMPARABLE";
 }
 
+// --- 6b. Spot-Pressure (Taker-Flow) vs. Preis --------------------------------
+// Nutzer-Wunsch (09.09.2026, "extrem wichtig"): direkter Vergleich von
+// Taker-Kauf/Verkaufsdruck gegen die tatsaechliche Preisbewegung im selben
+// Fenster -- unabhaengig von CVD/Futures (siehe computeSpotVsFuturesDivergence
+// oben, die Spot-Flow nur gegen den Futures-CVD-Faktor prueft, nie gegen den
+// Preis selbst).
+//
+// Klassisches Order-Flow-Absorptions-Muster: dominiert Taker-SELL im Fenster,
+// der Preis steigt aber trotzdem, wird die Verkaufsseite offenbar von
+// passiven Kaeufern absorbiert (Staerke-Signal, "ABSORPTION_BULLISH").
+// Umgekehrt: dominiert Taker-BUY, der Preis faellt aber trotzdem, wird die
+// Kaufseite von passiven Verkaeufern absorbiert (Schwaeche-Signal,
+// "ABSORPTION_BEARISH"). Der haeufigere, unauffaellige Fall ist "AGREEMENT"
+// (Taker-Richtung und Preisrichtung stimmen ueberein) -- die Absorptions-
+// Faelle sind die eigentlich interessanten.
+//
+// Wie bei jedem anderen Paar hier: ein plausibles, regelbasiertes Muster,
+// KEIN gebacktestetes Signal (siehe Datei-Kommentar oben).
+const PRICE_FLAT_THRESHOLD_PCT = 0.05;
+
+export type SpotPressureVsPriceDivergence =
+  | "ABSORPTION_BULLISH"
+  | "ABSORPTION_BEARISH"
+  | "AGREEMENT"
+  | "NOT_COMPARABLE";
+
+export function computeSpotPressureVsPriceDivergence(
+  spotVerdict: SpotPressureVerdict,
+  priceChangePct: number | null
+): SpotPressureVsPriceDivergence {
+  if (priceChangePct === null || Number.isNaN(priceChangePct)) return "NOT_COMPARABLE";
+  if (spotVerdict === "NEUTRAL" || spotVerdict === "INSUFFICIENT_DATA") return "NOT_COMPARABLE";
+  // Ein nahezu unveraendeter Preis liefert keine verlaessliche Richtung --
+  // sonst wuerde jedes Mini-Wackeln um 0% als "Absorption" gewertet.
+  if (Math.abs(priceChangePct) < PRICE_FLAT_THRESHOLD_PCT) return "NOT_COMPARABLE";
+
+  const priceRose = priceChangePct > 0;
+  if (spotVerdict === "SELLING_PRESSURE" && priceRose) return "ABSORPTION_BULLISH";
+  if (spotVerdict === "BUYING_PRESSURE" && !priceRose) return "ABSORPTION_BEARISH";
+  return "AGREEMENT";
+}
+
 // --- 6. Orderbuch-Wand: Persistenz zwischen zwei Schnappschuessen ----------
 export type WallPersistence = "NEU" | "GEHALTEN" | "VERSCHWUNDEN" | "KEINE_DATEN";
 
