@@ -187,6 +187,48 @@ Schritt, kein Kombinationszähler.
   Prevalence) wären das mehrere Jahre Livehandel — der Filter ist ökonomisch plausibel, aber mit
   der aktuellen Datenmenge (2 Jahre) nicht auf demselben Beweisniveau wie bei TP 30%.
 
+## 8. Nachtrag: warum nur 9 (und dann 14) — vollständige Inventur aller Nexus-Signale
+
+Berechtigte Nachfrage von Toby: Nexus hat weit mehr als 9 Kacheln/Signale. Die Beschränkung
+in Abschnitt 7 war eine **Scope-Entscheidung** (dieselben Kandidaten wie die 04.09.-Studie),
+keine harte Datengrenze — bei genauerer Prüfung haben tatsächlich **5 weitere** der 14
+produktiven Market-State-Engine-Faktoren (`compute-market-state`) ebenfalls volle
+2-Jahres-Historie und wurden nachträglich ergänzt:
+
+| Faktor | Quelle | Recall TP | Recall SL | Diff | p-Wert |
+|---|---|---|---|---|---|
+| Momentum (RSI+MACD kombiniert) | `market_features` | 22,7% | 20,1% | +2,6pp | 0,471 |
+| Trend-Regime (EMA50/EMA200-Ribbon) | `market_features` | 30,1% | 32,7% | -2,7pp | 0,518 |
+| VWAP-Position | `market_features` | 33,5% | 31,5% | +2,0pp | 0,625 |
+| Funding (Crowding, kontrarisch) | `market_snapshots` (2 Jahre) | 0,6% | 0,4% | +0,3pp | 0,649 |
+| Fear & Greed Index (kontrarisch) | `sentiment_snapshots` (2 Jahre, sogar bis 2018) | 15,9% | 16,7% | -0,9pp | 0,791 |
+
+**Keines davon zeigt irgendeinen Unterschied** — alle p-Werte weit über 0,4. Zusammen mit den
+9 aus Abschnitt 7 sind das jetzt **14 getestete Signale, 0 überstehen BH-FDR** (kritischer Wert
+für den niedrigsten Rohwert bei 14 Tests: 0,0036 — 4h-Struktur bleibt bei p=0,024 die mit
+Abstand stärkste Einzelvariante, aber auch hier klar darüber).
+
+**Warum nicht alle 14 Engine-Faktoren UND alle Dashboard-Kacheln?** Ehrliche Bestandsaufnahme
+aller Datenquellen hinter Nexus' 26 Kacheln:
+
+| Kategorie | Beispiele | 2-Jahres-Historie? |
+|---|---|---|
+| Struktur/Momentum/CVD/ADX/EMA/VWAP (`market_features`) | Marktkontext, Marktphase-Struktur-Anteil | ✅ ja — 8 Faktoren oben getestet |
+| Funding, Fear&Greed (`market_snapshots`, `sentiment_snapshots`) | Funding-Rate-Kachel, (kein eigenes Sentiment-Tile, fließt in Marktphase) | ✅ ja — oben getestet |
+| **OI-vs-Preis, Basis/Perpetual-Premium** | OI Change, Börsenvergleich | ❌ **nein — buchstäblich 0 Werte auf 15m**, nur 121 (1h)/46 (4h)/10 (1d) Zeilen der letzten ~2 Wochen insgesamt; kein Scope-Versäumnis, sondern echte Datenlücke |
+| Positionierung, Orderbuch, Optionen | Positionierung, Orderbuch-Wände | ❌ nein — Historie erst seit 24.-26.08.2026 (~2-2,5 Wochen) |
+| Makro-Regime (DXY/VIX/S&P/Netto-Liquidität) | ETF-Flows & Makro | ⚠️ Rohdaten (`macro_snapshots`) haben 2 Jahre, die Regime-Berechnung (`get_macro_regime()`) ist aber ein mehrstufiger Multi-Symbol-Vergleich (Δ ggü. Vortag je Symbol + Netto-Liquidität aus 3 Fed-Reihen) — für jeden der 732 Testzeitpunkte historisch korrekt nachzubilden ist möglich, aber fehleranfällig genug, dass ich es hier bewusst ausgelassen habe statt eine wacklige Vereinfachung als Ergebnis zu präsentieren. Nachholbar als eigener Schritt. |
+| Divergenz-Radar (8 Paare) | Divergenz-Radar-Kachel | ❌ nein — Persistenz existiert erst seit heute (Phase 5) |
+| Warn-Muster/Risk-Faktoren, TradingView-Alerts (15 Typen) | in Marktphase/Regime-Matrix sichtbar | ❌ nein — `market_states`/`tradingview_signals` erst seit Ende August/Anfang September |
+| Liquidationen, ETF-Flows, Wirtschaftskalender | eigene Kacheln | ❌ nein bzw. nicht rückwirkend anwendbar (Liquidationen ~2,5 Wochen, ETF-Flows ~6 Wochen, Wirtschaftskalender nur zukünftige Termine) |
+| News-Einordnung, Signal Engine, Eskalation, Trade-Debate, Institutional Playbook, YouTube-Monitor | KI-Kacheln | nicht quantitativ backtestbar dieser Art — Freitext-Einschätzungen, kein Ja/Nein-Signal mit Zeitstempel-Historie |
+
+**Kurz:** von Nexus' Signalen haben aktuell **14 von ~20+ zählbaren** eine für einen belastbaren
+2-Jahres-Test ausreichende Historie — alle 14 wurden jetzt getestet, keines übersteht die
+Korrektur. Der Rest (Positionierung, Orderbuch, Optionen, OI/Basis, Divergenz-Radar, Warn-Muster,
+TradingView-Alerts, Liquidationen, ETF-Flows) läuft erst seit 1-6 Wochen — dieselbe Pipeline
+(`signal_stats_results`, Abschnitt 5) wertet sie automatisch aus, sobald genug Historie da ist.
+
 ## Referenzen
 
 - `TRIPLE-BARRIER-MTF-ALIGNMENT_2026-09-04.md` — Präzisions-Seite derselben Filter, gleiche
