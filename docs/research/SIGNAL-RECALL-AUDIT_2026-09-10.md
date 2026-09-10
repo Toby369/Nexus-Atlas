@@ -105,6 +105,88 @@ Kern-Engine-Zustände und Divergenz-Radar wurden bewusst ausgeschlossen:
   statistische Bewertung läuft bereits (`signal_stats_results`), braucht aber noch mehrere
   Wochen Historie, bevor Aussagen zu Trefferquote und Recall möglich sind.
 
+## 7. Nachtrag: vollständiger 9-Signal-Screen für Tobys aktualisiertes Setup (TP 35%, CRV 3,5:1)
+
+Toby hat sein Setup präzisiert: 20x Hebel, SL 10%, **TP 35%** (vorher 30% angenommen) —
+Kursbewegung TP +1,75%/SL -0,5%, **CRV 3,5:1**, Break-even-Trefferquote **22,2%**
+(10/(35+10), statt 25% bei TP 30%). Zusätzlich Wunsch nach dem **vollständigen** Signal-Screen
+(nicht nur 2 Filter) über 15m/1h/4h vor jedem Setup, plus: wie oft wiederholen sich exakt
+dieselben Signal-Kombinationen.
+
+**Neue Daten:** `research_triple_barrier_results`/`research_triple_barrier_context` um
+`tp_pct=1,75`/`sl_pct=0,5` erweitert — volle 2-Jahres-Historie neu berechnet (140.300 Events,
+LONG+SHORT), identische Methodik wie die 30%-TP-Version.
+
+### 7.1 Alle 9 verfügbaren Signale mit 2-Jahres-Historie, Recall-Framing
+
+Nicht-überlappend (48h-Buckets wie in Abschnitt 2), gepoolt LONG+SHORT, n=164 TP / 568 SL
+insgesamt. Für jedes Signal: Anteil der TP- bzw. SL-Ereignisse, bei denen es in Trade-Richtung
+aktiv war (bullisch vor LONG, bärisch vor SHORT):
+
+| Signal | Recall TP | Anteil SL | Diff | p-Wert | BH (9 Tests, α=0,05) |
+|---|---|---|---|---|---|
+| 4h-Struktur | 57,7% (n=163) | 47,6% (n=567) | +10,0pp | 0,024 | ❌ (kritisch 0,0056) |
+| MTF 1h+4h+1d | 22,1% | 15,9% | +6,2pp | 0,064 | ❌ |
+| 1d-Struktur | 52,1% | 46,6% | +5,6pp | 0,208 | ❌ |
+| 15m-Struktur | 53,7% | 48,6% | +5,1pp | 0,253 | ❌ |
+| CVD-Richtung | 48,8% | 44,7% | +4,1pp | 0,358 | ❌ |
+| Kerzenmuster | 21,3% | 18,5% | +2,9pp | 0,413 | ❌ |
+| RSI >50/<50 | 51,5% | 50,3% | +1,3pp | 0,775 | ❌ |
+| 1h-Struktur | 50,9% | 49,7% | +1,2pp | 0,790 | ❌ |
+| Trendstärke (ADX≥20+DI) | 31,3% | 31,2% | +0,1pp | 0,986 | ❌ |
+
+**0 von 9 übersteht die BH-FDR-Korrektur.** Anders als beim 2-Signal-Test in Abschnitt 3
+(dort überlebte 4h-Struktur) reicht die Stichprobe bei strenger Korrektur über 9 gleichzeitig
+getestete Kandidaten nicht — nicht weil das Signal schwächer geworden wäre (die Größenordnung
+10,0pp vs. vorher 9,8pp ist praktisch identisch), sondern weil die Korrektur bei mehr Tests
+strenger wird. **4h-Struktur bleibt aber, wie in jedem bisherigen Test dieser Session, das mit
+Abstand konsistenteste Signal** — größter Effekt, kleinster Rohwert, gleiche Richtung wie in
+Abschnitt 3 und in der ursprünglichen Präzisionsstudie vom 04.09.
+
+Zur Einordnung auch die **Präzisions-Sicht** (nicht nur Recall) für 4h-Struktur bei TP=35%:
+Trefferquote 25,6% wenn aktiv (n=359) vs. 18,7% wenn nicht (n=359), p=0,025 (Einzeltest). Bei
+CRV 3,5:1 liegt 25,6% knapp ÜBER der 22,2%-Gewinnschwelle (Erwartungswert ≈ **+0,15R/Trade**),
+18,7% liegt darunter (Erwartungswert ≈ **-0,16R/Trade**) — der Filter bleibt ökonomisch
+relevant, auch wenn der Recall-Screen ihn nicht als "bewiesen" einstuft.
+
+### 7.2 Wiederkehrende Signal-Kombinationen: fast nie exakt dieselbe
+
+Für jedes TP-/SL-Ereignis wurde die exakte Kombination aktiver Signale (welche der 9 gleichzeitig
+"an" waren) gebildet und gezählt, wie oft genau dieselbe Kombination wiederkehrt:
+
+- **Häufigste Kombination unter TP-Ereignissen:** kommt nur **6-mal von 164** vor (3,7%) — und
+  das gleich für drei verschiedene Kombinationen gleichzeitig (kein einzelner Ausreißer).
+- **Häufigste Kombination unter SL-Ereignissen:** 24-mal von 568 (4,2%), aber das ist die
+  Kombination "gar kein Signal aktiv" — keine inhaltliche Wiederholung.
+- Mit 9 (näherungsweise) unabhängigen Ja/Nein-Signalen gibt es rechnerisch bis zu 512 mögliche
+  Kombinationen — bei 164-568 Ereignissen ist die Stichprobe dafür strukturell zu klein, als
+  dass sich eine exakte Kombination bedeutsam oft wiederholen könnte.
+
+**Antwort auf "gab es wiederkehrende Signale/Muster":** exakt dieselbe Vollkombination — nein,
+praktisch nie. Aber das ist der falsche Maßstab: **einzelne Signale** (v.a. 4h-Struktur, s.o.)
+wiederholen sich sehr wohl regelmäßig und tragen den messbaren Effekt — nur nicht als
+identisches Gesamtmuster. Ein zukünftiger Konfluenz-Score (gewichtete Summe statt exakter
+Kombinationsabgleich, wie in früheren Sessions vorgeschlagen) wäre hier der richtige nächste
+Schritt, kein Kombinationszähler.
+
+### 7.3 Wie viele Trades für Profitabilität (TP 35%, CRV 3,5:1)
+
+- **Break-even-Trefferquote:** 22,2% (statt 25% bei TP 30%) — jeder Trefferquote-Wert darüber
+  ist bei JEDER Trade-Anzahl profitabel, jeder darunter defizitär; das hängt nicht von N ab.
+- **Ungefiltert gemessen:** 21,9% (LONG) / 21,7% (SHORT) — wie bei TP 30% liegt die reine
+  Zufallsrate wieder fast exakt auf der Gewinnschwelle (minimal darunter).
+- **Mit 4h-Struktur-Filter:** 25,6% — Erwartungswert ≈ +0,15R/Trade statt ±0.
+- **Für ein gegebenes N:** die nötige Mindestzahl an Gewinnern ist ⌈0,222×N⌉+1 grenzwertig,
+  praktisch: bei 10 Trades ≥3 Gewinner nötig (≤7 Verlierer erlaubt), bei 50 Trades ≥12
+  Gewinner, bei 100 Trades ≥23 Gewinner.
+- **Für statistische Gewissheit, dass der 4h-Filter-Effekt real ist** (nicht nur Zufall): der
+  hier gemessene Unterschied (25,6% vs. 18,7%, 6,9pp) ist kleiner als der bei TP 30% gemessene
+  (32,8% vs. 17,9%, 14,8pp) — entsprechend mehr Trades nötig, um ihn robust nachzuweisen:
+  rechnerisch **rund 1.100-1.200 nicht-überlappende Trades** für 80%-Power bei α=0,05 (gegenüber
+  ca. 230 bei der größeren TP-30%-Differenz). Bei ca. 1 Signal/Tag (grobe Schätzung aus obiger
+  Prevalence) wären das mehrere Jahre Livehandel — der Filter ist ökonomisch plausibel, aber mit
+  der aktuellen Datenmenge (2 Jahre) nicht auf demselben Beweisniveau wie bei TP 30%.
+
 ## Referenzen
 
 - `TRIPLE-BARRIER-MTF-ALIGNMENT_2026-09-04.md` — Präzisions-Seite derselben Filter, gleiche
