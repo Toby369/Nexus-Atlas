@@ -385,6 +385,72 @@ export const promptProfiles: Record<string, PromptProfile> = {
     validate: validateSignalAnalysis,
   },
 
+  // --- Periodischer KI-Rueckblick, Phase 3 (10.09.2026) --------------------
+  // Liest AUSSCHLIESSLICH die in Phase 2 (compute_signal_stats(),
+  // signal_stats_results) bereits fertig berechneten Zahlen -- kein eigener
+  // Bias, kein Handelssignal, keine eigene Statistik (Kontext aus
+  // lib/signalReviewContext.ts). Aufgabe: eine verstaendliche deutsche
+  // Einordnung, welche Signale genug Stichprobe haben, welche die
+  // BH-FDR-Korrektur ueberstehen, welche verfallen (decay_flag) und welche
+  // "zu wenig Daten" bleiben. Woechentlich vom signal-review-scheduler-Cron
+  // ausgeloest, nicht manuell pro Klick wie die meisten anderen Kacheln.
+  "signal-review": {
+    id: "signal-review",
+    category: "signal-logic",
+    description:
+      "Verstaendliche Einordnung des periodischen KI-Rueckblicks (signal_stats_results) -- welche Signale robust/fragil/verfallend/zu duenn belegt sind. Kein eigener Bias, kein Handelssignal.",
+    systemPrompt:
+      "Du bekommst eine Liste von Zellen aus dem periodischen KI-Rueckblick von Nexus Atlas: " +
+      "je Zelle ein bereits gefeuertes Signal (TradingView-Alert, Warn-Muster oder Risk-Faktor) " +
+      "x Horizont, ausgewertet in zwei Fenstern (window_90d = rollierende letzte 90 Tage, " +
+      "window_all = gesamte Historie). Jede Zelle enthaelt bereits fertig berechnete Zahlen: " +
+      "n (Stichprobengroesse), bei gerichteten Signalen hit_rate_pct vs. baseline_hit_rate_pct " +
+      "(unbedingte Basiswahrscheinlichkeit), bei richtungslosen Risk-Faktoren " +
+      "avg_abs_return_pct vs. baseline_avg_abs_return_pct, sowie raw_p_value und " +
+      "significant_after_bh (true nur wenn die Zelle die Benjamini-Hochberg-Mehrfachvergleichs-" +
+      "Korrektur UEBERSTEHT). decay_flag (true/false/null) vergleicht denselben Edge zwischen " +
+      "90d- und Gesamtfenster -- null heisst, kein belastbarer Vergleich moeglich (zu wenig " +
+      "Stichprobe in einem der Fenster). Ausserdem: total_cells, cells_with_min_sample, " +
+      "significant_cells, insufficient_data_cells, decaying_cells als Gesamtuebersicht. " +
+      "DEINE AUFGABE ist ausschliesslich, diese bereits berechneten Zahlen verstaendlich " +
+      "einzuordnen -- NICHT selbst eine neue Statistik zu berechnen, NICHT selbst zu " +
+      "entscheiden, ob ein p-Wert 'eigentlich' signifikant ist (significant_after_bh ist die " +
+      "einzige gueltige Signifikanz-Aussage), und NICHT eine Markt-/Handelsrichtung abzuleiten " +
+      "(das ist keine Trading-Kachel). Nenne robuste Funde (significant_after_bh=true in " +
+      "mind. einem Fenster) explizit mit Zahlen (z.B. 'LIQUIDITY_SWEEP_HIGH/24h: 90,9% " +
+      "Trefferquote vs. 48,1% Basis, n=11'). Nenne fragile/verfallende Signale (decay_flag=true, " +
+      "oder nur in einem der beiden Fenster signifikant) mit kurzer Begruendung. Nenne Signal-" +
+      "Typen mit strukturell zu kleiner Stichprobe (insufficient_data_cells) als Sammelgruppe, " +
+      "nicht jeden einzeln aufzaehlen wenn es viele sind. Ist significant_cells=0, sag das " +
+      "explizit ('kein einziger Fund uebersteht aktuell die Mehrfachvergleichs-Korrektur') " +
+      "statt ein schwaches Ergebnis staerker klingen zu lassen als es ist -- Sprachregelung: " +
+      "'SUPPORTED', nie 'PROVEN' oder 'bewiesen'. Ist total_cells klein oder die Historie kurz, " +
+      "benenne das als Grund fuer vorsichtige Interpretation. Erfinde niemals Zahlen ausserhalb " +
+      "des Kontexts. " +
+      NUMBER_FORMAT_INSTRUCTION +
+      " Antworte als JSON mit: summary (string, deutsch, 3-5 Saetze Gesamtbild), " +
+      "robust_findings (string[], je Eintrag ein signifikanter Fund mit Zahlen, leeres Array " +
+      "wenn keiner), decaying_or_fragile (string[], je Eintrag ein verfallendes/fragiles " +
+      "Signal mit kurzer Begruendung, leeres Array wenn keins), insufficient_data_note " +
+      "(string, deutsch, 1-2 Saetze zur Sammelgruppe der noch zu duenn belegten Signale).",
+    validate: (data) => {
+      const errors: string[] = [];
+      if (!isNonEmptyString(field(data, "summary"))) {
+        errors.push(`"summary" muss ein nicht-leerer String sein.`);
+      }
+      if (!isStringArray(field(data, "robust_findings"))) {
+        errors.push(`"robust_findings" muss ein String-Array sein.`);
+      }
+      if (!isStringArray(field(data, "decaying_or_fragile"))) {
+        errors.push(`"decaying_or_fragile" muss ein String-Array sein.`);
+      }
+      if (!isNonEmptyString(field(data, "insufficient_data_note"))) {
+        errors.push(`"insufficient_data_note" muss ein nicht-leerer String sein.`);
+      }
+      return errors;
+    },
+  },
+
   // --- NEXUS AI Report Engine (Report 1-4) ---------------------------------
   // Bekommen ihren Kontext ausschliesslich aus lib/reportContext.ts
   // (buildMarketContext) -- ein bereits validiertes, strukturiertes Objekt,

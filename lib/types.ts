@@ -515,6 +515,27 @@ export interface SignalEngineSnapshot {
   error: string | null;
 }
 
+// Periodischer KI-Rueckblick, Phase 3 (10.09.2026) -- liest ausschliesslich
+// die in Phase 2 (signal_stats_results) fertig berechneten Zahlen, kein
+// eigener Bias, kein Handelssignal. Siehe lib/signalReviewContext.ts +
+// lib/ai/promptProfiles.ts ("signal-review").
+export interface SignalReviewResult {
+  summary: string;
+  robust_findings: string[];
+  decaying_or_fragile: string[];
+  insufficient_data_note: string;
+}
+
+export interface SignalReviewSnapshot {
+  id: number;
+  generated_at: string;
+  provider: string | null;
+  model: string | null;
+  result: SignalReviewResult | null;
+  status: "ok" | "error";
+  error: string | null;
+}
+
 // Eskalations-Kachel (Thema KI, "gezielte Eskalation", 05.09.2026) -- kein
 // Dauerbetrieb mehrerer Provider, sondern eine gezielte Zweit-/Drittmeinung
 // nur wenn eines der bestehenden Mechanismen (Signal-Engine, Divergenz-

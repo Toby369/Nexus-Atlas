@@ -72,9 +72,15 @@ export function isPublicPath(pathname: string): boolean {
 // einen reinen Cron-Trigger. Ersetzt durch ein dediziertes, eng geschnittenes
 // CRON_SECRET -- eigener Wert, eigenes Vercel-Env-Var, eigenes Supabase-Edge-
 // Function-Secret, unabhaengig vom DB-Master-Key rotierbar.
+//
+// /api/signal-review/generate ergaenzt (Periodischer KI-Rueckblick Phase 3,
+// 10.09.2026): der neue signal-review-scheduler-Cron (woechentlich, direkt
+// nach compute_signal_stats()) ruft diese Route per Server-zu-Server-fetch
+// auf, gleiches Muster/CRON_SECRET wie youtube-monitor-scheduler.
 export const SERVICE_ROLE_BEARER_PATHS: ReadonlySet<string> = new Set([
   "/api/reports/run",
   "/api/youtube-monitor/generate",
+  "/api/signal-review/generate",
 ]);
 
 export function isAuthorizedServiceRoleRequest(

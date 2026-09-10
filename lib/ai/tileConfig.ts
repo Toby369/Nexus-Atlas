@@ -136,6 +136,18 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     promptProfile: "trade-referee",
     fallbackProviders: ["google", "openrouter"],
   },
+  // Periodischer KI-Rueckblick, Phase 3 (10.09.2026): liest ausschliesslich
+  // signal_stats_results (Phase 2), kein eigener Bias -- gleiche
+  // Provider-/Fallback-Logik wie "signal-engine" (ebenfalls ein "zweites
+  // Paar Augen" auf bereits berechnete Zahlen, kein neues Handelssignal).
+  // Wird woechentlich vom signal-review-scheduler-Cron ausgeloest, nicht
+  // manuell.
+  "signal-review": {
+    tileId: "signal-review",
+    aiProvider: "auto", // -> google (signal-logic)
+    promptProfile: "signal-review",
+    fallbackProviders: ["openrouter", "deepseek", "anthropic"],
+  },
   // Freie-Anfrage-Kachel (Nutzer-Wunsch 08.09.2026): wie angekuendigt
   // Google primaer, OpenRouter/Groq als Fallback -- komplett kostenlose
   // Kette, gleiche Haltung wie Trade-Debate-Referee.

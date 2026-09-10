@@ -108,6 +108,16 @@ describe("isAuthorizedServiceRoleRequest", () => {
     ).toBe(true);
   });
 
+  it("laesst signal-review-scheduler mit korrektem Service-Role-Bearer-Token durch", () => {
+    expect(
+      isAuthorizedServiceRoleRequest(
+        "/api/signal-review/generate",
+        "Bearer geheim-123",
+        "geheim-123"
+      )
+    ).toBe(true);
+  });
+
   it("gilt NICHT fuer andere Pfade -- kein pauschaler Service-Role-Bypass fuers ganze /api", () => {
     expect(
       isAuthorizedServiceRoleRequest("/api/ai/analyze", "Bearer geheim-123", "geheim-123")

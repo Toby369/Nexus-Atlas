@@ -18,6 +18,7 @@ import type {
   OiChangeByExchange,
   OrderbookWallSnapshot,
   SignalEngineSnapshot,
+  SignalReviewSnapshot,
   TradeDebateSnapshot,
   CustomQueryRun,
   TradingViewSignal,
@@ -53,6 +54,7 @@ import OrderbookWallCard from "@/components/OrderbookWallCard";
 import DivergenceRadarCard from "@/components/DivergenceRadarCard";
 import NewsAnalysisCard from "@/components/NewsAnalysisCard";
 import SignalEngineCard from "@/components/SignalEngineCard";
+import SignalReviewCard from "@/components/SignalReviewCard";
 import EscalationCard from "@/components/EscalationCard";
 import TradeDebateCard from "@/components/TradeDebateCard";
 import CustomQueryCard from "@/components/CustomQueryCard";
@@ -218,6 +220,25 @@ async function getLatestSignalEngine(): Promise<SignalEngineSnapshot | null> {
 
   if (error) {
     console.error("Fehler beim Laden der Signal-Engine-Pruefung:", error.message);
+    return null;
+  }
+  return data;
+}
+
+// Periodischer KI-Rueckblick, Phase 3 (10.09.2026): letzter
+// zwischengespeicherter Stand -- reines Lesen, kein AI-Aufruf (der passiert
+// nur ueber POST /api/signal-review/generate, siehe SignalReviewCard.tsx,
+// primaer woechentlich vom signal-review-scheduler-Cron ausgeloest).
+async function getLatestSignalReview(): Promise<SignalReviewSnapshot | null> {
+  const { data, error } = await supabase
+    .from("signal_review_snapshots")
+    .select("*")
+    .order("generated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Fehler beim Laden des periodischen Rueckblicks:", error.message);
     return null;
   }
   return data;
@@ -571,6 +592,7 @@ export default async function Home({
     divergenceRadar,
     latestNewsAnalysis,
     latestSignalEngine,
+    latestSignalReview,
     escalationTriggers,
     latestEscalation,
     latestTradeDebate,
@@ -598,6 +620,7 @@ export default async function Home({
     buildDivergenceRadar(),
     getLatestNewsAnalysis(),
     getLatestSignalEngine(),
+    getLatestSignalReview(),
     detectEscalationTriggers(),
     getLatestEscalation(),
     getLatestTradeDebate(),
@@ -770,6 +793,7 @@ export default async function Home({
                     "news-risk": <NewsRiskPanel initialNews={highImpactNews} />,
                     "news-analysis": <NewsAnalysisCard initialSnapshot={latestNewsAnalysis} />,
                     "signal-engine": <SignalEngineCard initialSnapshot={latestSignalEngine} />,
+                    "signal-review": <SignalReviewCard initialSnapshot={latestSignalReview} />,
                     escalation: (
                       <EscalationCard initialTriggers={escalationTriggers} initialSnapshot={latestEscalation} />
                     ),
