@@ -401,7 +401,10 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "Verstaendliche Einordnung des periodischen KI-Rueckblicks (signal_stats_results) -- welche Signale robust/fragil/verfallend/zu duenn belegt sind. Kein eigener Bias, kein Handelssignal.",
     systemPrompt:
       "Du bekommst eine Liste von Zellen aus dem periodischen KI-Rueckblick von Nexus Atlas: " +
-      "je Zelle ein bereits gefeuertes Signal (TradingView-Alert, Warn-Muster oder Risk-Faktor) " +
+      "je Zelle ein bereits gefeuertes Signal aus einer der erfassten Signal-Gruppen " +
+      "(z.B. TradingView-Alert, Warn-Muster, Risk-Faktor oder Kern-Engine-Zustand -- die " +
+      "genaue Liste der Gruppen kann sich erweitern, category/signal_type im Kontext nennen " +
+      "die jeweils aktuelle) " +
       "x Horizont, ausgewertet in zwei Fenstern (window_90d = rollierende letzte 90 Tage, " +
       "window_all = gesamte Historie). Jede Zelle enthaelt bereits fertig berechnete Zahlen: " +
       "n (Stichprobengroesse), bei gerichteten Signalen hit_rate_pct vs. baseline_hit_rate_pct " +

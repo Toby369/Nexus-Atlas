@@ -16,7 +16,7 @@ import PanelInfo from "@/components/PanelInfo";
 // 05:00 UTC) -- der Button erlaubt zusaetzlich ein manuelles Update.
 
 const INFO_TEXT = [
-  "Was das ist: ein periodischer, transparenter Rueckblick -- vergleicht regelmaessig vergangene Signale (TradingView-Alerts, Warn-Muster, Risk-Faktoren) mit dem, was der Preis danach tatsaechlich gemacht hat. Die KI erfindet dabei keine eigene Statistik, sondern ordnet nur bereits fertig berechnete Zahlen ein (Trefferquote vs. unbedingte Basiswahrscheinlichkeit, Benjamini-Hochberg-Mehrfachvergleichs-Korrektur).",
+  "Was das ist: ein periodischer, transparenter Rueckblick -- vergleicht regelmaessig vergangene Signale (TradingView-Alerts, Warn-Muster, Risk-Faktoren, Kern-Engine-Zustaende -- weitere Gruppen folgen) mit dem, was der Preis danach tatsaechlich gemacht hat. Die KI erfindet dabei keine eigene Statistik, sondern ordnet nur bereits fertig berechnete Zahlen ein (Trefferquote vs. unbedingte Basiswahrscheinlichkeit, Benjamini-Hochberg-Mehrfachvergleichs-Korrektur).",
   "'Robuste Funde' sind Zellen, die die Mehrfachvergleichs-Korrektur tatsaechlich uebersteht -- die meisten getesteten Muster tun das NICHT, das ist der Normalfall bei kurzer Historie und kein Fehler der Methode.",
   "'Verfallend/fragil' markiert Signale, deren Edge im rollierenden 90-Tage-Fenster deutlich schwaecher ist als in der Gesamthistorie -- ein moegliches Warnzeichen, dass ein frueher gefundener Effekt nachlaesst.",
   "Aktualisiert sich automatisch woechentlich (Montag, kurz nach 05:00 UTC) -- \"Neu generieren\" loest zusaetzlich einen manuellen, bezahlten AI-Aufruf aus.",
