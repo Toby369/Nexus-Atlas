@@ -118,6 +118,16 @@ describe("isAuthorizedServiceRoleRequest", () => {
     ).toBe(true);
   });
 
+  it("laesst divergence-radar-scheduler mit korrektem Service-Role-Bearer-Token durch", () => {
+    expect(
+      isAuthorizedServiceRoleRequest(
+        "/api/divergence-radar/snapshot",
+        "Bearer geheim-123",
+        "geheim-123"
+      )
+    ).toBe(true);
+  });
+
   it("gilt NICHT fuer andere Pfade -- kein pauschaler Service-Role-Bypass fuers ganze /api", () => {
     expect(
       isAuthorizedServiceRoleRequest("/api/ai/analyze", "Bearer geheim-123", "geheim-123")

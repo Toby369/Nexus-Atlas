@@ -62,6 +62,19 @@ export interface DivergenceRadarResult {
   onchainVsPrice: OnchainDivergence;
   wallPersistence: WallPersistenceRow[];
   liquidationCorroborations: LiquidationCorroboration[];
+  // Periodischer KI-Rueckblick Phase 5 (10.09.2026): zusaetzlich zu den
+  // bereits oben berechneten AGGREGIERTEN Status-Werten auch die
+  // ROHWERTE, aus denen sie entstanden sind -- fuer die Snapshot-
+  // Persistenz (divergence_radar_snapshots) noetig, damit spaetere
+  // Detection-Erweiterungen (z.B. cycleVsMomentum/handelslageVsState)
+  // ohne Schema-Aenderung nachgezogen werden koennen, statt nur das
+  // fertige AGREEMENT/DIVERGENCE-Label zu speichern.
+  price: number | null;
+  overallState: MarketState["overall_state"] | null;
+  rsiMacdDivergenceDirection: "bullish" | "bearish" | null;
+  tvDirection: "bullish" | "bearish" | null;
+  handelslageBias: "bullish" | "bearish" | "neutral" | undefined;
+  cycleBandLabel: string | null;
 }
 
 async function getLatestMarketState(): Promise<MarketState | null> {
@@ -350,5 +363,25 @@ export async function buildDivergenceRadar(): Promise<DivergenceRadarResult> {
     ),
     wallPersistence,
     liquidationCorroborations,
+    price: extractClosePriceFromFactors(marketState),
+    overallState: marketState?.overall_state ?? null,
+    rsiMacdDivergenceDirection,
+    tvDirection,
+    handelslageBias: handelslage?.status === "ok" ? handelslage.result?.bias : undefined,
+    cycleBandLabel: cycleIndicators.logPriceChannel?.currentBandLabel ?? null,
   };
+}
+
+// Dieselbe Rohbasis-Extraktion wie die SQL-Version in den Rueckblick-Phase-
+// 1/4-Detection-Funktionen (COALESCE ueber mehrere Faktor-Basen, die alle
+// denselben close_price fuehren, wenn market_features frisch war) --
+// market_states hat selbst keine Preis-Spalte.
+function extractClosePriceFromFactors(state: MarketState | null): number | null {
+  if (!state) return null;
+  const candidates = ["oi_price", "vwap_position", "basis", "trend_regime"];
+  for (const key of candidates) {
+    const closePrice = state.factors?.[key]?.basis?.close_price;
+    if (typeof closePrice === "number") return closePrice;
+  }
+  return null;
 }

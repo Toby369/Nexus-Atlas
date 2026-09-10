@@ -41,6 +41,7 @@ export const DASHBOARD_TABS: DashboardTabMeta[] = [
     tileIds: [
       "news-analysis",
       "signal-engine",
+      "signal-review",
       "escalation",
       "trade-debate",
       "custom-query",

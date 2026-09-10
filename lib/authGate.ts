@@ -77,10 +77,16 @@ export function isPublicPath(pathname: string): boolean {
 // 10.09.2026): der neue signal-review-scheduler-Cron (woechentlich, direkt
 // nach compute_signal_stats()) ruft diese Route per Server-zu-Server-fetch
 // auf, gleiches Muster/CRON_SECRET wie youtube-monitor-scheduler.
+//
+// /api/divergence-radar/snapshot ergaenzt (Periodischer KI-Rueckblick Phase
+// 5, 10.09.2026): der neue divergence-radar-scheduler-Cron (alle 15 Min)
+// persistiert einen Snapshot des bisher nur live berechneten Divergenz-
+// Radars, gleiches CRON_SECRET-Muster wie die anderen Eintraege hier.
 export const SERVICE_ROLE_BEARER_PATHS: ReadonlySet<string> = new Set([
   "/api/reports/run",
   "/api/youtube-monitor/generate",
   "/api/signal-review/generate",
+  "/api/divergence-radar/snapshot",
 ]);
 
 export function isAuthorizedServiceRoleRequest(
