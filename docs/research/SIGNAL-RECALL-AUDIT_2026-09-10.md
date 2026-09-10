@@ -229,6 +229,48 @@ Korrektur. Der Rest (Positionierung, Orderbuch, Optionen, OI/Basis, Divergenz-Ra
 TradingView-Alerts, Liquidationen, ETF-Flows) läuft erst seit 1-6 Wochen — dieselbe Pipeline
 (`signal_stats_results`, Abschnitt 5) wertet sie automatisch aus, sobald genug Historie da ist.
 
+## 9. Nachtrag: gemeinsames Fenster ALLER Nexus-Signale (außer YouTube/News)
+
+Toby wollte wissen: wenn wir uns auf den Zeitraum beschränken, in dem **jedes** Nexus-Signal
+(außer YouTube-Monitor und News, die bewusst ausgenommen sind) tatsächlich existiert — welches
+Ergebnis, wie viele Setups?
+
+**Grenzfall geklärt (Rückfrage an Toby):** Divergenz-Radar hatte zum Zeitpunkt der Frage 0
+gespeicherte Snapshots (Cron lief noch keinen vollen Durchlauf) und Handelslage nur 4 Zeilen
+seit 05.09. — beide würden das gemeinsame Fenster auf null bzw. auf wenige Tage drücken.
+Auf Tobys (nicht eindeutige) Antwort hin per Empfehlung entschieden: **beide wie
+YouTube/News ausgeschlossen**, damit überhaupt ein auswertbares Fenster entsteht.
+
+**Ältestes Startdatum der verbleibenden Signale** (alle anderen: Positionierung 24.08.,
+Liquidationen 24.08., Orderbuch 26.08., Optionen 26.08., Kern-Engine/Warn-Muster 26.08.,
+TradingView-Alerts **03.09.** — der späteste/limitierende Start):
+
+**Gemeinsames Fenster: 03.09.2026 05:45 UTC bis heute (10.09.2026) — ca. 7 Tage.**
+
+### Ergebnis in diesem Fenster (Tobys Setup, TP 35%/SL 10%)
+
+| | LONG | SHORT |
+|---|---|---|
+| **Roh (überlappend, jede 15m-Kerze)** — TP/SL/Timeout | 34/97/11 (n=142) | 32/103/7 (n=142) |
+| Roh-TP-Rate | 23,9% | 22,5% |
+| **Nicht-überlappend (unabhängig, 48h-Fenster)** | **1 Setup (TP)** | **1 Setup (SL)** |
+
+**Nur 2 unabhängige Setups in 7 Tagen.** Die Roh-TP-Rate (23,9%/22,5%) liegt zufällig nah an
+der 22,2%-Gewinnschwelle — aber diese 142+142 Zahlen sind zu >95% überlappende Wiederholungen
+derselben wenigen echten Marktbewegungen (fast jede 15m-Kerze in einer 48h-Trendphase liefert
+dasselbe Ergebnis wie ihre Nachbarn), keine 284 unabhängigen Beobachtungen.
+
+**Ehrliches Ergebnis: bei dieser Disziplin (nur Zeiträume, in denen ALLE Nexus-Signale
+verfügbar sind) gibt es schlicht noch nicht genug Daten für IRGENDEINE Signal-Auswertung** —
+2 unabhängige Setups reichen nicht einmal ansatzweise für einen einzigen statistischen Test,
+geschweige denn für 14 gleichzeitige. Das ist exakt der Grund, warum Abschnitt 7/8 stattdessen
+auf die 2-Jahres-Historie der älteren, strukturbasierten Faktoren zurückgegriffen haben — nicht
+aus Bequemlichkeit, sondern weil es in der "alle Signale gemeinsam"-Welt schlicht noch keine
+gültige Alternative gibt. Diese Auswertung wird automatisch aussagekräftiger, je länger die
+jüngeren Signalquellen laufen — in etwa 3-4 Monaten (genug für einige Dutzend unabhängige
+48h-Setups) wäre ein erster grober Test realistisch, für die volle statistische Absicherung
+(vgl. Abschnitt 7.3: ~1.100+ Trades für einen Effekt dieser Größenordnung) eher Jahre.
+
 ## Referenzen
 
 - `TRIPLE-BARRIER-MTF-ALIGNMENT_2026-09-04.md` — Präzisions-Seite derselben Filter, gleiche
