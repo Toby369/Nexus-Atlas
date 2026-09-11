@@ -34,11 +34,15 @@ Kursbewegung). CRV 3,5:1, Break-even-Trefferquote 22,2%.
 3. Im Zustand "läuft": sobald der Preis **5% Marge vom `peak`** (0,25% Kursbewegung) in die
    Gegenrichtung zurückfällt → **dieses** Setup endet, Ergebnis = tatsächlich erreichter
    MFE-Wert (mind. TP, ggf. mehr). Der Rücksetzer selbst ist NICHT Teil des nächsten Setups.
-4. Läuft der Preis nach dem Rücksetzer erneut in ursprüngliche Trendrichtung um mind. die
-   TP-Distanz weiter → **neues, eigenständiges Setup**, Entry = erste Kerze nach dem
-   5%-Tiefpunkt des Rücksetzers. Kein Bezug zum vorherigen Setup in der Auswertung (jedes
-   Setup ist ein eigener Datenpunkt).
+4. **Nächste Kerze nach Setup-Ende = neuer potenzieller Entry** — einheitlich für alle drei
+   Ausgänge (SL, Timeout, TP+Trailing-Rücksetzer). Kein Bezug zum vorherigen Setup in der
+   Auswertung (jedes Setup ist ein eigener Datenpunkt). Ersetzt die ursprüngliche Fassung
+   dieses Punkts (die für den TP-Fall zusätzlich verlangte, dass der Preis erst wieder um die
+   TP-Distanz in Trendrichtung weiterläuft) — siehe Nachtrag unten.
 5. Max. Haltedauer weiterhin 48h (Timeout) ab Entry, falls weder SL noch TP erreicht wird.
+6. **Sequenziell, nicht parallel:** pro Richtung (LONG/SHORT) läuft zu jedem Zeitpunkt
+   höchstens EIN aktives Setup. LONG- und SHORT-Kette laufen unabhängig voneinander, aber
+   jede für sich streng sequenziell — kein Test an jeder einzelnen Kerze parallel.
 
 Das zerlegt eine lange Trendbewegung korrekt in eine Kette unabhängiger Swing-Setups (Tobys
 Klarstellung vom 10.09.), statt sie als einen einzigen Trade zu behandeln oder beim ersten
@@ -47,6 +51,15 @@ TP-Touch abzuschneiden.
 **Technisch:** neue SQL-Funktion nötig (bestehende `research_triple_barrier_events()` kennt
 nur TP/SL/Timeout, keine Trailing-Fortsetzung) — Umsetzung ist Phase 1 der Implementierung,
 nicht Teil dieses Dokuments.
+
+**Nachtrag 11.09.2026 (vor Start der Implementierung, damit noch zulässig gemäß Kopfzeile
+dieses Dokuments):** Erste Umsetzung dieser Session (`research_swing_setup_events()`,
+dokumentiert in `SWING-SETUP-TRAILING-BACKTEST_2026-09-11.md`) testete versehentlich JEDE
+15m-Kerze als unabhängigen, parallelen Entry-Punkt (70.080 Signale/Richtung über 2 Jahre) statt
+der hier beschriebenen sequenziellen Kette. Diese Auswertung bleibt für ihre eigene Frage
+(Erwartungswert bei Ausführung auf jeder Kerze, SL-Slippage-Diagnose) gültig, ist aber NICHT
+die Ereignisquelle für das Confluence-Score-Protokoll. Bei dieser Klarstellung wurde zugleich
+Punkt 4 oben vereinfacht (s.o.) und Punkt 6 (sequenziell/sekundäre Ketten) neu ergänzt.
 
 ## 2. Signal-Klassifizierung — vor jedem Test, für jeden Signalgeber einzeln
 
@@ -117,6 +130,16 @@ Für jedes Paar (A,B) zwei getrennte Kennzahlen:
 
 Keine Auswertung "alle Paare gleichzeitig" (das wurde am 10.09. mit 9 Signalen getestet und
 war bei n=164 kombinatorisch leer) — nur paarweise, das hält n pro Zelle handhabbar.
+
+**Nachtrag 11.09.2026:** zwei getrennte Paar-Varianten, beide vorregistriert:
+- **Variante A (konfirmatorisch, Haupt-Pool):** Paare nur unter Signalen, die individuell
+  n≥10 in ihrem eigenen Fenster erreichen. Läuft im selben kumulativen BH-FDR-Pool wie die
+  Einzelsignale (Abschnitt 6).
+- **Variante B (explorativ, eigener Pool):** volle Kombinatorik über ALLE Signalpaare,
+  unabhängig von individueller Signifikanz. Eigene, separate BH-FDR-Korrektur — bewusst NICHT
+  im Haupt-Pool, damit die grosse Zellenzahl (~1.035 bei ~46 Signalquellen) nicht die
+  Korrektur-Schwelle für die konfirmatorische Auswertung verschärft. Ergebnisse aus Variante B
+  gelten als hypothesengenerierend, nicht als bestätigt.
 
 ## 6. Multiple-Testing-Korrektur — kumulativ, EIN Pool
 
