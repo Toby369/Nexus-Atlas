@@ -97,3 +97,59 @@ Trefferquote stärker als jedes Signal einzeln) direkt bestätigt.
 `research_confluence_signal_stats` (Ergebnistabelle, 250 Zeilen: 54 Einzelsignal- +
 196 Paar-Zeilen), `research_confluence_signal_activation` (Zeilen-Ebene-Aktivierung, 15
 LONG- + 14 SHORT-Signale × 3.533/3.553 Setups).
+
+## 6. Pipeline-Integration (Abschnitt 8 des Protokolls) — umgesetzt 11.09.2026
+
+Laufender wöchentlicher Prozess statt Einmal-Backtest, wie in Abschnitt 8 vorgesehen. Drei neue
+SQL-Funktionen, per `pg_cron` jeden Montag 05:00 UTC nacheinander ausgeführt (Job
+`confluence-score-pipeline-weekly`, direkt als SQL-Cron ohne Edge Function, da kein externer
+HTTP-Call nötig ist):
+
+1. `research_confluence_extend_chain()` — erweitert `research_swing_setup_chain_results` für
+   LONG und SHORT jeweils vom letzten gespeicherten `resolution_time` bis zur aktuellsten
+   verfügbaren 15m-Kerze.
+2. `research_confluence_extend_activation()` — erweitert `research_confluence_signal_activation`
+   für alle neuen Setups, aber nur für die **13 gesicherten Signale** (s.u.).
+3. `research_confluence_refresh_stats()` — rechnet Einzelsignal- und Paar-Zellen (Variante A) für
+   diese 13 Signale komplett aus der (jetzt erweiterten) Aktivierungstabelle neu (Wilson-CI,
+   Z-Test, p-Wert, MIN_N-Gate); BH-FDR bleibt weiterhin eine Live-Abfrage
+   (`research_confluence_bh_fdr('main')`), nichts davon wird zusätzlich gespeichert.
+
+**Wichtige Entscheidung — 2 von 15 Signalen eingefroren, nicht in die Erweiterung
+übernommen:**
+
+- **Positionierung (Divergence-Engine-Score)** und **Divergenz-Radar: Onchain vs Preis** wurden
+  in Phase 3 über eine Ad-hoc-Formel klassifiziert, die sich nachträglich nicht mehr sicher
+  rekonstruieren ließ (die live verfügbaren Quelltabellen — `positioning_signals` mit
+  0–100-Skala, `divergence_radar_snapshots` mit 0 historischen Zeilen — passen nicht zu den
+  historisch klassifizierten Werten). Beide sind ohnehin schwache Signale (Positionierung:
+  25/3.533 ≈0,7% Aktivierung LONG, SHORT nicht mal im qualifizierenden Set; Onchain-Divergenz:
+  50/3.533 bzw. 18/3.553, beides nicht BH-FDR-signifikant).
+- Mit Toby abgestimmt: diese 2 Signale bleiben auf ihrem historischen `n` **eingefroren**
+  (`min_n_met` unverändert, keine neuen Aktivierungs-Zeilen), bis die Original-Logik
+  wiedergefunden wird oder eine neue Definition festgelegt wird. Ihre bestehenden Zellen in
+  `research_confluence_signal_stats` werden von `research_confluence_refresh_stats()` nicht
+  angefasst.
+- Die restlichen **13 Signale** wurden direkt aus den historischen Aktivierungsdaten
+  rückwärts-verifiziert (Kreuztabelle Aktivierung × Rohwert bei bekannten Setups) — für 12 davon
+  ergab sich eine exakte, deterministische Regel (Struktur ×4, MTF-Alignment, CVD-Richtung,
+  Trendstärke, Trend-Regime, VWAP-Position, Fear & Greed, Makro-Regime, Orderbuch-Imbalance).
+  Erste Erweiterungsrunde bestätigt die Konsistenz: z.B. Struktur 4h SHORT n=1.708→1.719,
+  Trefferquote unverändert 25,9%.
+- **Ausnahme Momentum-Faktor (RSI+MACD):** als Confirming-Signal (Fenster Entry bis
+  Preis+0,25%-Marge) ließ sich die exakte historische Logik nur zu ~92% reproduzieren (Rest
+  vermutlich eine kleine Abweichung in der Fenstergrenze). Bewusst mit dieser bekannten
+  Ungenauigkeit übernommen, da das Signal bereits gesichert BH-FDR-signifikant ist (n>3.000) und
+  wenige neue Zeilen pro Woche die Gesamtkraft nicht verändern — aber im Hinterkopf behalten,
+  falls die Trefferquote dieses Signals sich künftig auffällig verschiebt.
+
+## 7. Zusätzlich zu merken (Erinnerung, nicht jetzt umsetzen)
+
+Alle Punkte aus Abschnitt 4 ("Bekannte Lücken") bleiben offen und werden von der neuen Pipeline
+NICHT automatisch nachgeholt — sie betreffen andere Baustellen als die wöchentliche Erweiterung:
+Divergenz-Radar Spot-Pressure-Absorption + RSI/MACD-Divergenz-vs-Trend (noch nicht berechnet),
+Paar-Variante B (volle Kombinatorik, eigener explorativer Pool), unkorrigierte Rohdaten-Ansicht
+als eigene Abfrage/Kachel, sowie das in `CONFLUENCE-SCORE-PROTOCOL_2026-09-11.md` Abschnitt 6b
+festgehaltene Decay-Gewicht-Konzept (exponentieller Zerfall statt hartem Staleness-Cutoff) als
+spätere Verfeinerung. Dazu neu: die Original-Definition der 2 eingefrorenen Signale
+(Positionierung, Divergenz-Radar: Onchain vs Preis) wiederfinden oder neu festlegen.
