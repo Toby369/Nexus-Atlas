@@ -28,6 +28,17 @@
 // im Klartext).
 indicator("Nexus Atlas - Liquidity Sweep", overlay=true)
 
+// Secret als Chart-Input statt hartcodiertem String im Skripttext (Fix
+// 11.09.2026): frueher musste "DEIN_SECRET" in JEDER einzelnen Alarm-
+// Textzeile manuell ersetzt werden -- bei 6 Skripten x mehreren Zeitrahmen
+// eine hohe Fehlerquelle (genau das, was die 401-Serie am 10.09. verursacht
+// hat). Jetzt: EINMAL pro Chart-Anwendung dieses Indikators in den
+// Indikator-Einstellungen eintragen -- gilt automatisch fuer alle
+// alert()-Aufrufe dieses Skripts auf diesem Chart, auch fuer Aenderungen
+// nach einer spaeteren Secret-Rotation (kein erneutes Bearbeiten von
+// Alarm-Texten noetig).
+secret = input.string("DEIN_SECRET", title="Nexus Webhook Secret", group="Nexus Auth")
+
 pivotLen = input.int(5, title="Pivot-Erkennungslaenge (links/rechts)")
 // Default von 0.05% auf 0.12% erhoeht (Rauschfilter fuer Intraday-Setups):
 // verlangt einen deutlicheren Docht-Ueberschuss ueber das Pivot, bevor ein
@@ -66,7 +77,7 @@ if sweepLow
 // LIQUIDITY_SWEEP_LOW = Sell-Side-Liquidity unterhalb eines Swing-Lows
 // gesweept, Schluss darueber zurueck -- moeglicher bullischer Reversal.
 if sweepHigh
-    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"LIQUIDITY_SWEEP_HIGH","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+    alert('{"secret":"' + secret + '","ticker":"BTCUSDT","signal_type":"LIQUIDITY_SWEEP_HIGH","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
 
 if sweepLow
-    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"LIQUIDITY_SWEEP_LOW","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+    alert('{"secret":"' + secret + '","ticker":"BTCUSDT","signal_type":"LIQUIDITY_SWEEP_LOW","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)

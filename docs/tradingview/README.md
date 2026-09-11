@@ -17,14 +17,27 @@ oder der 5-Säulen-Regime-Matrix ein.
 
 ## Setup (pro Skript identisch)
 
-1. Skript in TradingView unter "Pine-Editor" einfügen, `DEIN_SECRET` durch
-   das echte `TRADINGVIEW_WEBHOOK_SECRET` ersetzen.
-2. Auf den Chart anwenden, dann "Alarm erstellen" → Bedingung: das Skript
-   selbst, Auslöser "Beliebiger alert()-Funktionsaufruf".
-3. Unter "Benachrichtigungen" → Webhook-URL → die URL der
+1. Skript in TradingView unter "Pine-Editor" einfügen, speichern.
+2. Auf den Chart anwenden, dann in den **Indikator-Einstellungen** (Zahnrad-
+   Symbol am Indikator) unter "Nexus Auth" → "Nexus Webhook Secret" den
+   echten `TRADINGVIEW_WEBHOOK_SECRET`-Wert eintragen.
+3. "Alarm erstellen" → Bedingung: das Skript selbst, Auslöser "Beliebiger
+   alert()-Funktionsaufruf".
+4. Unter "Benachrichtigungen" → Webhook-URL → die URL der
    `webhook-tradingview` Edge Function eintragen.
-4. **Nie als "Public" veröffentlichen** — das Secret steht im Klartext im
-   Skript-Quelltext. Nur privat/invite-only verwenden.
+5. **Nie als "Public" veröffentlichen.** Nur privat/invite-only verwenden.
+
+**Secret als Chart-Input statt hartcodiertem String (Fix 11.09.2026):**
+vorher stand `DEIN_SECRET` als Platzhalter direkt im Skripttext, musste also
+in JEDEM einzelnen Alarm manuell ersetzt werden — bei 6 Skripten × mehreren
+Zeitrahmen eine hohe Fehlerquelle (Ursache der 401-Serie ab 09./10.09.2026,
+siehe `authGate.ts`-Historie). Jetzt genügt **ein** Eintrag pro
+Chart-Anwendung des Indikators — gilt automatisch für alle `alert()`-Aufrufe
+dieses Skripts auf diesem Chart, auch nach einer späteren Secret-Rotation
+(Wert einmal in den Indikator-Einstellungen ändern, kein Bearbeiten von
+Alarm-Texten mehr nötig). Bestehende Alarme müssen dafür NICHT neu erstellt
+werden — `alert()` liest den Eingabewert bei jedem Auslösen live, nicht nur
+beim Erstellen des Alarms.
 
 ## Fix: Payload-Verschachtelung
 

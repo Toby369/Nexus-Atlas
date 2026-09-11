@@ -40,6 +40,11 @@
 // Klartext).
 indicator("Nexus Atlas - Order Block / FVG", overlay=true)
 
+// Secret als Chart-Input statt hartcodiertem String (Fix 11.09.2026, siehe
+// nexus-liquidity-sweep.pine fuer Begruendung) -- einmal pro Chart-
+// Anwendung in den Indikator-Einstellungen eintragen.
+secret = input.string("DEIN_SECRET", title="Nexus Webhook Secret", group="Nexus Auth")
+
 // minGapPct von 0.05% auf 0.12% erhoeht, obLookback von 10 auf 6 Bars
 // verkuerzt (Rauschfilter fuer Intraday-Setups): groessere, damit
 // relevantere Luecken; engerer Ruecksuche-Radius, damit die gefundene
@@ -63,10 +68,10 @@ bullFvg = low > high[2] and (low - high[2]) / high[2] >= minGapPct / 100 and (no
 bearFvg = high < low[2] and (low[2] - high) / low[2] >= minGapPct / 100 and (not htfTrendFilter or htfBearish)
 
 if bullFvg
-    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"FAIR_VALUE_GAP_BULLISH","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+    alert('{"secret":"' + secret + '","ticker":"BTCUSDT","signal_type":"FAIR_VALUE_GAP_BULLISH","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
 
 if bearFvg
-    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"FAIR_VALUE_GAP_BEARISH","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+    alert('{"secret":"' + secret + '","ticker":"BTCUSDT","signal_type":"FAIR_VALUE_GAP_BEARISH","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
 
 // --- Order Block ---
 pivotHigh = ta.pivothigh(high, pivotLen, pivotLen)
@@ -117,7 +122,7 @@ hasBullishInLookback() =>
 // Nur alerten, wenn tatsaechlich eine Gegenkerze innerhalb obLookback
 // existiert -- sonst gibt es kein plausibles Order-Block-Level zu melden.
 if bosUp and hasBearishInLookback()
-    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"ORDER_BLOCK_BULLISH","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+    alert('{"secret":"' + secret + '","ticker":"BTCUSDT","signal_type":"ORDER_BLOCK_BULLISH","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
 
 if bosDown and hasBullishInLookback()
-    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"ORDER_BLOCK_BEARISH","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+    alert('{"secret":"' + secret + '","ticker":"BTCUSDT","signal_type":"ORDER_BLOCK_BEARISH","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)

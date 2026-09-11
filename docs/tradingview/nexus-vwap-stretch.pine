@@ -31,6 +31,11 @@
 // Niemals als "Public" veroeffentlichen (Secret im Klartext).
 indicator("Nexus Atlas - VWAP Extreme Stretch", overlay=true)
 
+// Secret als Chart-Input statt hartcodiertem String (Fix 11.09.2026, siehe
+// nexus-liquidity-sweep.pine fuer Begruendung) -- einmal pro Chart-
+// Anwendung in den Indikator-Einstellungen eintragen.
+secret = input.string("DEIN_SECRET", title="Nexus Webhook Secret", group="Nexus Auth")
+
 // Default von 2.0 auf 2.75 Stddev erhoeht (Rauschfilter fuer Intraday-
 // Setups): deutlich selteneres, aber extremeres Ueberdehnungs-Signal.
 stretchMult = input.float(2.75, title="Stddev-Multiplikator")
@@ -45,7 +50,7 @@ isOversold = ta.crossunder(close, lowerBand)
 // high/low -- vermeidet eine Abweichung zwischen dem ausloesenden Wert und
 // dem gemeldeten Preis.
 if isOverbought
-    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"VWAP_STRETCH_HI","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+    alert('{"secret":"' + secret + '","ticker":"BTCUSDT","signal_type":"VWAP_STRETCH_HI","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
 
 if isOversold
-    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"VWAP_STRETCH_LO","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+    alert('{"secret":"' + secret + '","ticker":"BTCUSDT","signal_type":"VWAP_STRETCH_LO","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)

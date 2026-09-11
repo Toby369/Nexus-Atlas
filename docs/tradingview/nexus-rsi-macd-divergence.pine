@@ -33,6 +33,11 @@
 // im Klartext).
 indicator("Nexus Atlas - RSI/MACD Divergence", overlay=false)
 
+// Secret als Chart-Input statt hartcodiertem String (Fix 11.09.2026, siehe
+// nexus-liquidity-sweep.pine fuer Begruendung) -- einmal pro Chart-
+// Anwendung in den Indikator-Einstellungen eintragen.
+secret = input.string("DEIN_SECRET", title="Nexus Webhook Secret", group="Nexus Auth")
+
 lbL = input.int(5, title="Pivot Lookback Left")
 lbR = input.int(5, title="Pivot Lookback Right")
 rangeLower = input.int(5, title="Min. Baranzahl zwischen Pivots")
@@ -86,13 +91,13 @@ macdPriceHH = high[lbR] > macdPrevHigh and (high[lbR] - macdPrevHigh) / macdPrev
 macdBearDiv = macdPriceHH and macdOscLH and macdPhFound
 
 if rsiBullDiv
-    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"RSI_BULLISH_DIVERGENCE","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+    alert('{"secret":"' + secret + '","ticker":"BTCUSDT","signal_type":"RSI_BULLISH_DIVERGENCE","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
 
 if rsiBearDiv
-    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"RSI_BEARISH_DIVERGENCE","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+    alert('{"secret":"' + secret + '","ticker":"BTCUSDT","signal_type":"RSI_BEARISH_DIVERGENCE","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
 
 if macdBullDiv
-    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"MACD_BULLISH_DIVERGENCE","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+    alert('{"secret":"' + secret + '","ticker":"BTCUSDT","signal_type":"MACD_BULLISH_DIVERGENCE","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
 
 if macdBearDiv
-    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"MACD_BEARISH_DIVERGENCE","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+    alert('{"secret":"' + secret + '","ticker":"BTCUSDT","signal_type":"MACD_BEARISH_DIVERGENCE","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)

@@ -23,6 +23,11 @@
 // -- das Secret steht im Klartext im Skript.
 indicator("Nexus Atlas - Volume Expansion Alert", overlay=true)
 
+// Secret als Chart-Input statt hartcodiertem String (Fix 11.09.2026, siehe
+// nexus-liquidity-sweep.pine fuer Begruendung) -- einmal pro Chart-
+// Anwendung in den Indikator-Einstellungen eintragen.
+secret = input.string("DEIN_SECRET", title="Nexus Webhook Secret", group="Nexus Auth")
+
 volMultiplier = input.float(2.0, title="Volumen-Multiplikator (x MA)")
 length = input.int(20, title="MA Periode")
 htfTrendFilter = input.bool(true, title="Nur mit 1h-Trend (EMA50/EMA200)")
@@ -48,7 +53,7 @@ isBreakoutDown = ta.crossunder(close, ta.lowest(low[1], length)) and isHighVol a
 // ein zusaetzliches verschachteltes Feld wuerde als "payload.payload.price"
 // statt "payload.price" landen.
 if isBreakoutUp
-    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"VOLUME_EXPANSION_BULL","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+    alert('{"secret":"' + secret + '","ticker":"BTCUSDT","signal_type":"VOLUME_EXPANSION_BULL","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
 
 if isBreakoutDown
-    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"VOLUME_EXPANSION_BEAR","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+    alert('{"secret":"' + secret + '","ticker":"BTCUSDT","signal_type":"VOLUME_EXPANSION_BEAR","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)

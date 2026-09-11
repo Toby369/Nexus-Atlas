@@ -24,6 +24,11 @@
 // Niemals als "Public" veroeffentlichen (Secret im Klartext).
 indicator("Nexus Atlas - Squeeze Breakout", overlay=false)
 
+// Secret als Chart-Input statt hartcodiertem String (Fix 11.09.2026, siehe
+// nexus-liquidity-sweep.pine fuer Begruendung) -- einmal pro Chart-
+// Anwendung in den Indikator-Einstellungen eintragen.
+secret = input.string("DEIN_SECRET", title="Nexus Webhook Secret", group="Nexus Auth")
+
 length = input.int(20, title="BB/KC Basis-Periode")
 bbMult = input.float(2.0, title="Bollinger-Multiplikator")
 kcMult = input.float(1.5, title="Keltner-Multiplikator")
@@ -55,7 +60,7 @@ isBullRelease = sqzRelease and close > basis and (not htfTrendFilter or htfBulli
 isBearRelease = sqzRelease and close < basis and (not htfTrendFilter or htfBearish)
 
 if isBullRelease
-    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"SQUEEZE_RELEASE_BULL","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+    alert('{"secret":"' + secret + '","ticker":"BTCUSDT","signal_type":"SQUEEZE_RELEASE_BULL","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
 
 if isBearRelease
-    alert('{"secret":"DEIN_SECRET","ticker":"BTCUSDT","signal_type":"SQUEEZE_RELEASE_BEAR","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+    alert('{"secret":"' + secret + '","ticker":"BTCUSDT","signal_type":"SQUEEZE_RELEASE_BEAR","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
