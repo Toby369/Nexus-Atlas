@@ -89,6 +89,16 @@ Divergenz, deren Aussage sich per Definition erst bilden kann, während die Umke
 Jeder Signalgeber hat jetzt genau eine Zeile — das ist der Kern der Vorregistrierung, ab hier
 nicht mehr änderbar für die laufende Auswertung.
 
+**Nachtrag 11.09.2026 — zwei Quellen-Entscheidungen vor Implementierungsstart (mit Toby
+abgestimmt):**
+- **MTF-Alignment** = striktes 3-Way-Match aus `market_features.structure_trend` (1h, 4h, 1d
+  alle `'bullish'` bzw. alle `'bearish'`, Point-in-Time-Asof-Join), NICHT die Live-Produktions-
+  Variante (`market_states.mtf_alignment`, nur 4h-Struktur, nur ~13 Tage Historie). Identisch
+  zur bereits in `TRIPLE-BARRIER-MTF-ALIGNMENT_2026-09-04.md` verwendeten Methodik.
+- **CVD-Richtung, Trendstärke (ADX+DI), Trend-Regime (EMA50/200), VWAP-Position** = jeweils aus
+  `market_features` bei `interval='15m'` (volle 2-Jahres-Historie), NICHT aus
+  `market_states.factors[...]` (Live-Engine, nur ~2 Wochen Historie).
+
 ## 3. Pro-Signal-Fenster (kein gemeinsames Fenster)
 
 Jedes Signal wird über **sein eigenes** verfügbares Zeitfenster getestet: von seinem
