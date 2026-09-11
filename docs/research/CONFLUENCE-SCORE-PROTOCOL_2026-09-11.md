@@ -52,15 +52,29 @@ nicht Teil dieses Dokuments.
 
 Für **jeden** Signalgeber (alle 26 Kacheln/14 Engine-Faktoren/8 Divergenz-Paare/15
 TradingView-Typen, außer YouTube-Monitor und News) wird **vor** dem ersten Test genau eine
-Kategorie fest zugeordnet — keine spätere Umklassifizierung, egal wie das Ergebnis ausfällt:
+Kategorie fest zugeordnet — keine spätere Umklassifizierung, egal wie das Ergebnis ausfällt.
 
-| Kategorie | Gültiges Fenster relativ zum Setup | Beispiele (vorläufige Einordnung, vor Prüfung) |
+**Endgültig festgelegt (11.09.2026, mit Toby abgestimmt):**
+
+| Kategorie | Gültiges Fenster relativ zum Setup | Signalgeber |
 |---|---|---|
-| **Leading** | t-4h bis Entry (t0) — muss VOR dem Setup aktiv gewesen sein | Struktur (15m/1h/4h/1d), MTF-Alignment, Funding, Sentiment, Positionierung, Orderbuch, Divergenz-Radar-Paare |
-| **Confirming** | Entry bis Preis +5%-Marge erreicht (Setup läuft noch, aber schon im Plus) | MACD/RSI-Kreuzungen, Trendfolge-Signale, TradingView-Trendfolge-Alerts |
+| **Leading** | t-4h bis Entry (t0) — muss VOR dem Setup aktiv gewesen sein | Struktur 15m/1h/4h/1d, MTF-Alignment, CVD-Richtung, Trendstärke (ADX+DI), Trend-Regime (EMA50/200), VWAP-Position, Funding, Fear & Greed, Positionierung (Divergence-Engine-Score), Orderbuch-Imbalance, Optionen (Put/Call), Makro-Regime, Divergenz-Radar (3 gerichtete Paare), Warn-Muster (Distribution Warning/Capitulation/Short Squeeze/Fragile Bullish), TradingView-Event-Signale (Liquidity Sweep, Order Block, Fair Value Gap, Squeeze Breakout, Volume Expansion, VWAP Stretch) |
+| **Confirming** | Entry bis Preis +5%-Marge erreicht (Setup läuft noch, aber schon im Plus) | TradingView RSI/MACD-Divergenz, Momentum-Faktor (RSI+MACD-Kombination) |
 
-Jeder Signalgeber bekommt genau eine Zeile in einer Klassifizierungstabelle, bevor
-irgendein Setup ausgewertet wird — das ist der Kern der Vorregistrierung.
+**Begründung Struktur-Faktoren → Leading** (war der einzige Klärungsbedarf): `structure_trend`
+(`collect-candles::computeMarketStructure`) ist ein **Zustandslabel** (HH/HL/LH/LL-Sequenz →
+bullish/bearish, per BOS/CHoCH aktualisiert), kein Ereignis-Indikator. Die fraktale
+Swing-Erkennung (`SWING_LOOKBACK=5`) bestätigt einen Swing-Punkt zwar erst 5 Kerzen nach seiner
+Entstehung — das ist eine **Erkennungsverzögerung relativ zur eigenen Entstehung**, keine
+Look-forward-Information relativ zum Entry-Zeitpunkt: der Wert ist immer schon vollständig
+verfügbar, bevor ein Setup beginnt (punkt-in-Zeit-sicher, wie bereits in
+`research_build_triple_barrier_context` umgesetzt: nur die zuletzt vollständig abgeschlossene
+Kerze je Intervall vor Signal-Zeitpunkt). Unterscheidet sich damit grundsätzlich von einer
+Divergenz, deren Aussage sich per Definition erst bilden kann, während die Umkehrbewegung
+(= das Setup selbst) bereits läuft.
+
+Jeder Signalgeber hat jetzt genau eine Zeile — das ist der Kern der Vorregistrierung, ab hier
+nicht mehr änderbar für die laufende Auswertung.
 
 ## 3. Pro-Signal-Fenster (kein gemeinsames Fenster)
 
