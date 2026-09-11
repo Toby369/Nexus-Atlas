@@ -159,6 +159,29 @@ und rechnet die Korrektur über den **gesamten** Pool neu (analog `research_bh_f
 nicht pro Lauf zurückgesetzt. Bewusste Konsequenz: ein heute signifikantes Signal kann später
 wieder herausfallen, wenn der Pool wächst — das ist korrektes Verhalten, kein Fehler.
 
+## 6b. Nachtrag 11.09.2026 — Staleness-Toleranz pro Signal statt einheitlichem Fenster
+
+Bei der Implementierung zeigte sich: eine einheitliche "t-4h bis Entry"-Regel für ALLE Leading-
+Signale scheitert an langsam aktualisierenden Quellen (Struktur 1d aktualisiert nur alle 24h —
+bei starrer 4h-Toleranz würde dieses Signal faktisch permanent als "nicht aktiv" gewertet,
+ein Modellierungsartefakt statt eines echten Befunds). Entscheidung (mit Toby abgestimmt,
+folgt der etablierten Praxis in Point-in-Time-Datenverarbeitung/ASOF-JOIN-Konventionen —
+Toleranz an die eigene Aktualisierungs-Kadenz der Quelle koppeln, nicht an eine globale Zahl):
+
+| Signal-Typ | Toleranz |
+|---|---|
+| 15m/1h-Kerzen-basiert (Struktur 15m/1h, CVD, Trendstärke, Trend-Regime, VWAP-Position, Momentum-Faktor) | 4h |
+| Struktur 4h | 8h |
+| Struktur 1d, Fear & Greed, Makro-Regime | 30h |
+| Funding | 10h |
+| Positionierung, Orderbuch-Imbalance, Optionen | 4h (5-Min-Erfassungstakt) |
+
+**Merkposten für eine spätere Verfeinerung (bewusst NICHT jetzt umgesetzt):** statt eines
+harten Gültig/Ungültig-Cutoffs ein **Decay-Gewicht** (z.B. exponentieller Zerfall nach
+Signal-Halbwertszeit) — Praxis bei quantitativen Alpha-Research-Desks, verwendet Signale mit
+abnehmendem statt binärem Gewicht je nach Alter. Für diese Phase zu viel Zusatzkomplexität,
+aber explizit als möglicher Ausbauschritt vorgemerkt.
+
 ## 7. Explizit NICHT Teil dieser Version
 
 - **Keine Regime-Phase-Aufteilung** (seitwärts/Trend/Chop) — bewusst zurückgestellt. Grund:
