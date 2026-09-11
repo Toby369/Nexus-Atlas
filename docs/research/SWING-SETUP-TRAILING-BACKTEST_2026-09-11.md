@@ -155,9 +155,64 @@ letztlich erfolgreiche Query herausstellte.
   Wenn du beobachtest, dass deine eigenen Stops regelmäßig spürbar schlechter als der
   eingestellte Preis füllen, ist das nicht ungewöhnlich — es ist strukturell zu erwarten,
   besonders bei 0,5% engen Stops auf 15m-Bewegungen.
-- Offene Frage für eine engere Eingrenzung: 1m-Kerzen für BTCUSDT nachladen, um den
-  tatsächlichen Kreuzungspreis statt des 15m-Kerzentiefs zu berechnen — bisher nicht
-  umgesetzt, da das Projekt aktuell keine 1m-Historie vorhält.
+- Die offene Frage aus der ersten Fassung dieses Dokuments ("1m-Kerzen nachladen, um den
+  tatsächlichen Kreuzungspreis zu berechnen") wurde umgesetzt — siehe Abschnitt 8.
+
+## 8. Nachtrag: 1m-Verfeinerung der SL-Slippage-Frage
+
+**Vorgehen:** BTCUSDT-1m-Kerzen für den vollen Zeitraum (2024-09-04 bis 2026-09-04,
+1.051.201 Zeilen) nachgeladen (`backfill-history` Edge Function um `"1m"` erweitert,
+bewusst ohne `market_features`-Berechnung für dieses Intervall — kein Indikator-Set dafür
+angefragt). Für jede SL-Zeile ist `resolution_time` exakt die 15m-Kerze, die den Stop zuerst
+berührt hat — bekannt, muss nicht neu gesucht werden. Neue Spalte `mfe_pct_1m`: für jede
+SL-Zeile die ersten (chronologisch frühesten) der bis zu 15 zugehörigen 1m-Kerzen gesucht,
+die die SL-Marke tatsächlich kreuzt, und deren Tief/Hoch statt des 15m-Kerzentiefs verwendet.
+
+**Abdeckung:** 107.457 von 107.475 SL-Zeilen (99,98%) erfolgreich verfeinert. Die 18 fehlenden
+Zeilen (alle LONG, alle mit `resolution_time` am 2026-09-04 zwischen 01:15 und 08:00 Uhr) liegen
+außerhalb des 1m-Datenfensters, das exakt bis 2026-09-04 00:00 Uhr reicht — ein Randeffekt der
+gewählten 1m-Backfill-Grenze, kein Fehler in der Berechnung.
+
+**Ergebnis — Verteilung schrumpft deutlich:**
+
+| Richtung | Kennzahl | 15m-Auflösung | 1m-Auflösung |
+|---|---|---|---|
+| LONG | Ø | -0,69% | -0,57% |
+| LONG | Median | -0,61% | -0,54% |
+| LONG | p01 | -1,75% | -0,98% |
+| LONG | Schlechtester Wert | -9,47% | -2,35% |
+| LONG | Anteil <-2% | 0,60% | 0,03% |
+| SHORT | Ø | -0,70% | -0,58% |
+| SHORT | Median | -0,62% | -0,54% |
+| SHORT | p01 | -1,68% | -1,05% |
+| SHORT | Schlechtester Wert | -5,75% | -2,79% |
+| SHORT | Anteil <-2% | 0,50% | 0,04% |
+
+Der Median liegt jetzt nur noch ~0,04 Prozentpunkte über dem theoretischen -0,5%-Stop (vorher
+~0,11 Pp bei 15m) — der Großteil des in Abschnitt 4 beschriebenen "gewöhnlichen Überschusses"
+war tatsächlich ein Auflösungsartefakt der 15m-Simulation. Ein Rest-Tail bleibt aber auch bei
+1m-Auflösung bestehen (schlechtester Fall weiterhin -2,35%/-2,79%, statt -0,5% wie ein exakter
+Stop) — das ist jetzt näherungsweise echtes Slippage-Risiko, keine Simulationsungenauigkeit mehr.
+
+**Der entscheidende Vergleich — Erwartungswert:**
+
+| Richtung | Theoretisch (-0,5% fix) | 15m-Auflösung | 1m-Auflösung |
+|---|---|---|---|
+| LONG | +0,058% | -0,089% | **+0,002%** |
+| SHORT | +0,059% | -0,094% | **-0,004%** |
+
+Die 1m-verfeinerte Antwort liegt fast exakt zwischen den beiden Polen aus Abschnitt 5 —
+praktisch bei null, weder klar positiv noch klar negativ. Das bestätigt die dort formulierte
+Vermutung direkt: der 15m-Wert war zu pessimistisch (Auflösungsartefakt), der theoretische Wert
+zu optimistisch (ignoriert jede Ausführungsrealität) — die ehrliche Antwort ist ein Setup ohne
+nachweisbaren Erwartungswert-Vorteil, weder klar profitabel noch klar unprofitabel, sobald
+realistische Ausführung berücksichtigt wird.
+
+**Einordnung:** Das ist weiterhin keine Tick-genaue Ausführungssimulation (1m ist immer noch
+1440x gröber als eine reale Order-Ausführung), aber eine 15-fach feinere Annäherung als zuvor.
+Die verbleibende Differenz zum theoretischen Wert (~0,06 Pp) lässt sich plausibel als reales,
+nicht weiter reduzierbares Slippage-Risiko interpretieren, nicht als Backtest-Artefakt.
 
 **Neue DB-Objekte:** `research_swing_setup_events()` (Funktion), `research_swing_setup_results`
-(Tabelle, 140.160 Zeilen für dieses Setup: LONG 70.080 + SHORT 70.080).
+(Tabelle, 140.160 Zeilen: LONG 70.080 + SHORT 70.080, plus Spalte `mfe_pct_1m` aus Abschnitt 8),
+BTCUSDT-1m-Kerzen in `candles` (1.051.201 Zeilen, 2024-09-04 bis 2026-09-04).
