@@ -112,25 +112,72 @@ Nahezu deckungsgleich zwischen Train und Test in beiden Richtungen — kein Over
 Alle vier halten out-of-sample — teils (CVD-Z UP) sogar stärker im Test als im Training, ein
 gutes Zeichen gegen Overfitting-Verdacht.
 
+## Produktiver WOE-Score (12.09.2026)
+
+Identische Methodik wie beim Setup-Score (Weight-of-Evidence, `base_logit + Σ WOE(aktive
+Zustände)`, siehe `CONFLUENCE-SCORE-PHASE3-RESULTS_2026-09-11.md` Abschnitt 6c) — **eigene,
+komplett unabhängige Gewichte**. Asymmetrische Faktorenliste je Richtung, weil nur verwendet
+wird, was für GENAU DIESE Richtung die BH-FDR-Korrektur besteht:
+
+- **UP:** Trend-Konsens (0-6) + CVD-Z-Score + Bollinger %b (Momentum-Faktor UP war nicht
+  signifikant, p=0,06 — bewusst weggelassen statt eines schwachen/nicht bestätigten Faktors).
+- **DOWN:** Trend-Konsens (0-6) + CVD-Z-Score + Momentum-Faktor (Bollinger %b DOWN war nicht
+  signifikant, p=0,60 — ebenfalls bewusst weggelassen).
+
+**Terzil-Grenzen (kombinierter Logit über alle 8.813 Bewertungspunkte):**
+
+| Richtung | Basisrate | Niedrig bis | Mittel bis | Hoch ab |
+|---|---|---|---|---|
+| UP | 33,0% | ≤30,5% | ≤33,8% | >33,8% (bis 44,7% bei vollem Konsens) |
+| DOWN | 33,5% | ≤31,1% | ≤34,7% | >34,7% (bis 46,7% bei vollem Konsens) |
+
+**Out-of-Sample-Bestätigung des fertigen, kombinierten Scores** (nicht nur des Trend-Konsens
+allein, siehe oben — hier der volle WOE-kombinierte Score mit allen 3 Faktoren):
+
+| Stufe | UP Train | UP Test | DOWN Train | DOWN Test |
+|---|---|---|---|---|
+| Niedrig | 27,5% | 26,7% | 29,2% | 31,1% |
+| Mittel | 31,4% | 32,1% | 31,2% | 34,5% |
+| Hoch | 40,9% | 41,5% | 38,8% | 39,3% |
+
+Sauber monoton und stabil zwischen Train/Test in beiden Richtungen — der kombinierte Score
+funktioniert, nicht nur seine Einzelteile.
+
+**Live-Snapshot zum Zeitpunkt dieses Berichts** (`research_regime_score_live()`): UP 25,6%
+(Niedrig, Trend-Konsens 1/6), DOWN 31,1% (Niedrig, Trend-Konsens 2/6) — aktuell also weder
+klar bullisches noch bearishes Signal.
+
 ## Einordnung — noch nicht die Ebene-1-Bewertung
 
-Wie im Struktur-Konzept (Abschnitt 5) festgehalten: dies ist Zwischenstand einer laufenden
-Validierung, kein fertiger Score. Out-of-Sample-Validierung und Kollinearitäts-Prüfung sind jetzt
-erledigt (siehe oben) — **noch ausstehend, bevor eine Gesamteinschätzung-Score-Zahl entstehen
-kann:**
+Wie im Struktur-Konzept (Abschnitt 5) festgehalten: Kollinearitäts-Prüfung, Out-of-Sample-
+Validierung und ein produktiver WOE-Score sind jetzt erledigt (siehe oben) — methodisch auf
+demselben Stand wie der Setup-Score. **Trotzdem noch nicht Ebene 1**, weil erst 17 von 39
+vorregistrierten Kandidaten getestet wurden:
 
 1. Die 22 noch nicht getesteten Kandidaten (18 Original-Signale ohne reproduzierbare
    Klassifizierungslogik + 4 datenknappe neue Regime-Matrix-Signale, siehe Protokoll Abschnitt 2)
-   — spätere Erweiterungsrunde, ändert nichts an den hier festgehaltenen Ergebnissen (kumulativer
-   BH-FDR-Pool wächst nur).
-2. Score-Architektur-Entscheidung (WOE-Kombination aus Trend-Konsens + CVD-Z-Score +
-   Momentum-Faktor + Bollinger %b als vier quasi-unabhängige Faktoren) — analog zum
-   Setup-Score-Vorgehen, aber noch nicht umgesetzt.
+   — spätere Erweiterungsrunde. Kumulativer BH-FDR-Pool wächst nur, bestehende Ergebnisse bleiben
+   gültig (identisches Prinzip wie beim Setup-Score).
+2. Sobald weitere Kandidaten getestet sind: `research_regime_score_refresh()` erneut ausführen
+   (überschreibt WOE/Tiers vollständig neu aus dem dann grösseren Signal-Set).
+
+**Wöchentlicher Cron `regime-score-pipeline-weekly`** (Montag 05:30 UTC, 30 Min nach dem
+Setup-Score-Job) hält das Ganze von Anfang an lernend statt statisch — direkte Umsetzung von
+"Nexus und der Score sind lernbar" (Struktur-Konzept Abschnitt 0).
 
 ## Neue DB-Objekte
 
 `research_regime_evaluation_events()` (Ereignisquelle), `research_regime_signal_activation`
 (Aktivierung je Bewertungspunkt/Signal/Richtung), `research_regime_signal_stats` +
 `research_regime_refresh_stats()` (Statistik, eigener Pool), `research_regime_bh_fdr(alpha)`
-(BH-FDR, komplett getrennt von `research_confluence_bh_fdr`). `backfill-history` Edge Function
-um `computeAtr()` ergänzt (deployed v9) und einmalig über die volle 1h-Historie ausgeführt.
+(BH-FDR, komplett getrennt von `research_confluence_bh_fdr`), `research_regime_score_woe` +
+`research_regime_score_tiers` + `research_regime_score_refresh()` (WOE-Kombination),
+`research_regime_score_live()` (Live-Lookup, analog `research_confluence_score_live()`),
+Cron-Job `regime-score-pipeline-weekly`. `backfill-history` Edge Function um `computeAtr()`
+ergänzt (deployed v9) und einmalig über die volle 1h-Historie ausgeführt.
+
+**Noch offen (nächster Schritt, nicht Teil dieser Umsetzung):** UI-Anbindung. Bewusst noch nicht
+gemacht — der Score ist methodisch fertig, aber erst 17 von 39 Kandidaten getestet, und das
+Struktur-Konzept sieht die Gesamteinschätzung ohnehin erst nach vollständiger Validierung als
+Ebene-1-Kachel vor. Live-Abfrage per SQL ist jederzeit möglich, ohne dass dafür schon eine
+sichtbare Kachel existieren muss.
