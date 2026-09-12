@@ -28,6 +28,7 @@ import { getTimeframe, parseTimeframe, type TimeframeId } from "@/lib/timeframes
 import { buildLiveLeverageMap } from "@/lib/leverageMapContext";
 import { buildCycleIndicators } from "@/lib/cycleIndicatorsContext";
 import { buildDivergenceRadar } from "@/lib/divergenceRadarContext";
+import { buildConfluenceScore } from "@/lib/confluenceScoreContext";
 import { detectEscalationTriggers } from "@/lib/escalationContext";
 import { parseAnchorParam, parseAnchorEndParam } from "@/lib/anchor";
 import { TRADINGVIEW_SIGNAL_FRESHNESS_HOURS } from "@/lib/tradingViewSignal";
@@ -52,6 +53,7 @@ import HandelslageCard from "@/components/HandelslageCard";
 import QuizTile from "@/components/QuizTile";
 import OrderbookWallCard from "@/components/OrderbookWallCard";
 import DivergenceRadarCard from "@/components/DivergenceRadarCard";
+import ConfluenceScoreCard from "@/components/ConfluenceScoreCard";
 import NewsAnalysisCard from "@/components/NewsAnalysisCard";
 import SignalEngineCard from "@/components/SignalEngineCard";
 import SignalReviewCard from "@/components/SignalReviewCard";
@@ -590,6 +592,7 @@ export default async function Home({
     cycleIndicators,
     latestOrderbookWalls,
     divergenceRadar,
+    confluenceScore,
     latestNewsAnalysis,
     latestSignalEngine,
     latestSignalReview,
@@ -618,6 +621,7 @@ export default async function Home({
     buildCycleIndicators(),
     getLatestOrderbookWalls(),
     buildDivergenceRadar(),
+    buildConfluenceScore(),
     getLatestNewsAnalysis(),
     getLatestSignalEngine(),
     getLatestSignalReview(),
@@ -778,6 +782,7 @@ export default async function Home({
                     "spot-pressure": <SpotPressurePanel timeframe={timeframe} />,
                     "orderbook-walls": <OrderbookWallCard walls={latestOrderbookWalls} />,
                     "divergence-radar": <DivergenceRadarCard radar={divergenceRadar} />,
+                    "confluence-score": <ConfluenceScoreCard score={confluenceScore} />,
                     positioning: <PositioningPanel />,
                     liquidations: (
                       <LiquidationPanel
