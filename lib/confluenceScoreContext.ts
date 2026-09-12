@@ -12,9 +12,15 @@ import { supabase } from "./supabase";
 
 export type ConfluenceScoreTier = "Niedrig" | "Mittel" | "Hoch";
 
+export interface TrendSignalState {
+  name: string;
+  active: boolean;
+}
+
 export interface ConfluenceScoreRow {
   direction: "LONG" | "SHORT";
   trendCount: number;
+  trendSignals: TrendSignalState[];
   fearGreedActive: boolean;
   fearGreedClassification: string | null;
   makroActive: boolean;
@@ -41,6 +47,7 @@ export async function buildConfluenceScore(): Promise<ConfluenceScoreResult> {
   const rows: ConfluenceScoreRow[] = (data ?? []).map((row: {
     direction: "LONG" | "SHORT";
     trend_count: number;
+    trend_signals: { name: string; active: boolean }[] | null;
     fear_greed_active: boolean;
     fear_greed_classification: string | null;
     makro_active: boolean;
@@ -53,6 +60,7 @@ export async function buildConfluenceScore(): Promise<ConfluenceScoreResult> {
   }) => ({
     direction: row.direction,
     trendCount: row.trend_count,
+    trendSignals: row.trend_signals ?? [],
     fearGreedActive: row.fear_greed_active,
     fearGreedClassification: row.fear_greed_classification,
     makroActive: row.makro_active,

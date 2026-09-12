@@ -3,6 +3,7 @@ import type {
   ConfluenceScoreRow,
   ConfluenceScoreTier,
   ConfluenceSignalDetail,
+  TrendSignalState,
 } from "@/lib/confluenceScoreContext";
 import PanelInfo from "@/components/PanelInfo";
 
@@ -50,6 +51,33 @@ function FactorLine({ label, active }: { label: string; active: boolean }) {
   );
 }
 
+// Nutzer-Wunsch (12.09.2026): "beim tippen sehen weshalb (welches Signal)
+// der befund so ist" -- die verdichtete "Trend-Konfirmation (X/9)"-Zeile
+// verriet bisher nur die Summe, nicht welche der 9 Struktur-/Trend-Signale
+// gerade aktiv sind. Antippen klappt jetzt genau diese 9 Einzelsignale auf
+// (research_confluence_score_live() liefert sie jetzt einzeln mit, siehe
+// Migration add_trend_signal_breakdown_to_confluence_live) -- dieselbe
+// Zahlen-Basis wie zuvor, nur zusaetzlich einzeln sichtbar.
+function TrendConfirmationLine({ trendCount, trendSignals }: { trendCount: number; trendSignals: TrendSignalState[] }) {
+  const active = trendCount >= 2;
+  return (
+    <details className="text-[11px]">
+      <summary className="flex items-center justify-between cursor-pointer select-none">
+        <span className="text-text-faint">Trend-Konfirmation ({trendCount}/9)</span>
+        <span className={active ? "text-text" : "text-text-faint"}>{active ? "aktiv" : "—"}</span>
+      </summary>
+      <div className="mt-1 pl-2 space-y-0.5 border-l border-border/60">
+        {trendSignals.map((s) => (
+          <div key={s.name} className="flex items-center justify-between">
+            <span className="text-text-faint">{s.name}</span>
+            <span className={s.active ? "text-text" : "text-text-faint"}>{s.active ? "aktiv" : "—"}</span>
+          </div>
+        ))}
+      </div>
+    </details>
+  );
+}
+
 function ScoreRow({ row, label }: { row: ConfluenceScoreRow | null; label: string }) {
   if (!row) {
     return (
@@ -69,7 +97,7 @@ function ScoreRow({ row, label }: { row: ConfluenceScoreRow | null; label: strin
         </span>
       </div>
       <div className="space-y-1 pt-1 border-t border-border/60">
-        <FactorLine label={`Trend-Konfirmation (${row.trendCount}/9)`} active={row.trendCount >= 2} />
+        <TrendConfirmationLine trendCount={row.trendCount} trendSignals={row.trendSignals} />
         <FactorLine
           label={`Fear & Greed${row.fearGreedClassification ? ` (${row.fearGreedClassification})` : ""}`}
           active={row.fearGreedActive}
