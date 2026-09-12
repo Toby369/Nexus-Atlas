@@ -29,6 +29,7 @@ import { buildLiveLeverageMap } from "@/lib/leverageMapContext";
 import { buildCycleIndicators } from "@/lib/cycleIndicatorsContext";
 import { buildDivergenceRadar } from "@/lib/divergenceRadarContext";
 import { buildConfluenceScore, buildConfluenceSignalDetail } from "@/lib/confluenceScoreContext";
+import { buildRegimeScore } from "@/lib/regimeScoreContext";
 import { detectEscalationTriggers } from "@/lib/escalationContext";
 import { parseAnchorParam, parseAnchorEndParam } from "@/lib/anchor";
 import { TRADINGVIEW_SIGNAL_FRESHNESS_HOURS } from "@/lib/tradingViewSignal";
@@ -54,6 +55,7 @@ import QuizTile from "@/components/QuizTile";
 import OrderbookWallCard from "@/components/OrderbookWallCard";
 import DivergenceRadarCard from "@/components/DivergenceRadarCard";
 import ConfluenceScoreCard from "@/components/ConfluenceScoreCard";
+import RegimeScoreCard from "@/components/RegimeScoreCard";
 import NewsAnalysisCard from "@/components/NewsAnalysisCard";
 import SignalEngineCard from "@/components/SignalEngineCard";
 import SignalReviewCard from "@/components/SignalReviewCard";
@@ -594,6 +596,7 @@ export default async function Home({
     divergenceRadar,
     confluenceScore,
     confluenceSignalDetail,
+    regimeScore,
     latestNewsAnalysis,
     latestSignalEngine,
     latestSignalReview,
@@ -624,6 +627,7 @@ export default async function Home({
     buildDivergenceRadar(),
     buildConfluenceScore(),
     buildConfluenceSignalDetail(),
+    buildRegimeScore(),
     getLatestNewsAnalysis(),
     getLatestSignalEngine(),
     getLatestSignalReview(),
@@ -744,6 +748,7 @@ export default async function Home({
 
             <MarketStateCard initialState={marketState} />
             <ConfluenceScoreCard score={confluenceScore} signalDetail={confluenceSignalDetail} />
+            <RegimeScoreCard score={regimeScore} />
 
             <LivePriceDataProvider
                 timeframe={timeframe}

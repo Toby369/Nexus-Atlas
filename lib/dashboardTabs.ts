@@ -11,6 +11,20 @@ import { DASHBOARD_TILE_IDS } from "./dashboardTiles";
 // die Tabs uebernehmen dessen Aufgabe (Standardansicht kompakt halten)
 // gruendlicher, ein zusaetzlicher Klick zum Aufklappen ist damit nicht mehr
 // noetig.
+//
+// 12.09.2026 -- von 5 auf 3 Reiter konsolidiert (NEXUS-STRUKTUR-KONZEPT
+// Abschnitt 3: "einheitlicher, leichter lesbar"). Urspruenglich als 1:1-
+// Abbildung der 3 Ebenen (Bewertung/Signale im Detail/Beobachtung) geplant --
+// bei der Umsetzung zeigte sich, dass Ebene 1 (Setup-Score, Gesamteinschaetzung,
+// Gesamteinschaetzung-Score) ohnehin schon fest OBERHALB dieser Tabs sitzt
+// (siehe app/page.tsx, lib/dashboardTiles.ts-Kommentar) und Ebene 2 keine
+// eigenen Kacheln mehr hat (die validierten/unbestaetigten Signale stecken
+// als Aufklapper IN der Setup-Score-Kachel, nicht in eigenen Tiles -- siehe
+// GESAMTEINSCHAETZUNG-SCORE-PHASE1-RESULTS_2026-09-12.md-Korrektur). Ein
+// dritter, redundanter "Ebene 2"-Tab ohne eigenen Inhalt haette nur verwirrt.
+// Die 3 Reiter gruppieren stattdessen die bestehenden Kacheln inhaltlich neu
+// (statt 5 feinere Themen) -- weniger Klicks, gleiche Kacheln, kein
+// Datenverlust.
 export interface DashboardTabMeta {
   id: string;
   label: string;
@@ -19,8 +33,8 @@ export interface DashboardTabMeta {
 
 export const DASHBOARD_TABS: DashboardTabMeta[] = [
   {
-    id: "uebersicht",
-    label: "Übersicht",
+    id: "marktkontext",
+    label: "Marktkontext",
     tileIds: [
       "market-context",
       "regime-matrix",
@@ -28,16 +42,29 @@ export const DASHBOARD_TABS: DashboardTabMeta[] = [
       "spot-pressure",
       "divergence-radar",
       "kurznotiz",
+      "positioning",
+      "orderbook-walls",
     ],
   },
   {
-    id: "preis-orderflow",
-    label: "Preis & Orderflow",
-    tileIds: ["btc-price", "oi-change", "oi-by-exchange", "funding-rate", "orderbook-walls"],
+    id: "preis-orderflow-makro",
+    label: "Preis, Orderflow & Makro",
+    tileIds: [
+      "btc-price",
+      "oi-change",
+      "oi-by-exchange",
+      "funding-rate",
+      "leverage-map",
+      "cycle-indicators",
+      "economic-calendar",
+      "etf-flow",
+      "news-risk",
+      "liquidations",
+    ],
   },
   {
-    id: "ki-analysen",
-    label: "KI-Analysen",
+    id: "ki-lernen",
+    label: "KI-Analysen & Lernen",
     tileIds: [
       "news-analysis",
       "signal-engine",
@@ -46,24 +73,9 @@ export const DASHBOARD_TABS: DashboardTabMeta[] = [
       "trade-debate",
       "custom-query",
       "youtube-monitor",
-    ],
-  },
-  {
-    id: "makro-risiko",
-    label: "Makro & Risiko",
-    tileIds: [
-      "positioning",
-      "liquidations",
-      "etf-flow",
-      "news-risk",
-      "economic-calendar",
       "institutional-playbook",
+      "lernen",
     ],
-  },
-  {
-    id: "zyklus-lernen",
-    label: "Zyklus & Lernen",
-    tileIds: ["cycle-indicators", "leverage-map", "lernen"],
   },
 ];
 
