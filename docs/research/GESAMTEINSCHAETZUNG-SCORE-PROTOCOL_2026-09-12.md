@@ -59,30 +59,24 @@ tatsächlich reagiert (stündliche Kern-Features, 15-Minuten-Neuberechnung). Deu
 deutlich länger (1d+) würde die Zahl unabhängiger, nicht-überlappender Bewertungspunkte über die
 verfügbare Historie stark reduzieren.
 
-**Kalibrierung (12.09.2026, vor Bestätigung durchgeführt):** empirisch geprüft anhand
-verfügbarer `atr_14`-Werte (1h), Vorwärtsfenster 4h, gegen tatsächliche High/Low-Exkursion:
+**Kalibrierung, finale Version auf voller 4-Jahres-Historie (12.09.2026, nach ATR-Backfill,
+siehe Abschnitt 8 Schritt 0):** empirisch geprüft anhand aller `atr_14`-Werte (1h,
+2022-09-04 bis heute, n=8.813 nicht-überlappende 4h-Bewertungspunkte), Vorwärtsfenster 4h,
+gegen tatsächliche High/Low-Exkursion:
 
 | k | Anteil UP/DOWN (Barriere ausgelöst) | Anteil NEUTRAL |
 |---|---|---|
-| 0,5 | 90,6% | 9,4% |
-| **1,0 (gewählt)** | **70,3%** | **29,7%** |
-| 1,5 | 42,2% | 57,8% |
-| 2,0 | 28,1% | 71,9% |
+| 0,5 | 96,3% | 3,7% |
+| **1,0 (gewählt)** | **67,7%** | **32,3%** |
+| 1,5 | 41,7% | 58,3% |
+| 2,0 | 26,7% | 73,3% |
 
-Durchschnittliche Exkursion über 4h liegt bei ~0,94×ATR (aufwärts) / ~1,17×ATR (abwärts) — `k=1,0`
-trifft die typische Bewegungsgrösse fast exakt, damit maximale Trennschärfe zwischen UP/DOWN/
-NEUTRAL bei noch vertretbarem Datenverlust.
-
-**Bekannte Einschränkung dieser Kalibrierung — muss vor Implementierungsstart behoben werden:**
-`atr_14` in `market_features` (Intervall 1h) ist historisch **nicht zurückgerechnet** — die
-Spalte existiert erst seit 01.09.2026 (11 Tage, n=256 Kerzen), nicht seit 2022 wie
-RSI/ADX/EMA (n=35.238-35.252). Die Tabelle oben basiert deshalb auf einem kleinen, jüngeren
-Ausschnitt. **Schritt 0 der Implementierung (siehe Abschnitt 8): `atr_14` historisch auf 4 Jahre
-zurückrechnen** (identische Backfill-Technik wie beim Setup-Score, siehe
-`CONFLUENCE-SCORE-PHASE3-RESULTS_2026-09-11.md` Abschnitt 6c), danach die Kalibrierungstabelle
-oben auf voller Historie wiederholen. Nur falls sich `k=1,0` dabei deutlich verschiebt (z.B.
-Anteil NEUTRAL weicht um >10 Prozentpunkte von obiger Tabelle ab), wird der Wert angepasst und
-hier nachgetragen — sonst bleibt `k=1,0/H=4h` wie hier festgehalten gültig.
+Durchschnittliche Exkursion über 4h liegt bei 1,07×ATR (aufwärts) / 1,08×ATR (abwärts) — nahezu
+perfekt symmetrisch und sehr nah an `k=1,0`, damit maximale Trennschärfe zwischen UP/DOWN/NEUTRAL
+bei noch vertretbarem Datenverlust. Bestätigt die vorläufige Kalibrierung auf dem kleinen
+11-Tage-Ausschnitt (damals 70,3%/29,7%) — die Verschiebung liegt bei nur ~3 Prozentpunkten, weit
+unter der vorab festgelegten 10-Punkte-Toleranz für eine Anpassung. **`k=1,0/H=4h` bleibt
+endgültig.**
 
 ## 2. Kandidatensignale — **bestätigt 12.09.2026**
 
@@ -179,10 +173,11 @@ Absicherung gegen Look-Ahead-Bias.
 Analog zur bestehenden Confluence-Score-Pipeline, aber komplett eigenständig (eigene Tabellen,
 eigener Cron-Schritt, eigener BH-FDR-Pool):
 
-0. **Voraussetzung (siehe Abschnitt 1): `atr_14` (Intervall 1h) historisch auf 4 Jahre
-   zurückrechnen**, dieselbe Backfill-Technik wie beim Setup-Score. Danach die
-   Kalibrierungstabelle aus Abschnitt 1 auf voller Historie wiederholen und `k=1,0` bestätigen
-   oder anpassen, bevor Schritt 1 unten beginnt.
+0. ✅ **Erledigt 12.09.2026:** `atr_14` (Intervall 1h) historisch auf 4 Jahre zurückgerechnet
+   (`backfill-history` Edge Function um `computeAtr()` ergänzt, deployed v9, per
+   `net.http_post` mit `skipKlines:true` über die volle Historie ausgeführt — 35.266 Zeilen
+   neu berechnet, `atr_14` jetzt für 35.252/35.266 Zeilen vorhanden, 2022-09-04 bis heute).
+   Kalibrierung auf voller Historie wiederholt und bestätigt (siehe Abschnitt 1).
 1. Neue Ereignisquelle: `research_regime_evaluation_events()` — erzeugt die nicht-überlappenden
    4h-Bewertungspunkte mit ATR-skalierten Barrieren-Ausgängen (UP/DOWN/NEUTRAL).
 2. Neue Aktivierungstabelle: `research_regime_signal_activation` — Signal-Zustand je
@@ -221,13 +216,16 @@ eigener Cron-Schritt, eigener BH-FDR-Pool):
 
 ## 10. Entscheidungen — Status
 
-1. ✅ Zielgrösse (Abschnitt 1): `k=1,0×ATR14`, `H=4h` — bestätigt 12.09.2026, vorbehaltlich
-   Neu-Kalibrierung nach ATR-Backfill (Abschnitt 8, Schritt 0).
+1. ✅ Zielgrösse (Abschnitt 1): `k=1,0×ATR14`, `H=4h` — bestätigt 12.09.2026, Kalibrierung auf
+   voller 4-Jahres-Historie final bestätigt (Abweichung von der vorläufigen Kalibrierung nur
+   ~3 Prozentpunkte, weit innerhalb der Toleranz).
 2. ✅ Kandidatensignale (Abschnitt 2): 31 Basis-Signale + 8 neue Regime-Matrix-Einzelmetriken
    (Bollinger-Breite/Normalized-ATR-Ratio ausgeschlossen, Zirkularitäts-Risiko) — bestätigt
    12.09.2026.
-3. **Nächster Schritt:** Implementierung Abschnitt 8, beginnend mit Schritt 0
-   (`atr_14`-Backfill + Re-Kalibrierung).
+3. ✅ Abschnitt 8 Schritt 0 (`atr_14`-Backfill) — erledigt 12.09.2026.
+4. **Nächster Schritt:** Abschnitt 8, Schritte 1-3 (Ereignisquelle, Aktivierungstabelle,
+   Statistik-/BH-FDR-Tabelle) — Schritt 4/WOE erst, falls überhaupt etwas die BH-FDR-Korrektur
+   übersteht, wie beim Setup-Score auch so gehandhabt.
 
 ## Referenzen
 
