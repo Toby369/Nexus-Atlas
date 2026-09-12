@@ -80,10 +80,18 @@ const MARKS: MarkDef[] = [
   { id: "cmePause", zone: ZONE_US, zeit: "17:00", bis: "18:00", spanne: true, tage: [1, 2, 3, 4] },
 ];
 
+// 12.09.2026 -- vorMin fuer macro/fomc von 2 auf 15 angehoben (Recherche zu
+// institutioneller Praxis: uebliche Regel ist ein Entry-Verbot ~10 Min vor
+// Hochrisiko-Terminen; 15 Min gewaehlt, weil die Push-Benachrichtigung in
+// send-state-change-push per 15-Minuten-Cron laeuft und ein kuerzeres
+// Vorlauf-Fenster riskiert, dass der Cron das Fenster erst NACH Terminbeginn
+// zum ersten Mal sieht). Betrifft sowohl die Kachel (TradingHoursBadge) als
+// auch die neue Push-Vorwarnung, siehe supabase/functions/
+// send-state-change-push.
 const WARNINGS: WarningDef[] = [
   { id: "opening", mark: "cashOpen", vorMin: 5, nachMin: 15, level: "high" },
-  { id: "macro", mark: "macro830", vorMin: 2, nachMin: 10, level: "high" },
-  { id: "fomc", mark: "fomc1400", vorMin: 2, nachMin: 20, level: "high" },
+  { id: "macro", mark: "macro830", vorMin: 15, nachMin: 10, level: "high" },
+  { id: "fomc", mark: "fomc1400", vorMin: 15, nachMin: 20, level: "high" },
   { id: "close", mark: "cashClose", vorMin: 15, nachMin: 5, level: "medium" },
   { id: "cme", mark: "cmePause", vorMin: 0, nachMin: 0, level: "medium" },
 ];
