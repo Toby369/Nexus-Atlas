@@ -147,6 +147,33 @@ funktioniert, nicht nur seine Einzelteile.
 (Niedrig, Trend-Konsens 1/6), DOWN 31,1% (Niedrig, Trend-Konsens 2/6) — aktuell also weder
 klar bullisches noch bearishes Signal.
 
+## Runde 2 (12.09.2026): die restlichen 3 testbaren Regime-Matrix-Kandidaten
+
+Die 4. datenknappe Regime-Matrix-Kennzahl, **Liquidation-Cluster-Density**, wurde bewusst
+**nicht** getestet: sie ist ein reiner Magnitude-Z-Score (6h-Liquidations-Cluster relativ zur
+48h-Basis, siehe `compute_market_state_matrix_series()`), ohne erkennbares Vorzeichen, welche
+Seite liquidiert wurde — kein pre-registrierbares Richtungssignal ohne zusätzliche, hier nicht
+vorhandene Information.
+
+Die anderen 3 (Funding-Z-Score, Net-Taker-Flow-Ratio, OI-Quadrant — nur die zwei eindeutigen
+Buildup-Zustände) wurden getestet: **keiner überlebt BH-FDR**, und die Stichproben sind extrem
+klein (n=10-55 pro Zelle) — dieselbe Live-Collector-Limitierung wie bei Funding/OI/Positionierung
+im Setup-Score-Protokoll. Ergebnis dokumentiert statt verschwiegen: **20 von 39 Kandidaten jetzt
+getestet, weiterhin 14 signifikant** (Pool wuchs von 34 auf 40 testbare Zellen, keine der
+bisherigen 14 fiel heraus). Der produktive WOE-Score bleibt unverändert (Abschnitt "Produktiver
+WOE-Score" oben) — keiner der 3 neuen Kandidaten hätte ihn ohnehin beeinflusst.
+
+**Die verbleibenden 19 Kandidaten** (18 Original-Signale ohne reproduzierbare
+Klassifizierungslogik + Liquidation-Cluster-Density) bleiben aus denselben strukturellen Gründen
+offen, die auch im Setup-Score-Protokoll zum dauerhaften Einfrieren von 2 Signalen führten:
+TradingView-Signale (8 Typen) haben praktisch keine nutzbare Historie (Webhook erst seit wenigen
+Tagen stabil, siehe Confluence-Score-Protokoll Abschnitt 0), Positionierung/Optionen/
+Divergenz-Radar (5 Signale) sind auf Live-Collector-Start begrenzt (n bereits im Setup-Score als
+zu klein bekannt), und Warn-Muster (4 Signale) erfordern eine mehrteilige Bedingungs-
+Rekonstruktion ohne bekannten Geschwindigkeitsvorteil gegenüber den bereits getesteten
+Einzelfaktoren. **Kein aktiver Blocker** — der kumulative BH-FDR-Pool nimmt neue Kandidaten
+jederzeit auf, sobald genug Historie vorliegt oder sich eine Rekonstruktion lohnt.
+
 ## Einordnung — noch nicht die Ebene-1-Bewertung
 
 Wie im Struktur-Konzept (Abschnitt 5) festgehalten: Kollinearitäts-Prüfung, Out-of-Sample-
