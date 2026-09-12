@@ -14,12 +14,12 @@ Setup-Score validierten Signale sind für eine allgemeine Marktbewertung **nicht
 gültig, weil sie gegen eine andere Zielgrösse (Hebel-Setup-Trefferquote) getestet wurden. Dieses
 Dokument definiert eine eigene, davon unabhängige Zielgrösse und einen eigenen BH-FDR-Pool.
 
-**Wichtig, vier Punkte unten sind Vorschläge, noch NICHT mit Toby abgestimmt** (markiert
-„**Vorschlag — braucht Bestätigung**"). Der Rest folgt direkt und ohne Ermessensspielraum aus
-bereits getroffenen, im Struktur-Konzept festgehaltenen Entscheidungen bzw. aus der bereits
-etablierten Methodik des Confluence-Score-Protokolls.
+**Status 12.09.2026: mit Toby abgestimmt.** Beide Kernentscheidungen (Abschnitt 1 + 2) sind nach
+Kalibrierung anhand echter Daten bestätigt — Details und Zahlen siehe die jeweiligen Abschnitte.
+Ab hier gilt dasselbe Prinzip wie beim Confluence-Score-Protokoll: keine rückwirkenden
+Änderungen mehr, nur Erweiterungen.
 
-## 1. Zieldefinition (Zielgrösse) — **Vorschlag, braucht Bestätigung**
+## 1. Zieldefinition (Zielgrösse) — **bestätigt 12.09.2026**
 
 **Kernidee:** ein volatilitäts-skalierter, symmetrischer Doppel-Barrier-Test (Variante des im
 Projekt bereits verwendeten Triple-Barrier-Verfahrens, siehe `research_triple_barrier_events()`),
@@ -59,10 +59,32 @@ tatsächlich reagiert (stündliche Kern-Features, 15-Minuten-Neuberechnung). Deu
 deutlich länger (1d+) würde die Zahl unabhängiger, nicht-überlappender Bewertungspunkte über die
 verfügbare Historie stark reduzieren.
 
-**Alternative, falls das nicht passt:** fixer Prozentsatz statt ATR-Skalierung, oder anderer
-Horizont (1h/1d) — beides technisch gleich aufwändig umzusetzen, nur die Parameter ändern sich.
+**Kalibrierung (12.09.2026, vor Bestätigung durchgeführt):** empirisch geprüft anhand
+verfügbarer `atr_14`-Werte (1h), Vorwärtsfenster 4h, gegen tatsächliche High/Low-Exkursion:
 
-## 2. Kandidatensignale — **Vorschlag, braucht Bestätigung**
+| k | Anteil UP/DOWN (Barriere ausgelöst) | Anteil NEUTRAL |
+|---|---|---|
+| 0,5 | 90,6% | 9,4% |
+| **1,0 (gewählt)** | **70,3%** | **29,7%** |
+| 1,5 | 42,2% | 57,8% |
+| 2,0 | 28,1% | 71,9% |
+
+Durchschnittliche Exkursion über 4h liegt bei ~0,94×ATR (aufwärts) / ~1,17×ATR (abwärts) — `k=1,0`
+trifft die typische Bewegungsgrösse fast exakt, damit maximale Trennschärfe zwischen UP/DOWN/
+NEUTRAL bei noch vertretbarem Datenverlust.
+
+**Bekannte Einschränkung dieser Kalibrierung — muss vor Implementierungsstart behoben werden:**
+`atr_14` in `market_features` (Intervall 1h) ist historisch **nicht zurückgerechnet** — die
+Spalte existiert erst seit 01.09.2026 (11 Tage, n=256 Kerzen), nicht seit 2022 wie
+RSI/ADX/EMA (n=35.238-35.252). Die Tabelle oben basiert deshalb auf einem kleinen, jüngeren
+Ausschnitt. **Schritt 0 der Implementierung (siehe Abschnitt 8): `atr_14` historisch auf 4 Jahre
+zurückrechnen** (identische Backfill-Technik wie beim Setup-Score, siehe
+`CONFLUENCE-SCORE-PHASE3-RESULTS_2026-09-11.md` Abschnitt 6c), danach die Kalibrierungstabelle
+oben auf voller Historie wiederholen. Nur falls sich `k=1,0` dabei deutlich verschiebt (z.B.
+Anteil NEUTRAL weicht um >10 Prozentpunkte von obiger Tabelle ab), wird der Wert angepasst und
+hier nachgetragen — sonst bleibt `k=1,0/H=4h` wie hier festgehalten gültig.
+
+## 2. Kandidatensignale — **bestätigt 12.09.2026**
 
 **Basis:** identische 31 Signalgeber wie im Confluence-Score-Protokoll Abschnitt 2 (Struktur
 15m/1h/4h/1d, MTF-Alignment, CVD-Richtung, Trendstärke, Trend-Regime, VWAP-Position, Funding,
@@ -73,16 +95,29 @@ Setup-Trefferquote. Ergebnisse aus dem Setup-Score-Protokoll werden nicht wieder
 übertragen (das wäre genau die unzulässige Vermischung aus Abschnitt 0).
 
 **Neu hinzugefügt** (bisher nur deskriptiv angezeigt, nie gegen eine echte Zielgrösse getestet):
-die 5 Regime-Matrix-Säulen aus `lib/marketRegime.ts`/`market_state_matrix` — ADX/DMI +
-Regressionssteigung (Trend), **Bollinger-Breite + Normalized-ATR-Ratio (Volatilität)**, RSI +
-Distanz-zu-SMA50-Z-Score (Momentum/Mean-Reversion), Funding-Z-Score/OI-vs-Preis-Quadrant/CVD-Z-Score
-(Mikrostruktur), Liquidation-Cluster-Density/Net-Taker-Flow-Ratio (Makro/Sentiment). Das ist auch
-die direkte Antwort auf die Frage von eben ("haben wir Bollinger-Bänder-Signal?") — **Bollinger
-%b und Bollinger-Breite existieren bereits in Nexus, wurden aber noch nie gegen eine Zielgrösse
-getestet.** Mit diesem Protokoll würden sie es zum ersten Mal.
+8 Einzelmetriken aus den 5 Regime-Matrix-Säulen (`lib/marketRegime.ts`/`market_state_matrix`) —
+**Regressionssteigung** (Trend; ADX/DMI selbst bereits über "Trendstärke (ADX+DI)" in der
+31er-Basis abgedeckt, hier nur die zusätzliche, neue Komponente), **Distanz-zu-SMA50-Z-Score**
+(Momentum/Mean-Reversion; RSI ebenfalls schon über Momentum-Faktor abgedeckt), **Funding-Z-Score**,
+**OI-vs-Preis-Quadrant**, **CVD-Z-Score** (Mikrostruktur — als Z-Score-Operationalisierung
+getrennt von den bereits vorhandenen Rohwert-Versionen Funding/CVD-Richtung getestet, analog zur
+bereits etablierten Praxis, mehrere Operationalisierungen derselben Grundaussage als eigene
+Zellen zu führen, siehe Confluence-Score-Phase3-Ergebnisse Abschnitt 2), **Liquidation-Cluster-
+Density**, **Net-Taker-Flow-Ratio** (Makro/Sentiment), **Bollinger %b** (Volatilität/Position).
 
-**Insgesamt: 36 Kandidaten-Signalgeber × 2 Zielgrössen (y_up/y_down) = bis zu 72 Einzelzellen**,
-vor MIN_N-Filterung.
+**Bewusst ausgeschlossen — Zirkularitäts-Risiko:** **Bollinger-Breite** und
+**Normalized-ATR-Ratio**. Beide sind reine Volatilitäts-*Grössen*-Messungen — dieselbe
+Grössenordnung, die bereits die Zielgrösse selbst skaliert (Abschnitt 1: `k × ATR14`). Als
+Prädiktor gegen eine ATR-skalierte Zielgrösse getestet, würde eine "Vol-Squeeze" nahezu
+automatisch mit NEUTRAL-Ausgängen korrelieren — kein echter Fund, sondern ein Artefakt der
+Definition. Bollinger %b (Preis-*Position* innerhalb der Bänder, keine Grössen-Messung) ist davon
+nicht betroffen und bleibt drin. Das ist auch die direkte Antwort auf die Frage von eben ("haben
+wir Bollinger-Bänder-Signal?") — **beide Bollinger-Kennzahlen existieren bereits in Nexus, wurden
+aber noch nie gegen eine Zielgrösse getestet**; mit diesem Protokoll wird zumindest Bollinger %b
+zum ersten Mal wirklich geprüft.
+
+**Insgesamt: 31 + 8 = 39 Kandidaten-Signalgeber × 2 Zielgrössen (y_up/y_down) = bis zu 78
+Einzelzellen**, vor MIN_N-Filterung.
 
 ## 3. Alle Signale als "Leading" — keine Confirming-Kategorie
 
@@ -144,6 +179,10 @@ Absicherung gegen Look-Ahead-Bias.
 Analog zur bestehenden Confluence-Score-Pipeline, aber komplett eigenständig (eigene Tabellen,
 eigener Cron-Schritt, eigener BH-FDR-Pool):
 
+0. **Voraussetzung (siehe Abschnitt 1): `atr_14` (Intervall 1h) historisch auf 4 Jahre
+   zurückrechnen**, dieselbe Backfill-Technik wie beim Setup-Score. Danach die
+   Kalibrierungstabelle aus Abschnitt 1 auf voller Historie wiederholen und `k=1,0` bestätigen
+   oder anpassen, bevor Schritt 1 unten beginnt.
 1. Neue Ereignisquelle: `research_regime_evaluation_events()` — erzeugt die nicht-überlappenden
    4h-Bewertungspunkte mit ATR-skalierten Barrieren-Ausgängen (UP/DOWN/NEUTRAL).
 2. Neue Aktivierungstabelle: `research_regime_signal_activation` — Signal-Zustand je
@@ -172,23 +211,23 @@ eigener Cron-Schritt, eigener BH-FDR-Pool):
   Gegenstand hat — die Vermeidung einer VORAB-Aufteilung nach Regime für den Signal-TEST selbst
   bleibt trotzdem korrekt, das eine hat mit dem anderen nichts zu tun.
 - **Keine Paar-Analyse in der ersten Runde** — anders als beim Setup-Score erst NACH den
-  Einzelsignal-Ergebnissen entscheiden, ob sich das lohnt (36 Kandidaten ergäben bei voller
-  Paar-Kombinatorik bereits >600 zusätzliche Zellen — das treibt die BH-Latte ohne Not in die
+  Einzelsignal-Ergebnissen entscheiden, ob sich das lohnt (39 Kandidaten ergäben bei voller
+  Paar-Kombinatorik bereits >700 zusätzliche Zellen — das treibt die BH-Latte ohne Not in die
   Höhe, solange noch unklar ist, ob überhaupt genug Einzelsignale überleben).
 - **Kein Score als Zahl**, solange nicht mindestens ein Signal/Faktor die BH-FDR-Korrektur
   übersteht.
 - **Keine KI-berechneten Gewichte** — identisch zur Begründung im Confluence-Score-Protokoll
   Abschnitt 7.
 
-## 10. Offene Entscheidungen für Toby (vor Implementierungsstart)
+## 10. Entscheidungen — Status
 
-1. Zielgrösse (Abschnitt 1): `k=1,0×ATR14`, `H=4h` — so übernehmen, oder andere Werte/fixer
-   Prozentsatz statt ATR-Skalierung?
-2. Kandidatensignale (Abschnitt 2): die 5 zusätzlichen Regime-Matrix-Säulen (inkl. Bollinger)
-   mit aufnehmen — passt, oder erstmal nur die bereits bekannten 31 Signale?
-3. Nach Bestätigung von 1+2: Implementierung starten (Abschnitt 8, Schritte 1-3 zuerst — Schritt
-   4/WOE erst, falls überhaupt etwas die BH-FDR-Korrektur übersteht, wie beim Setup-Score auch
-   so gehandhabt).
+1. ✅ Zielgrösse (Abschnitt 1): `k=1,0×ATR14`, `H=4h` — bestätigt 12.09.2026, vorbehaltlich
+   Neu-Kalibrierung nach ATR-Backfill (Abschnitt 8, Schritt 0).
+2. ✅ Kandidatensignale (Abschnitt 2): 31 Basis-Signale + 8 neue Regime-Matrix-Einzelmetriken
+   (Bollinger-Breite/Normalized-ATR-Ratio ausgeschlossen, Zirkularitäts-Risiko) — bestätigt
+   12.09.2026.
+3. **Nächster Schritt:** Implementierung Abschnitt 8, beginnend mit Schritt 0
+   (`atr_14`-Backfill + Re-Kalibrierung).
 
 ## Referenzen
 
