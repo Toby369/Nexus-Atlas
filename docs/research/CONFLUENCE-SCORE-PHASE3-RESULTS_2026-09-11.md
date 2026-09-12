@@ -143,6 +143,58 @@ HTTP-Call nötig ist):
   wenige neue Zeilen pro Woche die Gesamtkraft nicht verändern — aber im Hinterkopf behalten,
   falls die Trefferquote dieses Signals sich künftig auffällig verschiebt.
 
+## 6c. Confluence-Score — produktiv umgesetzt (12.09.2026)
+
+Nach Feedback-Runde zu institutioneller Praxis (Grinold-Kahn IC-Gewichtung, Naive-Bayes/
+Weight-of-Evidence, Meta-Labeling, Kelly-Sizing — siehe Chat) fiel die Wahl auf
+**Weight-of-Evidence** (Naive-Bayes-Log-Odds-Kombination, dieselbe Mathematik wie klassische
+Kredit-Scorecards): deterministisch, nutzt exakt die bereits vorhandenen Trefferquoten, und
+skaliert auf beliebig viele gleichzeitig aktive Signale statt nur Paare.
+
+**Kollinearitäts-Problem zuerst gelöst:** 9 der 13 gesicherten Signale (alle Struktur-Varianten,
+MTF-Alignment, CVD, Trendstärke, Trend-Regime, VWAP) korrelieren stark (φ 0,4–0,7) — sie messen
+im Kern alle denselben "ist ein Trend da"-Sachverhalt. Zu einem Faktor **"Trend-Konfirmation"**
+(Konsens-Zähler 0-9) verdichtet, der bereits allein eine klar bessere Trennschärfe zeigt als jedes
+Einzelsignal (0 Signale aktiv: ~12% Trefferquote, 2-3 aktiv: ~27%, danach Sättigung — bestätigt
+die Kollinearität empirisch). Zusammen mit den 4 eigenständigen Faktoren (Momentum, Fear & Greed,
+Makro-Regime, Orderbuch-Imbalance) ergeben sich **5 quasi-unabhängige Faktoren** statt 13.
+
+**Backfill auf 4 Jahre erweitert** (09/2022–heute, zuvor 2 Jahre) für die Out-of-Sample-Prüfung:
+15m/1h/4h/1d BTCUSDT-Kerzen + `market_features` rückwirkend nachgeladen (Setup-Kette jetzt
+7.213 LONG / 7.262 SHORT statt 3.557/3.571). Fear & Greed war bereits seit 2018 vorhanden
+(kostenlos nutzbar), Makro-Regime bewusst NICHT rückwirkend erweitert (trägt ohnehin nur schwach
+bei, hätte neuen Backfill-Code erfordert).
+
+**Out-of-Sample-Validierung dreifach bestätigt** (2 Jahre/kurzer Test, 4 Jahre/kurzer Test,
+4 Jahre/langer Test — je mit Embargo, Trainings-WOE nie auf Testdaten berechnet): **3 grobe
+Stufen** (Terzile) trennen konsistent und sauber (~14-17% "Niedrig" vs. ~25-28% "Hoch", stabil
+über alle drei Läufe). **Dezile bleiben instabil** — bei Trefferquoten um 20-30% und ~60-175
+Setups pro Bucket liegt der Standardfehler bei ±3-4 Prozentpunkten, viele benachbarte Dezile sind
+statistisch nicht unterscheidbar. Dezile sind daher bewusst zurückgestellt, bis deutlich mehr
+Daten (Grössenordnung 10×) vorliegen — reine Zeitfrage, keine Methodikfrage.
+
+**Wichtige Design-Entscheidung — Leading/Confirming zeitlich getrennt:** Momentum-Faktor ist ein
+Confirming-Signal (nur bekannt, sobald ein laufendes Setup +0,25% erreicht) — beim Entry selbst
+noch nicht verfügbar. Ohne Momentum trennt der Score nur noch das untere Drittel klar ab (LONG
+14,4% vs. 24,4%/24,4% — die oberen zwei Drittel werden fast identisch). Deshalb zweiphasiges
+Design:
+- **Vorab-Score** (bei Entry): 4 Leading-Faktoren (Trend-Konfirmation, Fear & Greed,
+  Makro-Regime, Orderbuch-Imbalance).
+- **Bestätigungs-Update** (sobald +0,25% erreicht): Momentum-WOE kommt dazu, Score kann auf
+  eine höhere (oder niedrigere, falls Momentum ausbleibt) Stufe wechseln.
+
+**Neue DB-Objekte:** `research_confluence_score_woe` (WOE-Werte je Faktor/Zustand/Richtung),
+`research_confluence_score_tiers` (Terzil-Grenzen des Vorab-Scores je Richtung),
+`research_confluence_score_refresh()` (wöchentlich im bestehenden Cron
+`confluence-score-pipeline-weekly` nach `refresh_stats()`), `research_confluence_score(direction,
+trend_count, fear_greed_active, makro_active, orderbuch_active, momentum_state)` — Live-Lookup,
+gibt Wahrscheinlichkeit + Stufe (Niedrig/Mittel/Hoch) zurück. `momentum_state='unknown'` (Default)
+lässt Momentum unberücksichtigt (neutral, nicht negativ).
+
+**Noch offen (nächster Schritt, nicht Teil dieser Umsetzung):** UI-Anbindung (Dashboard-Kachel,
+die `research_confluence_score()` für die aktuelle Marktlage aufruft und den Vorab-Score sowie
+— sobald ein Trade läuft — das Bestätigungs-Update anzeigt).
+
 ## 7. Zusätzlich zu merken (Erinnerung, nicht jetzt umsetzen)
 
 Alle Punkte aus Abschnitt 4 ("Bekannte Lücken") bleiben offen und werden von der neuen Pipeline
