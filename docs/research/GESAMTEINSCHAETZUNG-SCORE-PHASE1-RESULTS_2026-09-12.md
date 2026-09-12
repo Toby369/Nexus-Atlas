@@ -54,22 +54,78 @@ Gesamteinschätzung-Zielgrösse (4h-Horizont, ATR-skaliert) ist die *Stärke* de
 aussagekräftiger als nur sein Vorzeichen — ein echter Mehrwert der neuen Kandidaten, nicht nur
 Redundanz zum Setup-Score.
 
+## Kollinearitäts-Prüfung (12.09.2026)
+
+Pairwise-Korrelation (φ, Pearson auf 0/1-Aktivierung) zwischen den trendbasierten Signalen:
+
+| | Struktur 4h | Struktur 1d | MTF-Alignment | Trendstärke | Regressionssteigung |
+|---|---|---|---|---|---|
+| **Struktur 1h** | 0,21 | 0,07 | 0,49 | 0,29 | 0,54 |
+| **Struktur 4h** | — | 0,18 | 0,47 | 0,11 | 0,15 |
+| **Struktur 1d** | — | — | 0,48 | 0,04 | — |
+| **MTF-Alignment** | — | — | — | 0,20 | — |
+
+**Deutlich schwächer als beim Setup-Score** (dort φ 0,4-0,7 zwischen denselben Struktur-Signalen)
+— am 4h-Bewertungsraster dekorrelieren die Zeitrahmen offenbar schneller als in der sequenziellen
+Setup-Kette. MTF-Alignment korreliert moderat (0,47-0,49) mit allen drei Struktur-Ebenen — folgt
+direkt aus seiner Definition (striktes 3-Way-Match) und ist keine echte zusätzliche Information,
+sondern eine nichtlineare Kombination der drei. **Trotzdem Bündelung sinnvoll**, um keine
+6-fache Übergewichtung desselben "folgt der Kurs dem Trend"-Kerneffekts im späteren WOE-Modell
+zu riskieren: **Trend-Konsens** = Anzahl von {Struktur 1h/4h/1d, MTF-Alignment, Trendstärke,
+Regressionssteigung}, die in eine Richtung zeigen (0-6).
+
+**Trennschärfe des Trend-Konsens (In-Sample, UP-Richtung):**
+
+| Konsens | n | Trefferquote UP |
+|---|---|---|
+| 0 | 940 | 28,0% |
+| 1 | 1.729 | 26,6% |
+| 2 | 2.047 | 33,7% |
+| 3 | 1.499 | 31,6% |
+| 4 | 1.078 | 35,0% |
+| 5 | 667 | 39,6% |
+| 6 | 852 | 44,7% |
+
+Klar diskriminierend (26,6% bei niedrigem Konsens bis 44,7% bei vollem Konsens, Basisrate 33,0%).
+
+## Out-of-Sample-Validierung (Split 2025-09-04, 1 Tag Embargo — 75%/25%)
+
+**Trend-Konsens, 3-stufig gebündelt (niedrig 0-1 / mittel 2-4 / hoch 5-6):**
+
+| Stufe | Train (UP) | Test (UP) | Train (DOWN) | Test (DOWN) |
+|---|---|---|---|---|
+| Niedrig | 27,2% | 26,6% | 29,0% | 28,9% |
+| Mittel | 33,1% | 34,1% | 33,4% | 35,5% |
+| Hoch | 42,6% | 42,1% | 43,9% | 45,4% |
+
+Nahezu deckungsgleich zwischen Train und Test in beiden Richtungen — kein Overfitting sichtbar.
+
+**Die drei unabhängigen Faktoren (CVD-Z-Score, Momentum-Faktor, Bollinger %b) einzeln geprüft:**
+
+| Signal | Split | Trefferquote aktiv | n aktiv | Trefferquote inaktiv |
+|---|---|---|---|---|
+| CVD-Z-Score (UP) | Train / Test | 35,3% / 41,8% | 640 / 225 | 32,8% / 31,9% |
+| CVD-Z-Score (DOWN) | Train / Test | 39,1% / 38,9% | 591 / 221 | 32,4% / 34,4% |
+| Momentum-Faktor (DOWN) | Train / Test | 35,1% / 37,3% | 2.234 / 758 | 31,9% / 33,6% |
+| Bollinger %b (UP) | Train / Test | 36,2% / 35,7% | 1.224 / 434 | 32,3% / 32,2% |
+
+Alle vier halten out-of-sample — teils (CVD-Z UP) sogar stärker im Test als im Training, ein
+gutes Zeichen gegen Overfitting-Verdacht.
+
 ## Einordnung — noch nicht die Ebene-1-Bewertung
 
 Wie im Struktur-Konzept (Abschnitt 5) festgehalten: dies ist Zwischenstand einer laufenden
-Validierung, kein fertiger Score. **Noch ausstehend, bevor eine Gesamteinschätzung-Score-Zahl
-entstehen kann:**
+Validierung, kein fertiger Score. Out-of-Sample-Validierung und Kollinearitäts-Prüfung sind jetzt
+erledigt (siehe oben) — **noch ausstehend, bevor eine Gesamteinschätzung-Score-Zahl entstehen
+kann:**
 
-1. Out-of-Sample-Validierung (Train/Test-Split mit Embargo, wie beim Setup-Score dreifach
-   gemacht) — bisher nur In-Sample-Ergebnis.
-2. Kollinearitäts-Prüfung: Struktur 1h/4h/1d, MTF-Alignment, Trendstärke sind vermutlich wieder
-   stark korreliert (derselbe "folgt der Kurs dem Trend"-Kern-Effekt wie beim Setup-Score) —
-   Konsens-Bündelung nötig, bevor eine WOE-Kombination sinnvoll ist.
-3. Die 22 noch nicht getesteten Kandidaten (18 Original-Signale ohne reproduzierbare
+1. Die 22 noch nicht getesteten Kandidaten (18 Original-Signale ohne reproduzierbare
    Klassifizierungslogik + 4 datenknappe neue Regime-Matrix-Signale, siehe Protokoll Abschnitt 2)
    — spätere Erweiterungsrunde, ändert nichts an den hier festgehaltenen Ergebnissen (kumulativer
    BH-FDR-Pool wächst nur).
-4. Score-Architektur-Entscheidung erst nach Punkt 1+2, analog zum Setup-Score-Vorgehen.
+2. Score-Architektur-Entscheidung (WOE-Kombination aus Trend-Konsens + CVD-Z-Score +
+   Momentum-Faktor + Bollinger %b als vier quasi-unabhängige Faktoren) — analog zum
+   Setup-Score-Vorgehen, aber noch nicht umgesetzt.
 
 ## Neue DB-Objekte
 
