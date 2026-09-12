@@ -1,14 +1,21 @@
 import type { RegimeScoreResult, RegimeScoreRow, RegimeScoreTier } from "@/lib/regimeScoreContext";
 import PanelInfo from "@/components/PanelInfo";
 
-// Gesamteinschätzung-Score (12.09.2026) -- separates, eigenständig
-// validiertes Regime-Modell, siehe docs/research/
-// GESAMTEINSCHAETZUNG-SCORE-PROTOCOL_2026-09-12.md +
-// GESAMTEINSCHAETZUNG-SCORE-PHASE1-RESULTS_2026-09-12.md. Bewusst als
-// EIGENE Kachel neben dem Setup-Score, niemals vermischt (institutionelle
-// Trennung Regime- vs. Trade-Signal-Scoring, siehe NEXUS-STRUKTUR-KONZEPT
-// Abschnitt 5) -- eigene Zielgrösse (ATR-skalierte 4h-Bewegung statt
-// Hebel-Setup-Trefferquote), eigener BH-FDR-Pool, eigene WOE-Gewichte.
+// Regime-Score (Projektname weiterhin "Gesamteinschätzung-Score-Protokoll",
+// siehe docs/research/GESAMTEINSCHAETZUNG-SCORE-PROTOCOL_2026-09-12.md +
+// GESAMTEINSCHAETZUNG-SCORE-PHASE1-RESULTS_2026-09-12.md) -- separates,
+// eigenständig validiertes Regime-Modell. Bewusst als EIGENE Kachel neben
+// dem Setup-Score, niemals vermischt (institutionelle Trennung Regime- vs.
+// Trade-Signal-Scoring, siehe NEXUS-STRUKTUR-KONZEPT Abschnitt 5) -- eigene
+// Zielgrösse (ATR-skalierte 4h-Bewegung statt Hebel-Setup-Trefferquote),
+// eigener BH-FDR-Pool, eigene WOE-Gewichte.
+//
+// 12.09.2026 -- Kachel-TITEL von "Gesamteinschätzung-Score" auf
+// "Regime-Score" verkürzt (Nutzer-Feedback: zu leicht mit der
+// MarketStateCard-Überschrift "Gesamteinschätzung" zu verwechseln, obwohl
+// beides fachlich unabhängige Dinge sind). Rein kosmetisch -- Dateiname,
+// Funktionsnamen (buildRegimeScore, research_regime_score_live) und die
+// Protokoll-Dokumente behalten ihren ursprünglichen Namen.
 //
 // WICHTIG -- anders als der Setup-Score noch NICHT vollständig validiert:
 // erst 20 von 39 vorregistrierten Kandidatensignalen getestet. Deshalb
@@ -22,7 +29,7 @@ const TIER_STYLES: Record<RegimeScoreTier, string> = {
 };
 
 const INFO_TEXT = [
-  "Was das ist: ein von Setup-Score UNABHÄNGIGES Regime-Modell -- schätzt, ob BTC in den nächsten 4 Stunden um mindestens 1×ATR(14) nach oben (UP) oder unten (DOWN) ausschlägt, statt eines konkreten Hebel-Setups. Eigene Zielgrösse, eigene Statistik-Korrektur, eigene Gewichte -- niemals mit dem Setup-Score vermischt.",
+  "Was das ist: ein von Setup-Score UNABHÄNGIGES Regime-Modell -- schätzt, ob BTC in den nächsten 4 Stunden um mindestens 1×ATR(14) nach oben (UP) oder unten (DOWN) ausschlägt, statt eines konkreten Hebel-Setups. Eigene Zielgrösse, eigene Statistik-Korrektur, eigene Gewichte -- niemals mit dem Setup-Score vermischt. Heisst bewusst \"Regime-Score\" statt \"Gesamteinschätzung-Score\", um es klar von der \"Gesamteinschätzung\" oben (MarketStateCard) zu unterscheiden -- beides sind unabhängige Kacheln.",
   "Status -- in Aufbau: bisher wurden 20 von 39 vorregistrierten Kandidatensignalen getestet (14 davon statistisch bestätigt). Der hier gezeigte Score kombiniert die bislang bestätigten Faktoren per Weight-of-Evidence und wurde out-of-sample geprüft -- ist aber noch nicht abgeschlossen validiert wie der Setup-Score.",
   "So liest du das: UP-Score = Trend-Konsens (wie viele von 6 Trend-Signalen zeigen aufwärts) + Orderflow-Stärke (CVD-Z-Score) + Bollinger-Überverkauft-Signal. DOWN-Score = Trend-Konsens (abwärts) + Orderflow-Stärke + Momentum-Faktor. \"Hoch\" bedeutet oberstes Drittel aller historischen 4h-Fenster (~40-47% Trefferquote, Basisrate ~33%), \"Niedrig\" das unterste Drittel.",
   "Kein Handelssignal, keine Erfolgsgarantie -- und ausdrücklich kein Ersatz für den Setup-Score.",
@@ -70,11 +77,11 @@ export default function RegimeScoreCard({ score }: { score: RegimeScoreResult })
   return (
     <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
       <span className="flex items-center gap-1.5 flex-wrap">
-        <p className="text-sm font-medium text-text">Gesamteinschätzung-Score</p>
+        <p className="text-sm font-medium text-text">Regime-Score</p>
         <span className="text-[10px] text-text-faint border border-border rounded px-1">
           in Aufbau · 20/39 Signale getestet
         </span>
-        <PanelInfo title="Gesamteinschätzung-Score" content={INFO_TEXT} />
+        <PanelInfo title="Regime-Score" content={INFO_TEXT} />
       </span>
 
       <p className="text-[11px] text-text-faint">
