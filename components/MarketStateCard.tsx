@@ -232,9 +232,14 @@ export default function MarketStateCard({
     return (
       <section className="rounded-lg border border-accent/25 bg-surface-raised p-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
-            Gesamteinschätzung
-          </h2>
+          <span className="flex items-center gap-1.5 flex-wrap">
+            <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
+              Gesamteinschätzung
+            </h2>
+            <span className="text-[10px] text-text-faint border border-border rounded px-1">
+              wird neu validiert
+            </span>
+          </span>
           <PanelInfo title="Gesamteinschätzung" content={marketStateInfo} />
         </div>
         <p className="text-sm text-text-faint mt-3">
@@ -271,9 +276,14 @@ export default function MarketStateCard({
   return (
     <section className="rounded-lg border border-accent/25 bg-surface-raised p-5 space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
-          Gesamteinschätzung
-        </h2>
+        <span className="flex items-center gap-1.5 flex-wrap">
+          <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
+            Gesamteinschätzung
+          </h2>
+          <span className="text-[10px] text-text-faint border border-border rounded px-1">
+            wird neu validiert
+          </span>
+        </span>
         <PanelInfo title="Gesamteinschätzung" content={marketStateInfo} />
       </div>
 

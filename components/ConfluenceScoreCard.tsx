@@ -1,9 +1,19 @@
-import type { ConfluenceScoreResult, ConfluenceScoreRow, ConfluenceScoreTier } from "@/lib/confluenceScoreContext";
+import type {
+  ConfluenceScoreResult,
+  ConfluenceScoreRow,
+  ConfluenceScoreTier,
+  ConfluenceSignalDetail,
+} from "@/lib/confluenceScoreContext";
 import PanelInfo from "@/components/PanelInfo";
 
-// Confluence-Score (12.09.2026) -- zeigt den vierfach out-of-sample
-// validierten Weight-of-Evidence-Score aus dem Confluence-Score-Protokoll
-// (docs/research/CONFLUENCE-SCORE-PROTOCOL_2026-09-11.md +
+// Setup-Score (12.09.2026, umbenannt von "Confluence-Score" am selben Tag --
+// siehe docs/research/NEXUS-STRUKTUR-KONZEPT_2026-09-12.md Abschnitt 4) --
+// die Setup-Parameter stehen bewusst im Namen, damit die Bindung an genau
+// dieses eine, getestete Setup nie mit einer allgemeinen Marktbewertung
+// verwechselt wird (siehe Gesamteinschaetzung/Kurznotiz daneben, die noch
+// nicht nach demselben Massstab validiert ist). Zeigt den vierfach
+// out-of-sample validierten Weight-of-Evidence-Score aus dem
+// Confluence-Score-Protokoll (docs/research/CONFLUENCE-SCORE-PROTOCOL_2026-09-11.md +
 // CONFLUENCE-SCORE-PHASE3-RESULTS_2026-09-11.md Abschnitt 6c). Zeigt bewusst
 // nur den VORAB-Score (4 Leading-Faktoren: Trend-Konfirmation, Fear & Greed,
 // Makro-Regime, Orderbuch-Imbalance) -- der Momentum-Faktor ist ein
@@ -71,12 +81,56 @@ function ScoreRow({ row, label }: { row: ConfluenceScoreRow | null; label: strin
   );
 }
 
-export default function ConfluenceScoreCard({ score }: { score: ConfluenceScoreResult }) {
+// Ebene 2 ("Signale im Detail", siehe docs/research/NEXUS-STRUKTUR-KONZEPT_2026-09-12.md
+// Abschnitt 1+2): ueber die Score-Kachel erreichbar statt an anderer Stelle
+// verstreut -- zeigt exakt, welche der einzeln getesteten Signale den
+// vorregistrierten BH-FDR-Test bestehen (fliessen in den Score ein, direkt
+// oder gebuendelt im Trend-Konfirmation-Faktor) und welche nicht (sichtbar,
+// aber nicht stimmberechtigt). <details> statt eigenem Client-State/Toggle --
+// diese Kachel ist ein Server-Component, kein "use client" noetig.
+function SignalDetailList({ signals, direction }: { signals: ConfluenceSignalDetail[]; direction: "LONG" | "SHORT" }) {
+  const rows = signals.filter((s) => s.direction === direction);
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="space-y-1">
+      {rows.map((s) => (
+        <div key={s.signal} className="flex items-center justify-between gap-2 text-[11px]">
+          <span className={s.validated ? "text-text" : "text-text-faint"}>{s.signal}</span>
+          <span className="flex items-center gap-1.5 shrink-0">
+            <span className="text-text-faint">
+              {s.hitRateActive.toFixed(1)}% (n={s.nActive})
+            </span>
+            <span
+              className={`px-1 py-0.5 rounded text-[10px] font-medium ${
+                s.validated ? "text-up" : "text-text-faint border border-border"
+              }`}
+            >
+              {s.validated ? "✓ validiert" : "— unbestätigt"}
+            </span>
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function ConfluenceScoreCard({
+  score,
+  signalDetail,
+}: {
+  score: ConfluenceScoreResult;
+  signalDetail: ConfluenceSignalDetail[];
+}) {
+  const validatedCount = signalDetail.filter((s) => s.validated).length;
+  const unvalidatedCount = signalDetail.length - validatedCount;
+
   return (
     <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
-      <span className="flex items-center gap-1.5">
-        <p className="text-sm font-medium text-text">Confluence-Score</p>
-        <PanelInfo title="Confluence-Score" content={INFO_TEXT} />
+      <span className="flex items-center gap-1.5 flex-wrap">
+        <p className="text-sm font-medium text-text">Setup-Score</p>
+        <span className="text-[11px] text-text-faint">(15m · TP 1,75% · SL 0,5% · 20x)</span>
+        <PanelInfo title="Setup-Score" content={INFO_TEXT} />
       </span>
 
       <p className="text-[11px] text-text-faint">
@@ -87,6 +141,24 @@ export default function ConfluenceScoreCard({ score }: { score: ConfluenceScoreR
         <ScoreRow row={score.long} label="LONG" />
         <ScoreRow row={score.short} label="SHORT" />
       </div>
+
+      {signalDetail.length > 0 && (
+        <details className="pt-1 border-t border-border/60">
+          <summary className="text-[11px] text-text-faint cursor-pointer select-none">
+            Signale im Detail ({validatedCount} validiert, {unvalidatedCount} unbestätigt)
+          </summary>
+          <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint mb-1">LONG</p>
+              <SignalDetailList signals={signalDetail} direction="LONG" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint mb-1">SHORT</p>
+              <SignalDetailList signals={signalDetail} direction="SHORT" />
+            </div>
+          </div>
+        </details>
+      )}
     </div>
   );
 }

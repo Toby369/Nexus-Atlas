@@ -22,6 +22,7 @@ const INFO_TEXT = [
   "Was das ist: Backtest-validierter Einstiegsfilter fuer ein 15m/5m-Setup mit hohem Hebel (getestet mit 20x, TP 30%/SL 10% des Einsatzes).",
   "So liest du das: \"Long-/Short-Setup bestätigt\" heisst, dass die 4h-Struktur aktuell in Trade-Richtung zeigt. In einem 2-Jahres-Backtest hob genau das die Trefferquote von ~25% (Basisrate) auf ~33% (nicht-ueberlappend geprueft, n=543/546, p<0,0001, symmetrisch fuer Long und Short). 4h allein zeigte einen groesseren Effekt und mehr qualifizierende Trades als die urspruenglich getestete 1h+4h+1d-Kombination -- deshalb jetzt der massgebliche Filter.",
   "Wichtig: kein Handelssignal, keine Erfolgsgarantie -- eine statistisch gestuetzte, aber noch nicht endgueltig bewiesene Beobachtung auf begrenzter Stichprobe. Details in docs/research/TRIPLE-BARRIER-MTF-ALIGNMENT_2026-09-04.md.",
+  "Vermutlich redundant: die hier genutzte 4h-Struktur ist eine der 9 Einzelsignale, die im Setup-Score (Kachel daneben) bereits im Trend-Konfirmation-Faktor gebuendelt sind -- der liefert die feinere 9er-Konsens-Aussage statt nur dieses einen Signals. Wird nach einer Beobachtungsphase entfernt oder zu einer reinen Detail-Zeile umgebaut (siehe docs/research/NEXUS-STRUKTUR-KONZEPT_2026-09-12.md, Abschnitt 6).",
 ].join("\n\n");
 
 export default function EntryFilterBadge({ state }: { state: MarketState | null }) {

@@ -43,24 +43,22 @@ Verlinkung/Kennzeichnung aus Ebene 1 heraus erreichbar ("warum dieser Score? →
 
 ### Ebene 2 — Signale im Detail
 
-20 validierte + 9 nicht-validierte Einzelsignale aus dem Confluence-Score-Protokoll (siehe
-`CONFLUENCE-SCORE-PHASE3-RESULTS_2026-09-11.md`). Aktuell **verstreut** über mehrere
-themenbasierte Kacheln:
+**Korrektur 12.09.2026 (nach Code-Pruefung):** die ursprüngliche Annahme unten war falsch — die
+einzeln getesteten Confluence-Score-Signale (Struktur 15m/1h/4h/1d, MTF-Alignment, CVD-Richtung,
+Trendstärke, Trend-Regime, VWAP-Position, Fear & Greed, Makro-Regime, Orderbuch-Imbalance) haben
+**keine eigenen sichtbaren Zeilen** in `market-context`/`regime-matrix`/`etf-flow`/
+`orderbook-walls` — sie existieren nur als Rohspalten in `market_features`/`market_states`, die
+in andere, eigenständige Formeln einfliessen (z.B. `MarketStateCard`s 14-Faktoren-Gesamteinschätzung).
+Badges auf diesen Kacheln zu setzen hätte fälschlich suggeriert, dass genau diese Zahlen für den
+Setup-Score getestet wurden.
 
-| Signal-Herkunft | Aktuell in Kachel | Validiert? |
-|---|---|---|
-| Struktur 15m/1h/4h/1d, MTF-Alignment | `market-context`, `regime-matrix` | 7 von 8 Zellen ja |
-| CVD-Richtung, Trendstärke, Trend-Regime, VWAP-Position | `market-context` | 6 von 8 Zellen ja |
-| Fear & Greed | `market-context` | nein (beide Richtungen) |
-| Makro-Regime | `etf-flow` | SHORT ja, LONG nein |
-| Orderbuch-Imbalance | `orderbook-walls` | nein (beide, n noch zu klein) |
-| Momentum-Faktor (RSI+MACD) | — (bisher keine eigene Anzeige) | ja (beide) |
-| Positionierung, Divergenz-Radar: Onchain vs Preis | `positioning`, `divergence-radar` | teilweise / eingefroren |
-
-**Vorschlag:** kein komplett neuer Ort dafür — stattdessen jede bestehende Kachel um ein
-kleines Badge "✓ validiert" / "— unbestätigt" pro Zeile ergänzen (minimal-invasiv, kein
-Datenverlust, keine neue Navigation nötig). Der Setup-Score selbst verlinkt/verweist auf genau
-diese Zeilen als Begründung.
+**Umgesetzte Lösung:** ein `<details>`-Aufklapper direkt in der Setup-Score-Kachel
+("Signale im Detail (X validiert, Y unbestätigt)"), gespeist live von
+`research_confluence_bh_fdr('main')` — derselben Funktion, die auch die produktiven WOE-Werte
+berechnet. Zeigt pro Signal & Richtung Trefferquote, Stichprobengrösse und ✓/—-Status, direkt an
+der Quelle der Wahrheit statt an mehreren, davon unabhängigen Anzeige-Orten dupliziert. Kein
+Datenverlust (alle 27 Signal-Zellen sichtbar), keine neue Navigation, kein Risiko einer falschen
+Zuordnung.
 
 ### Ebene 3 — Beobachtung & Kontext
 

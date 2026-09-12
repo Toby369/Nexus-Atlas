@@ -69,3 +69,54 @@ export async function buildConfluenceScore(): Promise<ConfluenceScoreResult> {
     short: rows.find((r) => r.direction === "SHORT") ?? null,
   };
 }
+
+// Ebene-2-Datenbasis ("Signale im Detail", Struktur-Konzept 12.09.2026,
+// docs/research/NEXUS-STRUKTUR-KONZEPT_2026-09-12.md Abschnitt 1+2): zeigt
+// pro Einzelsignal, ob es den vorregistrierten BH-FDR-Test besteht (fliesst
+// in den Setup-Score ein -- direkt oder als Teil des Trend-Konfirmation-
+// Konsenszaehlers) oder nicht (sichtbar, aber nicht stimmberechtigt). Ruft
+// live dieselbe Funktion auf, die auch die Produktions-WOE-Werte speist
+// (research_confluence_bh_fdr('main')) -- keine zweite, unabhaengige
+// Berechnung, keine neue Tabelle.
+export interface ConfluenceSignalDetail {
+  signal: string;
+  direction: "LONG" | "SHORT";
+  nActive: number;
+  nInactive: number;
+  hitRateActive: number;
+  hitRateInactive: number;
+  validated: boolean;
+}
+
+export async function buildConfluenceSignalDetail(): Promise<ConfluenceSignalDetail[]> {
+  const { data, error } = await supabase.rpc("research_confluence_bh_fdr", { p_pool: "main" });
+  if (error) {
+    console.error("confluenceScoreContext: Fehler bei research_confluence_bh_fdr:", error.message);
+    return [];
+  }
+
+  return (data ?? [])
+    .filter((row: { cell_type: string }) => row.cell_type === "signal")
+    .map((row: {
+      signal_a: string;
+      direction: "LONG" | "SHORT";
+      n1: number;
+      n2: number;
+      hit_rate1_pct: number | string;
+      hit_rate2_pct: number | string;
+      significant_after_bh: boolean;
+    }): ConfluenceSignalDetail => ({
+      signal: row.signal_a,
+      direction: row.direction,
+      nActive: row.n1,
+      nInactive: row.n2,
+      hitRateActive: Number(row.hit_rate1_pct),
+      hitRateInactive: Number(row.hit_rate2_pct),
+      validated: row.significant_after_bh,
+    }))
+    .sort((a: ConfluenceSignalDetail, b: ConfluenceSignalDetail) => {
+      if (a.direction !== b.direction) return a.direction === "LONG" ? -1 : 1;
+      if (a.validated !== b.validated) return a.validated ? -1 : 1;
+      return b.hitRateActive - a.hitRateActive;
+    });
+}

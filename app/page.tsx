@@ -28,7 +28,7 @@ import { getTimeframe, parseTimeframe, type TimeframeId } from "@/lib/timeframes
 import { buildLiveLeverageMap } from "@/lib/leverageMapContext";
 import { buildCycleIndicators } from "@/lib/cycleIndicatorsContext";
 import { buildDivergenceRadar } from "@/lib/divergenceRadarContext";
-import { buildConfluenceScore } from "@/lib/confluenceScoreContext";
+import { buildConfluenceScore, buildConfluenceSignalDetail } from "@/lib/confluenceScoreContext";
 import { detectEscalationTriggers } from "@/lib/escalationContext";
 import { parseAnchorParam, parseAnchorEndParam } from "@/lib/anchor";
 import { TRADINGVIEW_SIGNAL_FRESHNESS_HOURS } from "@/lib/tradingViewSignal";
@@ -593,6 +593,7 @@ export default async function Home({
     latestOrderbookWalls,
     divergenceRadar,
     confluenceScore,
+    confluenceSignalDetail,
     latestNewsAnalysis,
     latestSignalEngine,
     latestSignalReview,
@@ -622,6 +623,7 @@ export default async function Home({
     getLatestOrderbookWalls(),
     buildDivergenceRadar(),
     buildConfluenceScore(),
+    buildConfluenceSignalDetail(),
     getLatestNewsAnalysis(),
     getLatestSignalEngine(),
     getLatestSignalReview(),
@@ -741,6 +743,7 @@ export default async function Home({
             </div>
 
             <MarketStateCard initialState={marketState} />
+            <ConfluenceScoreCard score={confluenceScore} signalDetail={confluenceSignalDetail} />
 
             <LivePriceDataProvider
                 timeframe={timeframe}
@@ -782,7 +785,6 @@ export default async function Home({
                     "spot-pressure": <SpotPressurePanel timeframe={timeframe} />,
                     "orderbook-walls": <OrderbookWallCard walls={latestOrderbookWalls} />,
                     "divergence-radar": <DivergenceRadarCard radar={divergenceRadar} />,
-                    "confluence-score": <ConfluenceScoreCard score={confluenceScore} />,
                     positioning: <PositioningPanel />,
                     liquidations: (
                       <LiquidationPanel

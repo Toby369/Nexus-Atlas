@@ -2,7 +2,13 @@
 // (siehe components/DashboardLayout.tsx). MarketStateCard und die Zeitraum-
 // Auswahl sind bewusst NICHT Teil dieser Liste -- MarketStateCard ist die
 // fest platzierte Synthese ganz oben, die Zeitraum-Auswahl ist ein
-// Steuerelement, keine Datenkachel.
+// Steuerelement, keine Datenkachel. Aus demselben Grund seit 12.09.2026 auch
+// der Setup-Score (ConfluenceScoreCard) nicht mehr Teil dieser Liste --
+// Ebene-1-Bewertungen (siehe docs/research/NEXUS-STRUKTUR-KONZEPT_2026-09-12.md)
+// stehen fest oben, unabhaengig vom gewaehlten Tab, statt in einem Tab
+// versteckt/verschiebbar zu sein. (Vorher fehlte "confluence-score" zudem in
+// lib/dashboardTabs.ts DASHBOARD_TABS -- assertAllTilesAssigned() haette das
+// beim naechsten Import hart zum Absturz gebracht.)
 export interface DashboardTileMeta {
   id: string;
   title: string;
@@ -41,7 +47,6 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "spot-pressure", title: "Spot Pressure" },
   { id: "orderbook-walls", title: "Orderbuch-Wände" },
   { id: "divergence-radar", title: "Divergenz-Radar" },
-  { id: "confluence-score", title: "Confluence-Score" },
   { id: "news-analysis", title: "News-Einordnung (KI)" },
   { id: "signal-engine", title: "Signal Engine (KI)" },
   { id: "signal-review", title: "Periodischer Rückblick (KI)" },
