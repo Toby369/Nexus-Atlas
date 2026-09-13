@@ -174,6 +174,71 @@ Rekonstruktion ohne bekannten Geschwindigkeitsvorteil gegenüber den bereits get
 Einzelfaktoren. **Kein aktiver Blocker** — der kumulative BH-FDR-Pool nimmt neue Kandidaten
 jederzeit auf, sobald genug Historie vorliegt oder sich eine Rekonstruktion lohnt.
 
+## Runde 2 — KORRIGIERT (13.09.2026): Funding-Z-Score hatte dieselbe Datenlücke wie Runde 4
+
+Bei der Prüfung, welche der 19 offenen Kandidaten sich doch rückwirkend befüllen lassen (siehe
+Datenverfügbarkeits-Audit unten), fiel auf: **Funding-Z-Score** las bisher aus
+`market_state_matrix.funding_zscore`, das nur ~3 Wochen echte Werte hat (432 von 8.813
+Bewertungspunkten). Die restlichen ~8.260 Punkte wurden per `coalesce(..., false)` als "inaktiv"
+gewertet, obwohl dort schlicht keine Daten existierten — exakt derselbe Fehler wie die
+ursprüngliche Runde-4-Datenlücke, nur unentdeckt, weil das Ergebnis ("nicht signifikant") nicht
+überraschend genug war, um genauer hinzuschauen.
+
+**Fix:** Live-Test bestätigt (siehe Audit unten), dass Binance' `fundingRate`-Endpunkt echte
+Historie bis 2022-09-04 zurückgibt (kein Retention-Limit wie bei den OI-/Positionierungs-
+Endpunkten). Volle Funding-Rate-Historie (4.412 Achtstunden-Ticks, 2022-09-04 bis heute) in
+`research_funding_rate_history` zurückbefüllt, `funding_zscore` exakt nach der bereits in
+`research-python/src/features/derivatives.py::funding_zscore` dokumentierten Formel neu berechnet
+(rollierendes Fenster=90 Perioden [~30 Tage], ddof=1, min_periods=90). `Funding-Z-Score`-
+Aktivierung gelöscht und mit der korrigierten, vollständigen Zeitreihe neu berechnet.
+
+**Korrigiertes Ergebnis:**
+
+| Richtung | n (aktiv) | n (Rest) | Trefferquote aktiv | Trefferquote Rest | p (roh) | BH-FDR |
+|---|---|---|---|---|---|---|
+| UP (Hypothese: Crowded Shorts → Aufwärts) | 693 | 8.127 | 29,6% | 33,3% | 0,047 | ✗ |
+| DOWN (Hypothese: Crowded Longs → Abwärts) | 551 | 8.269 | 31,8% | 33,6% | 0,380 | ✗ |
+
+**Weiterhin nicht signifikant nach BH-FDR-Korrektur** (UP-Zelle hat einen auffälligen rohen
+p-Wert von 0,047, übersteht aber die Korrektur bei 62 Zellen nicht, kritischer Wert 0,0177).
+**Wichtig:** selbst wenn sie bestanden hätte — die beobachtete Richtung ist der Hypothese
+entgegengesetzt (Trefferquote bei aktivem Signal NIEDRIGER als die Basisrate, nicht höher wie
+die "Crowded Shorts → Aufwärts"-Kontrarian-Hypothese vorhersagt). Das wäre kein bestätigter
+Fund gewesen, sondern ein Hinweis auf Fortsetzung statt Umkehr — eine andere Hypothese, die hier
+nicht vorregistriert war und daher nicht nachträglich als Ergebnis verkauft wird.
+
+**Net-Taker-Flow-Ratio und OI-Quadrant bleiben unkorrigiert** — siehe Datenverfügbarkeits-Audit:
+ihre Quelldaten sind durch ein echtes Börsen-API-Limit (nicht durch fehlenden Backfill-Aufwand)
+auf ca. 30 Tage begrenzt. Gesamtstand Runde 2 nach Korrektur unverändert: keiner der 3 Kandidaten
+signifikant, Pool-Grösse (62 Zellen) und signifikante Zellen (19) unverändert, da Funding-Z-Score
+vorher schon als "nicht signifikant" zählte.
+
+## Datenverfügbarkeits-Audit (13.09.2026): welche der 19 offenen Kandidaten sind rückwirkend befüllbar?
+
+Auf Nutzer-Nachfrage geprüft, ob die verbleibenden 19 Kandidaten wirklich blockiert sind oder nur
+noch nicht befüllt wurden. Ergebnis, per Live-Testabfrage der jeweiligen Endpunkte direkt aus
+Postgres (`net.http_get`) verifiziert, nicht nur aus Dokumentation vermutet:
+
+| Datenquelle | Betroffene Kandidaten | Historie | Befund |
+|---|---|---|---|
+| Binance `fapi/v1/fundingRate` | Funding-Z-Score | **kein Limit** — Testabfrage mit `startTime=2022-09-04` lieferte echte historische Werte | **Befüllbar** — umgesetzt, siehe Korrektur oben |
+| Binance `futures/data/openInterestHist` | OI-Quadrant | Testabfrage mit `startTime=2022-09-04` → HTTP 400 "startTime is invalid" | **Nicht befüllbar** — Retention-Fenster hart begrenzt (Binance-Dokumentation: 30 Tage), keine Umgehung ohne kostenpflichtigen Anbieter |
+| Binance `futures/data/globalLongShortAccountRatio`/`topLongShortAccountRatio`/`takerlongshortRatio` | Positionierung, Net-Taker-Flow-Ratio | Testabfrage mit `startTime=2022-09-04` → HTTP 400 "startTime is invalid" | **Nicht befüllbar** — dieselbe 30-Tage-Grenze |
+| Binance Liquidations-Websocket (`forceOrder`) | Liquidation-Cluster-Density | Kein REST-Endpunkt für historische Einzel-Liquidationen existiert überhaupt (nur Live-Stream) | **Grundsätzlich nicht befüllbar** über die kostenlose Binance-API |
+| Eigene Pipeline (`market_states.patterns`) | Warn-Muster ×4 | Live-Tabelle seit 2026-08-26, Detektionslogik ist aber ein deterministischer Fn. bereits vollständig backfillter Rohdaten (Candles/CVD) | **Theoretisch rekonstruierbar**, aber eigener Entwicklungsaufwand (Muster-Logik rückwirkend auf 4 Jahre Rohdaten anwenden) — nicht Teil dieser Umsetzung |
+| Eigene Pipeline (`divergence_radar_snapshots`) | Divergenz-Radar ×3 | Seit 2026-09-12 (1 Tag) | **Theoretisch rekonstruierbar** wie Warn-Muster, gleiche Einschränkung |
+| Eigene Pipeline (`tradingview_signals`) | TradingView-Events ×6, TradingView-Divergenzen ×2 | Seit 2026-09-03 (Webhook-Alerts) | **Nicht rekonstruierbar** — es gibt keine Rohdaten, aus denen sich vergangene TradingView-Alerts ableiten liessen (die Logik läuft serverseitig bei TradingView, nicht bei uns) |
+
+**Fazit:** von 19 offenen Kandidaten war 1 (Funding-Z-Score) tatsächlich nur ein Backfill-Versäumnis
+und wurde korrigiert (s.o.). 10 (OI-Quadrant/Positionierung/Net-Taker-Flow-Ratio/Liquidation-
+Cluster-Density) sind durch ein echtes, verifiziertes Börsen-API-Limit blockiert — keine
+Abkürzung ohne kostenpflichtigen Datenanbieter. 8 (Warn-Muster, Divergenz-Radar) sind
+theoretisch rückwirkend rekonstruierbar, aber ein eigenständiges Entwicklungsprojekt (Muster-
+Erkennung rückwirkend auf 4 Jahre Candles/CVD/Orderflow anwenden), hier nicht umgesetzt. 8
+(TradingView-Events/Divergenzen) sind grundsätzlich nicht rekonstruierbar, da die zugrunde
+liegende Logik ausserhalb unserer Datenhoheit läuft. Diese verbleibenden 18 Kandidaten bleiben
+dokumentiert zurückgestellt, keine weitere Handlung in dieser Umsetzung.
+
 ## Runde 3 (12.09.2026): Central Pivot Range (CPR) — Vorregistrierung
 
 Neuer Kandidat aus dem Dashboard-Brainstorming (Nutzer-Wunsch "durch pivot [...] wann welches
@@ -642,15 +707,26 @@ CCI-Extrem signifikant, siehe oben). `add_cci_factor_to_regime_score` (Migration
 `add_cci_to_regime_score_live` / `fix_cci_live_typical_price_column` (Migrationen) —
 `research_regime_score_live()` neu erstellt (Spalte `cci_active`), CCI(20) wird live direkt aus
 den letzten 20 abgeschlossenen 1h-Kerzen berechnet (nicht aus der Backfill-Tabelle).
-Cron `regime-score-pipeline-weekly` erweitert: ruft jetzt zusätzlich
+**Runde-2-Korrektur (Funding-Z-Score, 13.09.2026):** `research_funding_rate_history` (Tabelle,
+volle Binance-`fundingRate`-Historie 2022-09-04 bis heute, per `net.http_get`-Pagination direkt
+aus Postgres befüllt, live per Testabfrage verifiziert, dass der Endpunkt kein 30-Tage-Limit
+hat) + `research_regime_refresh_funding_history()` (haelt die Tabelle aktuell und berechnet
+`funding_zscore` nach jedem Lauf komplett neu, exakt nach der Formel aus
+`research-python/src/features/derivatives.py::funding_zscore`). `research_regime_extend_activation_round2()`
+angepasst: `Funding-Z-Score` liest jetzt aus dieser Tabelle statt aus dem nur ~3 Wochen
+befüllten `market_state_matrix.funding_zscore`. Alte, auf der Datenlücke basierende
+Aktivierungs-Zeilen gelöscht und mit vollständiger Historie neu berechnet (Ergebnis unverändert:
+weiterhin nicht signifikant, siehe Korrektur-Abschnitt oben). Cron `regime-score-pipeline-weekly`
+erweitert: ruft jetzt zusätzlich `research_regime_refresh_funding_history()`,
 `research_regime_extend_activation_round2()` bis `_round5()`,
 `research_regime_refresh_cci_roc_1h()` und `_round6()` auf — vorher lief dort nur die
 Basis-Erweiterung, wodurch Runde 2-6 für neue Bewertungspunkte nach und nach denselben
 Datenlücken-Fehler wie Runde 4 reproduziert hätten.
 
-**Noch offen (nächster Schritt, nicht Teil dieser Umsetzung):** die restlichen 17 noch nicht
-getesteten Kandidaten (16 Original-Signale ohne reproduzierbare Klassifizierungslogik + 1
-datenknappes neues Regime-Matrix-Signal). UI-Anbindung für DXY und CCI ist mit diesem Commit
-erledigt (siehe `components/RegimeScoreCard.tsx`); der Score bleibt trotzdem als "in Aufbau"
-gekennzeichnet, da das Struktur-Konzept die Gesamteinschätzung erst nach vollständiger
-Validierung als abgeschlossene Ebene-1-Kachel vorsieht.
+**Noch offen (nächster Schritt, nicht Teil dieser Umsetzung):** die restlichen 18 noch nicht
+testbaren Kandidaten (10 durch verifiziertes Börsen-API-Limit blockiert, 8 theoretisch
+rückwirkend rekonstruierbar oder grundsätzlich nicht rekonstruierbar — siehe
+Datenverfügbarkeits-Audit oben für die genaue Aufschlüsselung). UI-Anbindung für DXY und CCI ist
+mit diesem Commit erledigt (siehe `components/RegimeScoreCard.tsx`); der Score bleibt trotzdem
+als "in Aufbau" gekennzeichnet, da das Struktur-Konzept die Gesamteinschätzung erst nach
+vollständiger Validierung als abgeschlossene Ebene-1-Kachel vorsieht.
