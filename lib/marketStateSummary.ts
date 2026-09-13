@@ -1,10 +1,14 @@
 import type { MarketRegime, MarketState } from "./types";
 
 // Kompakte Ein-Satz-Textdarstellung der NEXUS-Assessment-SSOT (market_states,
-// compute-market-state) -- direkt in MarketStateCard.tsx als Kurzfassung vor
-// der vollen Faktor-Aufschluesselung gerendert (13.09.2026, vorher eine
-// eigene "Kurznotiz"-Kachel, die dieselbe Quelle nur ein zweites Mal in
-// einer eigenen Kachel zeigte -- entfernt, kein Datenverlust).
+// compute-market-state) -- einziger Verwender ist HeroHeader.tsx (Ebene 0,
+// ganz oben auf der Seite). Die vormalige, eigene "Kurznotiz"-Kachel im
+// Marktkontext-Tab nutzte dieselbe Funktion fuer denselben Satz ein zweites
+// Mal -- entfernt (13.09.2026), kein Datenverlust, da HeroHeader ihn
+// bereits ganz oben zeigt. Bewusst NICHT zusaetzlich in MarketStateCard
+// gerendert (naheliegender erster Versuch, aber MarketStateCard sitzt
+// direkt unter HeroHeader -- derselbe Satz waere dann zweimal
+// untereinander zu sehen statt einmal entfernt).
 //
 // Ersetzt die vorher eigenstaendige, regelbasierte Kurznotiz-Generierung
 // (collect-btc's frueherer "Markteinschaetzung"-Block, nur Bybit-Preis/OI/
@@ -21,7 +25,8 @@ import type { MarketRegime, MarketState } from "./types";
 // nicht nachtraeglich uminterpretiert werden. Diese Schwelle wirkt
 // ausschliesslich hier, an der einzigen Stelle, die den gespeicherten
 // overall_state in einen ANZEIGE-Text/Label uebersetzt (buildCompactMarketStateSummary
-// und isDirectionalLabelSuppressed, beide in MarketStateCard.tsx) --
+// in HeroHeader.tsx, isDirectionalLabelSuppressed in HeroHeader.tsx UND
+// MarketStateCard.tsx) --
 // beide muessen dieselbe Schwelle verwenden, sonst koennten sie wieder
 // auseinanderlaufen (genau das Problem, das der SSOT-Merge oben beheben sollte).
 export const DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD = 35;
