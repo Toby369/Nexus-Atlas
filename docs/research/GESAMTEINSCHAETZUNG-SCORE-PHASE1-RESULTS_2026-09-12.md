@@ -249,7 +249,105 @@ jetzt **21 von 40 getestet** (44 testbare Zellen, weiterhin 14 signifikant). Kei
 dieselbe Praxis wie bei den 3 gescheiterten Runde-2-Kandidaten — nicht bestätigte Kandidaten
 erscheinen nicht in der Live-Kachel.
 
+## Runde 4 (12.09.2026): Cross-Asset-Korrelation — Vorregistrierung
 
+Aus dem Dashboard-Brainstorming ("welche Korrelationen beeinflussen BTC —
+DXY, S&P/Nasdaq, Yen, Gold, M2/Liquidität?"). Nutzer-Recherche + eigene
+Web-Recherche zur Gegenprüfung ergaben 5 institutionell etablierte
+Zusammenhänge (DXY-Invertierung, Aktien-Risk-On-Kopplung, Yen-Carry-Trade,
+Fed-Net-Liquidity, Gold) — alle ausdrücklich als INSTABIL/phasenweise
+dokumentiert, nicht als Naturgesetz. Genau deshalb hier vorregistriert
+gegen die eigene 4h-Zielgröße statt die pauschale Literaturaussage
+ungeprüft zu übernehmen.
+
+**Datenquelle:** `macro_snapshots` (bereits vorhanden, 2 Jahre Historie:
+S&P 500, Nasdaq, VIX, DXY, Fed-Bilanz/TGA/Reverse-Repo seit 09/2024) + 2
+neu ergänzte Yahoo-Finance-Serien (`JPY=X` USD/JPY, `GC=F` COMEX-Gold, per
+`collect-macro`/`backfill-macro` v10/v8 nachgerüstet, ebenfalls seit
+09/2024 zurückbefüllt — `XAUUSD=X` existiert auf Yahoo nicht, live per
+404 verifiziert, `GC=F` funktioniert). Point-in-time-Join wie überall im
+Protokoll: jüngste `macro_snapshots`-Zeile mit `timestamp_utc <=
+evaluation_time` (gleiches Muster wie das bereits bestehende
+`get_macro_regime_asof()`).
+
+**Wichtige Abgrenzung zum bestehenden "Makro-Regime"-Faktor im
+Setup-Score:** das ist ein LIVE-ONLY, verdichteter Faktor (Risk-On/Off aus
+4 Signalen kombiniert) mit kleiner Stichprobe (n=337-445, weil er nur
+vorwärts ab seiner Einführung geloggt wird). Runde 4 hier testet
+stattdessen die EINZELNEN Bestandteile (DXY, S&P, Nasdaq, VIX,
+Net-Liquidity) rückwirkend gegen die vollen 2 Jahre — granularer, besser
+statistisch abgesichert, keine Dopplung.
+
+**7 Kandidaten, Hypothesen jetzt festgelegt** (Schwellenwerte identisch zu
+den bereits produktiven `get_macro_regime()`-Grenzen, wo vorhanden — keine
+neu erfundenen Werte):
+
+1. **DXY-Bewegung** — DXY fällt (Tagesänderung < -0,3%) → UP; DXY steigt
+   (> +0,3%) → DOWN. (Dollar-Schwäche/-Stärke, invers.)
+2. **S&P-500-Bewegung** — Tagesänderung > +0,5% → UP; < -0,5% → DOWN.
+3. **Nasdaq-Bewegung** — dieselben Schwellen wie S&P, separat getestet
+   (Tech-Beta könnte stärker/schwächer sein als Breitmarkt).
+4. **VIX erhöht** (> 25) → DOWN NUR (Risk-Off-Hypothese ist einseitig,
+   "VIX niedrig → UP" wird bewusst NICHT mitgetestet, keine symmetrische
+   Ruhe-Hypothese vorregistriert).
+5. **Net-Liquidity steigt** (Fed-Bilanz − TGA − Reverse-Repo,
+   Tagesänderung > +0,5%) → UP NUR (Lyn-Alden-Liquiditäts-Framework).
+6. **USD/JPY fällt** (Yen stärker, Tagesänderung < -0,3%, Carry-Trade-
+   Risiko) → DOWN NUR.
+7. **Gold-Bewegung** — Ko-Bewegungs-Hypothese (nicht Safe-Haven-Gegensatz):
+   Gold steigt (> +0,5%) → UP; Gold fällt (< -0,5%) → DOWN. Symmetrisch
+   wie DXY, aber GLEICHE statt umgekehrte Richtung.
+
+**Methodik identisch zum Rest des Protokolls:** dieselben 8.818
+nicht-überlappenden 4h-Bewertungspunkte, derselbe kumulative BH-FDR-Pool,
+MIN_N=10.
+
+## Runde 4 — Ergebnis: keiner der 7 Cross-Asset-Kandidaten übersteht BH-FDR — aber zwei knapp
+
+| Kandidat | Richtung | n (aktiv) | n (Rest) | Trefferquote aktiv | Trefferquote Rest | p (roh) |
+|---|---|---|---|---|---|---|
+| Gold-Bewegung | DOWN | 1.262 | 7.557 | 36,1% | 33,0% | 0,030 |
+| DXY-Bewegung | UP | 899 | 7.920 | 36,0% | 32,6% | 0,040 |
+| DXY-Bewegung | DOWN | 896 | 7.923 | 36,4% | 33,1% | 0,051 |
+| S&P-500-Bewegung | UP | 1.339 | 7.480 | 35,2% | 32,6% | 0,064 |
+| Gold-Bewegung | UP | 1.767 | 7.052 | 34,5% | 32,6% | 0,139 |
+| Nasdaq-Bewegung | UP | 1.618 | 7.201 | 34,5% | 32,6% | 0,155 |
+| S&P-500-Bewegung | DOWN | 898 | 7.921 | 35,1% | 33,3% | 0,279 |
+| Nasdaq-Bewegung | DOWN | 1.151 | 7.668 | 34,8% | 33,3% | 0,288 |
+| USD/JPY fällt | DOWN | 1.107 | 7.712 | 32,6% | 33,6% | 0,521 |
+| Net-Liquidity steigt | UP | 1.023 | 7.796 | 33,5% | 32,9% | 0,694 |
+| VIX erhöht | DOWN | 300 | 8.519 | 33,0% | 33,5% | 0,863 |
+
+**Keine der 11 Zellen übersteht BH-FDR** (Pool jetzt 55 testbare Zellen — die Korrektur wird
+strenger, je mehr Kandidaten kumulativ getestet werden). Zwei liegen aber roh unter α=0,05
+(Gold-Bewegung DOWN, DXY-Bewegung UP) und eine knapp drüber (DXY-Bewegung DOWN, p=0,051) —
+alle drei in der vorregistrierten Richtung. Das ist ein ehrliches "noch nicht bestätigt, aber
+nicht nichts" statt eines klaren Nein.
+
+**Bemerkenswerte Einzelbefunde:**
+- **DXY-Invertierung** zeigt in BEIDE Richtungen den erwarteten Effekt (DXY fällt→UP UND DXY
+  steigt→DOWN, beide um die 36% vs. ~33% Basisrate) — konsistent mit der Recherche, nur (noch)
+  nicht stark genug für die strenge Korrektur.
+- **Gold-Ko-Bewegung nur einseitig**: Gold fällt→DOWN zeigt den stärksten Rohbefund der ganzen
+  Runde (p=0,030), Gold steigt→UP ist deutlich schwächer (p=0,139) — asymmetrisch, ähnlich wie
+  schon bei Bollinger %b in Runde 1 beobachtet.
+- **Nasdaq schwächer als S&P**, entgegen der verbreiteten "BTC korreliert stärker mit Tech"-
+  Annahme aus der Recherche — hier zeigt der breitere S&P 500 den knapperen p-Wert.
+- **Yen-Carry-Trade-Hypothese nicht bestätigt** — USD/JPY fällt zeigt sogar eine Trefferquote
+  UNTER der Basisrate (32,6% vs. 33,6%), also in die dem Carry-Unwind-Narrativ entgegengesetzte
+  Richtung. Das prominente 05.08.2024-Ereignis war offenbar ein Einzelereignis, kein
+  systematischer 4h-Zusammenhang über 2 Jahre.
+- **VIX und Net-Liquidity ohne jeden Effekt** — beide praktisch bei der Basisrate. Für VIX ist
+  die Stichprobe zusätzlich klein (n=300, VIX>25 ist ein seltener Zustand).
+
+**Konsequenz:** keiner der 7 Kandidaten fließt in den produktiven WOE-Score ein. Pool erweitert
+sich von 40 auf 47 vorregistrierte Kandidaten (7 neue Cross-Asset-Kandidaten, nicht Teil des
+ursprünglichen Protokolls) — davon jetzt **28 von 47 getestet** (55 testbare Zellen, weiterhin
+14 signifikant). Die beiden knappen Kandidaten (DXY-Bewegung, Gold-Bewegung DOWN) sind gute
+Kandidaten für eine spätere Re-Prüfung, sobald mehr Historie vorliegt (mehr N verringert bei
+gleichem Effekt den p-Wert) — nicht verworfen, nur (noch) nicht bestätigt.
+
+## Einordnung — noch nicht die Ebene-1-Bewertung
 
 Wie im Struktur-Konzept (Abschnitt 5) festgehalten: Kollinearitäts-Prüfung, Out-of-Sample-
 Validierung und ein produktiver WOE-Score sind jetzt erledigt (siehe oben) — methodisch auf
@@ -279,7 +377,10 @@ Cron-Job `regime-score-pipeline-weekly`. `backfill-history` Edge Function um `co
 ergänzt (deployed v9) und einmalig über die volle 1h-Historie ausgeführt.
 `research_regime_extend_activation_round2()` (Funding-Z-Score/Net-Taker-Flow-Ratio/OI-Quadrant,
 alle nicht signifikant), `research_regime_extend_activation_round3()` (CPR, alle 3 Kandidaten
-nicht signifikant, siehe oben).
+nicht signifikant, siehe oben), `research_regime_extend_activation_round4()` (7
+Cross-Asset-Korrelations-Kandidaten, keiner signifikant, 2 knapp, siehe oben). `collect-macro`
+(v10) und `backfill-macro` (v8) um `JPY=X` (USD/JPY) und `GC=F` (Gold, COMEX-Future) ergänzt,
+2 Jahre zurückbefüllt.
 
 **Noch offen (nächster Schritt, nicht Teil dieser Umsetzung):** UI-Anbindung. Bewusst noch nicht
 gemacht — der Score ist methodisch fertig, aber erst 17 von 39 Kandidaten getestet, und das
