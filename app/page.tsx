@@ -45,7 +45,6 @@ import EtfFlowPanel from "@/components/EtfFlowPanel";
 import EconomicCalendarPanel from "@/components/EconomicCalendarPanel";
 import InstitutionalPlaybookCard from "@/components/InstitutionalPlaybookCard";
 import MarketContextCard from "@/components/MarketContextCard";
-import MarketStateCard from "@/components/MarketStateCard";
 import RegimeMatrixCard from "@/components/RegimeMatrixCard";
 import HandelslageCard from "@/components/HandelslageCard";
 import QuizTile from "@/components/QuizTile";
@@ -102,11 +101,10 @@ async function getSnapshotHistory(limit = 180): Promise<MarketSnapshot[]> {
 }
 
 // ENTFERNT (Single-Source-of-Truth-Merge): fruehere, eigenstaendige,
-// regelbasierte market_commentary-Abfrage. Die "Kurznotiz" in
-// LivePriceDataProvider.tsx nutzt jetzt denselben marketState-Wert wie
-// MarketStateCard (siehe getLatestMarketState() unten), zusammengefasst
-// ueber lib/marketStateSummary.ts::buildCompactMarketStateSummary() -- kein
-// zweiter, unabhaengiger Rechenweg mehr.
+// regelbasierte market_commentary-Abfrage. getLatestMarketState() unten
+// beliefert HeroHeader (Kurzfassung + volle Faktor-Aufschluesselung in
+// einer Sektion, siehe dortiger Kommentar vom 13.09.2026) -- kein zweiter,
+// unabhaengiger Rechenweg mehr.
 
 async function getLatestMarketState(): Promise<MarketState | null> {
   const { data, error } = await supabase
@@ -705,16 +703,6 @@ export default async function Home({
             initialBundle={initialDashboardBundle}
             initialFetchedSinceIso={timeframeSinceIsoValue}
           >
-            <HeroHeader
-              initialState={marketState}
-              initialRegime={marketStateMatrix?.regime ?? null}
-              timeframe={timeframe}
-              recentEtfFlows={recentEtfFlows}
-              recentLiquidations={recentLiquidations}
-              highImpactNews={highImpactNews}
-              upcomingEconomicEvents={upcomingEconomicEvents}
-            />
-
             {/* Nutzer-Feedback vom 04.09.2026: Zeitraum/Event-Anker sind
                 globale Steuerungen (wirken auf mehrere Kacheln unten, siehe
                 timeframe/anchorIso-Props), sollten also vor der
@@ -724,7 +712,11 @@ export default async function Home({
                 09.09.2026, siehe DashboardTabNav) -- Zeitraum/Event-Anker/
                 Gesamteinschaetzung sind zu grundlegend, um sie hinter einem
                 Klick zu verstecken; die Tab-Navigation darunter uebernimmt
-                jetzt die Aufgabe, die Ansicht kompakt zu halten. */}
+                jetzt die Aufgabe, die Ansicht kompakt zu halten.
+                13.09.2026: davor statt danach verschoben, seit HeroHeader
+                (unten) und die vormalige MarketStateCard zu einer Sektion
+                verschmolzen sind -- die Steuerungen stehen jetzt vor der
+                gesamten Sektion statt in ihrer Mitte. */}
             <div className="flex items-center justify-between flex-wrap gap-2">
               <p className="text-xs uppercase tracking-[0.2em] text-text-faint">
                 Zeitraum
@@ -743,7 +735,16 @@ export default async function Home({
               </Suspense>
             </div>
 
-            <MarketStateCard initialState={marketState} />
+            <HeroHeader
+              initialState={marketState}
+              initialRegime={marketStateMatrix?.regime ?? null}
+              timeframe={timeframe}
+              recentEtfFlows={recentEtfFlows}
+              recentLiquidations={recentLiquidations}
+              highImpactNews={highImpactNews}
+              upcomingEconomicEvents={upcomingEconomicEvents}
+            />
+
             <ConfluenceScoreCard score={confluenceScore} signalDetail={confluenceSignalDetail} />
             <RegimeScoreCard score={regimeScore} />
 

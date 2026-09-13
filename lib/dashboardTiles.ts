@@ -1,7 +1,8 @@
 // Zentrale Registry der frei verschiebbaren/minimierbaren Dashboard-Kacheln
-// (siehe components/DashboardLayout.tsx). MarketStateCard und die Zeitraum-
-// Auswahl sind bewusst NICHT Teil dieser Liste -- MarketStateCard ist die
-// fest platzierte Synthese ganz oben, die Zeitraum-Auswahl ist ein
+// (siehe components/DashboardLayout.tsx). HeroHeader (seit 13.09.2026 inkl.
+// der vormaligen MarketStateCard, siehe dortiger Kommentar) und die
+// Zeitraum-Auswahl sind bewusst NICHT Teil dieser Liste -- HeroHeader ist
+// die fest platzierte Synthese ganz oben, die Zeitraum-Auswahl ist ein
 // Steuerelement, keine Datenkachel. Aus demselben Grund seit 12.09.2026 auch
 // der Setup-Score (ConfluenceScoreCard) nicht mehr Teil dieser Liste --
 // Ebene-1-Bewertungen (siehe docs/research/NEXUS-STRUKTUR-KONZEPT_2026-09-12.md)
