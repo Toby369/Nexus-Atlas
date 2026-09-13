@@ -479,6 +479,117 @@ vorregistrierten Kandidaten getestet wurden:
 Setup-Score-Job) hält das Ganze von Anfang an lernend statt statisch — direkte Umsetzung von
 "Nexus und der Score sind lernbar" (Struktur-Konzept Abschnitt 0).
 
+## Runde 6 (13.09.2026): Klassische Oszillatoren — Vorregistrierung
+
+Nutzer-Vorschlag: CCI (Commodity Channel Index) und ROC (Rate of Change) als weitere Kandidaten
+prüfen. **Moving-Average-Abstand** ist dagegen bereits abgedeckt (Distanz-zu-SMA50-Z-Score,
+Runde 1, Mean-Reversion-Hypothese NICHT bestätigt) und wird hier nicht erneut aufgemacht —
+das wäre eine unzulässige rückwirkende Wiederholung eines bereits abgeschlossenen Tests.
+
+**Kandidat 1 — CCI-Extrem, Trend-Fortsetzungs-Hypothese (nicht Mean-Reversion):**
+`CCI = (Typical Price − SMA20(Typical Price)) / (0,015 × Mean Deviation(20))`, Typical Price =
+`(High+Low+Close)/3`, auf dem 1h-BTCUSDT-Candle-Set (Binance). Standard-Extremschwelle
+`|CCI| ≥ 100` (Lambert 1980, Original-Interpretation als Trendausbruch-Signal). Bewusst NICHT
+als Mean-Reversion registriert: das wäre inhaltlich dieselbe Idee wie Distanz-SMA50-Z-Score
+(Runde 1), die bereits NICHT bestätigt wurde — eine Wiederholung mit anderem Namen wäre
+Zirkelschluss. Hypothese: `CCI ≥ +100` → UP (Trend läuft weiter aufwärts), `CCI ≤ −100` → DOWN
+(Trend läuft weiter abwärts). Empirische Prüfung der Schwelle an der eigenen Verteilung (reine
+Feature-Kalibrierung, keine Zielgrössen-Einsicht, analog zur k=1,0-Kalibrierung in Abschnitt 1
+des Protokolls): `CCI ≥ 100` bei 7.042/35.275 (20,0%), `CCI ≤ −100` bei 6.455/35.275 (18,3%) —
+beide Seiten weit über MIN_N, keine Schieflage.
+
+**Kandidat 2 — ROC-Z-Score, Momentum-Fortsetzungs-Hypothese:** `ROC = (Close(t0) − Close(t0−14h))
+/ Close(t0−14h) × 100` (Standard-Fenster 14, analog RSI-14 im Projekt), dann als Z-Score
+standardisiert (`ROC / Stddev(ROC)` über die volle Historie) — identisches Prinzip wie bei
+CVD-Z-Score/Funding-Z-Score (Runde 1/2), Schwelle `|z| ≥ 1,0`. Grund für Z-Score statt fixem
+Prozentwert: ROC-Streuung ist nicht von vornherein bekannt (anders als bei DXY/S&P/Nasdaq, wo
+±0,3-0,5% aus der bestehenden `get_macro_regime()`-Logik übernommen wurde) — Standardisierung
+macht die Schwelle unabhängig von der zufälligen Rohgrössen-Skala. Empirische Streuung:
+Stddev(ROC) = 1,84 Prozentpunkte über 35.280 Werte. Hypothese: `ROC-Z ≥ +1,0` → UP
+(Momentum setzt sich fort), `ROC-Z ≤ −1,0` → DOWN. Aktivierung: 4.089/35.280 (11,6%) bzw.
+3.676/35.280 (10,4%) — beide über MIN_N. Erwartete hohe Kollinearität mit dem bereits
+bestätigten Momentum-Faktor (RSI+MACD) wird im üblichen Kollinearitäts-Check geprüft, keine
+Vorab-Ausschluss-Entscheidung nötig.
+
+Beide Kandidaten × 2 Richtungen = 4 neue testbare Zellen, gegen denselben BH-FDR-Pool
+(`research_regime_bh_fdr`), gleiche 4h-Bewertungspunkte, MIN_N=10.
+
+## Runde 6 — Ergebnis: CCI-Extrem besteht in beiden Richtungen, ROC-Z-Score scheitert
+
+| Signal | Richtung | n (aktiv) | n (Rest) | Trefferquote aktiv | Trefferquote Rest | p (roh) | BH-FDR |
+|---|---|---|---|---|---|---|---|
+| **CCI-Extrem (Fortsetzung)** | DOWN | 1.602 | 7.218 | 38,5% | 32,4% | 0,000003 | ✓ |
+| **CCI-Extrem (Fortsetzung)** | UP | 1.753 | 7.067 | 37,0% | 32,0% | 0,0001 | ✓ |
+| ROC-Z-Score | UP | 1.023 | 7.797 | 34,9% | 32,7% | 0,166 | ✗ |
+| ROC-Z-Score | DOWN | 913 | 7.907 | 34,8% | 33,3% | 0,357 | ✗ |
+
+Genau wie vorab begründet erwartet: **CCI-Extrem als Trend-Fortsetzungssignal funktioniert**,
+die Mean-Reversion-Variante wäre vermutlich am selben Nullbefund wie Distanz-SMA50-Z-Score
+gescheitert (nicht separat getestet, siehe Vorregistrierung). **ROC-Z-Score scheitert** — deckt
+sich mit der erwarteten hohen Redundanz zu Momentum-Faktor (RSI+MACD), siehe Kollinearitäts-Check
+unten.
+
+**Out-of-Sample-Check (CCI-Extrem, Split 2025-09-04, 1 Tag Embargo):**
+
+| Richtung | Train aktiv | Train inaktiv | Test aktiv | Test inaktiv |
+|---|---|---|---|---|
+| DOWN | 38,9% (n=1.180) | 31,7% | 37,2% (n=419) | 34,4% |
+| UP | 37,1% (n=1.321) | 32,0% | 36,8% (n=429) | 31,8% |
+
+Positive Differenz bleibt in beiden Richtungen out-of-sample erhalten, kein Nullfall wie bei
+M2-Wachstum — CCI-Extrem ist produktionsreif.
+
+**Kollinearitäts-Check (CCI-Extrem vs. bestehende Faktoren, φ bzw. Pearson-r):**
+
+| Vergleich | φ / r |
+|---|---|
+| CCI vs. Trendstärke (ADX+DI) | 0,47–0,49 |
+| CCI vs. Trend-Konsens (Aggregat, Pearson-r) | 0,44–0,45 |
+| CCI vs. Momentum-Faktor (RSI+MACD) | 0,38–0,39 |
+| CCI vs. CVD-Z-Score | 0,21–0,22 |
+| CCI vs. Bollinger %b | −0,24 (erwartet gegensätzlich, da Mean-Reversion vs. Fortsetzung) |
+| CCI vs. DXY-Bewegung | 0,03–0,05 |
+
+Höher als bei DXY (φ≈0,03-0,05), aber deutlich unter dem Niveau, das beim Setup-Score/Runde-1
+zur Bündelung von MTF-Alignment in Trend-Konsens geführt hat (dort φ 0,47-0,54 GLEICHZEITIG zu
+allen drei Struktur-Ebenen, weil MTF-Alignment eine reine Rekombination davon ist). CCI ist
+konstruktiv etwas anderes (normierter Abstand zum gleitenden Mittel, kein Trend-Match-Zähler) und
+korreliert nur mit EINER der sechs Trend-Konsens-Komponenten stark — Entscheidung: **als eigener,
+unabhängiger 5. Faktor aufgenommen statt in Trend-Konsens gebündelt**, mit der moderaten
+Restkorrelation hier transparent dokumentiert statt verschwiegen.
+
+## Produktiver WOE-Score — Update: CCI-Extrem als fünfter Faktor
+
+**UP:** Trend-Konsens + CVD-Z + Bollinger %b + DXY + CCI. **DOWN:** Trend-Konsens + CVD-Z +
+Momentum-Faktor + DXY + CCI.
+
+**Neue Terzil-Grenzen:**
+
+| Richtung | Basisrate | Niedrig bis | Mittel bis |
+|---|---|---|---|
+| UP | 33,0% | ≤28,9% | ≤34,7% |
+| DOWN | 33,5% | ≤29,2% | ≤33,2% |
+
+**Out-of-Sample-Bestätigung des 5-Faktor-Scores (Split 2025-09-04, 1 Tag Embargo):**
+
+| Stufe | UP Train | UP Test | DOWN Train | DOWN Test |
+|---|---|---|---|---|
+| Niedrig | 26,3% | 25,6% | 28,1% | 30,4% |
+| Mittel | 32,7% | 33,5% | 31,6% | 35,5% |
+| Hoch | 38,8% | 38,9% | 40,0% | 39,5% |
+
+Weiterhin sauber monoton und stabil zwischen Train/Test in beiden Richtungen.
+
+**Live-Berechnung:** `research_regime_score_live()` berechnet CCI(20) jetzt direkt aus den
+letzten 20 abgeschlossenen 1h-Kerzen (nicht aus der Backfill-Tabelle, die nur für das Backtesting
+dient) — point-in-time-sicher, immer aktuell.
+
+**Pool jetzt 52 Kandidaten, davon 33 getestet (62 testbare Zellen, davon 19 signifikant).** Von
+den signifikanten Kandidaten fließen 5 als unabhängige Faktoren in den produktiven Score ein
+(Trend-Konsens, CVD-Z-Score, Momentum-Faktor/Bollinger %b je nach Richtung, DXY-Bewegung,
+CCI-Extrem) — M2-Wachstum bleibt aus dem genannten Out-of-Sample-Grund draussen, ROC-Z-Score war
+gar nicht erst signifikant.
+
 ## Neue DB-Objekte
 
 `research_regime_evaluation_events()` (Ereignisquelle), `research_regime_signal_activation`
@@ -517,9 +628,29 @@ DXY-Aktivierung live aus `macro_snapshots` (Symbol `DX-Y.NYB`) und addiert das p
 WOE-Gewicht je Richtung. M2-Wachstum bewusst NICHT in den Live-Score aufgenommen (BH-FDR-
 signifikant, aber Out-of-Sample-Check degeneriert, siehe oben).
 
-**Noch offen (nächster Schritt, nicht Teil dieser Umsetzung):** die restlichen 19 noch nicht
-getesteten Kandidaten (18 Original-Signale ohne reproduzierbare Klassifizierungslogik + 1
-datenknappes neues Regime-Matrix-Signal). UI-Anbindung für DXY ist mit diesem Commit erledigt
-(siehe `components/RegimeScoreCard.tsx`); der Score bleibt trotzdem als "in Aufbau"
+**Runde 6 (CCI/ROC, 13.09.2026):** `research_regime_cci_roc_1h` (Tabelle, CCI(20)/ROC(14) auf
+dem 1h-BTCUSDT-Candle-Set, einmalig vorberechnet statt live pro Bewertungspunkt) +
+`research_regime_refresh_cci_roc_1h()` (berechnet die Tabelle komplett neu — hält sie aktuell,
+damit künftige Bewertungspunkte beim Asof-Join nicht ins Leere laufen und stillschweigend als
+"inaktiv" gälten, dieselbe Fehlerklasse wie die Runde-4-Datenlücke oben). Erste Version dieser
+Funktion nutzte einen unindizierten Row-Number-Bereichs-Lateral-Join und lief in einen
+60-Sekunden-Timeout — durch echte Temp-Tabellen mit btree-Index auf `open_time` +
+Rückwärtsscan/`LIMIT 20` ersetzt (Sekunden statt Timeout).
+`research_regime_extend_activation_round6()` (CCI-Extrem UP/DOWN, ROC-Z-Score UP/DOWN — nur
+CCI-Extrem signifikant, siehe oben). `add_cci_factor_to_regime_score` (Migration) —
+`research_regime_score_refresh()` um den fünften Faktor `cci` erweitert.
+`add_cci_to_regime_score_live` / `fix_cci_live_typical_price_column` (Migrationen) —
+`research_regime_score_live()` neu erstellt (Spalte `cci_active`), CCI(20) wird live direkt aus
+den letzten 20 abgeschlossenen 1h-Kerzen berechnet (nicht aus der Backfill-Tabelle).
+Cron `regime-score-pipeline-weekly` erweitert: ruft jetzt zusätzlich
+`research_regime_extend_activation_round2()` bis `_round5()`,
+`research_regime_refresh_cci_roc_1h()` und `_round6()` auf — vorher lief dort nur die
+Basis-Erweiterung, wodurch Runde 2-6 für neue Bewertungspunkte nach und nach denselben
+Datenlücken-Fehler wie Runde 4 reproduziert hätten.
+
+**Noch offen (nächster Schritt, nicht Teil dieser Umsetzung):** die restlichen 17 noch nicht
+getesteten Kandidaten (16 Original-Signale ohne reproduzierbare Klassifizierungslogik + 1
+datenknappes neues Regime-Matrix-Signal). UI-Anbindung für DXY und CCI ist mit diesem Commit
+erledigt (siehe `components/RegimeScoreCard.tsx`); der Score bleibt trotzdem als "in Aufbau"
 gekennzeichnet, da das Struktur-Konzept die Gesamteinschätzung erst nach vollständiger
 Validierung als abgeschlossene Ebene-1-Kachel vorsieht.
