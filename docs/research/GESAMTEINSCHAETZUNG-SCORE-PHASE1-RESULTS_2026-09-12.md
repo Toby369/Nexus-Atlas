@@ -174,7 +174,82 @@ Rekonstruktion ohne bekannten Geschwindigkeitsvorteil gegenüber den bereits get
 Einzelfaktoren. **Kein aktiver Blocker** — der kumulative BH-FDR-Pool nimmt neue Kandidaten
 jederzeit auf, sobald genug Historie vorliegt oder sich eine Rekonstruktion lohnt.
 
-## Einordnung — noch nicht die Ebene-1-Bewertung
+## Runde 3 (12.09.2026): Central Pivot Range (CPR) — Vorregistrierung
+
+Neuer Kandidat aus dem Dashboard-Brainstorming (Nutzer-Wunsch "durch pivot [...] wann welches
+setup"), auf Nutzer-Entscheidung hin als vollwertiger, vorregistrierter Kandidat statt reiner
+Info-Kachel umgesetzt. **Diese Sektion wird VOR Kenntnis der Testergebnisse geschrieben** — exakt
+dasselbe Vorgehen wie bei allen bisherigen Kandidaten in diesem Protokoll.
+
+**Datenquelle:** `candles` (1d, BTCUSDT, Binance), 2022-09-04 bis heute (1.469 Tageskerzen) —
+dieselbe 4-Jahres-Tiefe wie die restliche Historie in diesem Protokoll.
+
+**CPR-Formel** (Central Pivot Range, institutionelle Standard-Methodik, siehe Recherche im
+Brainstorming — Pivot Point (P), Bottom-CPR (BC), Top-CPR (TC) aus H/L/C der VORHERIGEN
+abgeschlossenen Tageskerze, kein Lookahead):
+
+```
+P  = (High + Low + Close) / 3
+BC = (High + Low) / 2
+TC = 2×P − BC
+Breite-% = (TC − BC) / P × 100
+```
+
+**3 Kandidaten, Hypothesen jetzt festgelegt:**
+
+1. **CPR-Position (Preis > Top-CPR) → UP.** Institutionelle Lesart: Ausbruch über die Range gilt
+   als Kaufsignal (siehe Brainstorming-Recherche). Bewusst NUR für UP getestet — die
+   Gegenhypothese ("Ausbruch über TC = Erschöpfung, daher DOWN") ist eine andere Theorie
+   (Mean-Reversion statt Momentum) und wird hier nicht nachträglich mitgetestet, um kein
+   Cherry-Picking zwischen zwei Theorien zu betreiben.
+2. **CPR-Position (Preis < Bottom-CPR) → DOWN.** Spiegelbildlich zu 1, aus demselben Grund
+   NUR für DOWN.
+3. **CPR-Breite eng → BEIDE Richtungen.** Institutionelle Lesart: eine enge CPR (relativ zur
+   jüngeren eigenen Historie) kündigt einen Trendtag an, eine weite eher Konsolidierung/Pullback.
+   Das ist KEINE Richtungsaussage, sondern eine "wird sich heute überhaupt viel bewegen"-Aussage
+   — die symmetrische Hypothese lautet daher: enge CPR erhöht die Trefferquote für UP UND für
+   DOWN gleichzeitig (weil sie NEUTRAL-Ausgänge verdrängt, nicht weil sie eine Richtung
+   vorwegnimmt). "Eng" = unterstes Tertil der Breite-% der 20 vorherigen Tageskerzen (rollierend,
+   nicht die Gesamthistorie — CPR-Breite wird relativ zur jüngeren Vergangenheit interpretiert,
+   nicht absolut über 4 Jahre, weil sich die absolute BTC-Volatilität über die Jahre stark
+   verschoben hat).
+
+**Methodik identisch zum Rest des Protokolls:** dieselben 8.818 nicht-überlappenden
+4h-Bewertungspunkte, derselbe BH-FDR-Pool (`research_regime_bh_fdr`, kumulativ), MIN_N=10, Preis
+für die CPR-Positions-Kandidaten aus der jüngsten 1h-Kerze zum Bewertungszeitpunkt (point-in-time,
+kein Lookahead).
+
+## Runde 3 — Ergebnis: keiner der 3 CPR-Kandidaten überlebt BH-FDR
+
+| Kandidat | Richtung | n (aktiv) | n (Rest) | Trefferquote aktiv | Trefferquote Rest | p (roh) |
+|---|---|---|---|---|---|---|
+| CPR-Position (Preis < Bottom) | DOWN | 4.119 | 4.697 | 34,4% | 32,6% | 0,069 |
+| CPR-Breite eng | DOWN | 3.036 | 5.780 | 34,1% | 33,1% | 0,356 |
+| CPR-Position (Preis > Top) | UP | 4.529 | 4.287 | 33,3% | 32,6% | 0,480 |
+| CPR-Breite eng | UP | 3.036 | 5.780 | 32,1% | 33,5% | 0,202 |
+
+Alle vier Zellen deutlich über α=0,05 (roh, also erst recht nach BH-Korrektur) — **keine der drei
+Hypothesen bestätigt**. Bemerkenswert: "CPR-Breite eng" zeigt für UP sogar eine leichte Abweichung
+in die dem Trendtag-Modell entgegengesetzte Richtung (32,1% vs. 33,5% Basisrate) — kein Effekt in
+irgendeine Richtung, nicht einmal ein schwacher.
+
+**Plausible Einordnung, warum CPR hier nicht greift:** CPR ist eine Methodik aus Märkten mit
+klar definierten Handelssessions (Aktien/Futures, tägliche RTH-Eröffnung/-Schluss) — der
+"gestriges H/L/C bestimmt heutige Levels"-Mechanismus ist dort an einen echten Tageswechsel im
+Orderfluss gekoppelt. BTC handelt 24/7 ohne Session-Grenze; ein UTC-Kalendertag ist ein
+willkürlicher, nicht handelsökonomisch verankerter Cutpoint. Das erklärt plausibel, warum ein in
+Aktien/Futures etabliertes Konzept hier keine Vorhersagekraft zeigt — ohne dass das eine
+allgemeingültige Aussage über CPR wäre, nur über seine Übertragbarkeit auf 24/7-Krypto-Märkte.
+
+**Konsequenz:** CPR fließt NICHT in den produktiven WOE-Score ein (Abschnitt "Produktiver
+WOE-Score" bleibt unverändert). Ergebnis dokumentiert statt verschwiegen, exakt wie bei Runde 2.
+**Pool erweitert sich von 39 auf 40 vorregistrierte Kandidaten** (CPR kam nachträglich aus dem
+Dashboard-Brainstorming hinzu, war nicht Teil des ursprünglichen Protokoll-Dokuments) — davon
+jetzt **21 von 40 getestet** (44 testbare Zellen, weiterhin 14 signifikant). Keine UI-Änderung:
+dieselbe Praxis wie bei den 3 gescheiterten Runde-2-Kandidaten — nicht bestätigte Kandidaten
+erscheinen nicht in der Live-Kachel.
+
+
 
 Wie im Struktur-Konzept (Abschnitt 5) festgehalten: Kollinearitäts-Prüfung, Out-of-Sample-
 Validierung und ein produktiver WOE-Score sind jetzt erledigt (siehe oben) — methodisch auf
@@ -202,6 +277,9 @@ Setup-Score-Job) hält das Ganze von Anfang an lernend statt statisch — direkt
 `research_regime_score_live()` (Live-Lookup, analog `research_confluence_score_live()`),
 Cron-Job `regime-score-pipeline-weekly`. `backfill-history` Edge Function um `computeAtr()`
 ergänzt (deployed v9) und einmalig über die volle 1h-Historie ausgeführt.
+`research_regime_extend_activation_round2()` (Funding-Z-Score/Net-Taker-Flow-Ratio/OI-Quadrant,
+alle nicht signifikant), `research_regime_extend_activation_round3()` (CPR, alle 3 Kandidaten
+nicht signifikant, siehe oben).
 
 **Noch offen (nächster Schritt, nicht Teil dieser Umsetzung):** UI-Anbindung. Bewusst noch nicht
 gemacht — der Score ist methodisch fertig, aber erst 17 von 39 Kandidaten getestet, und das
