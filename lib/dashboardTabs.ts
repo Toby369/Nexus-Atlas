@@ -41,7 +41,6 @@ export const DASHBOARD_TABS: DashboardTabMeta[] = [
       "handelslage",
       "divergence-radar",
       "positioning",
-      "orderbook-walls",
     ],
   },
   {
@@ -52,6 +51,7 @@ export const DASHBOARD_TABS: DashboardTabMeta[] = [
       "oi-change",
       "oi-by-exchange",
       "funding-rate",
+      "orderbook-walls",
       "leverage-map",
       "cycle-indicators",
       "economic-calendar",
