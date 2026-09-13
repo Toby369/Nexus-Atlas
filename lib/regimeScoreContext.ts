@@ -4,7 +4,7 @@
 // und docs/research/GESAMTEINSCHAETZUNG-SCORE-PHASE1-RESULTS_2026-09-12.md.
 //
 // WICHTIG -- anders als der Setup-Score (research_confluenceScoreContext.ts)
-// ist dies noch KEIN vollstaendig validierter Ebene-1-Score: erst 33 von 52
+// ist dies noch KEIN vollstaendig validierter Ebene-1-Score: erst 34 von 52
 // vorregistrierten Kandidatensignalen getestet (siehe NEXUS-STRUKTUR-KONZEPT
 // Abschnitt 5). Die Kachel macht das explizit sichtbar, statt einen fertigen
 // Eindruck vorzutaeuschen.
@@ -24,6 +24,7 @@ export interface RegimeScoreRow {
   bollingerPctbActive: boolean | null;
   dxyActive: boolean | null;
   cciActive: boolean | null;
+  fragileBullishActive: boolean | null;
   probability: number;
   tier: RegimeScoreTier;
   dataAsof: string;
@@ -49,6 +50,7 @@ export async function buildRegimeScore(): Promise<RegimeScoreResult> {
     bollinger_pctb_active: boolean | null;
     dxy_active: boolean | null;
     cci_active: boolean | null;
+    fragile_bullish_active: boolean | null;
     probability: number | string;
     tier: RegimeScoreTier;
     data_asof: string;
@@ -60,6 +62,7 @@ export async function buildRegimeScore(): Promise<RegimeScoreResult> {
     bollingerPctbActive: row.bollinger_pctb_active,
     dxyActive: row.dxy_active,
     cciActive: row.cci_active,
+    fragileBullishActive: row.fragile_bullish_active,
     probability: Number(row.probability),
     tier: row.tier,
     dataAsof: row.data_asof,

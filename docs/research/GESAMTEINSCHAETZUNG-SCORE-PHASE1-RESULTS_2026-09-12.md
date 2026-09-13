@@ -224,20 +224,23 @@ Postgres (`net.http_get`) verifiziert, nicht nur aus Dokumentation vermutet:
 | Binance `fapi/v1/fundingRate` | Funding-Z-Score | **kein Limit** — Testabfrage mit `startTime=2022-09-04` lieferte echte historische Werte | **Befüllbar** — umgesetzt, siehe Korrektur oben |
 | Binance `futures/data/openInterestHist` | OI-Quadrant | Testabfrage mit `startTime=2022-09-04` → HTTP 400 "startTime is invalid" | **Nicht befüllbar** — Retention-Fenster hart begrenzt (Binance-Dokumentation: 30 Tage), keine Umgehung ohne kostenpflichtigen Anbieter |
 | Binance `futures/data/globalLongShortAccountRatio`/`topLongShortAccountRatio`/`takerlongshortRatio` | Positionierung, Net-Taker-Flow-Ratio | Testabfrage mit `startTime=2022-09-04` → HTTP 400 "startTime is invalid" | **Nicht befüllbar** — dieselbe 30-Tage-Grenze |
-| Binance Liquidations-Websocket (`forceOrder`) | Liquidation-Cluster-Density | Kein REST-Endpunkt für historische Einzel-Liquidationen existiert überhaupt (nur Live-Stream) | **Grundsätzlich nicht befüllbar** über die kostenlose Binance-API |
-| Eigene Pipeline (`market_states.patterns`) | Warn-Muster ×4 | Live-Tabelle seit 2026-08-26, Detektionslogik ist aber ein deterministischer Fn. bereits vollständig backfillter Rohdaten (Candles/CVD) | **Theoretisch rekonstruierbar**, aber eigener Entwicklungsaufwand (Muster-Logik rückwirkend auf 4 Jahre Rohdaten anwenden) — nicht Teil dieser Umsetzung |
-| Eigene Pipeline (`divergence_radar_snapshots`) | Divergenz-Radar ×3 | Seit 2026-09-12 (1 Tag) | **Theoretisch rekonstruierbar** wie Warn-Muster, gleiche Einschränkung |
+| Binance Liquidations-Websocket (`forceOrder`) | Liquidation-Cluster-Density, Capitulation (3. Bedingung) | Kein REST-Endpunkt für historische Einzel-Liquidationen existiert überhaupt (nur Live-Stream) | **Grundsätzlich nicht befüllbar** über die kostenlose Binance-API |
+| Deribit `public/get_historical_volatility` (Stichprobe für Optionen-Historie) | Optionen | Testabfrage liefert nur die letzten ~16 Tage (384 Stundenwerte), kein `startTime`-Parameter für tiefere Historie vorhanden | **Nicht befüllbar** — Deribits öffentliche API bietet keine tiefe Historie für Options-Kennzahlen (put/call-OI, Skew) |
+| Eigene Pipeline (`market_states.patterns`) | Warn-Muster: Fragile Bullish, Distribution Warning | Beide Bedingungen bestehen ausschliesslich aus `market_features`-Spalten (`structure_trend`, `cvd_trend`, `range_high_20`, `atr_14`), die komplett seit 2022-09-04 vorliegen | **Rekonstruierbar** — in Runde 7 umgesetzt und getestet (siehe unten) |
+| Eigene Pipeline (`market_states.patterns` + `liquidation_events`/`positioning_signals`) | Warn-Muster: Capitulation, Short Squeeze | Grundbedingungen (RSI/CVD bzw. Positionierungs-Divergenz) rekonstruierbar, aber die jeweils dritte/einzige Bedingung braucht `liquidation_events`/`positioning_signals` (s.o., beide nicht vertiefbar) | **Weiterhin blockiert** — an der jeweils fehlenden Zusatzbedingung, nicht an `market_features` |
+| Eigene Pipeline (`divergence_radar_snapshots`) | Divergenz-Radar ×3 | Seit 2026-09-12 (1 Tag) | **Theoretisch rekonstruierbar**, sofern die zugrunde liegenden Paar-Rohdaten selbst schon lange genug vorliegen (nicht im Detail geprüft) — eigener Entwicklungsaufwand, nicht Teil dieser Umsetzung |
 | Eigene Pipeline (`tradingview_signals`) | TradingView-Events ×6, TradingView-Divergenzen ×2 | Seit 2026-09-03 (Webhook-Alerts) | **Nicht rekonstruierbar** — es gibt keine Rohdaten, aus denen sich vergangene TradingView-Alerts ableiten liessen (die Logik läuft serverseitig bei TradingView, nicht bei uns) |
 
-**Fazit:** von 19 offenen Kandidaten war 1 (Funding-Z-Score) tatsächlich nur ein Backfill-Versäumnis
-und wurde korrigiert (s.o.). 10 (OI-Quadrant/Positionierung/Net-Taker-Flow-Ratio/Liquidation-
-Cluster-Density) sind durch ein echtes, verifiziertes Börsen-API-Limit blockiert — keine
-Abkürzung ohne kostenpflichtigen Datenanbieter. 8 (Warn-Muster, Divergenz-Radar) sind
-theoretisch rückwirkend rekonstruierbar, aber ein eigenständiges Entwicklungsprojekt (Muster-
-Erkennung rückwirkend auf 4 Jahre Candles/CVD/Orderflow anwenden), hier nicht umgesetzt. 8
-(TradingView-Events/Divergenzen) sind grundsätzlich nicht rekonstruierbar, da die zugrunde
-liegende Logik ausserhalb unserer Datenhoheit läuft. Diese verbleibenden 18 Kandidaten bleiben
-dokumentiert zurückgestellt, keine weitere Handlung in dieser Umsetzung.
+**Fazit:** von den 19 ursprünglich offenen Kandidaten sind jetzt 3 erledigt — Funding-Z-Score
+(Backfill-Versäumnis, korrigiert), Fragile Bullish (rekonstruiert und getestet, signifikant,
+siehe Runde 7) und Distribution Warning (rekonstruiert und getestet, nicht signifikant). Die
+restlichen 16 bleiben offen: **5** durch ein verifiziertes Börsen-/Exchange-API-Limit blockiert
+(Positionierung, Optionen, Liquidation-Cluster-Density, Capitulation, Short Squeeze — letztere
+zwei jeweils an der fehlenden Zusatzbedingung, nicht an den `market_features`-Anteilen, die ja
+gerade in Runde 7 erfolgreich rekonstruiert wurden), **3** theoretisch rekonstruierbar, aber ein
+eigenständiges Entwicklungsprojekt (Divergenz-Radar), und **8** grundsätzlich nicht
+rekonstruierbar (TradingView-Events/Divergenzen). Diese bleiben dokumentiert zurückgestellt,
+keine weitere Handlung in dieser Umsetzung.
 
 ## Runde 3 (12.09.2026): Central Pivot Range (CPR) — Vorregistrierung
 
@@ -655,6 +658,99 @@ den signifikanten Kandidaten fließen 5 als unabhängige Faktoren in den produkt
 CCI-Extrem) — M2-Wachstum bleibt aus dem genannten Out-of-Sample-Grund draussen, ROC-Z-Score war
 gar nicht erst signifikant.
 
+## Runde 7 (13.09.2026): Warn-Muster (Fragile Bullish, Distribution Warning) — Vorregistrierung
+
+Von den 4 Warn-Mustern aus `compute-market-state` (siehe Datenverfügbarkeits-Audit oben) sind 2
+tatsächlich vollständig rückwirkend rekonstruierbar: **Fragile Bullish** (`structure_trend` +
+`cvd_trend`, beide seit 2022-09-04 komplett in `market_features` vorhanden) und **Distribution
+Warning** (zusätzlich `range_high_20`/`atr_14`/`close_price`, ebenfalls komplett vorhanden).
+**Capitulation** und **Short Squeeze** bleiben blockiert — beide brauchen zusätzlich
+`liquidation_events`/`positioning_signals`, die (bestätigt) erst seit 2026-08-24 existieren, ohne
+historischen Nachhol-Endpunkt.
+
+**Exakte Live-Definition** (1:1 aus `compute-market-state`, keine Neuerfindung):
+- **Fragile Bullish:** `structure_trend = 'bullish' AND cvd_trend = 'falling'` (beide aus derselben
+  1h-`market_features`-Zeile).
+- **Distribution Warning:** `(range_high_20 − close_price) < 0,5 × atr_14 AND cvd_trend = 'falling'`
+  (Preis innerhalb 0,5×ATR14 des 20-Perioden-Hochs, aber fallender Orderflow).
+
+**Wichtiger Kontext — bereits einmal unabhängig getestet:** Beide Muster wurden bereits am
+05.09.2026 gegen eine ANDERE Zielgrösse/Methodik geprüft (`DIVERGENCE-PATTERN-BACKTEST_2026-09-05.md`,
+purged/embargo über `backtest_states`, 4/12/24h-Horizonte, eigener BH-FDR-Pool
+`research_bh_fdr_patterns`). Das ist NICHT dieselbe Frage wie hier (Gesamteinschätzung-Score hat
+eine eigene, ATR-skalierte 4h-Doppel-Barriere-Zielgrösse und einen komplett eigenen BH-FDR-Pool,
+siehe Abschnitt 0 des Protokolls) — identisches Prinzip wie bei allen 13 aus dem Setup-Score
+übernommenen Basissignalen in Runde 1. Der frühere Bericht liefert aber wichtigen Kontext für die
+Richtungs-Hypothese: **Fragile Bullish zeigte dort überraschend eine BESTÄTIGTE (nicht
+widerlegte) bullische Fortsetzung** statt der im Namen suggerierten Warnung — die dort schon
+etablierte `direction_expected`-Konvention (`lib/tradingViewSignal.ts`-Analogon,
+`SIGNAL-REVIEW-PHASE1_2026-09-10.md` Abschnitt 3) wird hier unverändert übernommen, nicht neu
+erfunden: **Fragile Bullish → UP**, **Distribution Warning → DOWN**. Nur eine Richtung pro Signal
+vorregistriert (identisch zum Vorgehen bei VIX/Net-Liquidity/M2/CPI/PCE) — keine nachträgliche
+Richtungswahl nach Ergebnis-Ansicht.
+
+Rohe Aktivierungshäufigkeit auf dem vollen 1h-Datensatz (vor Reduktion auf das 4h-Bewertungsraster):
+Fragile Bullish 6.938/35.295 (19,7%), Distribution Warning 374/35.295 (1,1%) — Distribution
+Warning damit deutlich seltener, aber weit über MIN_N.
+
+## Runde 7 — Ergebnis: Fragile Bullish bestätigt (bestätigt auch den überraschenden Befund vom 05.09.), Distribution Warning nicht signifikant
+
+| Signal | Richtung | n (aktiv) | n (Rest) | Trefferquote aktiv | Trefferquote Rest | p (roh) | BH-FDR |
+|---|---|---|---|---|---|---|---|
+| **Fragile Bullish** | UP | 1.748 | 7.072 | 38,1% | 31,7% | 0,00000037 | ✓ |
+| Distribution Warning | DOWN | 86 | 8.734 | 37,2% | 33,4% | 0,460 | ✗ |
+
+**Fragile Bullish** besteht mit dem bislang stärksten p-Wert des gesamten Protokolls (Rang 7 von
+62) — und bestätigt damit UNABHÄNGIG den überraschenden Befund aus
+`DIVERGENCE-PATTERN-BACKTEST_2026-09-05.md` (dort: bullische Struktur setzt sich trotz fallendem
+Orderflow eher fort, kein echtes Warnsignal in den ersten Stunden). Zwei unterschiedliche
+Methodiken/Zielgrössen/Zeiträume, dasselbe Ergebnis — starke Cross-Validierung. **Distribution
+Warning** scheitert wie im früheren Bericht auch hier (dort: Richtung stimmte, aber BH-FDR nicht
+bestanden; hier: n=86 zu klein für eine belastbare Aussage).
+
+**Out-of-Sample-Check (Fragile Bullish, Split 2025-09-04, 1 Tag Embargo):**
+
+| Split | Trefferquote aktiv | n aktiv | Trefferquote inaktiv |
+|---|---|---|---|
+| Train | 37,9% | 1.316 | 31,8% |
+| Test | 38,6% | 427 | 31,4% |
+
+Hält out-of-sample, sogar minimal stärker im Test — kein Overfitting-Verdacht.
+
+**Kollinearitäts-Check (vs. bestehende UP-Faktoren):** CVD-Z-Score φ=−0,13, Bollinger %b φ=−0,10,
+CCI-Extrem φ=−0,11, DXY-Bewegung φ=−0,004, Trend-Konsens (Aggregat) r=0,24 — durchweg schwach,
+teils leicht gegenläufig (plausibel: Fragile Bullish *braucht* fallenden Orderflow, CVD-Z-Score-UP
+*braucht* steigenden). Klar unabhängig genug für einen eigenen Faktor.
+
+## Produktiver WOE-Score — Update: Fragile Bullish als sechster Faktor (nur UP)
+
+**UP:** Trend-Konsens + CVD-Z + Bollinger %b + DXY + CCI + Fragile Bullish. **DOWN unverändert:**
+Trend-Konsens + CVD-Z + Momentum-Faktor + DXY + CCI (Distribution Warning nicht aufgenommen).
+
+**Neue Terzil-Grenzen (UP):**
+
+| Richtung | Basisrate | Niedrig bis | Mittel bis |
+|---|---|---|---|
+| UP | 33,0% | ≤29,7% | ≤35,7% |
+| DOWN (unverändert) | 33,5% | ≤29,2% | ≤33,2% |
+
+**Out-of-Sample-Bestätigung des 6-Faktor-UP-Scores (Split 2025-09-04, 1 Tag Embargo):**
+
+| Stufe | Train | Test |
+|---|---|---|
+| Niedrig | 27,2% | 27,1% |
+| Mittel | 31,4% | 31,2% |
+| Hoch | 40,1% | 40,8% |
+
+Weiterhin sauber monoton und stabil zwischen Train/Test.
+
+**Pool jetzt 52 Kandidaten (Warn-Muster war bereits Teil der ursprünglichen 39, keine neuen
+Kandidaten-Slots), davon 34 getestet (64 testbare Zellen — Distribution Warning ist nur
+einseitig registriert, siehe Vorregistrierung —, davon 20 signifikant).** 6 unabhängige Faktoren
+fließen jetzt in den produktiven Score ein. Capitulation und Short Squeeze bleiben aus den im
+Datenverfügbarkeits-Audit genannten Gründen (Liquidations-/Positionierungs-Historie zu kurz)
+weiterhin blockiert.
+
 ## Neue DB-Objekte
 
 `research_regime_evaluation_events()` (Ereignisquelle), `research_regime_signal_activation`
@@ -719,14 +815,23 @@ Aktivierungs-Zeilen gelöscht und mit vollständiger Historie neu berechnet (Erg
 weiterhin nicht signifikant, siehe Korrektur-Abschnitt oben). Cron `regime-score-pipeline-weekly`
 erweitert: ruft jetzt zusätzlich `research_regime_refresh_funding_history()`,
 `research_regime_extend_activation_round2()` bis `_round5()`,
-`research_regime_refresh_cci_roc_1h()` und `_round6()` auf — vorher lief dort nur die
-Basis-Erweiterung, wodurch Runde 2-6 für neue Bewertungspunkte nach und nach denselben
+`research_regime_refresh_cci_roc_1h()`, `_round6()` und `_round7()` auf — vorher lief dort nur
+die Basis-Erweiterung, wodurch Runde 2-7 für neue Bewertungspunkte nach und nach denselben
 Datenlücken-Fehler wie Runde 4 reproduziert hätten.
 
-**Noch offen (nächster Schritt, nicht Teil dieser Umsetzung):** die restlichen 18 noch nicht
-testbaren Kandidaten (10 durch verifiziertes Börsen-API-Limit blockiert, 8 theoretisch
-rückwirkend rekonstruierbar oder grundsätzlich nicht rekonstruierbar — siehe
-Datenverfügbarkeits-Audit oben für die genaue Aufschlüsselung). UI-Anbindung für DXY und CCI ist
-mit diesem Commit erledigt (siehe `components/RegimeScoreCard.tsx`); der Score bleibt trotzdem
-als "in Aufbau" gekennzeichnet, da das Struktur-Konzept die Gesamteinschätzung erst nach
-vollständiger Validierung als abgeschlossene Ebene-1-Kachel vorsieht.
+**Runde 7 (Warn-Muster, 13.09.2026):** `research_regime_extend_activation_round7()`
+(Fragile Bullish UP, Distribution Warning DOWN — 1:1 aus `compute-market-state` rekonstruiert,
+Datenverfügbarkeits-Audit siehe oben). `add_fragile_bullish_factor_to_regime_score` (Migration) —
+`research_regime_score_refresh()` um den sechsten Faktor `fragile_bullish` (nur UP) erweitert.
+`add_fragile_bullish_to_regime_score_live` (Migration) — `research_regime_score_live()` neu
+erstellt (Spalte `fragile_bullish_active`, nur für UP befüllt, DOWN bleibt `null`), berechnet
+live aus derselben 1h-`market_features`-Zeile wie `structure_trend`.
+
+**Noch offen (nächster Schritt, nicht Teil dieser Umsetzung):** die restlichen 16 noch nicht
+testbaren Kandidaten (5 durch verifiziertes Börsen-/Exchange-API-Limit blockiert, 3 theoretisch
+rekonstruierbar aber eigenes Entwicklungsprojekt, 8 grundsätzlich nicht rekonstruierbar — siehe
+Datenverfügbarkeits-Audit oben für die genaue Aufschlüsselung). UI-Anbindung für DXY, CCI und
+Fragile Bullish ist mit diesem Commit erledigt (siehe `components/RegimeScoreCard.tsx`); der
+Score bleibt trotzdem als "in Aufbau" gekennzeichnet, da das Struktur-Konzept die
+Gesamteinschätzung erst nach vollständiger Validierung als abgeschlossene Ebene-1-Kachel
+vorsieht.

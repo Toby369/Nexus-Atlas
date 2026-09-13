@@ -35,6 +35,16 @@ import PanelInfo from "@/components/PanelInfo";
 // -- bewusst als eigener Faktor statt Bündelung, siehe Kollinearitäts-Check
 // im PHASE1-RESULTS-Dokument. ROC-Z-Score (zweiter Runde-6-Kandidat) war
 // NICHT signifikant und fließt nicht ein.
+//
+// 13.09.2026 -- sechster Faktor Fragile Bullish ergänzt (Runde 7,
+// Nutzer-Wunsch "Warn-Muster angehen"): 1:1 aus compute-market-state
+// rekonstruiert (structure=bullish + cvd=falling), NUR für UP signifikant
+// (stärkster p-Wert im ganzen Protokoll) und bestätigt unabhängig den
+// bereits am 05.09.2026 gefundenen Befund, dass diese "Warnung" empirisch
+// eher eine Fortsetzung ist. Distribution Warning (zweiter Runde-7-
+// Kandidat) war NICHT signifikant (n zu klein) und fließt nicht ein.
+// Capitulation/Short Squeeze bleiben blockiert (Liquidations-/
+// Positionierungs-Historie zu kurz, siehe Datenverfügbarkeits-Audit).
 
 const TIER_STYLES: Record<RegimeScoreTier, string> = {
   Hoch: "border-up/40 bg-up/10 text-up",
@@ -44,8 +54,8 @@ const TIER_STYLES: Record<RegimeScoreTier, string> = {
 
 const INFO_TEXT = [
   "Was das ist: ein von Setup-Score UNABHÄNGIGES Regime-Modell -- schätzt, ob BTC in den nächsten 4 Stunden um mindestens 1×ATR(14) nach oben (UP) oder unten (DOWN) ausschlägt, statt eines konkreten Hebel-Setups. Eigene Zielgrösse, eigene Statistik-Korrektur, eigene Gewichte -- niemals mit dem Setup-Score vermischt. Heisst bewusst \"Regime-Score\" statt \"Gesamteinschätzung-Score\", um es klar von der \"Gesamteinschätzung\" oben (MarketStateCard) zu unterscheiden -- beides sind unabhängige Kacheln.",
-  "Status -- in Aufbau: bisher wurden 33 von 52 vorregistrierten Kandidatensignalen getestet (19 davon statistisch bestätigt, 5 unabhängige Faktoren fliessen in den Score unten ein). Der hier gezeigte Score kombiniert die bislang bestätigten Faktoren per Weight-of-Evidence und wurde out-of-sample geprüft -- ist aber noch nicht abgeschlossen validiert wie der Setup-Score.",
-  "So liest du das: UP-Score = Trend-Konsens (wie viele von 6 Trend-Signalen zeigen aufwärts) + Orderflow-Stärke (CVD-Z-Score) + Bollinger-Überverkauft-Signal + Dollar-Index (DXY) fällt + CCI-Trendausbruch aufwärts. DOWN-Score = Trend-Konsens (abwärts) + Orderflow-Stärke + Momentum-Faktor + Dollar-Index (DXY) steigt + CCI-Trendausbruch abwärts. \"Hoch\" bedeutet oberstes Drittel aller historischen 4h-Fenster (~39-40% Trefferquote, Basisrate ~33%), \"Niedrig\" das unterste Drittel.",
+  "Status -- in Aufbau: bisher wurden 34 von 52 vorregistrierten Kandidatensignalen getestet (20 davon statistisch bestätigt, 6 unabhängige Faktoren fliessen in den Score unten ein). Der hier gezeigte Score kombiniert die bislang bestätigten Faktoren per Weight-of-Evidence und wurde out-of-sample geprüft -- ist aber noch nicht abgeschlossen validiert wie der Setup-Score.",
+  "So liest du das: UP-Score = Trend-Konsens (wie viele von 6 Trend-Signalen zeigen aufwärts) + Orderflow-Stärke (CVD-Z-Score) + Bollinger-Überverkauft-Signal + Dollar-Index (DXY) fällt + CCI-Trendausbruch aufwärts + \"Fragile Bullish\"-Muster (Struktur bullisch, Orderflow fallend -- empirisch trotzdem eher Fortsetzung als Warnung). DOWN-Score = Trend-Konsens (abwärts) + Orderflow-Stärke + Momentum-Faktor + Dollar-Index (DXY) steigt + CCI-Trendausbruch abwärts. \"Hoch\" bedeutet oberstes Drittel aller historischen 4h-Fenster (~39-41% Trefferquote, Basisrate ~33%), \"Niedrig\" das unterste Drittel.",
   "Kein Handelssignal, keine Erfolgsgarantie -- und ausdrücklich kein Ersatz für den Setup-Score.",
 ].join("\n\n");
 
@@ -84,6 +94,7 @@ function ScoreRow({ row, label }: { row: RegimeScoreRow | null; label: string })
         <FactorLine label="Bollinger überverkauft" active={row.bollingerPctbActive} />
         <FactorLine label="Dollar-Index (DXY)" active={row.dxyActive} />
         <FactorLine label="CCI-Trendausbruch" active={row.cciActive} />
+        <FactorLine label="Fragile Bullish" active={row.fragileBullishActive} />
       </div>
     </div>
   );
@@ -95,7 +106,7 @@ export default function RegimeScoreCard({ score }: { score: RegimeScoreResult })
       <span className="flex items-center gap-1.5 flex-wrap">
         <p className="text-sm font-medium text-text">Regime-Score</p>
         <span className="text-[10px] text-text-faint border border-border rounded px-1">
-          in Aufbau · 33/52 Signale getestet
+          in Aufbau · 34/52 Signale getestet
         </span>
         <PanelInfo title="Regime-Score" content={INFO_TEXT} />
       </span>
