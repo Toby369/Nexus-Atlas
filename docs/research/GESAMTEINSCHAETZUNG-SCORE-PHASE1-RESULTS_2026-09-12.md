@@ -302,50 +302,164 @@ neu erfundenen Werte):
 nicht-überlappenden 4h-Bewertungspunkte, derselbe kumulative BH-FDR-Pool,
 MIN_N=10.
 
-## Runde 4 — Ergebnis: keiner der 7 Cross-Asset-Kandidaten übersteht BH-FDR — aber zwei knapp
+## Runde 4 — KORRIGIERT: Datenlücke entdeckt und geschlossen
 
-| Kandidat | Richtung | n (aktiv) | n (Rest) | Trefferquote aktiv | Trefferquote Rest | p (roh) |
-|---|---|---|---|---|---|---|
-| Gold-Bewegung | DOWN | 1.262 | 7.557 | 36,1% | 33,0% | 0,030 |
-| DXY-Bewegung | UP | 899 | 7.920 | 36,0% | 32,6% | 0,040 |
-| DXY-Bewegung | DOWN | 896 | 7.923 | 36,4% | 33,1% | 0,051 |
-| S&P-500-Bewegung | UP | 1.339 | 7.480 | 35,2% | 32,6% | 0,064 |
-| Gold-Bewegung | UP | 1.767 | 7.052 | 34,5% | 32,6% | 0,139 |
-| Nasdaq-Bewegung | UP | 1.618 | 7.201 | 34,5% | 32,6% | 0,155 |
-| S&P-500-Bewegung | DOWN | 898 | 7.921 | 35,1% | 33,3% | 0,279 |
-| Nasdaq-Bewegung | DOWN | 1.151 | 7.668 | 34,8% | 33,3% | 0,288 |
-| USD/JPY fällt | DOWN | 1.107 | 7.712 | 32,6% | 33,6% | 0,521 |
-| Net-Liquidity steigt | UP | 1.023 | 7.796 | 33,5% | 32,9% | 0,694 |
-| VIX erhöht | DOWN | 300 | 8.519 | 33,0% | 33,5% | 0,863 |
+**Wichtiger Nachtrag (12.09.2026, noch am selben Tag):** beim Vorbereiten von Runde 5 fiel auf,
+dass `^VIX`/`^GSPC`/`^IXIC`/`DX-Y.NYB`/`WALCL`/`WTREGEN`/`RRPONTSYD` in `macro_snapshots`
+ursprünglich nur ab **2024-09-04** zurückbefüllt waren — das Regime-Score-Bewertungsraster reicht
+aber bis **2022-09-04** zurück. Für die ÄLTERE HÄLFTE der 8.818 Bewertungspunkte gab es für
+diese Kandidaten also GAR KEINE Daten und sie wurden fälschlich als "inaktiv" statt "unbekannt"
+gewertet (`coalesce(..., false)`) — dieselbe Fehlerklasse, die schon bei den TradingView-Signalen
+in Runde 1 aufgefallen war, hier nur unbemerkt in einem bereits abgeschlossenen Testlauf. Über
+einen separaten Backfill (2022-09-04 bis 2024-09-03, `backfill-macro`) geschlossen, Runde 4
+komplett neu berechnet. Die ursprüngliche Tabelle unten ist durch die korrigierte ersetzt —
+**Ergebnis der Korrektur: 3 der 11 Zellen sind jetzt tatsächlich signifikant**, wo vorher alle elf
+knapp scheiterten.
 
-**Keine der 11 Zellen übersteht BH-FDR** (Pool jetzt 55 testbare Zellen — die Korrektur wird
-strenger, je mehr Kandidaten kumulativ getestet werden). Zwei liegen aber roh unter α=0,05
-(Gold-Bewegung DOWN, DXY-Bewegung UP) und eine knapp drüber (DXY-Bewegung DOWN, p=0,051) —
-alle drei in der vorregistrierten Richtung. Das ist ein ehrliches "noch nicht bestätigt, aber
-nicht nichts" statt eines klaren Nein.
+## Runde 4 — Ergebnis (korrigiert): DXY-Bewegung (beide Richtungen) und Gold-Bewegung DOWN am nächsten dran, DXY übersteht BH-FDR
 
-**Bemerkenswerte Einzelbefunde:**
-- **DXY-Invertierung** zeigt in BEIDE Richtungen den erwarteten Effekt (DXY fällt→UP UND DXY
-  steigt→DOWN, beide um die 36% vs. ~33% Basisrate) — konsistent mit der Recherche, nur (noch)
-  nicht stark genug für die strenge Korrektur.
-- **Gold-Ko-Bewegung nur einseitig**: Gold fällt→DOWN zeigt den stärksten Rohbefund der ganzen
-  Runde (p=0,030), Gold steigt→UP ist deutlich schwächer (p=0,139) — asymmetrisch, ähnlich wie
-  schon bei Bollinger %b in Runde 1 beobachtet.
-- **Nasdaq schwächer als S&P**, entgegen der verbreiteten "BTC korreliert stärker mit Tech"-
-  Annahme aus der Recherche — hier zeigt der breitere S&P 500 den knapperen p-Wert.
-- **Yen-Carry-Trade-Hypothese nicht bestätigt** — USD/JPY fällt zeigt sogar eine Trefferquote
-  UNTER der Basisrate (32,6% vs. 33,6%), also in die dem Carry-Unwind-Narrativ entgegengesetzte
-  Richtung. Das prominente 05.08.2024-Ereignis war offenbar ein Einzelereignis, kein
-  systematischer 4h-Zusammenhang über 2 Jahre.
-- **VIX und Net-Liquidity ohne jeden Effekt** — beide praktisch bei der Basisrate. Für VIX ist
-  die Stichprobe zusätzlich klein (n=300, VIX>25 ist ein seltener Zustand).
+| Kandidat | Richtung | n (aktiv) | n (Rest) | Trefferquote aktiv | Trefferquote Rest | p (roh) | BH-FDR |
+|---|---|---|---|---|---|---|---|
+| **M2-Wachstum*** | UP | 5.997 | 2.822 | 34,2% | 30,3% | 0,00028 | ✓ signifikant |
+| **DXY-Bewegung** | DOWN | 1.858 | 6.961 | 36,6% | 32,6% | 0,00126 | ✓ signifikant |
+| **DXY-Bewegung** | UP | 1.884 | 6.935 | 35,5% | 32,3% | 0,0086 | ✓ signifikant |
+| Gold-Bewegung | DOWN | 1.262 | 7.557 | 36,1% | 33,0% | 0,030 | ✗ |
+| CPI-Anstieg* | DOWN | 8.031 | 788 | 33,2% | 36,3% | 0,077 | ✗ |
+| S&P-500-Bewegung | UP | 2.743 | 6.076 | 34,1% | 32,5% | 0,127 | ✗ |
+| Gold-Bewegung | UP | 1.767 | 7.052 | 34,5% | 32,6% | 0,139 | ✗ |
+| VIX erhöht | DOWN | 678 | 8.141 | 35,8% | 33,3% | 0,172 | ✗ |
+| Nasdaq-Bewegung | UP | 3.154 | 5.665 | 33,8% | 32,5% | 0,226 | ✗ |
+| PCE-Anstieg* | DOWN | 8.133 | 686 | 33,3% | 35,3% | 0,294 | ✗ |
+| Net-Liquidity steigt | UP | 1.779 | 7.040 | 32,0% | 33,2% | 0,343 | ✗ |
+| Nasdaq-Bewegung | DOWN | 2.435 | 6.384 | 34,0% | 33,2% | 0,473 | ✗ |
+| S&P-500-Bewegung | DOWN | 1.906 | 6.913 | 34,1% | 33,3% | 0,503 | ✗ |
+| USD/JPY fällt | DOWN | 1.107 | 7.712 | 32,6% | 33,6% | 0,521 | ✗ |
 
-**Konsequenz:** keiner der 7 Kandidaten fließt in den produktiven WOE-Score ein. Pool erweitert
-sich von 40 auf 47 vorregistrierte Kandidaten (7 neue Cross-Asset-Kandidaten, nicht Teil des
-ursprünglichen Protokolls) — davon jetzt **28 von 47 getestet** (55 testbare Zellen, weiterhin
-14 signifikant). Die beiden knappen Kandidaten (DXY-Bewegung, Gold-Bewegung DOWN) sind gute
-Kandidaten für eine spätere Re-Prüfung, sobald mehr Historie vorliegt (mehr N verringert bei
-gleichem Effekt den p-Wert) — nicht verworfen, nur (noch) nicht bestätigt.
+(\* Runde 5, siehe unten — hier schon mit einsortiert, damit die vollständige, nach p-Wert
+sortierte Rangfolge über beide Runden sichtbar ist.)
+
+**DXY-Invertierung jetzt in BEIDEN Richtungen voll bestätigt** (nicht nur "knapp" wie vor der
+Korrektur) — DXY fällt→UP und DXY steigt→DOWN übersteigen beide BH-FDR klar. Gold-Bewegung DOWN
+bleibt knapp unter α=0,05 roh, übersteht die Korrektur aber weiterhin nicht.
+
+**Yen-Carry-Trade-Hypothese bleibt nicht bestätigt** (USD/JPY war von der Datenlücke nicht
+betroffen, hatte schon vorher die volle Historie) — Trefferquote weiterhin unter der Basisrate.
+**Nasdaq bleibt schwächer als S&P**, VIX/Net-Liquidity bleiben ohne Effekt.
+
+## Runde 5 (12.09.2026): M2 / CPI / PCE — Ergebnis
+
+| Kandidat | Richtung | n (aktiv) | n (Rest) | Trefferquote aktiv | Trefferquote Rest | p (roh) | BH-FDR |
+|---|---|---|---|---|---|---|---|
+| M2-Wachstum | UP | 5.997 | 2.822 | 34,2% | 30,3% | 0,00028 | ✓ signifikant |
+| CPI-Anstieg | DOWN | 8.031 | 788 | 33,2% | 36,3% | 0,077 | ✗ |
+| PCE-Anstieg | DOWN | 8.133 | 686 | 33,3% | 35,3% | 0,294 | ✗ |
+
+**M2-Wachstum übersteht BH-FDR klar** — aber siehe die wichtige Einschränkung im
+Out-of-Sample-Check unten, bevor das als "produktionsreif" gilt. **CPI/PCE bestätigen sich
+nicht** — bemerkenswert sogar in die dem naiven "hohe Inflation → belastend"-Narrativ
+entgegengesetzte Richtung (Trefferquote bei CPI-Anstieg NIEDRIGER als ohne), wenn auch nicht
+signifikant. Wie vorab benannt: die Aktivierungsmenge ist extrem schief (CPI 91% aktiv, PCE 92%
+aktiv) — inflation steigt auf Monatsbasis fast immer.
+
+## Out-of-Sample-Check der 3 neuen signifikanten Kandidaten — M2 ausgeschlossen, DXY bestätigt
+
+| Kandidat | Split | n (aktiv) | Trefferquote aktiv | n (inaktiv) | Trefferquote inaktiv |
+|---|---|---|---|---|---|
+| DXY-Bewegung (DOWN) | Train / Test | 1.488 / 369 | 36,4% / 37,4% | 5.078 / 1.878 | 32,0% / 34,5% |
+| DXY-Bewegung (UP) | Train / Test | 1.501 / 383 | 35,6% / 35,2% | 5.065 / 1.864 | 32,3% / 32,3% |
+| M2-Wachstum (UP) | Train / Test | 3.744 / 2.247 | 35,0% / 32,8% | 2.822 / **0** | 30,3% / **—** |
+
+**DXY-Bewegung hält out-of-sample in beiden Richtungen** — Effekt bleibt in Train und Test
+konsistent positiv (+2,9 bis +4,4 Prozentpunkte), fließt daher in den produktiven WOE-Score ein.
+
+**M2-Wachstum wird trotz BH-FDR-Signifikanz NICHT aufgenommen**: im Test-Zeitraum (ab
+2025-09-04) war M2 durchgehend positiv — **null inaktive Beobachtungen im Test-Fenster**. Der
+"Signifikanz"-Befund stammt ausschließlich aus der Trainings-Periode (2022–2025, inkl. der
+QT-Phase mit zeitweise schrumpfender M2), lässt sich im Testfenster aber gar nicht prüfen, weil
+dort keine Vergleichsgruppe existiert. Statistisch signifikant ist nicht dasselbe wie
+produktionsreif — genau der Grund, warum dieses Protokoll durchgängig BEIDE Prüfungen verlangt.
+M2-Wachstum bleibt vorregistrierter, aber nicht produktiver Kandidat; sobald M2 wieder eine
+contractive Phase durchläuft, ist eine erneute Prüfung sinnvoll.
+
+**Kollinearitäts-Check für DXY-Bewegung** (φ gegen die bereits verwendeten Faktoren): Struktur 4h
+0,04, CVD-Z-Score 0,02, MTF-Alignment 0,04 — praktisch unabhängig. Plausibel: DXY ist ein
+eigenständiges Asset, keine BTC-Preisableitung. Deshalb als EIGENER Faktor aufgenommen, nicht in
+Trend-Konsens gebündelt.
+
+## Produktiver WOE-Score — Update: DXY-Bewegung als vierter Faktor
+
+**UP:** Trend-Konsens (0-6) + CVD-Z-Score + Bollinger %b + **DXY-Bewegung (neu)**.
+**DOWN:** Trend-Konsens (0-6) + CVD-Z-Score + Momentum-Faktor + **DXY-Bewegung (neu)**.
+
+**Neue Terzil-Grenzen (kombinierter Logit über alle 8.819 Bewertungspunkte):**
+
+| Richtung | Basisrate | Niedrig bis | Mittel bis | Hoch ab |
+|---|---|---|---|---|
+| UP | 33,0% | ≤29,9% | ≤33,9% | >33,9% |
+| DOWN | 33,5% | ≤30,2% | ≤34,3% | >34,3% |
+
+**Out-of-Sample-Bestätigung des aktualisierten, kombinierten Scores** (4 Faktoren statt 3):
+
+| Stufe | UP Train | UP Test | DOWN Train | DOWN Test |
+|---|---|---|---|---|
+| Niedrig | 27,3% | 27,7% | 28,1% | 30,5% |
+| Mittel | 32,8% | 32,5% | 31,6% | 35,6% |
+| Hoch | 39,5% | 40,0% | 39,6% | 39,3% |
+
+Weiterhin sauber monoton und stabil zwischen Train/Test in beiden Richtungen — der um DXY
+erweiterte Score hält, keine Verschlechterung gegenüber der 3-Faktoren-Version.
+
+**Konsequenz:** Pool erweitert sich von 40 auf 47 vorregistrierte Kandidaten (7 Cross-Asset in
+Runde 4 + hier mitgezählt) plus 3 weitere aus Runde 5 (M2/CPI/PCE waren im ursprünglichen
+Protokoll nicht enthalten) — Pool jetzt **50 Kandidaten, davon 31 getestet** (58 testbare
+Zellen, jetzt **17 signifikant** — 14 aus Runden 1-3 + DXY UP/DOWN + M2). Von den 17
+signifikanten Zellen fließen 16 in den produktiven Score ein (DXY neu dazu) — M2 bleibt aus dem
+genannten OOS-Grund draußen.
+
+## Runde 5 (12.09.2026): M2 / CPI / PCE — Vorregistrierung
+
+Nutzer-Wunsch, die in Runde 4 noch fehlenden Liquiditäts-/Inflationsserien nachzutesten.
+
+**Wichtiger Datenqualitäts-Fund vor dem Test:** `M2SL`/`CPIAUCSL`/`PCEPI` waren in
+`macro_snapshots` bisher NICHT wie `WALCL`/`WTREGEN`/`RRPONTSYD` historisch zurückbefüllt — nur
+~700 Zeilen aus dem laufenden Live-Collector, alle auf 1-2 tatsächliche Beobachtungsdaten
+(Juli/August 2026) verdichtet. Für einen Test gegen die vollen 2 Jahre unbrauchbar (extreme
+Uninformativität durch fehlende Historie, dasselbe Muster wie bei den TradingView-Signalen in
+Runde 1). Backfill nachgeholt (`backfill-macro` erweitert).
+
+**Zweiter, wichtigerer Fund: Publikations-Verzug (Look-Ahead-Risiko).** Anders als die
+wöchentlichen Fed-Serien (WALCL/TGA/RRP, Verzug wenige Tage) werden CPI/PCE/M2 als monatliche
+Regierungsstatistik erst WOCHEN nach dem Stichmonat veröffentlicht (CPI ~6 Wochen nach
+Monatsbeginn, PCE ~8 Wochen, M2 ~7 Wochen — FRED speichert den Wert unter dem Stichmonat-Datum,
+nicht dem Veröffentlichungsdatum). Ein naiver Backfill mit dem FRED-Datum als `timestamp_utc`
+würde eine Look-Ahead-Verzerrung einbauen (der Wert wäre im System "bekannt", bevor er real
+veröffentlicht wurde) — genau das Gegenteil dessen, was dieses Protokoll durchgängig vermeidet.
+Behoben durch einen konservativen, fest hinterlegten Publikations-Verzug je Serie beim Backfill
+(CPI +45 Tage, PCE +58 Tage, M2 +49 Tage ab Stichmonat-Beginn) — die Live-Collector-Zeilen
+(`collect-macro`) sind davon NICHT betroffen, die fragen FRED live nach dem "aktuellsten
+veröffentlichten Wert" ab, was den echten Veröffentlichungszeitpunkt automatisch respektiert.
+
+**3 Kandidaten, Hypothesen jetzt festgelegt** (Richtung aus der bereits im Protokoll zitierten
+Interpretation übernommen, siehe `lib/economicCalendar.ts`):
+
+1. **M2-Wachstum** (Vormonatsänderung `change_pct > 0`, jede Zunahme, kein Schwellenwert — bei
+   monatlicher, glatter Serie ungeeignet für einen %-Schwellenwert wie bei Tagesdaten) → UP
+   (Lyn-Alden-Liquiditäts-Framework).
+2. **CPI-Anstieg** (Vormonatsänderung `change_pct > 0`) → DOWN NUR (höhere Inflation → hawkishere
+   Fed erwartet → belastend für Risikoassets, wie in `lib/economicCalendar.ts` bereits
+   dokumentiert).
+3. **PCE-Anstieg** (Vormonatsänderung `change_pct > 0`) → DOWN NUR, gleiche Begründung wie CPI
+   (Fed-bevorzugtes Inflationsmaß).
+
+**Bekannte Einschränkung, vorab benannt:** CPI/PCE steigen auf Monatsbasis fast immer (negative
+Monatswerte sind historisch selten) — die Aktivierungsmenge wird dadurch sehr groß/schief
+verteilt. Das ist kein Fehler, nur vorab transparent gemacht, damit ein spätes "n1 fast so groß
+wie n" nicht als Bug missverstanden wird.
+
+**Methodik identisch zum Rest des Protokolls:** dieselben 8.818 nicht-überlappenden
+4h-Bewertungspunkte, derselbe kumulative BH-FDR-Pool, MIN_N=10.
+
+## Runde 5 — Ergebnis
 
 ## Einordnung — noch nicht die Ebene-1-Bewertung
 
@@ -378,12 +492,34 @@ ergänzt (deployed v9) und einmalig über die volle 1h-Historie ausgeführt.
 `research_regime_extend_activation_round2()` (Funding-Z-Score/Net-Taker-Flow-Ratio/OI-Quadrant,
 alle nicht signifikant), `research_regime_extend_activation_round3()` (CPR, alle 3 Kandidaten
 nicht signifikant, siehe oben), `research_regime_extend_activation_round4()` (7
-Cross-Asset-Korrelations-Kandidaten, keiner signifikant, 2 knapp, siehe oben). `collect-macro`
-(v10) und `backfill-macro` (v8) um `JPY=X` (USD/JPY) und `GC=F` (Gold, COMEX-Future) ergänzt,
-2 Jahre zurückbefüllt.
+Cross-Asset-Korrelations-Kandidaten — DXY-Bewegung UP/DOWN, S&P-500-Bewegung UP/DOWN,
+Nasdaq-Bewegung UP/DOWN, VIX erhöht, Net-Liquidity steigt, USD/JPY fällt, Gold-Bewegung UP/DOWN),
+einmal versehentlich auf einer unvollständigen Datenbasis gelaufen (siehe Korrektur oben) und
+nach dem Lücken-Fix erneut ausgeführt, sowie `research_regime_extend_activation_round5()`
+(M2-Wachstum, CPI-Anstieg, PCE-Anstieg).
 
-**Noch offen (nächster Schritt, nicht Teil dieser Umsetzung):** UI-Anbindung. Bewusst noch nicht
-gemacht — der Score ist methodisch fertig, aber erst 17 von 39 Kandidaten getestet, und das
-Struktur-Konzept sieht die Gesamteinschätzung ohnehin erst nach vollständiger Validierung als
-Ebene-1-Kachel vor. Live-Abfrage per SQL ist jederzeit möglich, ohne dass dafür schon eine
-sichtbare Kachel existieren muss.
+`collect-macro` (v10) und `backfill-macro` (v12) um `JPY=X` (USD/JPY) und `GC=F` (Gold,
+COMEX-Future) ergänzt sowie um `M2SL`/`CPIAUCSL`/`PCEPI` (FRED), 2 Jahre zurückbefüllt.
+`backfill-macro` zusätzlich um einen `publicationLagDays`-Offset je FRED-Serie erweitert
+(CPI +45, PCE +58, M2 +49 Tage; WALCL/WTREGEN/RRPONTSYD +0), damit `timestamp_utc` beim
+Backfill den tatsächlichen Publikationszeitpunkt statt des von FRED verwendeten
+Referenzmonats abbildet (Lookahead-Bias-Fix für die Asof-Joins, `market_time_utc` behält
+weiterhin das echte Referenzdatum). Ausserdem einmalig mit auf `2022-09-04`–`2024-09-03`
+begrenztem Zeitraum für VIX/S&P/Nasdaq/DXY/WALCL/WTREGEN/RRPONTSYD nachbefüllt, um die oben
+beschriebene Datenlücke zu schliessen.
+
+`add_dxy_factor_to_regime_score` (Migration) — `research_regime_score_refresh()` um den
+vierten Faktor `dxy` (aus `DXY-Bewegung`, beide Richtungen) erweitert, sowohl in den
+WOE-Einträgen als auch in den Tier-Grenzen-Subqueries beider Richtungen.
+`add_dxy_to_regime_score_live` (Migration) — `research_regime_score_live()` neu erstellt
+(Spalte `dxy_active` zwischen `bollinger_pctb_active` und `probability` eingefügt), berechnet
+DXY-Aktivierung live aus `macro_snapshots` (Symbol `DX-Y.NYB`) und addiert das passende
+WOE-Gewicht je Richtung. M2-Wachstum bewusst NICHT in den Live-Score aufgenommen (BH-FDR-
+signifikant, aber Out-of-Sample-Check degeneriert, siehe oben).
+
+**Noch offen (nächster Schritt, nicht Teil dieser Umsetzung):** die restlichen 19 noch nicht
+getesteten Kandidaten (18 Original-Signale ohne reproduzierbare Klassifizierungslogik + 1
+datenknappes neues Regime-Matrix-Signal). UI-Anbindung für DXY ist mit diesem Commit erledigt
+(siehe `components/RegimeScoreCard.tsx`); der Score bleibt trotzdem als "in Aufbau"
+gekennzeichnet, da das Struktur-Konzept die Gesamteinschätzung erst nach vollständiger
+Validierung als abgeschlossene Ebene-1-Kachel vorsieht.

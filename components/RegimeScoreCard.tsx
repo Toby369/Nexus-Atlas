@@ -18,9 +18,15 @@ import PanelInfo from "@/components/PanelInfo";
 // Protokoll-Dokumente behalten ihren ursprünglichen Namen.
 //
 // WICHTIG -- anders als der Setup-Score noch NICHT vollständig validiert:
-// erst 20 von 39 vorregistrierten Kandidatensignalen getestet. Deshalb
+// erst 31 von 50 vorregistrierten Kandidatensignalen getestet. Deshalb
 // deutlich als "in Aufbau" gekennzeichnet, analog zum "wird neu validiert"-
 // Hinweis bei der Gesamteinschätzung (MarketStateCard).
+//
+// 13.09.2026 -- vierter Faktor DXY-Bewegung ergänzt (Runde 4, siehe
+// PHASE1-RESULTS-Dokument): BH-FDR-signifikant in beide Richtungen,
+// Out-of-Sample bestätigt, praktisch unabhängig von den bestehenden 3
+// Faktoren (Kollinearitäts-Check). M2-Wachstum trotz BH-FDR-Signifikanz
+// bewusst NICHT aufgenommen (Out-of-Sample-Check degeneriert, siehe Doku).
 
 const TIER_STYLES: Record<RegimeScoreTier, string> = {
   Hoch: "border-up/40 bg-up/10 text-up",
@@ -30,8 +36,8 @@ const TIER_STYLES: Record<RegimeScoreTier, string> = {
 
 const INFO_TEXT = [
   "Was das ist: ein von Setup-Score UNABHÄNGIGES Regime-Modell -- schätzt, ob BTC in den nächsten 4 Stunden um mindestens 1×ATR(14) nach oben (UP) oder unten (DOWN) ausschlägt, statt eines konkreten Hebel-Setups. Eigene Zielgrösse, eigene Statistik-Korrektur, eigene Gewichte -- niemals mit dem Setup-Score vermischt. Heisst bewusst \"Regime-Score\" statt \"Gesamteinschätzung-Score\", um es klar von der \"Gesamteinschätzung\" oben (MarketStateCard) zu unterscheiden -- beides sind unabhängige Kacheln.",
-  "Status -- in Aufbau: bisher wurden 20 von 39 vorregistrierten Kandidatensignalen getestet (14 davon statistisch bestätigt). Der hier gezeigte Score kombiniert die bislang bestätigten Faktoren per Weight-of-Evidence und wurde out-of-sample geprüft -- ist aber noch nicht abgeschlossen validiert wie der Setup-Score.",
-  "So liest du das: UP-Score = Trend-Konsens (wie viele von 6 Trend-Signalen zeigen aufwärts) + Orderflow-Stärke (CVD-Z-Score) + Bollinger-Überverkauft-Signal. DOWN-Score = Trend-Konsens (abwärts) + Orderflow-Stärke + Momentum-Faktor. \"Hoch\" bedeutet oberstes Drittel aller historischen 4h-Fenster (~40-47% Trefferquote, Basisrate ~33%), \"Niedrig\" das unterste Drittel.",
+  "Status -- in Aufbau: bisher wurden 31 von 50 vorregistrierten Kandidatensignalen getestet (17 davon statistisch bestätigt, 16 fliessen in den Score unten ein). Der hier gezeigte Score kombiniert die bislang bestätigten Faktoren per Weight-of-Evidence und wurde out-of-sample geprüft -- ist aber noch nicht abgeschlossen validiert wie der Setup-Score.",
+  "So liest du das: UP-Score = Trend-Konsens (wie viele von 6 Trend-Signalen zeigen aufwärts) + Orderflow-Stärke (CVD-Z-Score) + Bollinger-Überverkauft-Signal + Dollar-Index (DXY) fällt. DOWN-Score = Trend-Konsens (abwärts) + Orderflow-Stärke + Momentum-Faktor + Dollar-Index (DXY) steigt. \"Hoch\" bedeutet oberstes Drittel aller historischen 4h-Fenster (~40-47% Trefferquote, Basisrate ~33%), \"Niedrig\" das unterste Drittel.",
   "Kein Handelssignal, keine Erfolgsgarantie -- und ausdrücklich kein Ersatz für den Setup-Score.",
 ].join("\n\n");
 
@@ -68,6 +74,7 @@ function ScoreRow({ row, label }: { row: RegimeScoreRow | null; label: string })
         <FactorLine label="Orderflow-Stärke (CVD-Z)" active={row.cvdZActive} />
         <FactorLine label="Momentum-Faktor" active={row.momentumActive} />
         <FactorLine label="Bollinger überverkauft" active={row.bollingerPctbActive} />
+        <FactorLine label="Dollar-Index (DXY)" active={row.dxyActive} />
       </div>
     </div>
   );
@@ -79,7 +86,7 @@ export default function RegimeScoreCard({ score }: { score: RegimeScoreResult })
       <span className="flex items-center gap-1.5 flex-wrap">
         <p className="text-sm font-medium text-text">Regime-Score</p>
         <span className="text-[10px] text-text-faint border border-border rounded px-1">
-          in Aufbau · 20/39 Signale getestet
+          in Aufbau · 31/50 Signale getestet
         </span>
         <PanelInfo title="Regime-Score" content={INFO_TEXT} />
       </span>
