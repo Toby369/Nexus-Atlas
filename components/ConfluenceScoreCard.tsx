@@ -24,13 +24,19 @@ import PanelInfo from "@/components/PanelInfo";
 //
 // Farbe folgt der STUFE (Hoch/Mittel/Niedrig), nicht der Richtung -- LONG
 // und SHORT stehen bereits als Zeilen-Label da, eine richtungsbasierte
-// Einfaerbung wuerde faelschlich "Preis steigt/faellt" suggerieren statt
-// "dieses Setup ist aktuell gut/schlecht".
-
+// Einfaerbung des Tier-Badges wuerde faelschlich "Preis steigt/faellt"
+// suggerieren statt "dieses Setup ist aktuell gut/schlecht".
+//
+// 13.09.2026 -- Tier-Badge deshalb bewusst NICHT in up/down (gruen/rot)
+// gefaerbt: "Hoch" bei SHORT sah sonst gruen aus wie ein bullisches Signal
+// (Nexus-weite Farbkonvention: gruen=bullisch/rot=baerisch/grau=keine
+// Daten). Konfidenz-Stufe ist eine von der Richtung unabhaengige Achse --
+// jetzt neutrale accent-Skala. Die Richtung selbst steht im Zeilen-Label
+// (LONG/SHORT), das den passenden up/down-Ton traegt (siehe ScoreRow).
 const TIER_STYLES: Record<ConfluenceScoreTier, string> = {
-  Hoch: "border-up/40 bg-up/10 text-up",
+  Hoch: "border-accent/50 bg-accent/10 text-accent",
   Mittel: "border-border bg-surface-raised text-text-muted",
-  Niedrig: "border-down/40 bg-down/10 text-down",
+  Niedrig: "border-border text-text-faint",
 };
 
 const BREAKEVEN_PCT = 22.2;
@@ -78,7 +84,9 @@ function TrendConfirmationLine({ trendCount, trendSignals }: { trendCount: numbe
   );
 }
 
-function ScoreRow({ row, label }: { row: ConfluenceScoreRow | null; label: string }) {
+function ScoreRow({ row, label, tone }: { row: ConfluenceScoreRow | null; label: string; tone: "up" | "down" }) {
+  const toneClass = tone === "up" ? "text-up" : "text-down";
+
   if (!row) {
     return (
       <div className="rounded-lg border border-border bg-surface-raised p-3">
@@ -91,7 +99,7 @@ function ScoreRow({ row, label }: { row: ConfluenceScoreRow | null; label: strin
   return (
     <div className="rounded-lg border border-border bg-surface-raised p-3 space-y-2">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-text">{label}</p>
+        <p className={`text-xs font-medium ${toneClass}`}>{label}</p>
         <span className={`px-2 py-0.5 text-[11px] rounded-md border font-semibold ${TIER_STYLES[row.tier]}`}>
           {row.tier} · {row.probability.toFixed(1)}%
         </span>
@@ -166,8 +174,8 @@ export default function ConfluenceScoreCard({
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <ScoreRow row={score.long} label="LONG" />
-        <ScoreRow row={score.short} label="SHORT" />
+        <ScoreRow row={score.long} label="LONG" tone="up" />
+        <ScoreRow row={score.short} label="SHORT" tone="down" />
       </div>
 
       {signalDetail.length > 0 && (

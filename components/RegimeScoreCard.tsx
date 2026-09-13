@@ -46,10 +46,16 @@ import PanelInfo from "@/components/PanelInfo";
 // Capitulation/Short Squeeze bleiben blockiert (Liquidations-/
 // Positionierungs-Historie zu kurz, siehe Datenverfügbarkeits-Audit).
 
+// 13.09.2026 -- Tier-Badge bewusst NICHT mehr in up/down (grün/rot) gefärbt:
+// "Hoch" beim DOWN-Score (hohe Konfidenz für eine bärische Bewegung) sah
+// dadurch grün aus wie ein bullisches Signal. Konfidenz-Stufe ist eine von
+// der Richtung unabhängige Achse -- jetzt neutrale accent-Skala. Die
+// Richtung selbst steht bereits im Zeilen-Label (UP/DOWN), das den
+// passenden up/down-Ton trägt (siehe ScoreRow).
 const TIER_STYLES: Record<RegimeScoreTier, string> = {
-  Hoch: "border-up/40 bg-up/10 text-up",
+  Hoch: "border-accent/50 bg-accent/10 text-accent",
   Mittel: "border-border bg-surface-raised text-text-muted",
-  Niedrig: "border-down/40 bg-down/10 text-down",
+  Niedrig: "border-border text-text-faint",
 };
 
 const INFO_TEXT = [
@@ -69,7 +75,9 @@ function FactorLine({ label, active }: { label: string; active: boolean | null }
   );
 }
 
-function ScoreRow({ row, label }: { row: RegimeScoreRow | null; label: string }) {
+function ScoreRow({ row, label, tone }: { row: RegimeScoreRow | null; label: string; tone: "up" | "down" }) {
+  const toneClass = tone === "up" ? "text-up" : "text-down";
+
   if (!row) {
     return (
       <div className="rounded-lg border border-border bg-surface-raised p-3">
@@ -82,7 +90,7 @@ function ScoreRow({ row, label }: { row: RegimeScoreRow | null; label: string })
   return (
     <div className="rounded-lg border border-border bg-surface-raised p-3 space-y-2">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-text">{label}</p>
+        <p className={`text-xs font-medium ${toneClass}`}>{label}</p>
         <span className={`px-2 py-0.5 text-[11px] rounded-md border font-semibold ${TIER_STYLES[row.tier]}`}>
           {row.tier} · {row.probability.toFixed(1)}%
         </span>
@@ -116,8 +124,8 @@ export default function RegimeScoreCard({ score }: { score: RegimeScoreResult })
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <ScoreRow row={score.up} label="UP" />
-        <ScoreRow row={score.down} label="DOWN" />
+        <ScoreRow row={score.up} label="UP" tone="up" />
+        <ScoreRow row={score.down} label="DOWN" tone="down" />
       </div>
     </div>
   );
