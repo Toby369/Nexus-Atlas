@@ -34,7 +34,6 @@ import {
 import { useDashboardPoll } from "@/components/DashboardPollProvider";
 import { RelativeTime } from "@/components/ClientTimestamp";
 import StatusLineSummary, { type StatusLineItem } from "@/components/StatusLineSummary";
-import EntryFilterBadge from "@/components/EntryFilterBadge";
 import TradingHoursBadge from "@/components/TradingHoursBadge";
 
 const CUMULATIVE_ETF_DAYS = 5;
@@ -297,7 +296,6 @@ export default function HeroHeader({
         {buildCompactMarketStateSummary(state)}
       </p>
 
-      <EntryFilterBadge state={state} />
       <TradingHoursBadge events={upcomingEconomicEvents} />
 
       {confirmation.primaryDirection && confirmation.totalComparable > 0 && (

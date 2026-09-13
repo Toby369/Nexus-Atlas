@@ -39,7 +39,7 @@ Verlinkung/Kennzeichnung aus Ebene 1 heraus erreichbar ("warum dieser Score? →
 |---|---|---|
 | **Setup-Score** (bisher "Confluence-Score", `confluence-score`) | ✅ validiert, 3× out-of-sample bestätigt | Umbenennen auf **"Setup-Score (15m · TP 1,75% · SL 0,5% · 20x)"** — Namensgebung macht die Setup-Bindung explizit, siehe Abschnitt 4 |
 | **Gesamteinschätzung** (`kurznotiz` + `MarketStateCard`) | ⚠️ noch NICHT nach neuem Massstab validiert | Bleibt vorerst wie heute (14-Faktoren-Formel), aber mit Hinweis "wird neu validiert" — Wechsel zu Ebene 1 erst nach eigenem Gesamteinschätzung-Score-Protokoll (siehe Abschnitt 5) |
-| **Einstiegsfilter** (EntryFilterBadge, 4h-Struktur) | ✅ validiert, aber **redundant** | Ist bereits Teil des Trend-Konfirmation-Faktors im Setup-Score — Kandidat zum Entfernen/Zusammenlegen, siehe Abschnitt 6 |
+| ~~Einstiegsfilter~~ (EntryFilterBadge, 4h-Struktur) | entfernt (13.09.2026) | War Teil des Trend-Konfirmation-Faktors im Setup-Score — siehe Abschnitt 6/7 |
 
 ### Ebene 2 — Signale im Detail
 
@@ -103,20 +103,30 @@ Confluence-Score-Protokoll — eigenes Dokument, eigene Pre-Registrierung, vor E
 für die Gesamteinschätzung zu erledigen. Bis dahin bleibt die Gesamteinschätzung in ihrer
 heutigen Form (klar gekennzeichnet als "wird neu validiert").
 
-## 6. Identifizierte Redundanz
+## 6. Identifizierte Redundanz (erledigt 13.09.2026)
 
 **Einstiegsfilter (4h-Struktur-Badge)** und der **Trend-Konfirmation-Faktor** im Setup-Score
-nutzen dieselbe zugrundeliegende Information (Struktur 4h ist eine der 9 im Trend-Konfirmation-
-Zähler gebündelten Signale). Sobald der Setup-Score produktiv genutzt wird, liefert er die
-differenziertere Aussage (9-Signal-Konsens statt nur 1 Signal) — der separate Einstiegsfilter
-wird dadurch vermutlich überflüssig. Vorschlag: nach einer Beobachtungsphase entfernen oder zu
-einer reinen "Trend-Konfirmation im Detail"-Zeile innerhalb von Ebene 2 umbauen.
+nutzten dieselbe zugrundeliegende Information (Struktur 4h ist eine der 9 im Trend-Konfirmation-
+Zähler gebündelten Signale). Der Setup-Score liefert die differenziertere Aussage (9-Signal-
+Konsens statt nur 1 Signal) und ist produktiv validiert — der separate Einstiegsfilter war damit
+überflüssig. Entscheidung (13.09.2026, im Rahmen der Dashboard-Struktur-Aufräumung): entfernt,
+nicht erst nach Beobachtungsphase. `EntryFilterBadge`/`lib/entryFilter.ts` samt Test gelöscht,
+Aufruf aus `HeroHeader.tsx` entfernt. Kein Datenverlust — dieselbe 4h-Struktur-Information bleibt
+über den Trend-Konfirmation-Faktor im Setup-Score sichtbar.
 
 ## 7. Offene Entscheidungen für Toby
 
-1. Seitenstruktur-Vorschlag (Abschnitt 3) so umsetzen, oder anderes Vorgehen?
-2. Einstiegsfilter jetzt schon entfernen, oder erst nach Beobachtungsphase (Abschnitt 6)?
-3. Gesamteinschätzung-Score-Protokoll als nächstes eigenständiges Vorhaben starten (Abschnitt 5)
-   — Voraussetzung dafür, dass Ebene 1 vollständig wird?
-4. Reihenfolge: erst Struktur/Ebenen umsetzen (mit heutiger Gesamteinschätzung), oder erst das
-   neue Gesamteinschätzung-Score-Protokoll fertig validieren, dann beides zusammen umbauen?
+1. ~~Einstiegsfilter jetzt schon entfernen, oder erst nach Beobachtungsphase (Abschnitt 6)?~~
+   Entschieden (13.09.2026): entfernt, siehe Abschnitt 6.
+2. Gesamteinschätzung-Score-Protokoll als eigenständiges Vorhaben (Abschnitt 5) läuft bereits
+   (siehe GESAMTEINSCHAETZUNG-SCORE-PHASE1-RESULTS_2026-09-12.md) — Regime-Score-Kachel ist schon
+   fest bei Ebene 1 platziert, obwohl das Protokoll noch nicht abgeschlossen ist ("in Aufbau").
+   Weiterhin offen: wann gilt es als abgeschlossen genug für den vollen Ebene-1-Status ohne
+   "in Aufbau"-Hinweis?
+3. Seitenstruktur (Abschnitt 3) ist umgesetzt, allerdings anders als hier skizziert: statt Tabs
+   1:1 auf die 3 Ebenen zu legen, gruppieren die 3 Tabs (`lib/dashboardTabs.ts`) nur die
+   Ebene-3-Kacheln thematisch (Ebene 1 fix oben, Ebene 2 als Aufklapper im Setup-Score, kein
+   separater Tab noetig) — siehe Kommentar dort vom 12.09.2026 fuer die Begruendung.
+4. Die ~26 Ebene-3-Kacheln selbst wurden seit diesem Dokument nicht mehr auf Redundanz/Gruppierung
+   durchgesehen (seither u. a. Warn-Muster-Faktoren, weitere Divergenz-Radar-Paare hinzugekommen)
+   — laufende Dashboard-Struktur-Aufräumung ab 13.09.2026, tab-für-tab.

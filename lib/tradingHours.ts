@@ -2,8 +2,9 @@
 // Konzept aus shared/handelszeiten.js im Crypto-Trading-Journal (Toby's
 // Freund, siehe Chat) auf Nexus' Datenbasis. Beantwortet fuer Tobys reale
 // 15m/5m-Einstiege die Frage "ist JETZT eine schlechte Zeit zum Handeln,
-// und was kommt als Naechstes" -- unabhaengig vom MTF-Einstiegsfilter
-// (lib/entryFilter.ts), der nur die STRUKTUR bewertet, nicht den Zeitpunkt.
+// und was kommt als Naechstes" -- unabhaengig von der STRUKTUR-Frage (die
+// mittlerweile ausschliesslich der Setup-Score per Trend-Konfirmation-
+// Faktor beantwortet, siehe NEXUS-STRUKTUR-KONZEPT Abschnitt 6/7).
 //
 // Reines Modul (keine Netzwerk-/DB-Zugriffe): nimmt `nowMs` und die bereits
 // geladenen economic_calendar_events-Zeilen entgegen, damit dieselbe
