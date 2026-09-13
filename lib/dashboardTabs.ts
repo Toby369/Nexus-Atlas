@@ -49,15 +49,14 @@ export const DASHBOARD_TABS: DashboardTabMeta[] = [
     tileIds: [
       "btc-price",
       "oi-change",
-      "oi-by-exchange",
       "funding-rate",
       "orderbook-walls",
       "leverage-map",
+      "liquidations",
       "cycle-indicators",
       "economic-calendar",
       "etf-flow",
       "news-risk",
-      "liquidations",
     ],
   },
   {

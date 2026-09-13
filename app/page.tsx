@@ -37,7 +37,6 @@ import { DEFAULT_SERIES_EXCHANGE } from "@/lib/exchanges";
 import LivePriceDataProvider from "@/components/LivePriceDataProvider";
 import BtcPriceCard from "@/components/BtcPriceCard";
 import OiChangeCard from "@/components/OiChangeCard";
-import OiByExchangeCard from "@/components/OiByExchangeCard";
 import FundingRateCard from "@/components/FundingRateCard";
 import PositioningPanel from "@/components/PositioningPanel";
 import NewsRiskPanel from "@/components/NewsRiskPanel";
@@ -782,7 +781,6 @@ export default async function Home({
                     "cycle-indicators": <CycleIndicatorsCard data={cycleIndicators} />,
                     "btc-price": <BtcPriceCard />,
                     "oi-change": <OiChangeCard />,
-                    "oi-by-exchange": <OiByExchangeCard />,
                     "funding-rate": <FundingRateCard />,
                     "orderbook-walls": <OrderbookWallCard walls={latestOrderbookWalls} />,
                     "divergence-radar": <DivergenceRadarCard radar={divergenceRadar} />,

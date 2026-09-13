@@ -134,4 +134,11 @@ Aufruf aus `HeroHeader.tsx` entfernt. Kein Datenverlust — dieselbe 4h-Struktur
    bereits erledigt: Kurznotiz entfernt (Duplikat von MarketStateCard, siehe Ebene-1-Tabelle oben),
    Spot Pressure in Marktkontext zusammengeführt (beide nutzten denselben Spot-Taker-Netto-Flow —
    Marktkontext als einen von 3 Inputs, Spot Pressure als eigenständiges Detail-Verdikt zum selben
-   Wert; jetzt ein Aufklapper in `MarketContextCard.tsx` statt zwei Kacheln nebeneinander).
+   Wert; jetzt ein Aufklapper in `MarketContextCard.tsx` statt zwei Kacheln nebeneinander),
+   Orderbuch-Wände von Marktkontext nach Preis/Orderflow/Makro verschoben (reine
+   Liquiditäts-Momentaufnahme, kein Regime-/Stimmungssignal wie die übrigen Marktkontext-Kacheln).
+   Im Preis/Orderflow/Makro-Tab ebenfalls erledigt: OI je Börse in OI Change zusammengeführt
+   (gleiches Muster — Detail-Aufschlüsselung derselben OI-Change%-Zahl, jetzt Aufklapper in
+   `OiChangeCard.tsx`), Liquidations-/Hebelkarte (Modell-Schätzung) und Liquidationen (echte
+   Events) nebeneinander gestellt statt weit auseinander — kein Merge (unterschiedliche
+   Datengrundlage), aber leichter vergleichbar.
