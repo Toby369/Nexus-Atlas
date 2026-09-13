@@ -41,7 +41,6 @@ export const DASHBOARD_TABS: DashboardTabMeta[] = [
       "handelslage",
       "spot-pressure",
       "divergence-radar",
-      "kurznotiz",
       "positioning",
       "orderbook-walls",
     ],

@@ -1,6 +1,6 @@
 // Statische, regelbasierte BTC-Einordnung je verfolgtem Wirtschaftsereignis
-// (kein KI-Modell -- dieselbe Philosophie wie kurznotizInfo/exchangeDivergenceInfo
-// in lib/panelInfo.ts). Die Termine selbst kommen aus economic_calendar_events
+// (kein KI-Modell -- dieselbe Philosophie wie exchangeDivergenceInfo in
+// lib/panelInfo.ts). Die Termine selbst kommen aus economic_calendar_events
 // (siehe Edge Function collect-economic-calendar), diese Texte beschreiben nur
 // die allgemein bekannte, historisch beobachtete Wirkungsrichtung -- keine
 // Prognose fuer den konkreten kommenden Termin.

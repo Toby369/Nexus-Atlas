@@ -34,10 +34,6 @@ export function btcOiChartInfo(tfLabel: string): string {
 So entsteht der Wert: Vergleicht die prozentuale Entwicklung von BTC-Preis und Open Interest über ${tfLabel} in einem gemeinsamen Chart, für dieselbe Börse wie in der OI-Change-Kachel oben ausgewählt. Beide Linien werden unabhängig voneinander auf ihren jeweils ersten verfügbaren Punkt im Fenster normalisiert (= 0 %), damit sie trotz unterschiedlicher Grössenordnung auf einer Achse vergleichbar sind.`;
 }
 
-export const kurznotizInfo = `So liest du das: Automatisch generierter Kurztext, der dieselbe market_states-Zeile wie „Gesamteinschätzung“ oben zusammenfasst (Gesamtzustand, Confidence, Datenabdeckung, ggf. führendes Muster, Risk) – kein eigener, unabhängiger Rechenweg mehr (bis vor Kurzem generierte diese Kachel ihre eigene, ausschliesslich preisbasierte Bybit-Einschätzung, was zu widersprüchlichen Aussagen zwischen Kurznotiz und Gesamteinschätzung führen konnte; seit der Zusammenführung gibt es nur noch eine Quelle). Für die volle Faktor-Aufschlüsselung siehe „Gesamteinschätzung“ ganz oben im Dashboard.
-
-So entsteht der Wert: Kein KI-Modell, keine freie Formulierung – reine Textzusammenfassung bereits vorhandener Werte. Wird alle 15 Minuten neu berechnet, unabhängig vom oben gewählten Zeitraum-Filter.`;
-
 export function exchangeDivergenceInfo(tfLabel: string): string {
   return `So liest du das: Bewegen sich die Börsen deutlich unterschiedlich (Divergenz), kann das auf eine Bewegung hindeuten, die nur auf einzelnen Börsen konzentriert ist statt breit vom Markt getragen zu werden – eine Divergenz ist dabei nicht automatisch bullisch oder bärisch zu werten. „UNAVAILABLE“ bei Bitunix bedeutet, dass diese Börse öffentlich kein Open Interest anbietet, kein fehlender Datenpunkt. Ein „*“ markiert Börsen, deren Historie für ${tfLabel} noch nicht vollständig zurückreicht.
 

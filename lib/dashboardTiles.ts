@@ -41,7 +41,6 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   // fuer den weiterhin gemeinsamen State/Polling).
   { id: "btc-price", title: "BTC Preis" },
   { id: "oi-change", title: "OI Change" },
-  { id: "kurznotiz", title: "Kurznotiz (Gesamteinschätzung)" },
   { id: "oi-by-exchange", title: "OI je Börse" },
   { id: "funding-rate", title: "Funding Rate" },
   { id: "spot-pressure", title: "Spot Pressure" },

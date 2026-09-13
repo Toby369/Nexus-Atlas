@@ -10,6 +10,7 @@ import {
   UNCLEAR_STATE_LABEL,
   DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD,
   computeConfidenceBreakdown,
+  buildCompactMarketStateSummary,
 } from "@/lib/marketStateSummary";
 import { RelativeTime } from "@/components/ClientTimestamp";
 
@@ -297,6 +298,15 @@ export default function MarketStateCard({
         <p className={`text-xl sm:text-2xl font-semibold ${badgeColor}`}>{displayLabel}</p>
         <RelativeTime iso={state.timestamp_utc} className="text-xs text-text-faint" />
       </div>
+
+      {/* 13.09.2026 -- ehemals eigene "Kurznotiz"-Kachel im Marktkontext-Tab,
+          dort aber nur eine kompakte Textdarstellung derselben market_states-
+          Zeile wie hier (Single Source of Truth) -- entfernt und als
+          Ein-Satz-Zusammenfassung direkt hier eingebaut, kein Datenverlust,
+          keine zweite Kachel fuer dieselbe Quelle. */}
+      <p className="text-sm text-text-muted leading-relaxed">
+        {buildCompactMarketStateSummary(state)}
+      </p>
 
       {suppressDirectionalLabel && (
         <p className="text-xs text-text-faint">

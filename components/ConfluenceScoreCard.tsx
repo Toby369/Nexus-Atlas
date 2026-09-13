@@ -11,8 +11,8 @@ import PanelInfo from "@/components/PanelInfo";
 // siehe docs/research/NEXUS-STRUKTUR-KONZEPT_2026-09-12.md Abschnitt 4) --
 // die Setup-Parameter stehen bewusst im Namen, damit die Bindung an genau
 // dieses eine, getestete Setup nie mit einer allgemeinen Marktbewertung
-// verwechselt wird (siehe Gesamteinschaetzung/Kurznotiz daneben, die noch
-// nicht nach demselben Massstab validiert ist). Zeigt den vierfach
+// verwechselt wird (siehe Gesamteinschaetzung daneben, die noch nicht nach
+// demselben Massstab validiert ist). Zeigt den vierfach
 // out-of-sample validierten Weight-of-Evidence-Score aus dem
 // Confluence-Score-Protokoll (docs/research/CONFLUENCE-SCORE-PROTOCOL_2026-09-11.md +
 // CONFLUENCE-SCORE-PHASE3-RESULTS_2026-09-11.md Abschnitt 6c). Zeigt bewusst

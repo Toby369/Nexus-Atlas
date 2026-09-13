@@ -38,7 +38,7 @@ Verlinkung/Kennzeichnung aus Ebene 1 heraus erreichbar ("warum dieser Score? →
 | Kachel | Status | Anmerkung |
 |---|---|---|
 | **Setup-Score** (bisher "Confluence-Score", `confluence-score`) | ✅ validiert, 3× out-of-sample bestätigt | Umbenennen auf **"Setup-Score (15m · TP 1,75% · SL 0,5% · 20x)"** — Namensgebung macht die Setup-Bindung explizit, siehe Abschnitt 4 |
-| **Gesamteinschätzung** (`kurznotiz` + `MarketStateCard`) | ⚠️ noch NICHT nach neuem Massstab validiert | Bleibt vorerst wie heute (14-Faktoren-Formel), aber mit Hinweis "wird neu validiert" — Wechsel zu Ebene 1 erst nach eigenem Gesamteinschätzung-Score-Protokoll (siehe Abschnitt 5) |
+| **Gesamteinschätzung** (`MarketStateCard`) | ⚠️ noch NICHT nach neuem Massstab validiert | Bleibt vorerst wie heute (14-Faktoren-Formel), aber mit Hinweis "wird neu validiert" — Wechsel zu Ebene 1 erst nach eigenem Gesamteinschätzung-Score-Protokoll (siehe Abschnitt 5). Die separate `kurznotiz`-Kachel (identische Quelle, nur als Ein-Satz-Text im Marktkontext-Tab) wurde entfernt (13.09.2026) und als Kurzfassung direkt in `MarketStateCard` eingebaut — kein Datenverlust, eine Kachel weniger für dieselbe Quelle. |
 | ~~Einstiegsfilter~~ (EntryFilterBadge, 4h-Struktur) | entfernt (13.09.2026) | War Teil des Trend-Konfirmation-Faktors im Setup-Score — siehe Abschnitt 6/7 |
 
 ### Ebene 2 — Signale im Detail

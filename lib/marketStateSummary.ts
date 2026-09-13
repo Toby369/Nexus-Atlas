@@ -1,16 +1,17 @@
 import type { MarketRegime, MarketState } from "./types";
 
-// Kompakte Textdarstellung der NEXUS-Assessment-SSOT (market_states,
-// compute-market-state) fuer den "Kurznotiz"-Slot in LivePricePanel.tsx.
+// Kompakte Ein-Satz-Textdarstellung der NEXUS-Assessment-SSOT (market_states,
+// compute-market-state) -- direkt in MarketStateCard.tsx als Kurzfassung vor
+// der vollen Faktor-Aufschluesselung gerendert (13.09.2026, vorher eine
+// eigene "Kurznotiz"-Kachel, die dieselbe Quelle nur ein zweites Mal in
+// einer eigenen Kachel zeigte -- entfernt, kein Datenverlust).
 //
 // Ersetzt die vorher eigenstaendige, regelbasierte Kurznotiz-Generierung
 // (collect-btc's frueherer "Markteinschaetzung"-Block, nur Bybit-Preis/OI/
 // Funding, eigene feste Schwellenwerte, market_commentary-Tabelle) --
 // diese Funktion erzeugt KEINE eigene Einschaetzung, sie fasst nur die
 // bereits vorhandenen 14-Faktoren-Werte aus market_states in einem Satz
-// zusammen. Ein einziger Rechenweg fuer "wie steht der Markt gerade da" --
-// Kurznotiz und Gesamteinschätzung koennen sich dadurch nicht mehr
-// widersprechen, weil es nur noch eine Quelle gibt.
+// zusammen. Ein einziger Rechenweg fuer "wie steht der Markt gerade da".
 
 // Confidence-Gate fuer die Richtungs-Label BULLISH/BEARISH (Phase 1, Punkt
 // 3.1 -- Q3 mit "Option A: nur Anzeige-Ebene" beantwortet). compute-
@@ -20,7 +21,7 @@ import type { MarketRegime, MarketState } from "./types";
 // nicht nachtraeglich uminterpretiert werden. Diese Schwelle wirkt
 // ausschliesslich hier, an der einzigen Stelle, die den gespeicherten
 // overall_state in einen ANZEIGE-Text/Label uebersetzt (buildCompactMarketStateSummary
-// fuer Kurznotiz, isDirectionalLabelSuppressed fuer MarketStateCard.tsx) --
+// und isDirectionalLabelSuppressed, beide in MarketStateCard.tsx) --
 // beide muessen dieselbe Schwelle verwenden, sonst koennten sie wieder
 // auseinanderlaufen (genau das Problem, das der SSOT-Merge oben beheben sollte).
 export const DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD = 35;

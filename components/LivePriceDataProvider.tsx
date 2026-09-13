@@ -159,8 +159,7 @@ export default function LivePriceDataProvider({
   timeframe: TimeframeId;
   initialSnapshots: MarketSnapshot[];
   // Dieselbe market_states-Zeile wie MarketStateCard (app/page.tsx laedt sie
-  // einmal, beide bekommen denselben Wert) -- Kurznotiz ist nur noch eine
-  // kompakte Textdarstellung dieser einen Quelle, siehe lib/marketStateSummary.ts.
+  // einmal, beide bekommen denselben Wert).
   initialMarketState: MarketState | null;
   initialSeriesData: MarketSeriesPoint[];
   initialReferenceSnapshot: ReferenceSnapshot | null;
