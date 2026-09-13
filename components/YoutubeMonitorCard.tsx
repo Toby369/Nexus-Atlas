@@ -50,11 +50,12 @@ const AGREEMENT_LABELS: Record<string, string> = {
   gespalten: "Gespalten",
 };
 
-const AGREEMENT_STYLES: Record<string, string> = {
-  einig: "border-up/40 bg-up/10 text-up",
-  mehrheitlich: "border-border text-text-muted",
-  gespalten: "border-down/40 bg-down/10 text-down",
-};
+// 13.09.2026 -- Farbe des "Einig"/"Mehrheitlich"/"Gespalten"-Badges kommt
+// jetzt von der tatsaechlichen Mehrheitsmeinung (consensus.majorityBias),
+// nicht mehr vom Einigkeitsgrad selbst: "einig" bei durchgehend bearish
+// sah bisher gruen aus wie ein bullisches Signal. Nutzt dieselbe
+// BIAS_STYLES-Palette wie die einzelnen Kanal-Badges (bullish=gruen,
+// bearish=rot, neutral/kein Mehrheits-Lager bei "gespalten"=grau).
 
 // Videoliste bleibt uebersichtlich (juengste zuerst); der Kanal-Vergleich
 // (weiter unten) nutzt trotzdem den vollen, ungekuerzten `analyses`-State,
@@ -243,7 +244,9 @@ export default function YoutubeMonitorCard({
               Kanal-Vergleich ({consensus.channelsCompared} Kanäle)
             </p>
             <span
-              className={`px-1.5 py-0.5 text-[10px] rounded-md border font-medium ${AGREEMENT_STYLES[consensus.agreementLevel]}`}
+              className={`px-1.5 py-0.5 text-[10px] rounded-md border font-medium ${
+                BIAS_STYLES[consensus.majorityBias ?? "neutral"]
+              }`}
             >
               {AGREEMENT_LABELS[consensus.agreementLevel]}
             </span>

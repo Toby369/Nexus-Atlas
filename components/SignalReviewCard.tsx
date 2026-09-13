@@ -90,7 +90,11 @@ export default function SignalReviewCard({
 
           {snapshot.result.robust_findings.length > 0 && (
             <div className="space-y-1">
-              <p className="text-xs font-medium text-up">Robuste Funde</p>
+              {/* 13.09.2026 -- bewusst nicht up/down: "robust" bewertet die
+                  statistische Signifikanz eines Fundes, nicht ob er bullisch
+                  oder baerisch ist -- ein robuster baerischer Fund sah
+                  bisher gruen aus. */}
+              <p className="text-xs font-medium text-accent">Robuste Funde</p>
               <ul className="space-y-1 list-disc list-inside">
                 {snapshot.result.robust_findings.map((finding, i) => (
                   <li key={i} className="text-xs text-text-faint">
@@ -103,7 +107,7 @@ export default function SignalReviewCard({
 
           {snapshot.result.decaying_or_fragile.length > 0 && (
             <div className="space-y-1">
-              <p className="text-xs font-medium text-down">Verfallend / fragil</p>
+              <p className="text-xs font-medium text-text-muted">Verfallend / fragil</p>
               <ul className="space-y-1 list-disc list-inside">
                 {snapshot.result.decaying_or_fragile.map((finding, i) => (
                   <li key={i} className="text-xs text-text-faint">

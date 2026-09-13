@@ -33,11 +33,21 @@ const BIAS_LABELS: Record<string, string> = {
   neutral: "Neutral",
 };
 
-const CONSENSUS_STYLES: Record<string, string> = {
-  AGREEMENT: "border-up/40 bg-up/10 text-up",
-  DIVERGENCE: "border-down/40 bg-down/10 text-down",
-  INCONCLUSIVE: "border-border text-text-faint",
-};
+// 13.09.2026 -- AGREEMENT faerbte bisher pauschal gruen, auch wenn sich
+// alle 3 KIs auf "bearish" einig waren. Faerbt jetzt nach dem tatsaechlich
+// geteilten Bias (reads[0], da AGREEMENT per Definition gleicher bias bei
+// allen bedeutet -- siehe computeConsensusBadgeStyle). DIVERGENCE hat
+// keinen einzelnen Bias mehr (die KIs widersprechen sich ja gerade) --
+// accent statt rot, INCONCLUSIVE bleibt grau.
+function computeConsensusBadgeStyle(snapshot: EscalationSnapshot): string {
+  if (snapshot.consensus === "AGREEMENT") {
+    return BIAS_STYLES[snapshot.reads[0]?.bias ?? "neutral"];
+  }
+  if (snapshot.consensus === "DIVERGENCE") {
+    return "border-accent/40 bg-accent/10 text-accent";
+  }
+  return "border-border text-text-faint";
+}
 
 const CONSENSUS_LABELS: Record<string, string> = {
   AGREEMENT: "Konsens",
@@ -134,9 +144,9 @@ export default function EscalationCard({
             <StaleBadge iso={snapshot.generated_at} />
             {snapshot.consensus && (
               <span
-                className={`px-1.5 py-0.5 text-[10px] rounded-md border font-medium ${
-                  CONSENSUS_STYLES[snapshot.consensus]
-                }`}
+                className={`px-1.5 py-0.5 text-[10px] rounded-md border font-medium ${computeConsensusBadgeStyle(
+                  snapshot
+                )}`}
               >
                 {CONSENSUS_LABELS[snapshot.consensus]}
               </span>

@@ -320,12 +320,17 @@ export default function RegimeMatrixCard({
         </div>
       )}
 
+      {/* 13.09.2026 -- DIVERGENCE faerbt bewusst accent (gold) statt down/rot:
+          die beiden Engines widersprechen sich, das sagt nichts ueber
+          bullisch/baerisch aus, nur "geringere Aussagekraft". AGREEMENT hat
+          dagegen eine echte, bekannte Richtung (marketStateDirectionLabel) --
+          faerbt deshalb tatsaechlich nach up/down statt pauschal gruen. */}
       {engineDivergence === "DIVERGENCE" && marketStateDirectionLabel && (
         <div className="space-y-1">
-          <span className="inline-block text-[11px] px-2 py-0.5 rounded-full border border-down/40 text-down font-semibold uppercase tracking-wide">
+          <span className="inline-block text-[11px] px-2 py-0.5 rounded-full border border-accent/40 text-accent font-semibold uppercase tracking-wide">
             {engineDivergenceStatusLabel(engineDivergence)}
           </span>
-          <p className="text-xs text-down">
+          <p className="text-xs text-accent">
             Gesamteinschätzung ist {marketStateDirectionLabel}, Marktphase zeigt{" "}
             {regimeLabel(matrix.regime)} — zwei unabhängige Engines widersprechen sich aktuell in der
             Richtung, geringere Aussagekraft der Gesamteinschätzung.
@@ -333,7 +338,7 @@ export default function RegimeMatrixCard({
         </div>
       )}
       {engineDivergence === "AGREEMENT" && marketStateDirectionLabel && (
-        <p className="text-xs text-up">
+        <p className={`text-xs ${marketState?.overall_state === "BULLISH" ? "text-up" : "text-down"}`}>
           Gesamteinschätzung und Marktphase stimmen richtungsmäßig überein (beide{" "}
           {marketStateDirectionLabel}).
         </p>

@@ -83,11 +83,16 @@ export default function SignalEngineCard({
             {snapshot.provider && (
               <span className="text-text-faint">via {snapshot.provider}</span>
             )}
+            {/* 13.09.2026 -- bewusst nicht up/down: "isConsistent" ist keine
+                Richtungsaussage (siehe INFO_TEXT oben) -- ein Widerspruch
+                waere bisher trotzdem rot wie ein baerisches Signal
+                erschienen. Konsistent = unauffaellig/grau, Widerspruch =
+                accent (hervorgehoben, aber nicht baerisch). */}
             <span
               className={`px-1.5 py-0.5 text-[10px] rounded-md border font-medium ${
                 snapshot.result.isConsistent
-                  ? "border-up/40 bg-up/10 text-up"
-                  : "border-down/40 bg-down/10 text-down"
+                  ? "border-border text-text-muted"
+                  : "border-accent/40 bg-accent/10 text-accent"
               }`}
             >
               {snapshot.result.isConsistent ? "Konsistent" : "Widerspruch gefunden"}

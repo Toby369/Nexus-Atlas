@@ -34,9 +34,17 @@ const STATUS_LABELS: Record<DivergenceStatus, string> = {
   NOT_COMPARABLE: "Nicht vergleichbar",
 };
 
+// 13.09.2026 -- bewusst NICHT mehr up/down (gruen/rot): AGREEMENT/DIVERGENCE
+// sagt nur, ob zwei Kennzahlen sich einig sind, nicht ob diese Einigkeit
+// bullisch oder baerisch ist (eine Uebereinstimmung zweier baerischer
+// Signale sah bisher trotzdem gruen aus). Nexus-weite Konvention
+// gruen=bullisch/rot=baerisch/grau=keine Daten gilt nur fuer Zeilen mit
+// echter Richtung (siehe SPOT_VS_PRICE_STYLES/SPOT_VS_ORDERBOOK_STYLES
+// unten). Hier: grau = unauffaellig/Konsens, accent (gold) = Divergenz,
+// also der eigentlich bemerkenswerte Zustand.
 const STATUS_STYLES: Record<DivergenceStatus, string> = {
-  AGREEMENT: "border-up/40 bg-up/10 text-up",
-  DIVERGENCE: "border-down/40 bg-down/10 text-down",
+  AGREEMENT: "border-border text-text-muted",
+  DIVERGENCE: "border-accent/40 bg-accent/10 text-accent",
   NOT_COMPARABLE: "border-border text-text-faint",
 };
 
@@ -123,9 +131,12 @@ const RSI_DIVERGENCE_LABELS: Record<RsiDivergenceVsTrendResult, string> = {
   NOT_COMPARABLE: "Nicht vergleichbar",
 };
 
+// Gleicher Grund wie bei STATUS_STYLES: "gegen intakten Trend" heisst
+// geringere Ueberzeugungskraft, nicht baerisch -- die Divergenz selbst kann
+// bullisch oder baerisch sein.
 const RSI_DIVERGENCE_STYLES: Record<RsiDivergenceVsTrendResult, string> = {
-  GEGEN_INTAKTEN_TREND: "border-down/40 bg-down/10 text-down",
-  OHNE_GEGENTREND: "border-up/40 bg-up/10 text-up",
+  GEGEN_INTAKTEN_TREND: "border-accent/40 bg-accent/10 text-accent",
+  OHNE_GEGENTREND: "border-border text-text-muted",
   NOT_COMPARABLE: "border-border text-text-faint",
 };
 
