@@ -175,6 +175,49 @@ export function computeSpotPressureVsPriceDivergence(
   return "AGREEMENT";
 }
 
+// --- 6d. Spot-Pressure (Taker-Flow) vs. Orderbuch-Tiefe --------------------
+// Nutzer-Wunsch (13.09.2026, Rueckfrage zu einem konkreten Fall: starker
+// Taker-Kaufdruck bei nur kleiner Preisbewegung -- "wird das absorbiert?").
+// computeSpotPressureVsPriceDivergence oben beantwortet das nur indirekt
+// ueber die PREIS-Reaktion (und nur bei GEGENLAEUFIGER Bewegung, also wenn
+// der Preis trotz z.B. Kaufdrucks faellt) -- hier direkt ueber die
+// tatsaechliche ORDERBUCH-Tiefe im selben Fenster: dominiert Taker-BUY,
+// aber das Orderbuch hat per Saldo MEHR Tiefe auf der Ask- als der
+// Bid-Seite, steht dem Kaufdruck spuerbarer Widerstand gegenueber
+// ("RESISTANCE_AHEAD") -- unabhaengig davon, ob der Preis bereits gefallen
+// ist oder (wie im Ausloeser-Fall) trotzdem noch leicht gestiegen ist.
+// Umgekehrt: dominiert Taker-SELL, aber mehr Bid- als Ask-Tiefe,
+// moeglicher Boden ("SUPPORT_AHEAD"). Schwellenwert 0,08 identisch zum
+// bereits produktiven "orderbook"-Faktor in compute-market-state
+// (IMBALANCE_THRESHOLD) -- keine neue, unabhaengig kalibrierte Zahl.
+//
+// Wie bei jedem anderen Paar hier: ein plausibles, regelbasiertes Muster,
+// KEIN gebacktestetes Signal (siehe Datei-Kommentar oben).
+const ORDERBOOK_IMBALANCE_THRESHOLD = 0.08;
+
+export type SpotPressureVsOrderbookDivergence =
+  | "RESISTANCE_AHEAD"
+  | "SUPPORT_AHEAD"
+  | "AGREEMENT"
+  | "NOT_COMPARABLE";
+
+export function computeSpotPressureVsOrderbookDivergence(
+  spotVerdict: SpotPressureVerdict,
+  avgDepthImbalance: number | null
+): SpotPressureVsOrderbookDivergence {
+  if (avgDepthImbalance === null || Number.isNaN(avgDepthImbalance)) return "NOT_COMPARABLE";
+  if (spotVerdict === "NEUTRAL" || spotVerdict === "INSUFFICIENT_DATA") return "NOT_COMPARABLE";
+  // Ein nahezu ausgeglichenes Orderbuch liefert keine verlaessliche Aussage
+  // ueber Widerstand/Unterstuetzung -- derselbe Gedanke wie der
+  // PRICE_FLAT_THRESHOLD_PCT oben.
+  if (Math.abs(avgDepthImbalance) < ORDERBOOK_IMBALANCE_THRESHOLD) return "AGREEMENT";
+
+  const bookLeansBid = avgDepthImbalance > 0;
+  if (spotVerdict === "BUYING_PRESSURE" && !bookLeansBid) return "RESISTANCE_AHEAD";
+  if (spotVerdict === "SELLING_PRESSURE" && bookLeansBid) return "SUPPORT_AHEAD";
+  return "AGREEMENT";
+}
+
 // --- 6c. RSI/MACD-Divergenz (TradingView) vs. Trendregime ------------------
 // Nutzer-Wunsch (09.09.2026): die klassische Divergenz-Lesart ("Preis macht
 // ein neues Extremum, der Oszillator bestaetigt es nicht") gilt selbst in

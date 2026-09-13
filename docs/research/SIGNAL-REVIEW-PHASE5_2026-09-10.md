@@ -98,3 +98,39 @@ keinen Supabase-Zugriff haben — nicht durch diese Phase verursacht).
   `schedule_divergence_radar_scheduler`, `create_detect_divergence_radar_outcomes`,
   `add_divergence_radar_detection_to_cron`, `add_divergence_radar_outcomes_pgtap_tests`,
   `harden_divergence_radar_function_grants_v2`, `harden_core_engine_function_grants_v2`.
+
+## Nachtrag (13.09.2026): viertes Paar — Spot-Pressure vs. Orderbuch
+
+Nutzer-Rückfrage zu einem konkreten Fall (starker Taker-Kaufdruck, Preis
+bewegt sich nur wenig): "wird das absorbiert?" — die bestehende Zeile
+Spot-Pressure vs. Preis (Abschnitt 2 oben) beantwortet das nur indirekt
+über die Preis-*Reaktion*, und nur bei tatsächlich gegenläufiger Bewegung.
+Neu ergänzt: **Spot-Pressure vs. Orderbuch** vergleicht denselben
+Taker-Flow-Verdikt direkt gegen die Orderbuch-Tiefe (Bid- vs. Ask-Saldo,
+über alle Börsen und dasselbe 60-Minuten-Fenster gemittelt) — unabhängig
+davon, ob sich der Preis bereits bewegt hat.
+
+`computeSpotPressureVsOrderbookDivergence()` (`lib/divergenceRadar.ts`):
+dominiert Taker-BUY, aber das Orderbuch hat per Saldo mehr Tiefe auf der
+Ask-Seite (Schwelle 0,08, identisch zum bereits produktiven
+`orderbook`-Faktor in `compute-market-state`), gilt das als
+`RESISTANCE_AHEAD` — Widerstand wartet bereits im Buch, bevor sich das im
+Preis zeigt. Umgekehrt `SUPPORT_AHEAD` bei dominantem Taker-SELL und mehr
+Bid-Tiefe.
+
+Wie bei Spot-Pressure-Absorption ist die Richtung bereits per
+Namenskonvention eindeutig (`RESISTANCE_AHEAD`→bearish,
+`SUPPORT_AHEAD`→bullish) — damit viertes Paar in der
+`signal_outcomes`-Pipeline: neue Spalte `spot_pressure_vs_orderbook` in
+`divergence_radar_snapshots`, `detect_spot_pressure_vs_orderbook_outcomes()`
+(gleiches Muster wie `detect_spot_pressure_absorption_outcomes()`, in den
+15-Minuten-Cron aufgenommen), `run_divergence_radar_outcomes_tests()` um 2
+Assertions erweitert (jetzt 11, alle grün). `compute_signal_stats()`
+gruppiert generisch nach `category`/`signal_type` — keine Änderung dort
+nötig, das neue Paar fließt automatisch in die nächste wöchentliche
+Auswertung ein, sobald genug Historie vorliegt (identische
+Kalenderzeit-Wartezeit wie die ursprünglichen 3 Paare).
+
+UI: neue Zeile in `DivergenceRadarCard.tsx` ("Spot Pressure vs.
+Orderbuch"), Info-Text ergänzt. Bewusst NICHT bestätigt/gebacktestet — wie
+jedes andere Paar hier ein plausibles, regelbasiertes Muster.

@@ -41,6 +41,7 @@ export async function POST() {
     options_vs_sentiment: radar.optionsVsSentiment,
     spot_vs_futures: radar.spotVsFutures,
     spot_pressure_vs_price: radar.spotPressureVsPrice,
+    spot_pressure_vs_orderbook: radar.spotPressureVsOrderbook,
     cycle_vs_momentum: radar.cycleVsMomentum,
     cycle_band_label: radar.cycleBandLabel,
     handelslage_vs_state: radar.handelslageVsState,

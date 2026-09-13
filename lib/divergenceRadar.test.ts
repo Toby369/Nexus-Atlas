@@ -3,6 +3,7 @@ import {
   computeOptionsVsSentimentDivergence,
   computeSpotVsFuturesDivergence,
   computeSpotPressureVsPriceDivergence,
+  computeSpotPressureVsOrderbookDivergence,
   computeCycleVsMomentumDivergence,
   computeHandelslageVsStateDivergence,
   computeOnchainVsPriceDivergence,
@@ -81,6 +82,35 @@ describe("computeSpotPressureVsPriceDivergence", () => {
   it("NOT_COMPARABLE ohne Preisaenderung oder bei einem Mini-Wackeln um 0%", () => {
     expect(computeSpotPressureVsPriceDivergence("SELLING_PRESSURE", null)).toBe("NOT_COMPARABLE");
     expect(computeSpotPressureVsPriceDivergence("SELLING_PRESSURE", 0.01)).toBe("NOT_COMPARABLE");
+  });
+});
+
+describe("computeSpotPressureVsOrderbookDivergence", () => {
+  it("RESISTANCE_AHEAD wenn Taker-Buy dominiert, Orderbuch aber mehr Ask- als Bid-Tiefe hat", () => {
+    expect(computeSpotPressureVsOrderbookDivergence("BUYING_PRESSURE", -0.15)).toBe(
+      "RESISTANCE_AHEAD"
+    );
+  });
+  it("SUPPORT_AHEAD wenn Taker-Sell dominiert, Orderbuch aber mehr Bid- als Ask-Tiefe hat", () => {
+    expect(computeSpotPressureVsOrderbookDivergence("SELLING_PRESSURE", 0.15)).toBe(
+      "SUPPORT_AHEAD"
+    );
+  });
+  it("AGREEMENT wenn Orderbuch-Schieflage zur Taker-Richtung passt", () => {
+    expect(computeSpotPressureVsOrderbookDivergence("BUYING_PRESSURE", 0.15)).toBe("AGREEMENT");
+    expect(computeSpotPressureVsOrderbookDivergence("SELLING_PRESSURE", -0.15)).toBe("AGREEMENT");
+  });
+  it("AGREEMENT bei nahezu ausgeglichenem Orderbuch (unter der Schwelle)", () => {
+    expect(computeSpotPressureVsOrderbookDivergence("BUYING_PRESSURE", 0.03)).toBe("AGREEMENT");
+  });
+  it("NOT_COMPARABLE bei NEUTRAL/INSUFFICIENT_DATA oder fehlender Orderbuch-Tiefe", () => {
+    expect(computeSpotPressureVsOrderbookDivergence("NEUTRAL", -0.15)).toBe("NOT_COMPARABLE");
+    expect(computeSpotPressureVsOrderbookDivergence("INSUFFICIENT_DATA", -0.15)).toBe(
+      "NOT_COMPARABLE"
+    );
+    expect(computeSpotPressureVsOrderbookDivergence("BUYING_PRESSURE", null)).toBe(
+      "NOT_COMPARABLE"
+    );
   });
 });
 

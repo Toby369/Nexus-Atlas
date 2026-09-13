@@ -14,6 +14,7 @@ import {
   computeOptionsVsSentimentDivergence,
   computeSpotVsFuturesDivergence,
   computeSpotPressureVsPriceDivergence,
+  computeSpotPressureVsOrderbookDivergence,
   computeCycleVsMomentumDivergence,
   computeHandelslageVsStateDivergence,
   computeOnchainVsPriceDivergence,
@@ -24,6 +25,7 @@ import {
   type DivergenceStatus,
   type OnchainDivergence,
   type SpotPressureVsPriceDivergence,
+  type SpotPressureVsOrderbookDivergence,
   type RsiDivergenceVsTrendResult,
   type WallPersistence,
 } from "./divergenceRadar";
@@ -55,6 +57,7 @@ export interface DivergenceRadarResult {
   optionsVsSentiment: DivergenceStatus;
   spotVsFutures: DivergenceStatus;
   spotPressureVsPrice: SpotPressureVsPriceDivergence;
+  spotPressureVsOrderbook: SpotPressureVsOrderbookDivergence;
   cycleVsMomentum: DivergenceStatus;
   handelslageVsState: DivergenceStatus;
   tradingViewVsState: DivergenceStatus;
@@ -193,6 +196,33 @@ async function getSpotVerdictAndPriceChange(): Promise<{
   return { verdict, priceChangePct };
 }
 
+// Durchschnittliche Orderbuch-Schieflage ueber dasselbe Fenster wie der
+// Spot-Pressure-Taker-Flow (SPOT_WINDOW_MINUTES) -- ueber alle Boersen
+// gemittelt, gleiches Prinzip wie der "orderbook"-Faktor in
+// compute-market-state (dort nur der neueste Tick, hier zusaetzlich
+// zeitlich gemittelt, um zum Flow-Fenster zu passen statt nur eine
+// Momentaufnahme zu vergleichen).
+async function getAvgOrderbookImbalance(): Promise<number | null> {
+  const sinceIso = new Date(Date.now() - SPOT_WINDOW_MINUTES * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from("orderbook_snapshots")
+    .select("depth_imbalance")
+    .eq("symbol", SYMBOL)
+    .eq("status", "ok")
+    .gte("timestamp_utc", sinceIso);
+
+  if (error) {
+    console.error("divergenceRadarContext: Fehler bei orderbook_snapshots (Imbalance):", error.message);
+    return null;
+  }
+
+  const values = (data ?? [])
+    .map((r) => r.depth_imbalance)
+    .filter((v): v is number => v !== null);
+  if (values.length === 0) return null;
+  return values.reduce((a, b) => a + b, 0) / values.length;
+}
+
 async function getSoprAndPricePosition(): Promise<{
   sopr: number | null;
   distFromHighPct: number | null;
@@ -314,6 +344,7 @@ export async function buildDivergenceRadar(): Promise<DivergenceRadarResult> {
     marketState,
     handelslage,
     spotPressure,
+    avgOrderbookImbalance,
     cycleIndicators,
     onchain,
     wallPersistence,
@@ -324,6 +355,7 @@ export async function buildDivergenceRadar(): Promise<DivergenceRadarResult> {
     getLatestMarketState(),
     getLatestHandelslage(),
     getSpotVerdictAndPriceChange(),
+    getAvgOrderbookImbalance(),
     buildCycleIndicators(),
     getSoprAndPricePosition(),
     getWallPersistenceRows(),
@@ -342,6 +374,9 @@ export async function buildDivergenceRadar(): Promise<DivergenceRadarResult> {
       marketState && spotVerdict ? computeSpotVsFuturesDivergence(spotVerdict, marketState) : "NOT_COMPARABLE",
     spotPressureVsPrice: spotVerdict
       ? computeSpotPressureVsPriceDivergence(spotVerdict, spotPressure.priceChangePct)
+      : "NOT_COMPARABLE",
+    spotPressureVsOrderbook: spotVerdict
+      ? computeSpotPressureVsOrderbookDivergence(spotVerdict, avgOrderbookImbalance)
       : "NOT_COMPARABLE",
     cycleVsMomentum:
       marketState && cycleIndicators.logPriceChannel
