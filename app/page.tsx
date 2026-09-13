@@ -45,7 +45,6 @@ import LiquidationPanel from "@/components/LiquidationPanel";
 import EtfFlowPanel from "@/components/EtfFlowPanel";
 import EconomicCalendarPanel from "@/components/EconomicCalendarPanel";
 import InstitutionalPlaybookCard from "@/components/InstitutionalPlaybookCard";
-import SpotPressurePanel from "@/components/SpotPressurePanel";
 import MarketContextCard from "@/components/MarketContextCard";
 import MarketStateCard from "@/components/MarketStateCard";
 import RegimeMatrixCard from "@/components/RegimeMatrixCard";
@@ -785,7 +784,6 @@ export default async function Home({
                     "oi-change": <OiChangeCard />,
                     "oi-by-exchange": <OiByExchangeCard />,
                     "funding-rate": <FundingRateCard />,
-                    "spot-pressure": <SpotPressurePanel timeframe={timeframe} />,
                     "orderbook-walls": <OrderbookWallCard walls={latestOrderbookWalls} />,
                     "divergence-radar": <DivergenceRadarCard radar={divergenceRadar} />,
                     positioning: <PositioningPanel />,

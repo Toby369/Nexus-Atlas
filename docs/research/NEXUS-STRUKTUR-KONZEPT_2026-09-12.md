@@ -65,7 +65,8 @@ Zuordnung.
 Alle übrigen bestehenden Kacheln bleiben unverändert an ihrem Platz, nur konzeptionell als
 "Kontext, kein geprüftes Signal" eingeordnet:
 
-BTC Preis, OI Change, OI je Börse, Funding Rate, Spot Pressure, Zyklus-Indikatoren,
+BTC Preis, OI Change, OI je Börse, Funding Rate (Spot Pressure als Aufklapper in
+Marktkontext, seit 13.09.2026 zusammengeführt, siehe Abschnitt 7), Zyklus-Indikatoren,
 Wirtschaftskalender, Liquidations-/Hebelkarte, ETF-Flows & Makro (Rohdaten-Ansicht),
 News & Risiko, Handelslage, Institutional Playbook, Lernen, sowie alle KI-Kacheln
 (News-Einordnung, Signal Engine, Periodischer Rückblick, Eskalation, Trade-Debate,
@@ -129,4 +130,8 @@ Aufruf aus `HeroHeader.tsx` entfernt. Kein Datenverlust — dieselbe 4h-Struktur
    separater Tab noetig) — siehe Kommentar dort vom 12.09.2026 fuer die Begruendung.
 4. Die ~26 Ebene-3-Kacheln selbst wurden seit diesem Dokument nicht mehr auf Redundanz/Gruppierung
    durchgesehen (seither u. a. Warn-Muster-Faktoren, weitere Divergenz-Radar-Paare hinzugekommen)
-   — laufende Dashboard-Struktur-Aufräumung ab 13.09.2026, tab-für-tab.
+   — laufende Dashboard-Struktur-Aufräumung ab 13.09.2026, tab-für-tab. Im Marktkontext-Tab dabei
+   bereits erledigt: Kurznotiz entfernt (Duplikat von MarketStateCard, siehe Ebene-1-Tabelle oben),
+   Spot Pressure in Marktkontext zusammengeführt (beide nutzten denselben Spot-Taker-Netto-Flow —
+   Marktkontext als einen von 3 Inputs, Spot Pressure als eigenständiges Detail-Verdikt zum selben
+   Wert; jetzt ein Aufklapper in `MarketContextCard.tsx` statt zwei Kacheln nebeneinander).

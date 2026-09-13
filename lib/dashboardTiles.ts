@@ -43,7 +43,6 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "oi-change", title: "OI Change" },
   { id: "oi-by-exchange", title: "OI je Börse" },
   { id: "funding-rate", title: "Funding Rate" },
-  { id: "spot-pressure", title: "Spot Pressure" },
   { id: "orderbook-walls", title: "Orderbuch-Wände" },
   { id: "divergence-radar", title: "Divergenz-Radar" },
   { id: "news-analysis", title: "News-Einordnung (KI)" },
