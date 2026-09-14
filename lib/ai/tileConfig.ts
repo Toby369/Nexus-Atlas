@@ -157,6 +157,14 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     promptProfile: "custom-query",
     fallbackProviders: ["openrouter", "groq"],
   },
+  // YouTube-Gesamtanalyse (Nutzer-Wunsch 14.09.2026): gleiche komplett
+  // kostenlose Kette wie custom-query/trade-debate-referee.
+  "youtube-overall-analysis": {
+    tileId: "youtube-overall-analysis",
+    aiProvider: "google",
+    promptProfile: "youtube-overall-analysis",
+    fallbackProviders: ["openrouter", "groq"],
+  },
 };
 
 // Provider-Ensemble fuer die Eskalations-Kachel -- unabhaengige Vendors,

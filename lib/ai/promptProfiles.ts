@@ -249,6 +249,35 @@ function validateMasterReport(data: unknown): string[] {
   return errors;
 }
 
+// YouTube-Gesamtanalyse (Nutzer-Wunsch 14.09.2026: "gesamt analyse der
+// einzelnen analysierten youtube beitraege") -- gleiche Philosophie wie
+// der Master-Report: NICHT die Einzelvideos zu einem Bias mitteln, sondern
+// Widersprueche zwischen den Kanaelen/Videos explizit benennen. Anders als
+// beim Master-Report ist die Anzahl der Quellen variabel (nicht fix 3),
+// daher kein componentBiases-Objekt mit festen Schluesseln -- stattdessen
+// "conflicts" als Freitext-Liste, die auf konkrete Kanalnamen verweist.
+function validateYoutubeOverallAnalysis(data: unknown): string[] {
+  const errors: string[] = [];
+
+  const overallBias = field(data, "overallBias");
+  if (!isEnum(overallBias, MASTER_BIAS)) {
+    errors.push(
+      `"overallBias" muss einer von [${MASTER_BIAS.join(", ")}] sein, war: ${JSON.stringify(overallBias)}`
+    );
+  }
+  if (!isConfidence(field(data, "confidence"))) {
+    errors.push(`"confidence" muss eine Zahl zwischen 0 und 100 sein.`);
+  }
+  if (!isNonEmptyString(field(data, "summary"))) {
+    errors.push(`"summary" muss ein nicht-leerer String sein.`);
+  }
+  if (!isStringArray(field(data, "conflicts"))) {
+    errors.push(`"conflicts" muss ein String-Array sein (leeres Array, wenn keine Widersprüche).`);
+  }
+
+  return errors;
+}
+
 export const promptProfiles: Record<string, PromptProfile> = {
   "oi-analysis": {
     id: "oi-analysis",
@@ -539,6 +568,35 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "keine), componentBiases ({ marketStructure, positioning, newsMacro } als kurze " +
       "String-Zusammenfassungen der jeweiligen Einzelrichtung).",
     validate: validateMasterReport,
+  },
+
+  // YouTube-Gesamtanalyse (Nutzer-Wunsch 14.09.2026: "gesamt analyse der
+  // einzelnen analysierten youtube beitraege") -- laeuft ueber
+  // runTileAnalysis() (tileConfig.ts), Kontext aus den zuletzt gespeicherten
+  // Einzelanalysen (app/api/youtube-monitor/overall-analysis/route.ts).
+  "youtube-overall-analysis": {
+    id: "youtube-overall-analysis",
+    category: "orchestration",
+    description:
+      "Synthetisiert mehrere bereits analysierte YouTube-Videos zu einer Gesamteinschaetzung, Widersprueche explizit benannt statt gemittelt.",
+    systemPrompt:
+      "Du bekommst eine Liste bereits einzeln analysierter YouTube-Videos (Kanal, Titel, " +
+      "bias, confidence, relevance, summary, Veroeffentlichungsdatum). Deine Aufgabe ist " +
+      "NICHT, die Einzelmeinungen zu einem Durchschnitt zu verwischen, sondern zu pruefen, " +
+      "ob sich die Kanaele/Videos WIDERSPRECHEN. Gewichte Videos mit relevance='low' kaum " +
+      "bis gar nicht (sie sind oft off-topic) -- sag explizit, wenn die meisten Videos " +
+      "wenig markt-relevant waren, statt trotzdem eine forcierte Gesamtrichtung zu " +
+      "konstruieren. Stimmen die relevanten Kanaele in dieselbe Richtung ueberein, ist " +
+      "overallBias diese Richtung und conflicts ein leeres Array. Weichen sie ab, nenne " +
+      "JEDEN konkreten Widerspruch einzeln in 'conflicts' mit Kanalnamen (z.B. \"Coin " +
+      "Bureau bullish wegen ETF-Zuflüssen, waehrend Benjamin Cowen bearish wegen " +
+      "Makro-Risiko argumentiert\") und setze overallBias auf 'conflicting'. Erfinde keine " +
+      "Aussagen, die nicht in den gelieferten Zusammenfassungen stehen. " +
+      NUMBER_FORMAT_INSTRUCTION +
+      " Antworte als JSON mit: overallBias (bullish|bearish|neutral|conflicting), " +
+      "confidence (0-100), summary (string, deutsch, 3-5 Saetze), conflicts (string[], " +
+      "leer wenn keine).",
+    validate: validateYoutubeOverallAnalysis,
   },
 
   // --- Umsetzungsplan Phase 3 (05.09.2026): Handelslage-KI-Kachel ----------

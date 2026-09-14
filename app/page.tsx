@@ -23,6 +23,7 @@ import type {
   CustomQueryRun,
   TradingViewSignal,
   YoutubeVideoAnalysis,
+  YoutubeOverallAnalysis,
 } from "@/lib/types";
 import { getTimeframe, parseTimeframe, type TimeframeId } from "@/lib/timeframes";
 import { buildLiveLeverageMap } from "@/lib/leverageMapContext";
@@ -318,6 +319,24 @@ async function getLatestYoutubeAnalyses(): Promise<YoutubeVideoAnalysis[]> {
   return data ?? [];
 }
 
+// YouTube-Gesamtanalyse (Nutzer-Wunsch 14.09.2026): letzter gespeicherter
+// Lauf -- reines Lesen, ein neuer Lauf passiert nur ueber POST
+// /api/youtube-monitor/overall-analysis (siehe YoutubeMonitorCard.tsx).
+async function getLatestYoutubeOverallAnalysis(): Promise<YoutubeOverallAnalysis | null> {
+  const { data, error } = await supabase
+    .from("youtube_overall_analyses")
+    .select("*")
+    .order("generated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Fehler beim Laden der YouTube-Gesamtanalyse:", error.message);
+    return null;
+  }
+  return data;
+}
+
 // Stichprobenerfassung (~25s alle 5 Min je Boerse) -- letzte Fenster fuer
 // eine aussagekraeftige Aggregation (Groesse/Richtung/Haeufung).
 async function getRecentLiquidations(): Promise<LiquidationEvent[]> {
@@ -601,6 +620,7 @@ export default async function Home({
     latestCustomQueries,
     latestYoutubeAnalyses,
     youtubeMonitorConfig,
+    latestYoutubeOverallAnalysis,
     oiSeriesData,
     oiReferenceSnapshot,
     dashboardBundle,
@@ -632,6 +652,7 @@ export default async function Home({
     getLatestCustomQueries(),
     getLatestYoutubeAnalyses(),
     getYoutubeMonitorConfig(),
+    getLatestYoutubeOverallAnalysis(),
     getMarketSeries(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getOiReferenceSnapshot(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getDashboardPollBundle(timeframeSinceIsoValue),
@@ -810,6 +831,7 @@ export default async function Home({
                       <YoutubeMonitorCard
                         initialAnalyses={latestYoutubeAnalyses}
                         initialConfig={youtubeMonitorConfig}
+                        initialOverallAnalysis={latestYoutubeOverallAnalysis}
                       />
                     ),
                     "institutional-playbook": <InstitutionalPlaybookCard />,

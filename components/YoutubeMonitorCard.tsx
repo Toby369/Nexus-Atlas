@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { YoutubeVideoAnalysis } from "@/lib/types";
+import type { YoutubeVideoAnalysis, YoutubeOverallAnalysis } from "@/lib/types";
 import type { YoutubeMonitorConfig } from "@/lib/youtubeMonitorContext";
 import { computeYoutubeConsensus } from "@/lib/youtubeConsensus";
-import { RelativeTime } from "@/components/ClientTimestamp";
+import { RelativeTime, FullDateTime } from "@/components/ClientTimestamp";
 import PanelInfo from "@/components/PanelInfo";
 
 // Krypto-YouTube-Monitor, Thema KI (05.09.2026) -- findet neue BTC/Krypto-
@@ -24,18 +24,21 @@ const INFO_TEXT = [
   "Kanaele erkennst du an Handle (z.B. @CoinBureau), voller Kanal-URL oder roher Kanal-ID -- wird beim Speichern serverseitig aufgeloest. Freitext-Suche findet auch unbekannte Quellen, kann aber Off-Topic-Treffer liefern (dafuer gibt es das relevance-Feld sowie die 'Gesperrte Kanaele'-Liste, um einzelne Ersteller dauerhaft auszuschliessen).",
   "Kein Handelssignal -- die im Video vertretene Meinung ist nicht Nexus' eigene Einschaetzung. Wird NICHT automatisch aktualisiert -- ein neuer Suchlauf entsteht nur per Klick auf \"Neu pruefen\".",
   "Kanal-Vergleich: zeigt die JEWEILS NEUESTE Einschaetzung jedes konfigurierten Kanals nebeneinander -- \"einig\" wenn alle dieselbe Richtung vertreten, \"mehrheitlich\" mit den abweichenden Kanaelen einzeln benannt, oder \"gespalten\" bei echtem Patt ohne Mehrheit. Erscheint erst ab 2 Kanaelen mit erfolgreicher Analyse.",
+  "Gesamtanalyse (Button oben rechts): laesst eine KI die letzten bis zu 30 bereits analysierten Videos zu EINER Einschaetzung zusammenfassen -- anders als der rein zaehlende Kanal-Vergleich benennt sie inhaltliche Widersprueche explizit (z.B. \"Kanal A bullish wegen X, Kanal B bearish wegen Y\") statt sie zu einem Bias zu mitteln. Kostenlos (gleiche Gratis-Tier-Kette wie die Freie Anfrage), kein automatischer Lauf -- nur auf Klick.",
 ].join("\n\n");
 
 const BIAS_STYLES: Record<string, string> = {
   bullish: "border-up/40 bg-up/10 text-up",
   bearish: "border-down/40 bg-down/10 text-down",
   neutral: "border-border text-text-faint",
+  conflicting: "border-accent/40 bg-accent/10 text-accent",
 };
 
 const BIAS_LABELS: Record<string, string> = {
   bullish: "Bullish",
   bearish: "Bearish",
   neutral: "Neutral",
+  conflicting: "Widersprüchlich",
 };
 
 const RELEVANCE_LABELS: Record<string, string> = {
@@ -65,14 +68,20 @@ const VISIBLE_VIDEO_COUNT = 8;
 export default function YoutubeMonitorCard({
   initialAnalyses,
   initialConfig,
+  initialOverallAnalysis,
 }: {
   initialAnalyses: YoutubeVideoAnalysis[];
   initialConfig: YoutubeMonitorConfig;
+  initialOverallAnalysis: YoutubeOverallAnalysis | null;
 }) {
   const [analyses, setAnalyses] = useState(initialAnalyses);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusNote, setStatusNote] = useState<string | null>(null);
+
+  const [overallAnalysis, setOverallAnalysis] = useState(initialOverallAnalysis);
+  const [overallLoading, setOverallLoading] = useState(false);
+  const [overallError, setOverallError] = useState<string | null>(null);
 
   const [showSettings, setShowSettings] = useState(false);
   const [config, setConfig] = useState(initialConfig);
@@ -114,6 +123,23 @@ export default function YoutubeMonitorCard({
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleOverallAnalysis() {
+    setOverallLoading(true);
+    setOverallError(null);
+    try {
+      const res = await fetch("/api/youtube-monitor/overall-analysis", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error ?? `HTTP ${res.status}`);
+      }
+      setOverallAnalysis(json.run as YoutubeOverallAnalysis);
+    } catch (err) {
+      setOverallError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setOverallLoading(false);
     }
   }
 
@@ -179,6 +205,15 @@ export default function YoutubeMonitorCard({
             className="px-3 py-1.5 text-xs rounded-md border border-border text-text-muted hover:text-text disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {loading ? "Prüft…" : "Neu prüfen"}
+          </button>
+          <button
+            type="button"
+            onClick={handleOverallAnalysis}
+            disabled={overallLoading || analyses.length < 2}
+            title={analyses.length < 2 ? "Mindestens 2 analysierte Videos nötig" : undefined}
+            className="px-3 py-1.5 text-xs rounded-md border border-accent/40 bg-accent/15 text-accent disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {overallLoading ? "Erstellt…" : "Gesamtanalyse"}
           </button>
         </div>
       </div>
@@ -255,9 +290,51 @@ export default function YoutubeMonitorCard({
 
       {statusNote && <p className="text-xs text-text-faint">{statusNote}</p>}
       {error && <p className="text-xs text-down">{error}</p>}
+      {overallError && <p className="text-xs text-down">{overallError}</p>}
 
       {analyses.length === 0 && !error && (
         <p className="text-xs text-text-faint">Noch keine Videos analysiert.</p>
+      )}
+
+      {overallAnalysis && (
+        <div className="rounded-md border border-border/60 p-2.5 space-y-1.5">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-xs font-medium text-text">
+              Gesamtanalyse ({overallAnalysis.video_count} Videos)
+            </p>
+            <span className="text-[10px] text-text-faint">
+              <FullDateTime iso={overallAnalysis.generated_at} />
+            </span>
+          </div>
+          {overallAnalysis.status === "ok" && overallAnalysis.result ? (
+            <>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`shrink-0 px-1.5 py-0.5 text-[10px] rounded-md border font-medium ${
+                    BIAS_STYLES[overallAnalysis.result.overallBias] ?? BIAS_STYLES.neutral
+                  }`}
+                >
+                  {BIAS_LABELS[overallAnalysis.result.overallBias] ?? overallAnalysis.result.overallBias}
+                </span>
+                <span className="text-[10px] text-text-faint">
+                  Confidence {overallAnalysis.result.confidence}
+                </span>
+              </div>
+              <p className="text-xs text-text-muted">{overallAnalysis.result.summary}</p>
+              {overallAnalysis.result.conflicts.length > 0 && (
+                <ul className="space-y-0.5 pt-1">
+                  {overallAnalysis.result.conflicts.map((c, i) => (
+                    <li key={i} className="text-xs text-accent">
+                      ⚠ {c}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          ) : (
+            <p className="text-xs text-down">{overallAnalysis.error ?? "Gesamtanalyse fehlgeschlagen."}</p>
+          )}
+        </div>
       )}
 
       {consensus && (

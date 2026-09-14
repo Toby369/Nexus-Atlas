@@ -641,6 +641,24 @@ export interface YoutubeVideoAnalysis {
   error: string | null;
 }
 
+export interface YoutubeOverallAnalysisResult {
+  overallBias: "bullish" | "bearish" | "neutral" | "conflicting";
+  confidence: number;
+  summary: string;
+  conflicts: string[];
+}
+
+export interface YoutubeOverallAnalysis {
+  id: number;
+  generated_at: string;
+  video_count: number;
+  provider: string | null;
+  model: string | null;
+  result: YoutubeOverallAnalysisResult | null;
+  status: "ok" | "error";
+  error: string | null;
+}
+
 export interface CustomQueryRun {
   id: number;
   generated_at: string;
