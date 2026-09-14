@@ -6,7 +6,7 @@ import { isTimeframeId } from "@/lib/timeframes";
 import type { ReportConfig } from "@/lib/types";
 
 // PATCH /api/reports/config
-// Body: { slot: 1-4, provider?, model?, timeframe?, schedule_times?, active?, email_enabled? }
+// Body: { slot: 1-4, provider?, model?, timeframe?, schedule_times?, active?, email_enabled?, push_enabled? }
 //
 // Aendert NUR die Nutzer-Konfiguration eines bestehenden Slots. report_type
 // bleibt fix (Slot 1-4 sind gemaess Vorgabe Teil N fest den 4 Report-Typen
@@ -16,13 +16,16 @@ import type { ReportConfig } from "@/lib/types";
 // (Vorgabe Teil V: Schreibzugriff ausschliesslich serverseitig).
 //
 // 14.09.2026 -- schedule_time (einzelner Wert) durch schedule_times (Array,
-// max. 3) ersetzt ("bis zu 3 Zeiten planen"), und provider serverseitig auf
-// Gratis-Tier-Provider beschraenkt ("muss kostenlos sein, gesamte AI
-// report!", siehe lib/ai/reportProviders.ts) -- nicht nur in der UI
-// ausgeblendet, da diese Route auch direkt (ohne Dashboard) aufrufbar ist.
+// max. 5, siehe MAX_SCHEDULE_TIMES -- urspruenglich 3 ("bis zu 3 Zeiten
+// planen"), auf Nutzer-Nachfrage "kann der auf 5 erhoeht werden?" noch am
+// selben Tag erhoeht, DB-Constraint report_configs_schedule_times_max5
+// synchron angepasst) ersetzt, und provider serverseitig auf Gratis-Tier-
+// Provider beschraenkt ("muss kostenlos sein, gesamte AI report!", siehe
+// lib/ai/reportProviders.ts) -- nicht nur in der UI ausgeblendet, da diese
+// Route auch direkt (ohne Dashboard) aufrufbar ist.
 
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/;
-const MAX_SCHEDULE_TIMES = 3;
+const MAX_SCHEDULE_TIMES = 5;
 
 interface PatchBody {
   slot?: number;
@@ -32,6 +35,7 @@ interface PatchBody {
   schedule_times?: string[] | null;
   active?: boolean;
   email_enabled?: boolean;
+  push_enabled?: boolean;
 }
 
 export async function PATCH(req: NextRequest) {
@@ -133,6 +137,16 @@ export async function PATCH(req: NextRequest) {
       );
     }
     update.email_enabled = body.email_enabled;
+  }
+
+  if (body.push_enabled !== undefined) {
+    if (typeof body.push_enabled !== "boolean") {
+      return NextResponse.json(
+        { success: false, error: "'push_enabled' muss boolean sein." },
+        { status: 400 }
+      );
+    }
+    update.push_enabled = body.push_enabled;
   }
 
   if (Object.keys(update).length <= 1) {

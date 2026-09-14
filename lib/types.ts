@@ -255,6 +255,10 @@ export interface ReportConfig {
   schedule_times: string[] | null;
   active: boolean;
   email_enabled: boolean;
+  // 14.09.2026 -- "zusaetzlich zum email, eine push benachrichtigung" +
+  // "frei waehlbar wie email!": eigener Toggle je Slot, spiegelt
+  // email_enabled exakt (kein globaler Schalter).
+  push_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -272,6 +276,7 @@ export interface ReportRun {
   data_snapshot: Record<string, unknown> | null;
   error: string | null;
   email_sent: boolean;
+  push_sent: boolean;
   // Regelbasierte Post-Validation (Phase 2, Punkt 1) -- getrennt von
   // "status": status sagt "hat der API-Call funktioniert", validation_status
   // sagt "stimmt der Text mit den mitgegebenen Rohdaten überein". null =

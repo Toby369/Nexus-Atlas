@@ -4,9 +4,11 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { buildMarketContext, type FullMarketContext } from "@/lib/reportContext";
 import { runReportAnalysis } from "@/lib/ai/router";
 import { sendReportEmail } from "@/lib/email";
+import { sendReportPush } from "@/lib/push";
 import { parseTimeframe } from "@/lib/timeframes";
 import { checkAndRecordRateLimit } from "@/lib/rateLimit";
 import { validateReportAgainstData } from "@/lib/reportValidation";
+import { FREE_TIER_REPORT_PROVIDERS } from "@/lib/ai/reportProviders";
 import type { AIProviderId } from "@/lib/ai/types";
 import type { ReportConfig, ReportRun, ReportType } from "@/lib/types";
 
@@ -38,6 +40,15 @@ const RATE_LIMIT_ENDPOINT = "reports_run";
 // Route kennt dabei keinen konkreten Anbieter (z.B. Resend) -- ist keiner
 // konfiguriert oder schlaegt der Versand fehl, bleibt der Report-Lauf selbst
 // trotzdem erfolgreich; nur report_runs.email_sent bleibt dann false.
+//
+// 14.09.2026 -- analog dazu report_configs.push_enabled (Nutzer-Wunsch:
+// "zusaetzlich zum email, eine push benachrichtigung ... frei waehlbar wie
+// email!"): sendReportPush() (lib/push/index.ts) ruft dieselbe
+// send-state-change-push Edge Function wie die uebrigen Push-Trigger auf,
+// mit url: "/reports" -- Antippen der Benachrichtigung oeffnet die AI
+// Reports Seite, wo der generierte Text (Bias/Summary) direkt unter dem
+// jeweiligen Slot sichtbar ist. Ebenfalls nie blockierend fuer den
+// Report-Lauf selbst; nur report_runs.push_sent bleibt dann false.
 
 const PROMPT_PROFILE_BY_TYPE: Record<ReportType, string> = {
   market_structure: "report-market-structure",
@@ -238,6 +249,14 @@ export async function POST(req: NextRequest) {
       model: config.model ?? undefined,
       promptProfile,
       context: JSON.stringify(contextPayload),
+      // 14.09.2026 -- Bugfix (Nutzer-Report: mistral HTTP 429 liess den
+      // gesamten Report-Lauf ohne jeden Fallback scheitern): vorher wurde
+      // hier gar keine fallbackProviders-Kette uebergeben, obwohl
+      // runReportAnalysis() sie unterstuetzt. Faellt der vom Nutzer
+      // gewaehlte Provider aus (Rate-Limit, Ausfall), springt die Kette auf
+      // die uebrigen Gratis-Tier-Provider -- bleibt damit im Rahmen von
+      // "muss kostenlos sein, gesamte AI report!" (lib/ai/reportProviders.ts).
+      fallbackProviders: FREE_TIER_REPORT_PROVIDERS,
     });
 
     // Fact-Checker (Phase 2, Punkt 1): prueft die AI-Kernaussagen gegen die
@@ -299,6 +318,33 @@ export async function POST(req: NextRequest) {
           } else {
             run.email_sent = true;
           }
+        }
+      }
+    }
+
+    if (config.push_enabled) {
+      const summary = (result.data as { summary?: string } | undefined)?.summary;
+      const pushResult = await sendReportPush({
+        title: `NEXUS Atlas · ${REPORT_TYPE_LABEL[config.report_type]}-Report`,
+        body: summary && summary.length > 0 ? summary : "Neuer Report verfuegbar.",
+        url: "/reports",
+      });
+
+      if (!pushResult.attempted) {
+        console.warn(`Report-Slot ${slot}: Push konnte nicht versucht werden: ${pushResult.error}`);
+      } else if (!pushResult.success) {
+        console.error(`Report-Slot ${slot}: Push-Versand fehlgeschlagen: ${pushResult.error}`);
+      } else {
+        const { error: pushUpdateError } = await supabaseAdmin
+          .from("report_runs")
+          .update({ push_sent: true })
+          .eq("id", run.id);
+        if (pushUpdateError) {
+          console.error(
+            `Report-Slot ${slot}: Push versendet, aber push_sent-Flag konnte nicht gesetzt werden: ${pushUpdateError.message}`
+          );
+        } else {
+          run.push_sent = true;
         }
       }
     }

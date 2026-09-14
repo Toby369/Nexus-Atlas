@@ -5,7 +5,7 @@ import { TIMEFRAMES, parseTimeframe, type TimeframeId } from "@/lib/timeframes";
 import type { ReportConfig, ReportRun, ReportType } from "@/lib/types";
 import { FullDateTime, StaleBadge } from "@/components/ClientTimestamp";
 
-const MAX_SCHEDULE_TIMES = 3;
+const MAX_SCHEDULE_TIMES = 5;
 
 export interface ProviderOption {
   id: string;
@@ -122,6 +122,7 @@ function SlotCard({
   );
   const [active, setActive] = useState(config.active);
   const [emailEnabled, setEmailEnabled] = useState(config.email_enabled);
+  const [pushEnabled, setPushEnabled] = useState(config.push_enabled);
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -142,7 +143,8 @@ function SlotCard({
     timeframe !== config.timeframe ||
     JSON.stringify(normalizedScheduleTimes) !== JSON.stringify(normalizedConfigTimes) ||
     active !== config.active ||
-    emailEnabled !== config.email_enabled;
+    emailEnabled !== config.email_enabled ||
+    pushEnabled !== config.push_enabled;
 
   async function handleSave() {
     setSaving(true);
@@ -160,6 +162,7 @@ function SlotCard({
           schedule_times: normalizedScheduleTimes.length === 0 ? null : normalizedScheduleTimes,
           active,
           email_enabled: emailEnabled,
+          push_enabled: pushEnabled,
         }),
       });
       const json = await res.json();
@@ -295,6 +298,16 @@ function SlotCard({
         />
         E-Mail bei Fertigstellung (aktiv, sobald RESEND_API_KEY, REPORT_EMAIL_FROM und
         REPORT_EMAIL_TO serverseitig gesetzt sind — bis dahin wird der Versand übersprungen)
+      </label>
+
+      <label className="flex items-center gap-2 text-xs text-text-muted">
+        <input
+          type="checkbox"
+          checked={pushEnabled}
+          onChange={(e) => setPushEnabled(e.target.checked)}
+        />
+        Push-Benachrichtigung bei Fertigstellung (Tippen öffnet den Report; nur an bereits
+        registrierte Geräte, siehe Konto-Bereich)
       </label>
 
       <div className="flex items-center gap-3 flex-wrap pt-1">
