@@ -235,7 +235,7 @@ function SlotCard({
   }
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-5 space-y-4">
+    <div id={`slot-${config.slot}`} className="rounded-lg border border-border bg-surface p-5 space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <p className="text-sm font-medium text-text">{meta.title}</p>

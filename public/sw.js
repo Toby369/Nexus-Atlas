@@ -75,6 +75,17 @@ self.addEventListener("push", (event) => {
 
 // Klick auf die Benachrichtigung: bestehenden Dashboard-Tab fokussieren
 // statt immer einen neuen zu oeffnen, falls einer bereits offen ist.
+//
+// Bugfix 14.09.2026 (Nutzer-Report: "push kommt, wenn ich ihn antippe,
+// moechte ich diese generierte nachricht lesen koennen. aktuell
+// weiterleitung zu nexus, jedoch nicht zur generierten nachricht"): war
+// bereits ein Tab offen, wurde er bisher nur fokussiert (client.focus()),
+// OHNE zur targetUrl zu navigieren -- die eigentliche Ziel-Seite (z.B.
+// /reports fuer die AI-Report-Push-Benachrichtigung, siehe lib/push/
+// index.ts) wurde dadurch nie erreicht, man landete einfach auf der schon
+// offenen Seite (typischerweise das Dashboard "/"). client.navigate() vor
+// dem Fokussieren behebt das; nur einen neuen Tab oeffnen (openWindow),
+// wenn wirklich noch keiner offen ist.
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const targetUrl = event.notification.data?.url || "/";
@@ -83,6 +94,9 @@ self.addEventListener("notificationclick", (event) => {
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
         if (client.url.startsWith(self.location.origin) && "focus" in client) {
+          if ("navigate" in client) {
+            return client.navigate(targetUrl).then((navigated) => navigated.focus());
+          }
           return client.focus();
         }
       }

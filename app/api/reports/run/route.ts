@@ -327,7 +327,12 @@ export async function POST(req: NextRequest) {
       const pushResult = await sendReportPush({
         title: `NEXUS Atlas · ${REPORT_TYPE_LABEL[config.report_type]}-Report`,
         body: summary && summary.length > 0 ? summary : "Neuer Report verfuegbar.",
-        url: "/reports",
+        // 14.09.2026 -- Deep-Link direkt zum Slot (statt nur "/reports"):
+        // Nutzer-Report "moechte diese generierte nachricht lesen koennen",
+        // die Reports-Seite scrollt beim Laden per Anchor automatisch zur
+        // richtigen Kachel (siehe id={`slot-${config.slot}`} in
+        // ReportEngineDashboard.tsx), kein manuelles Suchen unter 4 Slots.
+        url: `/reports#slot-${config.slot}`,
       });
 
       if (!pushResult.attempted) {
