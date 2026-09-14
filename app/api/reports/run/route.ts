@@ -64,16 +64,148 @@ const REPORT_TYPE_LABEL: Record<ReportType, string> = {
   master: "Master",
 };
 
-function buildReportEmailHtml(
-  config: ReportConfig,
-  timeframe: string,
-  resultData: unknown
-): string {
-  const pretty = JSON.stringify(resultData, null, 2);
+// Nutzer-Feedback 14.09.2026 ("email geht schoener! oder?", Screenshot
+// zeigte den rohen JSON.stringify-Dump in einem <pre>-Block): baut
+// stattdessen dieselben Felder, die das Dashboard (LastRunView in
+// ReportEngineDashboard.tsx) bereits anzeigt, als lesbar formatiertes
+// HTML -- Bias/Confidence als farbiges Badge, Zusammenfassung als
+// Fliesstext, Faktoren/Widersprueche als Liste. Alle AI-generierten
+// Strings MUESSEN escapeHtml() durchlaufen: sie landen direkt im
+// HTML-Body, ein von der KI (oder theoretisch injizierten Rohdaten)
+// erzeugter String wie "<img src=x onerror=...>" waere sonst im
+// Mail-Client als Markup interpretierbar -- der bisherige <pre>-Ansatz
+// hatte dieselbe Luecke, da <pre> weiterhin HTML parst.
+function escapeHtml(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+interface BadgeStyle {
+  bg: string;
+  fg: string;
+  label: string;
+}
+
+const BIAS_STYLE: Record<string, BadgeStyle> = {
+  bullish: { bg: "#e7f7ee", fg: "#16a34a", label: "Bullish" },
+  bearish: { bg: "#fdecec", fg: "#dc2626", label: "Bearish" },
+  neutral: { bg: "#f1f2f4", fg: "#6b7280", label: "Neutral" },
+  "risk-on": { bg: "#e7f7ee", fg: "#16a34a", label: "Risk-On" },
+  "risk-off": { bg: "#fdecec", fg: "#dc2626", label: "Risk-Off" },
+  conflicting: { bg: "#fef3e2", fg: "#d97706", label: "Widerspruechlich" },
+};
+
+const RISK_LEVEL_STYLE: Record<string, BadgeStyle> = {
+  low: { bg: "#e7f7ee", fg: "#16a34a", label: "Niedrig" },
+  medium: { bg: "#fef3e2", fg: "#d97706", label: "Mittel" },
+  high: { bg: "#fdecec", fg: "#dc2626", label: "Hoch" },
+};
+
+function badgeHtml(style: BadgeStyle | undefined, fallbackLabel: string): string {
+  const s = style ?? { bg: "#f1f2f4", fg: "#6b7280", label: fallbackLabel };
   return (
-    `<h2>NEXUS Atlas — ${REPORT_TYPE_LABEL[config.report_type]}-Report (${timeframe})</h2>` +
-    `<p>Provider: ${config.provider}${config.model ? ` (${config.model})` : ""}</p>` +
-    `<pre style="white-space:pre-wrap;font-family:monospace;font-size:12px;">${pretty}</pre>`
+    `<span style="display:inline-block;padding:4px 12px;border-radius:999px;` +
+    `background:${s.bg};color:${s.fg};font-weight:600;font-size:13px;">${escapeHtml(s.label)}</span>`
+  );
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+}
+
+function buildReportEmailHtml(config: ReportConfig, timeframe: string, resultData: unknown): string {
+  const data = (resultData && typeof resultData === "object" ? resultData : {}) as Record<string, unknown>;
+  const reportLabel = REPORT_TYPE_LABEL[config.report_type];
+
+  const biasField =
+    config.report_type === "master"
+      ? typeof data.overallBias === "string"
+        ? data.overallBias
+        : undefined
+      : typeof data.bias === "string"
+        ? data.bias
+        : undefined;
+
+  const confidence = typeof data.confidence === "number" ? Math.round(data.confidence) : undefined;
+  const summary = typeof data.summary === "string" ? data.summary : "";
+  const keyFactors = stringArray(data.keyFactors);
+  const riskLevel = typeof data.riskLevel === "string" ? data.riskLevel : undefined;
+  const conflicts = stringArray(data.conflicts);
+  const componentBiases =
+    data.componentBiases && typeof data.componentBiases === "object"
+      ? (data.componentBiases as Record<string, unknown>)
+      : undefined;
+
+  const biasSection = biasField
+    ? `<div style="margin:0 0 16px;">${badgeHtml(BIAS_STYLE[biasField], biasField)}` +
+      (confidence !== undefined
+        ? `<span style="margin-left:10px;color:#6b7280;font-size:13px;">Confidence ${confidence}/100</span>`
+        : "") +
+      `</div>`
+    : "";
+
+  const summarySection = summary
+    ? `<p style="font-size:15px;line-height:1.5;color:#111827;margin:0 0 16px;">${escapeHtml(summary)}</p>`
+    : "";
+
+  const conflictsSection =
+    conflicts.length > 0
+      ? `<div style="margin:0 0 16px;padding:12px 14px;background:#fef3e2;border-radius:8px;">` +
+        `<p style="font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:#d97706;margin:0 0 6px;font-weight:600;">Widersprueche</p>` +
+        `<ul style="margin:0;padding-left:20px;color:#78350f;font-size:14px;line-height:1.6;">` +
+        conflicts.map((c) => `<li>${escapeHtml(c)}</li>`).join("") +
+        `</ul></div>`
+      : config.report_type === "master"
+        ? `<div style="margin:0 0 16px;padding:12px 14px;background:#e7f7ee;border-radius:8px;color:#16a34a;font-size:14px;">Keine Widersprueche zwischen den drei Einzelreports.</div>`
+        : "";
+
+  const componentBiasesSection = componentBiases
+    ? `<div style="margin:0 0 16px;"><p style="font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:#9ca3af;margin:0 0 6px;">Einzelreports</p>` +
+      `<table style="width:100%;border-collapse:collapse;font-size:14px;">` +
+      Object.entries(componentBiases)
+        .map(
+          ([k, v]) =>
+            `<tr><td style="padding:4px 0;color:#6b7280;width:40%;">${escapeHtml(k)}</td>` +
+            `<td style="padding:4px 0;color:#111827;">${escapeHtml(String(v))}</td></tr>`
+        )
+        .join("") +
+      `</table></div>`
+    : "";
+
+  const riskLevelSection = riskLevel
+    ? `<div style="margin:0 0 16px;">${badgeHtml(RISK_LEVEL_STYLE[riskLevel], riskLevel)} ` +
+      `<span style="color:#6b7280;font-size:13px;">Risikostufe</span></div>`
+    : "";
+
+  const keyFactorsSection =
+    keyFactors.length > 0
+      ? `<div style="margin:0 0 16px;"><p style="font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:#9ca3af;margin:0 0 6px;">Faktoren</p>` +
+        `<ul style="margin:0;padding-left:20px;color:#374151;font-size:14px;line-height:1.6;">` +
+        keyFactors.map((f) => `<li>${escapeHtml(f)}</li>`).join("") +
+        `</ul></div>`
+      : "";
+
+  return (
+    `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;">` +
+    `<div style="padding:20px 24px;background:#111827;border-radius:12px 12px 0 0;">` +
+    `<p style="margin:0;color:#9ca3af;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;">NEXUS Atlas</p>` +
+    `<h1 style="margin:4px 0 0;color:#fff;font-size:18px;">${escapeHtml(reportLabel)}-Report</h1>` +
+    `<p style="margin:6px 0 0;color:#9ca3af;font-size:12px;">Zeitraum ${escapeHtml(timeframe)} · ${escapeHtml(config.provider)}` +
+    (config.model ? ` (${escapeHtml(config.model)})` : "") +
+    `</p></div>` +
+    `<div style="padding:20px 24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;">` +
+    biasSection +
+    summarySection +
+    conflictsSection +
+    componentBiasesSection +
+    riskLevelSection +
+    keyFactorsSection +
+    `<p style="margin:16px 0 0;padding-top:16px;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:11px;">Automatisch generiert von NEXUS Atlas · Keine Anlageberatung</p>` +
+    `</div></div>`
   );
 }
 
