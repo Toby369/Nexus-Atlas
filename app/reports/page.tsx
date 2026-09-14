@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { providerRegistry } from "@/lib/ai/providers";
+import { FREE_TIER_REPORT_PROVIDERS } from "@/lib/ai/reportProviders";
 import type { AIProviderId } from "@/lib/ai/types";
 import type { ReportConfig, ReportRun } from "@/lib/types";
 import ReportEngineDashboard, {
@@ -28,8 +29,13 @@ const PROVIDER_LABELS: Record<AIProviderId, string> = {
 // importieren). Hier in der Server Component ausgewertet und nur als
 // einfache, client-sichere Daten (Boolean) an die Dashboard-Komponente
 // gereicht -- kein Key verlaesst je den Server (Vorgabe Teil V).
+//
+// 14.09.2026 -- nur noch Gratis-Tier-Provider (siehe lib/ai/reportProviders.ts):
+// "muss kostenlos sein, gesamte AI report!" -- OpenAI/Anthropic/xAI/
+// Perplexity/DeepSeek stehen bewusst nicht mehr zur Auswahl.
 function getProviderOptions(): ProviderOption[] {
   return (Object.keys(providerRegistry) as AIProviderId[])
+    .filter((id) => FREE_TIER_REPORT_PROVIDERS.includes(id))
     .map((id) => ({
       id,
       label: PROVIDER_LABELS[id],

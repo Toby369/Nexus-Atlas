@@ -5,6 +5,8 @@ import { TIMEFRAMES, parseTimeframe, type TimeframeId } from "@/lib/timeframes";
 import type { ReportConfig, ReportRun, ReportType } from "@/lib/types";
 import { FullDateTime, StaleBadge } from "@/components/ClientTimestamp";
 
+const MAX_SCHEDULE_TIMES = 3;
+
 export interface ProviderOption {
   id: string;
   label: string;
@@ -67,10 +69,11 @@ export default function ReportEngineDashboard({
       <div className="rounded-lg border border-border bg-surface p-4">
         <p className="text-xs uppercase tracking-[0.2em] text-text-faint mb-2">Status</p>
         <p className="text-sm text-text-muted">
-          Bis zu 4 unabhängig konfigurierbare AI-Reports. Jeder Lauf wird in{" "}
-          <code className="text-xs">report_runs</code> gespeichert, samt der Datenbasis, die
-          dem Modell vorlag — NEXUS sammelt und validiert die Fakten, die AI interpretiert sie
-          nur.
+          Bis zu 4 unabhängig konfigurierbare AI-Reports, je bis zu {MAX_SCHEDULE_TIMES} Zeitplan-Läufe
+          pro Tag. Jeder Lauf wird in <code className="text-xs">report_runs</code> gespeichert, samt
+          der Datenbasis, die dem Modell vorlag — NEXUS sammelt und validiert die Fakten, die AI
+          interpretiert sie nur. Nur Gratis-Tier-Provider stehen zur Auswahl — die AI Report Engine
+          bleibt vollständig kostenlos.
         </p>
         {!serviceRoleConfigured && (
           <p className="text-xs mt-2 text-down">
@@ -114,7 +117,9 @@ function SlotCard({
   const [provider, setProvider] = useState(config.provider);
   const [model, setModel] = useState(config.model ?? "");
   const [timeframe, setTimeframe] = useState<TimeframeId>(parseTimeframe(config.timeframe));
-  const [scheduleTime, setScheduleTime] = useState(config.schedule_time?.slice(0, 5) ?? "");
+  const [scheduleTimes, setScheduleTimes] = useState<string[]>(
+    config.schedule_times?.map((t) => t.slice(0, 5)) ?? []
+  );
   const [active, setActive] = useState(config.active);
   const [emailEnabled, setEmailEnabled] = useState(config.email_enabled);
 
@@ -125,11 +130,17 @@ function SlotCard({
   const [running, setRunning] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
 
+  // Normalisiert vor dem Vergleich/Speichern: leere Eingabefelder (waehrend
+  // des Tippens einer neuen Zeit) raus, sortiert -- Reihenfolge im Array
+  // soll keine eigene Bedeutung haben.
+  const normalizedScheduleTimes = [...scheduleTimes].filter((t) => t !== "").sort();
+  const normalizedConfigTimes = [...(config.schedule_times ?? [])].map((t) => t.slice(0, 5)).sort();
+
   const dirty =
     provider !== config.provider ||
     model !== (config.model ?? "") ||
     timeframe !== config.timeframe ||
-    scheduleTime !== (config.schedule_time?.slice(0, 5) ?? "") ||
+    JSON.stringify(normalizedScheduleTimes) !== JSON.stringify(normalizedConfigTimes) ||
     active !== config.active ||
     emailEnabled !== config.email_enabled;
 
@@ -146,7 +157,7 @@ function SlotCard({
           provider,
           model: model.trim() === "" ? null : model.trim(),
           timeframe,
-          schedule_time: scheduleTime === "" ? null : scheduleTime,
+          schedule_times: normalizedScheduleTimes.length === 0 ? null : normalizedScheduleTimes,
           active,
           email_enabled: emailEnabled,
         }),
@@ -240,15 +251,40 @@ function SlotCard({
           </select>
         </label>
 
-        <label className="text-xs text-text-faint flex flex-col gap-1">
-          Zeitplan (täglich, UTC)
-          <input
-            type="time"
-            value={scheduleTime}
-            onChange={(e) => setScheduleTime(e.target.value)}
-            className="bg-surface-raised border border-border rounded-md px-2 py-1.5 text-sm text-text"
-          />
-        </label>
+        <div className="text-xs text-text-faint flex flex-col gap-1">
+          Zeitplan (täglich, UTC, bis zu {MAX_SCHEDULE_TIMES} Zeiten)
+          <div className="flex flex-col gap-1.5">
+            {scheduleTimes.map((t, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <input
+                  type="time"
+                  value={t}
+                  onChange={(e) =>
+                    setScheduleTimes((prev) => prev.map((v, idx) => (idx === i ? e.target.value : v)))
+                  }
+                  className="bg-surface-raised border border-border rounded-md px-2 py-1.5 text-sm text-text"
+                />
+                <button
+                  type="button"
+                  onClick={() => setScheduleTimes((prev) => prev.filter((_, idx) => idx !== i))}
+                  className="text-text-faint hover:text-down px-1"
+                  aria-label="Zeit entfernen"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            {scheduleTimes.length < MAX_SCHEDULE_TIMES && (
+              <button
+                type="button"
+                onClick={() => setScheduleTimes((prev) => [...prev, ""])}
+                className="text-xs text-accent hover:underline decoration-dotted self-start"
+              >
+                + Zeit hinzufügen
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       <label className="flex items-center gap-2 text-xs text-text-muted">

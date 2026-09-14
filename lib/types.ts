@@ -250,7 +250,9 @@ export interface ReportConfig {
   provider: string;
   model: string | null;
   timeframe: string;
-  schedule_time: string | null;
+  // 14.09.2026 -- ersetzt das vormalige einzelne schedule_time: bis zu 3
+  // taegliche Uhrzeiten (HH:MM, UTC) je Slot, siehe report-scheduler.
+  schedule_times: string[] | null;
   active: boolean;
   email_enabled: boolean;
   created_at: string;

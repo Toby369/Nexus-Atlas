@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { providerRegistry } from "@/lib/ai/providers";
+import { isFreeTierReportProvider, FREE_TIER_REPORT_PROVIDERS } from "@/lib/ai/reportProviders";
 import { isTimeframeId } from "@/lib/timeframes";
-import type { AIProviderId } from "@/lib/ai/types";
 import type { ReportConfig } from "@/lib/types";
 
 // PATCH /api/reports/config
-// Body: { slot: 1-4, provider?, model?, timeframe?, schedule_time?, active?, email_enabled? }
+// Body: { slot: 1-4, provider?, model?, timeframe?, schedule_times?, active?, email_enabled? }
 //
 // Aendert NUR die Nutzer-Konfiguration eines bestehenden Slots. report_type
 // bleibt fix (Slot 1-4 sind gemaess Vorgabe Teil N fest den 4 Report-Typen
@@ -14,15 +14,22 @@ import type { ReportConfig } from "@/lib/types";
 // aendert ihn daher bewusst nicht. Schreibt ueber den Service-Role-Client,
 // da RLS auf report_configs nur "Public read access" (SELECT) erlaubt
 // (Vorgabe Teil V: Schreibzugriff ausschliesslich serverseitig).
+//
+// 14.09.2026 -- schedule_time (einzelner Wert) durch schedule_times (Array,
+// max. 3) ersetzt ("bis zu 3 Zeiten planen"), und provider serverseitig auf
+// Gratis-Tier-Provider beschraenkt ("muss kostenlos sein, gesamte AI
+// report!", siehe lib/ai/reportProviders.ts) -- nicht nur in der UI
+// ausgeblendet, da diese Route auch direkt (ohne Dashboard) aufrufbar ist.
 
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/;
+const MAX_SCHEDULE_TIMES = 3;
 
 interface PatchBody {
   slot?: number;
   provider?: string;
   model?: string | null;
   timeframe?: string;
-  schedule_time?: string | null;
+  schedule_times?: string[] | null;
   active?: boolean;
   email_enabled?: boolean;
 }
@@ -49,7 +56,18 @@ export async function PATCH(req: NextRequest) {
         { status: 400 }
       );
     }
-    update.provider = body.provider as AIProviderId;
+    if (!isFreeTierReportProvider(body.provider)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            `Provider "${body.provider}" hat keinen Gratis-Tier -- die AI Report Engine erlaubt ` +
+            `nur: ${FREE_TIER_REPORT_PROVIDERS.join(", ")}.`,
+        },
+        { status: 400 }
+      );
+    }
+    update.provider = body.provider;
   }
 
   if (body.model !== undefined) {
@@ -66,14 +84,38 @@ export async function PATCH(req: NextRequest) {
     update.timeframe = body.timeframe;
   }
 
-  if (body.schedule_time !== undefined) {
-    if (body.schedule_time !== null && !TIME_RE.test(body.schedule_time)) {
-      return NextResponse.json(
-        { success: false, error: "schedule_time muss HH:MM sein oder null." },
-        { status: 400 }
-      );
+  if (body.schedule_times !== undefined) {
+    if (body.schedule_times !== null) {
+      if (!Array.isArray(body.schedule_times)) {
+        return NextResponse.json(
+          { success: false, error: "schedule_times muss ein Array aus HH:MM-Strings sein oder null." },
+          { status: 400 }
+        );
+      }
+      if (body.schedule_times.length > MAX_SCHEDULE_TIMES) {
+        return NextResponse.json(
+          { success: false, error: `Maximal ${MAX_SCHEDULE_TIMES} Zeiten pro Report erlaubt.` },
+          { status: 400 }
+        );
+      }
+      for (const t of body.schedule_times) {
+        if (typeof t !== "string" || !TIME_RE.test(t)) {
+          return NextResponse.json(
+            { success: false, error: `Ungueltige Uhrzeit "${t}" -- Format muss HH:MM sein.` },
+            { status: 400 }
+          );
+        }
+      }
+      const unique = new Set(body.schedule_times);
+      if (unique.size !== body.schedule_times.length) {
+        return NextResponse.json(
+          { success: false, error: "schedule_times enthaelt doppelte Uhrzeiten." },
+          { status: 400 }
+        );
+      }
     }
-    update.schedule_time = body.schedule_time;
+    update.schedule_times =
+      body.schedule_times === null || body.schedule_times.length === 0 ? null : body.schedule_times;
   }
 
   if (body.active !== undefined) {
