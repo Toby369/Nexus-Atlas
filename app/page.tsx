@@ -30,7 +30,7 @@ import { buildLiveLeverageMap } from "@/lib/leverageMapContext";
 import { buildCycleIndicators } from "@/lib/cycleIndicatorsContext";
 import { buildDivergenceRadar } from "@/lib/divergenceRadarContext";
 import { buildConfluenceScore, buildConfluenceSignalDetail } from "@/lib/confluenceScoreContext";
-import { buildRegimeScore } from "@/lib/regimeScoreContext";
+import { buildRegimeScore, buildRegimeSignalDetail } from "@/lib/regimeScoreContext";
 import { detectEscalationTriggers } from "@/lib/escalationContext";
 import { parseAnchorParam, parseAnchorEndParam } from "@/lib/anchor";
 import { TRADINGVIEW_SIGNAL_FRESHNESS_HOURS } from "@/lib/tradingViewSignal";
@@ -611,6 +611,7 @@ export default async function Home({
     confluenceScore,
     confluenceSignalDetail,
     regimeScore,
+    regimeSignalDetail,
     latestNewsAnalysis,
     latestSignalEngine,
     latestSignalReview,
@@ -643,6 +644,7 @@ export default async function Home({
     buildConfluenceScore(),
     buildConfluenceSignalDetail(),
     buildRegimeScore(),
+    buildRegimeSignalDetail(),
     getLatestNewsAnalysis(),
     getLatestSignalEngine(),
     getLatestSignalReview(),
@@ -767,7 +769,7 @@ export default async function Home({
             />
 
             <ConfluenceScoreCard score={confluenceScore} signalDetail={confluenceSignalDetail} />
-            <RegimeScoreCard score={regimeScore} />
+            <RegimeScoreCard score={regimeScore} signalDetail={regimeSignalDetail} />
 
             <LivePriceDataProvider
                 timeframe={timeframe}

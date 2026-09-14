@@ -73,3 +73,57 @@ export async function buildRegimeScore(): Promise<RegimeScoreResult> {
     down: rows.find((r) => r.direction === "DOWN") ?? null,
   };
 }
+
+// Ebene 2 ("Signale im Detail", Nutzer-Wunsch 14.09.2026, analog zur
+// gleichnamigen Sektion beim Setup-Score/ConfluenceScoreCard) -- zeigt pro
+// Einzelsignal, ob es den vorregistrierten BH-FDR-Test besteht (fliesst in
+// den Regime-Score ein -- direkt oder als Teil des Trend-Konsens-
+// Konsenszaehlers) oder nicht (sichtbar, aber nicht stimmberechtigt). Ruft
+// live dieselbe Funktion auf, die auch die Produktions-WOE-Werte speist
+// (research_regime_bh_fdr(0.05), eigener Pool, komplett getrennt von
+// research_confluence_bh_fdr) -- keine zweite, unabhaengige Berechnung.
+// Anders als research_confluence_bh_fdr liefert diese Funktion ausschliesslich
+// Einzelsignal-Zeilen (kein cell_type-Filter noetig).
+const REGIME_BH_FDR_ALPHA = 0.05;
+
+export interface RegimeSignalDetail {
+  signal: string;
+  direction: "UP" | "DOWN";
+  nActive: number;
+  nInactive: number;
+  hitRateActive: number;
+  hitRateInactive: number;
+  validated: boolean;
+}
+
+export async function buildRegimeSignalDetail(): Promise<RegimeSignalDetail[]> {
+  const { data, error } = await supabase.rpc("research_regime_bh_fdr", { p_alpha: REGIME_BH_FDR_ALPHA });
+  if (error) {
+    console.error("regimeScoreContext: Fehler bei research_regime_bh_fdr:", error.message);
+    return [];
+  }
+
+  return (data ?? [])
+    .map((row: {
+      signal_a: string;
+      direction: "UP" | "DOWN";
+      n1: number;
+      n2: number;
+      hit_rate1_pct: number | string;
+      hit_rate2_pct: number | string;
+      significant_after_bh: boolean;
+    }): RegimeSignalDetail => ({
+      signal: row.signal_a,
+      direction: row.direction,
+      nActive: row.n1,
+      nInactive: row.n2,
+      hitRateActive: Number(row.hit_rate1_pct),
+      hitRateInactive: Number(row.hit_rate2_pct),
+      validated: row.significant_after_bh,
+    }))
+    .sort((a: RegimeSignalDetail, b: RegimeSignalDetail) => {
+      if (a.direction !== b.direction) return a.direction === "UP" ? -1 : 1;
+      if (a.validated !== b.validated) return a.validated ? -1 : 1;
+      return b.hitRateActive - a.hitRateActive;
+    });
+}

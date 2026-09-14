@@ -1,4 +1,4 @@
-import type { RegimeScoreResult, RegimeScoreRow, RegimeScoreTier } from "@/lib/regimeScoreContext";
+import type { RegimeScoreResult, RegimeScoreRow, RegimeScoreTier, RegimeSignalDetail } from "@/lib/regimeScoreContext";
 import PanelInfo from "@/components/PanelInfo";
 
 // Regime-Score (Projektname weiterhin "Gesamteinschätzung-Score-Protokoll",
@@ -108,7 +108,49 @@ function ScoreRow({ row, label, tone }: { row: RegimeScoreRow | null; label: str
   );
 }
 
-export default function RegimeScoreCard({ score }: { score: RegimeScoreResult }) {
+// Ebene 2 ("Signale im Detail", Nutzer-Wunsch 14.09.2026: "regime score
+// signals im detail, wie bei setup score") -- exakt dieselbe Darstellung wie
+// SignalDetailList in ConfluenceScoreCard.tsx, nur fuer UP/DOWN statt
+// LONG/SHORT und gespeist aus research_regime_bh_fdr() statt
+// research_confluence_bh_fdr() (siehe buildRegimeSignalDetail() in
+// regimeScoreContext.ts).
+function SignalDetailList({ signals, direction }: { signals: RegimeSignalDetail[]; direction: "UP" | "DOWN" }) {
+  const rows = signals.filter((s) => s.direction === direction);
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="space-y-1">
+      {rows.map((s) => (
+        <div key={s.signal} className="flex items-center justify-between gap-2 text-[11px]">
+          <span className={s.validated ? "text-text" : "text-text-faint"}>{s.signal}</span>
+          <span className="flex items-center gap-1.5 shrink-0">
+            <span className="text-text-faint">
+              {s.hitRateActive.toFixed(1)}% (n={s.nActive})
+            </span>
+            <span
+              className={`px-1 py-0.5 rounded text-[10px] font-medium ${
+                s.validated ? "text-up" : "text-text-faint border border-border"
+              }`}
+            >
+              {s.validated ? "✓ validiert" : "— unbestätigt"}
+            </span>
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function RegimeScoreCard({
+  score,
+  signalDetail,
+}: {
+  score: RegimeScoreResult;
+  signalDetail: RegimeSignalDetail[];
+}) {
+  const validatedCount = signalDetail.filter((s) => s.validated).length;
+  const unvalidatedCount = signalDetail.length - validatedCount;
+
   return (
     <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
       <span className="flex items-center gap-1.5 flex-wrap">
@@ -127,6 +169,24 @@ export default function RegimeScoreCard({ score }: { score: RegimeScoreResult })
         <ScoreRow row={score.up} label="UP" tone="up" />
         <ScoreRow row={score.down} label="DOWN" tone="down" />
       </div>
+
+      {signalDetail.length > 0 && (
+        <details className="pt-1 border-t border-border/60">
+          <summary className="text-[11px] text-text-faint cursor-pointer select-none">
+            Signale im Detail ({validatedCount} validiert, {unvalidatedCount} unbestätigt)
+          </summary>
+          <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint mb-1">UP</p>
+              <SignalDetailList signals={signalDetail} direction="UP" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint mb-1">DOWN</p>
+              <SignalDetailList signals={signalDetail} direction="DOWN" />
+            </div>
+          </div>
+        </details>
+      )}
     </div>
   );
 }
