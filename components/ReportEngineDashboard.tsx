@@ -252,7 +252,20 @@ function SlotCard({
           Provider
           <select
             value={provider}
-            onChange={(e) => setProvider(e.target.value)}
+            onChange={(e) => {
+              // Bugfix 14.09.2026 (Nutzer-Frage: "muss ich dann auch das
+              // Modell wechseln? sollte automatisch eingefuegt werden"):
+              // das Modell-Feld ist providerspezifisch (z.B. Slot 2s
+              // "nvidia/nemotron-3-super-120b-a12b:free" ist ein reiner
+              // OpenRouter-String) und wurde bisher beim Providerwechsel
+              // NICHT geleert -- ein stehen gebliebener, fuer den neuen
+              // Provider unbekannter Modellname haette den Lauf zum
+              // Scheitern gebracht. Leeres Feld = Provider-Default (siehe
+              // Platzhaltertext unten), daher hier automatisch zuruecksetzen
+              // statt den Nutzer den Namen manuell loeschen zu lassen.
+              setProvider(e.target.value);
+              setModel("");
+            }}
             className="bg-surface-raised border border-border rounded-md px-2 py-1.5 text-sm text-text"
           >
             {providerOptions.map((p) => (
@@ -264,7 +277,7 @@ function SlotCard({
         </label>
 
         <label className="text-xs text-text-faint flex flex-col gap-1">
-          Modell (optional, sonst Provider-Default)
+          Modell (optional, sonst Provider-Default -- wird bei Providerwechsel automatisch geleert)
           <input
             type="text"
             value={model}
