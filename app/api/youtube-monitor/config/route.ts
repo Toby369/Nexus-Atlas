@@ -13,6 +13,14 @@ import { resolveYoutubeChannel, type YoutubeMonitorChannel } from "@/lib/youtube
 // uebrigen -- er erscheint in channelErrors, damit die UI den Tippfehler
 // zeigen kann.
 //
+// 14.09.2026 -- zusaetzlich blockedChannels (Nutzer-Wunsch: "diese
+// verfasser moechte ich nicht mehr dabei haben"): Kanal-TITEL (nicht
+// Handle/ID, da diese Kanaele meist NICHT explizit konfiguriert sind,
+// sondern ueber die Freitext-Suche hereinkamen -- der Titel ist alles, was
+// der Nutzer aus der UI kennt). Wird komplett ersetzt bei jedem Speichern
+// (wie channels/searchQuery), daher muss die UI immer den vollstaendigen
+// aktuellen Stand mitsenden.
+//
 // Auth: proxy.ts sperrt diese Route wie jede andere /api/*-Route hinter
 // eine Login-Session -- keine eigene Pruefung noetig. Kein Rate-Limit noetig
 // (kein bezahlter AI-Aufruf, nur guenstige YouTube-API-Calls beim Speichern).
@@ -20,6 +28,7 @@ import { resolveYoutubeChannel, type YoutubeMonitorChannel } from "@/lib/youtube
 interface ConfigRequestBody {
   searchQuery?: unknown;
   channelInputs?: unknown;
+  blockedChannels?: unknown;
 }
 
 export async function POST(request: Request) {
@@ -42,6 +51,15 @@ export async function POST(request: Request) {
   const channelInputs = Array.isArray(body.channelInputs)
     ? body.channelInputs.filter((c): c is string => typeof c === "string" && c.trim().length > 0)
     : [];
+  // Nutzer-Wunsch 14.09.2026 ("diese verfasser moechte ich nicht mehr dabei
+  // haben"): Kanal-TITEL (kein Handle/URL-Aufloesen noetig, siehe
+  // lib/youtubeMonitorContext.ts), gegen die jeder gefundene Kandidat
+  // case-insensitiv abgeglichen wird.
+  const blockedChannels = Array.isArray(body.blockedChannels)
+    ? body.blockedChannels
+        .filter((c): c is string => typeof c === "string" && c.trim().length > 0)
+        .map((c) => c.trim())
+    : [];
 
   const channels: YoutubeMonitorChannel[] = [];
   const channelErrors: string[] = [];
@@ -56,7 +74,13 @@ export async function POST(request: Request) {
 
   const { data, error: upsertError } = await supabaseAdmin
     .from("youtube_monitor_config")
-    .upsert({ id: 1, search_query: searchQuery, channels, updated_at: new Date().toISOString() })
+    .upsert({
+      id: 1,
+      search_query: searchQuery,
+      channels,
+      blocked_channels: blockedChannels,
+      updated_at: new Date().toISOString(),
+    })
     .select()
     .single();
 

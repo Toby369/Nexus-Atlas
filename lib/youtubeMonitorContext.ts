@@ -54,6 +54,14 @@ export interface YoutubeMonitorChannel {
 export interface YoutubeMonitorConfig {
   searchQuery: string;
   channels: YoutubeMonitorChannel[];
+  /**
+   * Nutzer-Wunsch 14.09.2026 ("diese verfasser moechte ich nicht mehr dabei
+   * haben"): Kanal-Titel (case-insensitiver Exact-Match gegen
+   * YoutubeVideoCandidate.channelTitle), die trotz Treffer NIE analysiert
+   * werden -- unabhaengig davon, ob sie ueber die Freitext-Suche oder einen
+   * konfigurierten Kanal hereingekommen sind.
+   */
+  blockedChannels: string[];
 }
 
 async function getYoutubeApiKey(): Promise<string> {
@@ -68,15 +76,15 @@ async function getYoutubeApiKey(): Promise<string> {
 export async function getYoutubeMonitorConfig(): Promise<YoutubeMonitorConfig> {
   const { data, error } = await supabase
     .from("youtube_monitor_config")
-    .select("search_query, channels")
+    .select("search_query, channels, blocked_channels")
     .eq("id", 1)
     .maybeSingle();
 
   if (error) {
     console.error("youtubeMonitorContext: Fehler beim Laden der Konfiguration:", error.message);
-    return { searchQuery: DEFAULT_SEARCH_QUERY, channels: [] };
+    return { searchQuery: DEFAULT_SEARCH_QUERY, channels: [], blockedChannels: [] };
   }
-  if (!data) return { searchQuery: DEFAULT_SEARCH_QUERY, channels: [] };
+  if (!data) return { searchQuery: DEFAULT_SEARCH_QUERY, channels: [], blockedChannels: [] };
 
   return {
     // Nullish statt "||": eine bewusst geleerte Suche (nur konfigurierte
@@ -84,6 +92,7 @@ export async function getYoutubeMonitorConfig(): Promise<YoutubeMonitorConfig> {
     // Grund auf den Default zurueckzufallen.
     searchQuery: data.search_query ?? DEFAULT_SEARCH_QUERY,
     channels: (data.channels ?? []) as YoutubeMonitorChannel[],
+    blockedChannels: (data.blocked_channels ?? []) as string[],
   };
 }
 
@@ -248,7 +257,19 @@ export async function findRecentVideoCandidates(
     byVideoId.set(candidate.videoId, candidate);
   }
 
-  return { candidates: Array.from(byVideoId.values()), channelErrors };
+  // Gesperrte Kanaele NACH dem Dedupe rausfiltern, aber VOR jeder weiteren
+  // Verwendung (filterUnseenVideos/Analyse) -- ein Kanal-Titel-Match reicht,
+  // unabhaengig davon, ob der Treffer aus der Freitext-Suche oder einem
+  // konfigurierten Kanal kam. Case-insensitiv + getrimmt, da YouTube-
+  // Kanalnamen von Nutzern frei eingegeben werden (Gross-/Kleinschreibung
+  // nicht verlaesslich).
+  const blocked = new Set(config.blockedChannels.map((c) => c.trim().toLowerCase()));
+  const candidates =
+    blocked.size === 0
+      ? Array.from(byVideoId.values())
+      : Array.from(byVideoId.values()).filter((c) => !blocked.has(c.channelTitle.trim().toLowerCase()));
+
+  return { candidates, channelErrors };
 }
 
 /** Filtert Kandidaten heraus, die bereits in youtube_video_analyses existieren. */

@@ -21,7 +21,7 @@ import PanelInfo from "@/components/PanelInfo";
 const INFO_TEXT = [
   "Was das ist: prueft konfigurierte YouTube-Kanaele auf neue Uploads UND/ODER eine Freitext-Suche (beides einstellbar, siehe 'Einstellungen' unten) -- letzte 24h, neue Videos werden per Gemini direkt anhand der Video-URL ausgewertet (Bild+Ton, kein Transkript-Umweg).",
   "Kostenlos: sowohl die YouTube-API (Google-Gratiskontingent) als auch die Gemini-Video-Analyse (Google-Free-Tier, Flash-Modelle) laufen ohne Kreditkarte -- pro Lauf werden aber nur wenige neue Videos analysiert (Kostenkontrolle ueber das Free-Tier-Anfragelimit).",
-  "Kanaele erkennst du an Handle (z.B. @CoinBureau), voller Kanal-URL oder roher Kanal-ID -- wird beim Speichern serverseitig aufgeloest. Freitext-Suche findet auch unbekannte Quellen, kann aber Off-Topic-Treffer liefern (dafuer gibt es das relevance-Feld).",
+  "Kanaele erkennst du an Handle (z.B. @CoinBureau), voller Kanal-URL oder roher Kanal-ID -- wird beim Speichern serverseitig aufgeloest. Freitext-Suche findet auch unbekannte Quellen, kann aber Off-Topic-Treffer liefern (dafuer gibt es das relevance-Feld sowie die 'Gesperrte Kanaele'-Liste, um einzelne Ersteller dauerhaft auszuschliessen).",
   "Kein Handelssignal -- die im Video vertretene Meinung ist nicht Nexus' eigene Einschaetzung. Wird NICHT automatisch aktualisiert -- ein neuer Suchlauf entsteht nur per Klick auf \"Neu pruefen\".",
   "Kanal-Vergleich: zeigt die JEWEILS NEUESTE Einschaetzung jedes konfigurierten Kanals nebeneinander -- \"einig\" wenn alle dieselbe Richtung vertreten, \"mehrheitlich\" mit den abweichenden Kanaelen einzeln benannt, oder \"gespalten\" bei echtem Patt ohne Mehrheit. Erscheint erst ab 2 Kanaelen mit erfolgreicher Analyse.",
 ].join("\n\n");
@@ -80,6 +80,9 @@ export default function YoutubeMonitorCard({
   const [channelsDraft, setChannelsDraft] = useState(
     initialConfig.channels.map((c) => c.input).join("\n")
   );
+  const [blockedChannelsDraft, setBlockedChannelsDraft] = useState(
+    initialConfig.blockedChannels.join("\n")
+  );
   const [savingConfig, setSavingConfig] = useState(false);
   const [configError, setConfigError] = useState<string | null>(null);
   const [channelWarnings, setChannelWarnings] = useState<string[]>([]);
@@ -123,11 +126,15 @@ export default function YoutubeMonitorCard({
         .split("\n")
         .map((line) => line.trim())
         .filter((line) => line.length > 0);
+      const blockedChannels = blockedChannelsDraft
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
 
       const res = await fetch("/api/youtube-monitor/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ searchQuery: searchQueryDraft, channelInputs }),
+        body: JSON.stringify({ searchQuery: searchQueryDraft, channelInputs, blockedChannels }),
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
@@ -137,9 +144,11 @@ export default function YoutubeMonitorCard({
       const savedConfig: YoutubeMonitorConfig = {
         searchQuery: json.config.search_query,
         channels: json.config.channels,
+        blockedChannels: json.config.blocked_channels ?? [],
       };
       setConfig(savedConfig);
       setChannelsDraft(savedConfig.channels.map((c) => c.input).join("\n"));
+      setBlockedChannelsDraft(savedConfig.blockedChannels.join("\n"));
       if (json.channelErrors?.length > 0) setChannelWarnings(json.channelErrors);
     } catch (err) {
       setConfigError(err instanceof Error ? err.message : String(err));
@@ -207,6 +216,20 @@ export default function YoutubeMonitorCard({
               Aktuell aufgelöst: {config.channels.map((c) => c.title).join(", ")}
             </p>
           )}
+
+          <div>
+            <label className="text-[10px] uppercase tracking-wide text-text-faint">
+              Gesperrte Kanäle (Kanal-Titel, ein Name pro Zeile — nie mehr analysiert, egal ob
+              über Suche oder Kanal-Liste gefunden)
+            </label>
+            <textarea
+              value={blockedChannelsDraft}
+              onChange={(e) => setBlockedChannelsDraft(e.target.value)}
+              rows={3}
+              placeholder={"z.B. TRADE WITH AARO\nPaisa Today"}
+              className="mt-1 w-full text-xs rounded-md border border-border bg-surface-raised text-text px-2 py-1.5 focus:outline-none focus:border-accent/40 font-mono"
+            />
+          </div>
 
           <button
             type="button"
