@@ -182,16 +182,51 @@ function SlotCard({
     setRunning(true);
     setRunError(null);
     try {
+      // Bugfix 14.09.2026 (Nutzer-Report: "news/makro laeuft nicht, auch
+      // wenn ich manuell auf groq setze"): /api/reports/run liest
+      // provider/model/etc. IMMER frisch aus report_configs, nicht aus
+      // diesem Formular -- eine geaenderte Auswahl ohne vorheriges
+      // "Speichern" wurde bisher stillschweigend ignoriert und der Lauf
+      // startete mit dem alten, gespeicherten Provider. "Jetzt ausfuehren"
+      // speichert daher jetzt zuerst automatisch, falls noch ungespeicherte
+      // Aenderungen vorliegen -- was sichtbar eingestellt ist, ist auch das,
+      // was laeuft. Betrifft alle 4 Slots gleichermassen (gemeinsame
+      // Komponente).
+      let currentConfig = config;
+      if (dirty) {
+        const saveRes = await fetch("/api/reports/config", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            slot: config.slot,
+            provider,
+            model: model.trim() === "" ? null : model.trim(),
+            timeframe,
+            schedule_times: normalizedScheduleTimes.length === 0 ? null : normalizedScheduleTimes,
+            active,
+            email_enabled: emailEnabled,
+            push_enabled: pushEnabled,
+          }),
+        });
+        const saveJson = await saveRes.json();
+        if (!saveRes.ok || !saveJson.success) {
+          throw new Error(saveJson.error ?? `Speichern fehlgeschlagen: HTTP ${saveRes.status}`);
+        }
+        currentConfig = saveJson.config as ReportConfig;
+        onChange({ config: currentConfig, lastRun });
+        setSaveOk(true);
+      }
+
       const res = await fetch("/api/reports/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slot: config.slot }),
+        body: JSON.stringify({ slot: currentConfig.slot }),
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
         throw new Error(json.error ?? `HTTP ${res.status}`);
       }
-      onChange({ config, lastRun: json.run as ReportRun });
+      onChange({ config: currentConfig, lastRun: json.run as ReportRun });
     } catch (err) {
       setRunError(err instanceof Error ? err.message : String(err));
     } finally {
