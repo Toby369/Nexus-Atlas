@@ -48,6 +48,86 @@ const INFO_TEXT = [
   "Grenzen: Dezile (feinere Abstufung als 3 Stufen) wurden bewusst NICHT umgesetzt -- bei aktueller Datenmenge (~7.200 Setups je Richtung) sind viele Dezile statistisch nicht zuverlaessig unterscheidbar (Standardfehler ±3-4 Prozentpunkte). Kein Handelssignal, keine Erfolgsgarantie.",
 ].join("\n\n");
 
+// Nutzer-Wunsch 14.09.2026 ("dieselbe Antipp-Beschreibung auch beim
+// Setup-Score einbauen", analog zur bereits umgesetzten Regime-Score-
+// Variante in RegimeScoreCard.tsx): Kurzbeschreibung je Einzelsignal aus
+// der "Signale im Detail"-Liste, aufklappbar per Antippen (siehe
+// SignalDetailList unten). 13 der 15 Signale sind laut Protokoll
+// (docs/research/CONFLUENCE-SCORE-PROTOCOL_2026-09-11.md: "identische 31
+// Signalgeber wie im Confluence-Score-Protokoll") dieselbe Basis, die auch
+// der Regime-Score verwendet -- Texte 1:1 uebernommen, nur LONG/SHORT statt
+// UP/DOWN benannt. Zwei Signale sind Sonderfaelle, siehe
+// docs/research/CONFLUENCE-SCORE-PHASE3-RESULTS_2026-09-11.md Abschnitt
+// "2 von 15 Signalen eingefroren": "Positionierung (Divergence-Engine-
+// Score)" und "Divergenz-Radar: Onchain vs Preis" wurden in Phase 3 ueber
+// eine Ad-hoc-Formel klassifiziert, die sich nachtraeglich nicht mehr
+// sicher rekonstruieren liess -- bewusst als eingefroren/deskriptiv
+// gekennzeichnet statt eine praezise Schwelle vorzutaeuschen, die es so
+// nicht mehr (nachweisbar) gibt.
+const SIGNAL_DESCRIPTIONS: Record<string, string | { long?: string; short?: string }> = {
+  "CVD-Richtung": {
+    long: "Cumulative Volume Delta (Orderflow) auf 15m-Basis steigend – mehr aggressive Käufe als Verkäufe.",
+    short: "Cumulative Volume Delta (Orderflow) auf 15m-Basis fallend – mehr aggressive Verkäufe als Käufe.",
+  },
+  "Divergenz-Radar: Onchain vs Preis": "Vergleicht SOPR (realisierte Gewinne/Verluste bewegter Coins) mit der Preisnähe zum 30-Tage-Hoch/-Tief – Warnmuster bei Preis nahe Hoch, aber SOPR<1 (Verlustrealisierung trotz Höhe) oder Preis nahe Tief, aber SOPR≥1 (keine Kapitulation trotz Tiefe). Seit Phase 3 (11.09.2026) eingefroren: die exakte historische Klassifikationsformel liess sich nachträglich nicht mehr sicher rekonstruieren, rein deskriptiv, bislang nicht BH-FDR-signifikant.",
+  "Fear & Greed": {
+    long: "Crypto Fear & Greed Index zeigt „Extreme Fear\" – kontrarisch gelesen als mögliches Kaufsignal.",
+    short: "Crypto Fear & Greed Index zeigt „Extreme Greed\" – kontrarisch gelesen als mögliches Verkaufssignal.",
+  },
+  "Makro-Regime": {
+    long: "Makro-Risikoregime aus VIX, S&P 500, Nasdaq, Dollar-Index und Fed-Nettoliquidität zeigt „Risk-On\" – gilt als günstig für BTC.",
+    short: "Makro-Risikoregime aus VIX, S&P 500, Nasdaq, Dollar-Index und Fed-Nettoliquidität zeigt „Risk-Off\" – gilt als belastend für BTC.",
+  },
+  "Momentum-Faktor (RSI+MACD)": {
+    long: "RSI(14) über 50 UND MACD-Histogramm gleichzeitig positiv (15m) – beide Momentum-Indikatoren zeigen gemeinsam aufwärts.",
+    short: "RSI(14) unter 50 UND MACD-Histogramm gleichzeitig negativ (15m) – beide Momentum-Indikatoren zeigen gemeinsam abwärts.",
+  },
+  "MTF-Alignment": {
+    long: "Marktstruktur auf 1h, 4h UND 1d gleichzeitig bullisch (striktes 3-Zeitrahmen-Match) – starker Trend-Konsens über mehrere Zeitebenen.",
+    short: "Marktstruktur auf 1h, 4h UND 1d gleichzeitig bärisch (striktes 3-Zeitrahmen-Match) – starker Trend-Konsens über mehrere Zeitebenen.",
+  },
+  "Orderbuch-Imbalance": {
+    long: "Orderbuch-Tiefe auf Binance deutlich kauflastig (Depth-Imbalance > 0,08) – mehr passive Liquidität auf der Kaufseite.",
+    short: "Orderbuch-Tiefe auf Binance deutlich verkaufslastig (Depth-Imbalance < −0,08) – mehr passive Liquidität auf der Verkaufsseite.",
+  },
+  "Positionierung (Divergence-Engine-Score)": "Kombinierter Score aus Positionierungsdaten (Long/Short-Ratio, Funding, Liquidationen). Seit Phase 3 (11.09.2026) eingefroren: die exakte historische Klassifikationsformel liess sich nachträglich nicht mehr sicher rekonstruieren, ohnehin ein sehr selten aktives Signal (~0,7% der Setups) und nicht BH-FDR-signifikant.",
+  "Struktur 15m": {
+    long: "Marktstruktur auf 15-Minuten-Basis bullisch (höhere Hochs/Tiefs) – aus der fraktalen Swing-Erkennung (BOS/CHoCH).",
+    short: "Marktstruktur auf 15-Minuten-Basis bärisch (tiefere Hochs/Tiefs) – aus der fraktalen Swing-Erkennung (BOS/CHoCH).",
+  },
+  "Struktur 1d": {
+    long: "Marktstruktur auf Tagesbasis bullisch (höhere Hochs/Tiefs) – aus der fraktalen Swing-Erkennung (BOS/CHoCH).",
+    short: "Marktstruktur auf Tagesbasis bärisch (tiefere Hochs/Tiefs) – aus der fraktalen Swing-Erkennung (BOS/CHoCH).",
+  },
+  "Struktur 1h": {
+    long: "Marktstruktur auf 1-Stunden-Basis bullisch (höhere Hochs/Tiefs) – aus der fraktalen Swing-Erkennung (BOS/CHoCH).",
+    short: "Marktstruktur auf 1-Stunden-Basis bärisch (tiefere Hochs/Tiefs) – aus der fraktalen Swing-Erkennung (BOS/CHoCH).",
+  },
+  "Struktur 4h": {
+    long: "Marktstruktur auf 4-Stunden-Basis bullisch (höhere Hochs/Tiefs) – aus der fraktalen Swing-Erkennung (BOS/CHoCH).",
+    short: "Marktstruktur auf 4-Stunden-Basis bärisch (tiefere Hochs/Tiefs) – aus der fraktalen Swing-Erkennung (BOS/CHoCH).",
+  },
+  "Trend-Regime (EMA50/200)": {
+    long: "Gleitender 50er-Durchschnitt liegt über dem 200er (EMA50 > EMA200, 15m-Basis) – klassische „Golden Cross\"-Trendstruktur.",
+    short: "Gleitender 50er-Durchschnitt liegt unter dem 200er (EMA50 < EMA200, 15m-Basis) – klassische „Death Cross\"-Trendstruktur.",
+  },
+  "Trendstaerke (ADX+DI)": {
+    long: "ADX(14) ≥ 20 (Trend vorhanden) UND +DI > −DI (15m) – Trendstärke-Indikator zeigt einen aufwärts gerichteten Trend.",
+    short: "ADX(14) ≥ 20 (Trend vorhanden) UND −DI > +DI (15m) – Trendstärke-Indikator zeigt einen abwärts gerichteten Trend.",
+  },
+  "VWAP-Position": {
+    long: "Preis liegt über dem rollierenden VWAP (volumengewichteter Durchschnittspreis, 15m) – gilt als bullisches Signal.",
+    short: "Preis liegt unter dem rollierenden VWAP (volumengewichteter Durchschnittspreis, 15m) – gilt als bärisches Signal.",
+  },
+};
+
+function getSignalDescription(signal: string, direction: "LONG" | "SHORT"): string | null {
+  const entry = SIGNAL_DESCRIPTIONS[signal];
+  if (!entry) return null;
+  if (typeof entry === "string") return entry;
+  return (direction === "LONG" ? entry.long : entry.short) ?? entry.long ?? entry.short ?? null;
+}
+
 function FactorLine({ label, active }: { label: string; active: boolean }) {
   return (
     <div className="flex items-center justify-between text-[11px]">
@@ -130,23 +210,29 @@ function SignalDetailList({ signals, direction }: { signals: ConfluenceSignalDet
 
   return (
     <div className="space-y-1">
-      {rows.map((s) => (
-        <div key={s.signal} className="flex items-center justify-between gap-2 text-[11px]">
-          <span className={s.validated ? "text-text" : "text-text-faint"}>{s.signal}</span>
-          <span className="flex items-center gap-1.5 shrink-0">
-            <span className="text-text-faint">
-              {s.hitRateActive.toFixed(1)}% (n={s.nActive})
-            </span>
-            <span
-              className={`px-1 py-0.5 rounded text-[10px] font-medium ${
-                s.validated ? "text-up" : "text-text-faint border border-border"
-              }`}
-            >
-              {s.validated ? "✓ validiert" : "— unbestätigt"}
-            </span>
-          </span>
-        </div>
-      ))}
+      {rows.map((s) => {
+        const description = getSignalDescription(s.signal, direction);
+        return (
+          <details key={s.signal} className="text-[11px]">
+            <summary className="flex items-center justify-between gap-2 cursor-pointer select-none">
+              <span className={s.validated ? "text-text" : "text-text-faint"}>{s.signal}</span>
+              <span className="flex items-center gap-1.5 shrink-0">
+                <span className="text-text-faint">
+                  {s.hitRateActive.toFixed(1)}% (n={s.nActive})
+                </span>
+                <span
+                  className={`px-1 py-0.5 rounded text-[10px] font-medium ${
+                    s.validated ? "text-up" : "text-text-faint border border-border"
+                  }`}
+                >
+                  {s.validated ? "✓ validiert" : "— unbestätigt"}
+                </span>
+              </span>
+            </summary>
+            {description && <p className="mt-1 pl-2 border-l border-border/60 text-text-faint">{description}</p>}
+          </details>
+        );
+      })}
     </div>
   );
 }
