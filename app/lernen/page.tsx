@@ -3,6 +3,8 @@ import { supabase } from "@/lib/supabase";
 import type { QuizCard, QuizProgressRow } from "@/lib/types";
 import LernenDashboard from "@/components/LernenDashboard";
 import LogoutButton from "@/components/LogoutButton";
+import { getKnowledgeBase } from "@/lib/knowledgeBaseContext";
+import { getMeinSystemChecklistData } from "@/lib/meinSystemContext";
 
 export const revalidate = 0;
 
@@ -25,7 +27,12 @@ async function getProgress(): Promise<QuizProgressRow[]> {
 }
 
 export default async function LernenPage() {
-  const [cards, progress] = await Promise.all([getCards(), getProgress()]);
+  const [cards, progress, knowledgeBase, meinSystemData] = await Promise.all([
+    getCards(),
+    getProgress(),
+    getKnowledgeBase(),
+    getMeinSystemChecklistData(),
+  ]);
 
   return (
     <main className="flex-1 flex flex-col">
@@ -52,7 +59,12 @@ export default async function LernenPage() {
       </header>
 
       <section className="flex-1 px-4 sm:px-6 py-8 max-w-3xl w-full mx-auto">
-        <LernenDashboard initialCards={cards} initialProgress={progress} />
+        <LernenDashboard
+          initialCards={cards}
+          initialProgress={progress}
+          knowledgeBase={knowledgeBase}
+          meinSystemData={meinSystemData}
+        />
       </section>
 
       <footer className="border-t border-border px-6 py-4 text-xs text-text-faint">

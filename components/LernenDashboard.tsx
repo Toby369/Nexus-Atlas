@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import type { QuizCard, QuizProgressRow } from "@/lib/types";
+import type { KnowledgeBaseEntry, QuizCard, QuizProgressRow } from "@/lib/types";
 import {
   BOX_MAX,
   GRADES,
@@ -12,6 +12,7 @@ import {
   type QuizProgress,
 } from "@/lib/leitner";
 import { learningStreak, overview, perCategory, type QuizEntry } from "@/lib/quizStatistik";
+import type { MeinSystemChecklistData } from "@/lib/meinSystemContext";
 import PanelInfo from "@/components/PanelInfo";
 
 // Lernplattform-Kachel (Leitner-Karteikasten), Nutzer-Wunsch "wie im
@@ -54,14 +55,18 @@ function rowToProgress(row: QuizProgressRow | undefined): QuizProgress | null {
   };
 }
 
-type Tab = "lernen" | "karten" | "statistik";
+type Tab = "lernen" | "karten" | "statistik" | "wissen";
 
 export default function LernenDashboard({
   initialCards,
   initialProgress,
+  knowledgeBase,
+  meinSystemData,
 }: {
   initialCards: QuizCard[];
   initialProgress: QuizProgressRow[];
+  knowledgeBase: KnowledgeBaseEntry[];
+  meinSystemData: MeinSystemChecklistData;
 }) {
   const [cards, setCards] = useState(initialCards);
   const [progressRows, setProgressRows] = useState(initialProgress);
@@ -106,6 +111,7 @@ export default function LernenDashboard({
           { id: "lernen", label: "Lernen" },
           { id: "karten", label: "Karten" },
           { id: "statistik", label: "Statistik" },
+          { id: "wissen", label: "Wissen" },
         ] as { id: Tab; label: string }[]).map((t) => (
           <button
             key={t.id}
@@ -125,6 +131,7 @@ export default function LernenDashboard({
       )}
       {tab === "karten" && <CardsPanel cards={cards} onChanged={refetch} />}
       {tab === "statistik" && <StatsPanel stats={stats} streak={streak} categories={categories} />}
+      {tab === "wissen" && <WissenPanel knowledgeBase={knowledgeBase} meinSystemData={meinSystemData} />}
     </div>
   );
 }
@@ -492,6 +499,178 @@ function StatsPanel({
               </span>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Wissen (Welz/Salomon/Mein System) -------------------------------------
+// Nutzer-Wunsch 15.09.2026: "welz und salomon integrieren, meine trading
+// regeln in nexus integrieren". Reine Nachschlage-Sektion aus knowledge_base
+// (statischer Text, siehe lib/knowledgeBaseContext.ts) + drei Checklisten.
+// Checkbox-Zustand ist bewusst NUR lokaler React-State (keine Persistenz) --
+// eine Momentaufnahme je Aufruf, siehe Umsetzungsplan Entscheidung 4.
+
+type WissenModule = "welz" | "salomon" | "mein_system";
+
+const WELZ_CHECKLIST = [
+  "Trading-Journal ist aktuell geführt",
+  "Positionsgrösse ist regelkonform festgelegt (nicht emotional)",
+  "Kein FOMO- oder Revenge-Impuls erkennbar",
+  "Handelsplan ist schriftlich vor Entry fixiert (if-X-then-Y)",
+  'Setup wurde nicht bewusst "passend gesucht" (Confirmation-Bias-Check)',
+];
+
+const SALOMON_CHECKLIST = [
+  "Aktuelle Phase bestimmt (Akkumulation/Markup/Markdown/Distribution)",
+  "Candlestick-Signal an relevantem Level vorhanden",
+  "Trendstruktur eindeutig (HH/HL vs. LH/LL, kein Seitwärts-Chop)",
+  "Multi-Timeframe-Konfluenz geprüft (höherer Zeitrahmen bestätigt)",
+];
+
+const MEIN_SYSTEM_MANUAL_CHECKLIST = [
+  "4H-Breakout bestätigt",
+  "1H-Retest erfolgt",
+  "EMA-D13-Filter erfüllt (Preis vs. EMA13 unten prüfen)",
+  "Keylevel-Konfluenz vorhanden",
+  "RSI/StochRSI-Divergenz-Check auf 4H",
+];
+
+function ChecklistBlock({ title, items }: { title: string; items: string[] }) {
+  const [checked, setChecked] = useState<Record<number, boolean>>({});
+  const doneCount = Object.values(checked).filter(Boolean).length;
+
+  return (
+    <div className="rounded-lg border border-border bg-surface-raised p-3 space-y-1.5">
+      <p className="text-xs font-medium text-text-muted">
+        {title} ({doneCount}/{items.length})
+      </p>
+      {items.map((item, i) => (
+        <label key={i} className="flex items-start gap-2 text-xs text-text-muted cursor-pointer">
+          <input
+            type="checkbox"
+            checked={checked[i] ?? false}
+            onChange={(e) => setChecked((prev) => ({ ...prev, [i]: e.target.checked }))}
+            className="mt-0.5"
+          />
+          <span className={checked[i] ? "line-through text-text-faint" : ""}>{item}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function KnowledgeSections({ entries }: { entries: KnowledgeBaseEntry[] }) {
+  const bySection = useMemo(() => {
+    const map = new Map<string, KnowledgeBaseEntry[]>();
+    for (const e of entries) {
+      const list = map.get(e.section) ?? [];
+      list.push(e);
+      map.set(e.section, list);
+    }
+    return Array.from(map.entries());
+  }, [entries]);
+
+  if (bySection.length === 0) return <p className="text-xs text-text-faint">Keine Einträge.</p>;
+
+  return (
+    <div className="space-y-3">
+      {bySection.map(([section, sectionEntries]) => (
+        <div key={section} className="space-y-1.5">
+          <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">{section}</p>
+          {sectionEntries.map((e) => (
+            <div key={e.id} className="rounded-lg border border-border bg-surface-raised p-3">
+              <p className="text-xs font-medium text-text">{e.title}</p>
+              <p className="text-xs text-text-muted mt-0.5 whitespace-pre-line">{e.content}</p>
+              {e.source && <p className="text-[10px] text-text-faint mt-1">Quelle: {e.source}</p>}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function formatPct(value: number | null, digits = 3): string {
+  return value === null ? "—" : `${value.toFixed(digits)}%`;
+}
+
+function MeinSystemLiveValues({ data }: { data: MeinSystemChecklistData }) {
+  const fundingOk = data.fundingUnderThreshold;
+  return (
+    <div className="rounded-lg border border-border bg-surface-raised p-3 space-y-1.5">
+      <p className="text-xs font-medium text-text-muted">
+        Live-Werte {data.dataAsOf && <span className="text-text-faint">(Stand market_states)</span>}
+      </p>
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-text-faint">Funding aktuell (Schwelle 0,05%/8h)</span>
+        <span className={fundingOk === null ? "text-text-faint" : fundingOk ? "text-up" : "text-down"}>
+          {formatPct(data.fundingRatePct)} {fundingOk !== null && (fundingOk ? "✓ unter Schwelle" : "über Schwelle")}
+        </span>
+      </div>
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-text-faint">OI-Delta (1h)</span>
+        <span className="text-text">
+          {formatPct(data.oiDeltaPct, 2)}{" "}
+          {data.oiPriceDirection === 1 ? "↑" : data.oiPriceDirection === -1 ? "↓" : ""}
+        </span>
+      </div>
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-text-faint">EMA13 / EMA50 / EMA200 (dein System vs. NEXUS-Trend-Regime)</span>
+        <span className="text-text">
+          {data.ema13?.toFixed(0) ?? "—"} / {data.ema50?.toFixed(0) ?? "—"} / {data.ema200?.toFixed(0) ?? "—"}
+        </span>
+      </div>
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-text-faint">Preis</span>
+        <span className="text-text">{data.closePrice?.toFixed(0) ?? "—"}</span>
+      </div>
+    </div>
+  );
+}
+
+function WissenPanel({
+  knowledgeBase,
+  meinSystemData,
+}: {
+  knowledgeBase: KnowledgeBaseEntry[];
+  meinSystemData: MeinSystemChecklistData;
+}) {
+  const [module, setModule] = useState<WissenModule>("welz");
+  const entries = knowledgeBase.filter((e) => e.module === module);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-1.5">
+        {([
+          { id: "welz", label: "Welz (Psychologie)" },
+          { id: "salomon", label: "Salomon (Chartanalyse)" },
+          { id: "mein_system", label: "Mein System" },
+        ] as { id: WissenModule; label: string }[]).map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => setModule(m.id)}
+            className={`px-2.5 py-1 text-xs rounded-md border ${
+              module === m.id
+                ? "border-accent/50 bg-accent/10 text-accent"
+                : "border-border text-text-faint hover:text-text-muted"
+            }`}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      <KnowledgeSections entries={entries} />
+
+      {module === "welz" && <ChecklistBlock title="Pre-Entry-Checkliste" items={WELZ_CHECKLIST} />}
+      {module === "salomon" && <ChecklistBlock title="Formationscheck" items={SALOMON_CHECKLIST} />}
+      {module === "mein_system" && (
+        <div className="space-y-3">
+          <MeinSystemLiveValues data={meinSystemData} />
+          <ChecklistBlock title="Entry-Regelwerk" items={MEIN_SYSTEM_MANUAL_CHECKLIST} />
         </div>
       )}
     </div>

@@ -23,6 +23,7 @@ import {
   regimeLabel,
   shouldSuppressRegimeDirectionalLabel,
 } from "@/lib/marketRegime";
+import { getSalomonInterpretation } from "@/lib/salomonInterpretation";
 import {
   regimeDirection,
   spotPressureDirection,
@@ -474,6 +475,7 @@ export default function HeroHeader({
   const patterns = state.patterns ?? [];
   const mtf = state.mtf_alignment;
   const confidenceBreakdown = computeConfidenceBreakdown(state);
+  const salomonInterpretation = getSalomonInterpretation(patterns, mtf);
 
   return (
     <section className="rounded-lg border border-accent/40 bg-surface-raised p-6 space-y-3">
@@ -573,6 +575,13 @@ export default function HeroHeader({
               </span>
             ))}
           </div>
+        )}
+
+        {salomonInterpretation && (
+          <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border border-border text-text-faint w-fit">
+            Salomon: {salomonInterpretation.phase}
+            <PanelInfo title={`Salomon: ${salomonInterpretation.phase}`} content={salomonInterpretation.sentence} />
+          </span>
         )}
 
         {state.risk_factors && state.risk_factors.length > 0 && (

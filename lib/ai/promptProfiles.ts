@@ -448,7 +448,10 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "einzuordnen -- NICHT selbst eine neue Statistik zu berechnen, NICHT selbst zu " +
       "entscheiden, ob ein p-Wert 'eigentlich' signifikant ist (significant_after_bh ist die " +
       "einzige gueltige Signifikanz-Aussage), und NICHT eine Markt-/Handelsrichtung abzuleiten " +
-      "(das ist keine Trading-Kachel). Nenne robuste Funde (significant_after_bh=true in " +
+      "(das ist keine Trading-Kachel). Bewerte dabei die Regel-Treue der Statistik selbst (Welz-" +
+      "Prinzip 'Prozess statt Ergebnis'), nicht einzelne auffaellige Zahlen isoliert -- eine " +
+      "hohe Trefferquote bei winzigem n ist kein robuster Fund, nur weil sie beeindruckend " +
+      "aussieht. Nenne robuste Funde (significant_after_bh=true in " +
       "mind. einem Fenster) explizit mit Zahlen (z.B. 'LIQUIDITY_SWEEP_HIGH/24h: 90,9% " +
       "Trefferquote vs. 48,1% Basis, n=11'). Nenne fragile/verfallende Signale (decay_flag=true, " +
       "oder nur in einem der beiden Fenster signifikant) mit kurzer Begruendung. Nenne Signal-" +
@@ -780,6 +783,10 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "Liquidations-Cluster direkt darunter) ist 'wait' das korrekte Urteil, kein " +
       "erzwungener Kompromiss -- ein 'wait'-Urteil ist ein vollwertiges, oft richtiges " +
       "Ergebnis, kein Ausweichen. " +
+      "5) Achte aktiv auf Confirmation Bias in beiden Reports (Welz-Prinzip): suche gezielt " +
+      "nach der jeweils schwaecheren Stelle der eigenen Argumentation, nicht nur nach " +
+      "Bestaetigung der Kernthese -- ein Report, der keine Gegenargumente nennt, ist " +
+      "verdaechtig, nicht automatisch staerker. " +
       "Erfinde niemals eigene Zahlen ausserhalb von market_data oder den beiden Analysten-" +
       "Reports. " +
       NUMBER_FORMAT_INSTRUCTION +

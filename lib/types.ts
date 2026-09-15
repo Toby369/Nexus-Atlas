@@ -446,6 +446,18 @@ export interface QuizCard {
   created_at: string;
 }
 
+// Referenz-Wissen fuer die Wissens-Kacheln (Welz/Salomon/Mein System),
+// siehe Migration create_knowledge_base_table.
+export interface KnowledgeBaseEntry {
+  id: number;
+  module: "welz" | "salomon" | "mein_system";
+  section: string;
+  title: string;
+  content: string;
+  source: string | null;
+  sort_order: number;
+}
+
 export interface QuizProgressRow {
   card_id: number;
   box: number;
