@@ -23,11 +23,12 @@ import { getTileConfig } from "./tileConfig";
 // Entspricht der Rollen-Doku (Abschnitt 12), ist aber austauschbar, ohne
 // dass tileConfig.ts oder die Kacheln selbst angepasst werden muessten.
 //
-// "signal-logic" -> google statt anthropic (Nutzer-Entscheidung 07.09.2026,
-// nach einem Anthropic-Ausfall am selben Tag): Anthropic bleibt fuer
-// Signal-Engine/Handelslage als LETZTER Fallback erhalten (siehe deren
-// fallbackProviders in tileConfig.ts), springt also nur ein, wenn alle
-// anderen konfigurierten Provider ebenfalls scheitern -- nicht mehr primaer.
+// "signal-logic" -> google (Nutzer-Entscheidung 07.09.2026, nach einem
+// Anthropic-Ausfall am selben Tag). Anthropic wurde am 15.09.2026 komplett
+// aus allen Fallback-Ketten entfernt (Nutzer-Bedingung: durchgehend
+// kostenlos -- Anthropic ist kostenpflichtig, siehe Kommentar in
+// tileConfig.ts), ist also fuer keine Kachel hier mehr auch nur als letzter
+// Fallback im Spiel.
 const AUTO_CATEGORY_PROVIDER: Record<PromptProfileCategory, AIProviderId> = {
   "market-mechanics": "xai", // Grok: Krypto-/Marktmechanik
   research: "perplexity", // Web Research, News, externe Quellen

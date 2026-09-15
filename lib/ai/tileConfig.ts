@@ -12,31 +12,41 @@ import type { TileAIConfig } from "./types";
 // UI-Anbindung (die jeweilige Kachel bleibt regelbasiert). "handelslage" ist
 // seit Umsetzungsplan Phase 3 (05.09.2026) die erste tatsaechlich produktiv
 // aufgerufene -- siehe app/api/handelslage/generate/route.ts.
+//
+// Anthropic wurde am 15.09.2026 aus JEDER Kette hier entfernt (Nutzer-
+// Bedingung: die App soll durchgehend kostenlos bleiben -- Anthropic ist
+// kostenpflichtig, kein Gratis-Tier). Live-Vorfall, der das aufgedeckt hat:
+// bei der Gesamteinschaetzung-Zusammenfassung fiel Google aus (503), OpenAI
+// war nicht konfiguriert, wodurch der Fallback beim bezahlten Anthropic
+// landete -- und sogar noch Kosten verursachte, obwohl der Call am Ende
+// scheiterte. Konsequenz dieser Entscheidung: faellt die kostenlose
+// Provider-Kette einer Kachel komplett aus, schlaegt sie jetzt fehl statt
+// eines bezahlten Fallbacks -- bewusst in Kauf genommen.
 
 export const tileConfigs: Record<string, TileAIConfig> = {
   "open-interest": {
     tileId: "open-interest",
     aiProvider: "auto", // -> xai (market-mechanics), siehe Rollen-Doku
     promptProfile: "oi-analysis",
-    fallbackProviders: ["google", "anthropic"],
+    fallbackProviders: ["google"],
   },
   funding: {
     tileId: "funding",
     aiProvider: "auto",
     promptProfile: "funding-analysis",
-    fallbackProviders: ["google", "anthropic"],
+    fallbackProviders: ["google"],
   },
   liquidations: {
     tileId: "liquidations",
     aiProvider: "auto",
     promptProfile: "liquidation-analysis",
-    fallbackProviders: ["google", "anthropic"],
+    fallbackProviders: ["google"],
   },
   "market-structure": {
     tileId: "market-structure",
     aiProvider: "auto",
     promptProfile: "market-structure",
-    fallbackProviders: ["google", "anthropic"],
+    fallbackProviders: ["google"],
   },
   news: {
     tileId: "news",
@@ -60,17 +70,13 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     tileId: "ai-market-analysis",
     aiProvider: "auto", // -> openai (orchestration)
     promptProfile: "market-intelligence",
-    fallbackProviders: ["anthropic"],
+    fallbackProviders: ["google"],
   },
   "signal-engine": {
     tileId: "signal-engine",
     aiProvider: "auto", // -> google (signal-logic)
     promptProfile: "signal-analysis",
-    // Anthropic bewusst ans ENDE verschoben (Nutzer-Entscheidung 07.09.2026,
-    // nach einem Anthropic-Ausfall am selben Tag): springt nur noch ein,
-    // wenn OpenRouter UND DeepSeek (letzterer ohne gesetzten Key ohnehin
-    // ein Sofort-Fehlschlag) beide scheitern -- nicht mehr primaer.
-    fallbackProviders: ["openrouter", "deepseek", "anthropic"],
+    fallbackProviders: ["openrouter", "deepseek"],
   },
   // Umsetzungsplan Phase 3 (05.09.2026): erste tatsaechlich aus der UI
   // aufgerufene Kachel dieser Konfiguration (siehe app/api/handelslage/
@@ -81,20 +87,16 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     tileId: "handelslage",
     aiProvider: "auto", // -> google (signal-logic)
     promptProfile: "handelslage",
-    // Anthropic bewusst ans ENDE verschoben, siehe Kommentar bei
-    // "signal-engine" oben -- dieselbe Nutzer-Entscheidung, google ist
-    // jetzt primaer statt Fallback.
-    fallbackProviders: ["openai", "anthropic"],
+    fallbackProviders: ["openai"],
   },
   // Gesamteinschaetzung-Zusammenfassung (Nutzer-Wunsch 15.09.2026) -- siehe
   // app/api/market-state-narrative/generate/route.ts. Gleiche Provider-Kette
-  // wie handelslage/signal-engine (signal-logic-Kategorie, google primaer,
-  // Anthropic bewusst ans Ende, siehe deren Kommentare oben).
+  // wie handelslage/signal-engine (signal-logic-Kategorie, google primaer).
   "market-state-narrative": {
     tileId: "market-state-narrative",
     aiProvider: "auto",
     promptProfile: "market-state-narrative",
-    fallbackProviders: ["openai", "anthropic"],
+    fallbackProviders: ["openai"],
   },
   // Eskalations-Kachel ("gezielte Eskalation", 05.09.2026): aiProvider hier
   // ist nur ein Platzhalter -- app/api/escalation/generate/route.ts ruft
@@ -103,10 +105,12 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   // faellt einer der drei Provider aus, soll er als fehlgeschlagen gelten
   // statt durch einen anderen Vendor ersetzt zu werden -- sonst waere die
   // "unabhaengige dritte Meinung" heimlich eine zweite Meinung desselben
-  // Vendors wie ein anderer Ensemble-Slot.
+  // Vendors wie ein anderer Ensemble-Slot. aiProvider hier selbst spielt
+  // keine Rolle (wird von den providerOverride-Aufrufen ueberschrieben),
+  // aber kostenlos gehalten fuer den Fall, dass er doch mal direkt griffe.
   escalation: {
     tileId: "escalation",
-    aiProvider: "anthropic",
+    aiProvider: "groq",
     promptProfile: "escalation-analysis",
     fallbackProviders: [],
   },
@@ -156,7 +160,7 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     tileId: "signal-review",
     aiProvider: "auto", // -> google (signal-logic)
     promptProfile: "signal-review",
-    fallbackProviders: ["openrouter", "deepseek", "anthropic"],
+    fallbackProviders: ["openrouter", "deepseek"],
   },
   // Freie-Anfrage-Kachel (Nutzer-Wunsch 08.09.2026): wie angekuendigt
   // Google primaer, OpenRouter/Groq als Fallback -- komplett kostenlose
@@ -183,8 +187,10 @@ export const tileConfigs: Record<string, TileAIConfig> = {
 // DERSELBEN Daten). OpenRouter als viertes Mitglied ergaenzt (Nutzer-Wunsch
 // 07.09.2026) -- computeEscalationConsensus()/die "min. 2 Reads"-Schwelle in
 // der Route sind unabhaengig von der Ensemble-Groesse, keine Anpassung dort
-// noetig.
-export const ESCALATION_PROVIDER_ENSEMBLE = ["anthropic", "google", "mistral", "openrouter"] as const;
+// noetig. Anthropic am 15.09.2026 durch Groq ersetzt (Nutzer-Bedingung
+// "kostenlos") -- gleicher Tausch wie bei trade-debate-referee, weiterhin
+// ein von Google/Mistral/OpenRouter unabhaengiger vierter Vendor.
+export const ESCALATION_PROVIDER_ENSEMBLE = ["groq", "google", "mistral", "openrouter"] as const;
 
 export function getTileConfig(tileId: string): TileAIConfig {
   const config = tileConfigs[tileId];
