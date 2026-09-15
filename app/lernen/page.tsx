@@ -1,12 +1,16 @@
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import type { QuizCard, QuizProgressRow } from "@/lib/types";
+import type { ChecklistRun, QuizCard, QuizProgressRow } from "@/lib/types";
 import LernenDashboard from "@/components/LernenDashboard";
 import LogoutButton from "@/components/LogoutButton";
 import { getKnowledgeBase } from "@/lib/knowledgeBaseContext";
 import { getMeinSystemChecklistData } from "@/lib/meinSystemContext";
 
 export const revalidate = 0;
+
+// Genug fuer 5 Verlaufs-Eintraege je der 3 Module, auch wenn ein Modul
+// deutlich haeufiger genutzt wird als die anderen.
+const CHECKLIST_HISTORY_LIMIT = 30;
 
 async function getCards(): Promise<QuizCard[]> {
   const { data, error } = await supabase.from("quiz_cards").select("*").order("id");
@@ -26,12 +30,26 @@ async function getProgress(): Promise<QuizProgressRow[]> {
   return data ?? [];
 }
 
+async function getChecklistHistory(): Promise<ChecklistRun[]> {
+  const { data, error } = await supabase
+    .from("checklist_runs")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(CHECKLIST_HISTORY_LIMIT);
+  if (error) {
+    console.error("Fehler beim Laden des Checklisten-Verlaufs:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
 export default async function LernenPage() {
-  const [cards, progress, knowledgeBase, meinSystemData] = await Promise.all([
+  const [cards, progress, knowledgeBase, meinSystemData, checklistHistory] = await Promise.all([
     getCards(),
     getProgress(),
     getKnowledgeBase(),
     getMeinSystemChecklistData(),
+    getChecklistHistory(),
   ]);
 
   return (
@@ -64,6 +82,7 @@ export default async function LernenPage() {
           initialProgress={progress}
           knowledgeBase={knowledgeBase}
           meinSystemData={meinSystemData}
+          initialChecklistHistory={checklistHistory}
         />
       </section>
 

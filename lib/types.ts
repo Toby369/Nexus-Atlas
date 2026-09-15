@@ -458,6 +458,17 @@ export interface KnowledgeBaseEntry {
   sort_order: number;
 }
 
+// Snapshot-Protokoll der Wissens-Checklisten, siehe Migration
+// create_checklist_runs_table.
+export interface ChecklistRun {
+  id: number;
+  module: "welz" | "salomon" | "mein_system";
+  checked_items: string[];
+  checked_count: number;
+  total_count: number;
+  created_at: string;
+}
+
 export interface QuizProgressRow {
   card_id: number;
   box: number;
