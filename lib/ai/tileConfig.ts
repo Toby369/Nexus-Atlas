@@ -86,6 +86,16 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     // jetzt primaer statt Fallback.
     fallbackProviders: ["openai", "anthropic"],
   },
+  // Gesamteinschaetzung-Zusammenfassung (Nutzer-Wunsch 15.09.2026) -- siehe
+  // app/api/market-state-narrative/generate/route.ts. Gleiche Provider-Kette
+  // wie handelslage/signal-engine (signal-logic-Kategorie, google primaer,
+  // Anthropic bewusst ans Ende, siehe deren Kommentare oben).
+  "market-state-narrative": {
+    tileId: "market-state-narrative",
+    aiProvider: "auto",
+    promptProfile: "market-state-narrative",
+    fallbackProviders: ["openai", "anthropic"],
+  },
   // Eskalations-Kachel ("gezielte Eskalation", 05.09.2026): aiProvider hier
   // ist nur ein Platzhalter -- app/api/escalation/generate/route.ts ruft
   // runTileAnalysis() mehrfach mit explizitem providerOverride auf (je ein

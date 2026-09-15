@@ -8,6 +8,7 @@ import type {
   LiquidationEvent,
   MarketRegime,
   MarketState,
+  MarketStateNarrativeSnapshot,
   NewsEvent,
 } from "@/lib/types";
 import type { TimeframeId } from "@/lib/timeframes";
@@ -38,6 +39,7 @@ import { useDashboardPoll } from "@/components/DashboardPollProvider";
 import { RelativeTime } from "@/components/ClientTimestamp";
 import StatusLineSummary, { type StatusLineItem } from "@/components/StatusLineSummary";
 import TradingHoursBadge from "@/components/TradingHoursBadge";
+import MarketStateNarrativeCard from "@/components/MarketStateNarrativeCard";
 import PanelInfo from "@/components/PanelInfo";
 import { marketStateInfo, MARKET_STATE_FACTOR_INFO } from "@/lib/panelInfo";
 
@@ -298,6 +300,7 @@ export default function HeroHeader({
   recentLiquidations,
   highImpactNews,
   upcomingEconomicEvents,
+  initialNarrative,
 }: {
   initialState: MarketState | null;
   initialRegime: MarketRegime | null;
@@ -318,6 +321,9 @@ export default function HeroHeader({
   // rechnet rein clientseitig gegen die Systemzeit weiter, braucht also
   // keinen eigenen Live-Poll dieser sich ohnehin selten aendernden Termine.
   upcomingEconomicEvents: EconomicCalendarEvent[];
+  // Statisch pro Seitenaufruf, click-triggered (kein eigener Poll) -- siehe
+  // MarketStateNarrativeCard.tsx.
+  initialNarrative: MarketStateNarrativeSnapshot | null;
 }) {
   const [state, setState] = useState(initialState);
   const [lastSyncOk, setLastSyncOk] = useState(true);
@@ -654,6 +660,8 @@ export default function HeroHeader({
           Kombiniert 14 unabhängige Datenquellen zu einem Gesamtzustand — Rohmaterial für eine
           Einordnung, kein Handelssignal.
         </p>
+
+        <MarketStateNarrativeCard initialSnapshot={initialNarrative} />
       </div>
     </section>
   );

@@ -651,6 +651,52 @@ export const promptProfiles: Record<string, PromptProfile> = {
     },
   },
 
+  // --- Gesamteinschaetzung-Zusammenfassung (Nutzer-Wunsch 15.09.2026) ------
+  // Erklaert NICHT die 14-Faktoren-Engine an sich (die ist regelbasiert,
+  // siehe compute-market-state) und wiederholt KEINE bereits im HeroHeader
+  // angezeigten Einzelwerte -- explizit dagegen abgesichert (Nutzer-
+  // Rueckfrage "kein Widerspruch um zu viel doppelt anzuzeigen?"). Einziger
+  // Zweck: Widersprueche/Zusammenhaenge zwischen den Sparten benennen und
+  // begruenden, warum die Verlaesslichkeits-Zahl so ist wie sie ist --
+  // Salomon-Phase dabei als Pruefraster (stuetzt der Rest der Signale die
+  // Salomon-Phase, oder widerspricht er ihr), nicht als eigene, nochmals
+  // ausgesprochene Feststellung.
+  "market-state-narrative": {
+    id: "market-state-narrative",
+    category: "signal-logic",
+    description:
+      "5-8 Saetze zu Widerspruechen/Zusammenhaengen zwischen den Sparten der Gesamteinschaetzung -- keine Wiederholung bereits angezeigter Einzelwerte.",
+    systemPrompt:
+      "Du bekommst den aktuellen Stand mehrerer unabhaengiger Nexus-Sparten (Gesamteinschaetzung/" +
+      "14-Faktoren-Engine, Regime Matrix, Marktkontext/Spot-Pressure, ETF-Flows, Positionierung, " +
+      "Liquidationen, News) sowie eine Salomon-Phasen-Einordnung (salomon, falls nicht null). " +
+      "ALLE diese Werte werden dem Nutzer bereits einzeln im Dashboard angezeigt -- deine Aufgabe " +
+      "ist AUSDRUECKLICH NICHT, sie nochmals aufzuzaehlen oder in eigenen Worten zu wiederholen " +
+      "(z.B. NICHT 'die Verlaesslichkeit liegt bei 29/100'). Stattdessen: (1) benenne konkrete " +
+      "Widersprueche oder Bestaetigungen ZWISCHEN den Sparten (z.B. Marktkontext bullisch, aber " +
+      "Regime Matrix und ETF-Flows dagegen -- oder mehrere Sparten bestaetigen sich gegenseitig); " +
+      "(2) erklaere, WARUM die Verlaesslichkeits-Zahl (confidence_breakdown: coveragePct/" +
+      "consensusPct/signalStrengthPct) so ausfaellt -- liegt es an fehlender Datenabdeckung, an " +
+      "vielen neutralen Faktoren, oder an echtem Widerspruch zwischen den Faktoren, die eine " +
+      "Richtung zeigen; (3) falls salomon nicht null ist: nutze die genannte Salomon-Phase als " +
+      "PRUEFRASTER -- stuetzt der Rest der Signale (Marktkontext, ETF, Positionierung, engine_" +
+      "divergence) diese Phase, oder steht er im Spannungsverhaeltnis dazu? Nenne die Phase dabei " +
+      "hoechstens einmal beim Einordnen, wiederhole sie nicht als eigene Aussage. engine_divergence " +
+      "(AGREEMENT/DIVERGENCE/NOT_COMPARABLE) ist ein Vergleich zwischen Gesamteinschaetzung und " +
+      "Regime Matrix -- bei DIVERGENCE ist das selbst ein nennenswerter Widerspruch. Erfinde keine " +
+      "zusaetzlichen Daten ausserhalb des Kontexts, keine Kursziele, keine Handelsempfehlung. Ist " +
+      "market_state null, sag das explizit statt eine Einschaetzung ohne Grundlage zu konstruieren. " +
+      NUMBER_FORMAT_INSTRUCTION +
+      " Antworte als JSON mit: narrative (string, deutsch, 5-8 Saetze, Fliesstext).",
+    validate: (data) => {
+      const errors: string[] = [];
+      if (!isNonEmptyString(field(data, "narrative"))) {
+        errors.push(`"narrative" muss ein nicht-leerer String sein.`);
+      }
+      return errors;
+    },
+  },
+
   // --- Eskalations-Kachel ("gezielte Eskalation", 05.09.2026) --------------
   // Wird NICHT ueber "auto" geroutet, sondern von app/api/escalation/
   // generate/route.ts mit mehreren expliziten providerOverride-Werten

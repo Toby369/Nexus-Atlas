@@ -13,6 +13,7 @@ import type {
   MarketSnapshot,
   MarketState,
   MarketStateMatrix,
+  MarketStateNarrativeSnapshot,
   NewsAnalysisSnapshot,
   NewsEvent,
   OiChangeByExchange,
@@ -448,6 +449,24 @@ async function getLatestHandelslage(): Promise<HandelslageSnapshot | null> {
   return data;
 }
 
+// Gesamteinschaetzung-Zusammenfassung (Nutzer-Wunsch 15.09.2026) -- reines
+// Lesen, kein AI-Aufruf (der passiert nur ueber POST
+// /api/market-state-narrative/generate, siehe MarketStateNarrativeCard.tsx).
+async function getLatestMarketStateNarrative(): Promise<MarketStateNarrativeSnapshot | null> {
+  const { data, error } = await supabase
+    .from("market_state_narratives")
+    .select("*")
+    .order("generated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Fehler beim Laden der Gesamteinschätzung-Zusammenfassung:", error.message);
+    return null;
+  }
+  return data;
+}
+
 const ORDERBOOK_EXCHANGES = ["binance", "bybit", "okx"] as const;
 
 // Nutzer-Wunsch nach einer "Bookmap"-Ansicht: kein Live-L2-Feed (siehe
@@ -604,6 +623,7 @@ export default async function Home({
     recentEtfFlows,
     upcomingEconomicEvents,
     latestHandelslage,
+    latestMarketStateNarrative,
     latestLeverageMap,
     cycleIndicators,
     latestOrderbookWalls,
@@ -637,6 +657,7 @@ export default async function Home({
     getRecentEtfFlows(),
     getUpcomingEconomicEvents(),
     getLatestHandelslage(),
+    getLatestMarketStateNarrative(),
     buildLiveLeverageMap(),
     buildCycleIndicators(),
     getLatestOrderbookWalls(),
@@ -764,6 +785,7 @@ export default async function Home({
               timeframe={timeframe}
               recentEtfFlows={recentEtfFlows}
               recentLiquidations={recentLiquidations}
+              initialNarrative={latestMarketStateNarrative}
               highImpactNews={highImpactNews}
               upcomingEconomicEvents={upcomingEconomicEvents}
             />

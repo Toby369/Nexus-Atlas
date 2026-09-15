@@ -434,6 +434,22 @@ export interface HandelslageSnapshot {
   error: string | null;
 }
 
+// Gesamteinschaetzung-Zusammenfassung (Nutzer-Wunsch 15.09.2026), gleiches
+// Muster wie HandelslageResult/-Snapshot.
+export interface MarketStateNarrativeResult {
+  narrative: string;
+}
+
+export interface MarketStateNarrativeSnapshot {
+  id: number;
+  generated_at: string;
+  provider: string | null;
+  model: string | null;
+  result: MarketStateNarrativeResult | null;
+  status: "ok" | "error";
+  error: string | null;
+}
+
 // Lernplattform-Kachel (Leitner-Karteikasten), Nutzer-Wunsch "wie im
 // Trading Journal" -- siehe lib/leitner.ts fuer die Uebergangsregeln.
 export interface QuizCard {
