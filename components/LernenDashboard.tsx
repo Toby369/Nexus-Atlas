@@ -161,12 +161,19 @@ function SessionPanel({
   const [explanationOpen, setExplanationOpen] = useState(false);
   const [summary, setSummary] = useState<{ correct: number; hard: number; wrong: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Nutzer-Wunsch 15.09.2026 ("waere es sinnvoll, wenn ich bei der Frage
+  // eine Antwort schreiben koennte?"): reines Aktiv-Abruf-Feld vor "Antwort
+  // zeigen" -- bewusst OHNE automatische Bewertung/Speicherung (Freitext-
+  // Vergleich waere fehleranfaellig, siehe Chat-Begruendung). Die eigentliche
+  // Bewertung bleibt bei den 4 Leitner-Buttons.
+  const [draftAnswer, setDraftAnswer] = useState("");
 
   function start() {
     setQueue([...dueEntries]);
     setIndex(0);
     setRevealed(false);
     setExplanationOpen(false);
+    setDraftAnswer("");
     setSummary({ correct: 0, hard: 0, wrong: 0 });
   }
 
@@ -194,6 +201,7 @@ function SessionPanel({
       setIndex(index + 1);
       setRevealed(false);
       setExplanationOpen(false);
+      setDraftAnswer("");
     } else {
       onDone();
     }
@@ -222,15 +230,27 @@ function SessionPanel({
         <div className="min-h-[140px] flex flex-col justify-center text-center gap-3 py-4">
           <p className="text-base font-medium text-text">{entry.card.question}</p>
           {!revealed ? (
-            <button
-              type="button"
-              onClick={() => setRevealed(true)}
-              className="text-sm text-text-faint underline decoration-dotted mt-2"
-            >
-              Antwort zeigen
-            </button>
+            <div className="space-y-2 text-left">
+              <textarea
+                value={draftAnswer}
+                onChange={(e) => setDraftAnswer(e.target.value)}
+                placeholder="Deine Antwort (optional, wird nicht gespeichert oder bewertet — nur zum Selbst-Testen)…"
+                rows={2}
+                className="w-full text-sm px-3 py-2 rounded-md border border-border bg-surface-raised text-text placeholder:text-text-faint resize-none"
+              />
+              <button
+                type="button"
+                onClick={() => setRevealed(true)}
+                className="text-sm text-text-faint underline decoration-dotted mx-auto block"
+              >
+                Antwort zeigen
+              </button>
+            </div>
           ) : (
             <div className="space-y-2 mt-2">
+              {draftAnswer.trim() && (
+                <p className="text-xs text-text-faint italic">Deine Antwort: „{draftAnswer.trim()}“</p>
+              )}
               <p className="text-sm text-text-muted">{entry.card.answer}</p>
               {entry.card.explanation && (
                 <>
