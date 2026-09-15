@@ -41,7 +41,14 @@ async function callMessages(
     },
     body: JSON.stringify({
       model,
-      max_tokens: options?.maxTokens ?? 1024,
+      // 1024 war zu knapp: bei adaptivem Thinking (siehe Kommentar unten)
+      // kann der Thinking-Block allein das gesamte Budget verbrauchen, ohne
+      // dass ueberhaupt ein Text-Block entsteht -- live beobachtet
+      // (15.09.2026) bei der Gesamteinschaetzung-Zusammenfassung: "kein
+      // text-Block gefunden, Typen: thinking". Kein Aufrufer setzt
+      // maxTokens explizit (weder runTileAnalysis noch runReportAnalysis),
+      // dieser Default gilt also praktisch immer.
+      max_tokens: options?.maxTokens ?? 4096,
       temperature: options?.temperature,
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
