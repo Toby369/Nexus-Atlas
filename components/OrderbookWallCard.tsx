@@ -13,10 +13,10 @@ import PanelInfo from "@/components/PanelInfo";
 // ("liegt gerade viel Liquiditaet in der Naehe des Preises").
 
 const INFO_TEXT = [
-  "Was das ist: die groesste einzelne Order (\"Wand\") je Seite und Boerse im sichtbaren Orderbuch, alle 5 Minuten erfasst -- kein Live-Orderbuch/Bookmap, sondern ein periodischer Schnappschuss.",
-  "Ask-Wand (oberhalb des Preises) markiert potenziellen Widerstand -- viel Verkaufsvolumen muesste erst abgearbeitet werden, damit der Preis durchlaeuft. Bid-Wand (unterhalb) markiert potenzielle Unterstuetzung, analog fuer Kaeufe.",
-  "Kumulierte Tiefe (per Antippen aufklappbar): Summe ALLER Bid- bzw. Ask-Level innerhalb von ±0.5% um den Mid-Preis, nicht nur die groesste Einzel-Wand -- ein Mass fuer die gesamte passive Liquiditaet je Seite statt nur deren auffaelligstes Level.",
-  "Bekannte Grenzen: Wände koennen jederzeit zurueckgezogen werden (Spoofing) -- eine Wand vor 5 Minuten ist keine Garantie, dass sie jetzt noch da ist. Erscheint eine Zeile leer (—), lag kein Level deutlich ueber dem Median der erfassten Tiefe.",
+  "Was das ist: kumulierte Bid-/Ask-Tiefe je Boerse -- Summe ALLER Level innerhalb von ±0.5% um den Mid-Preis, alle 5 Minuten erfasst -- kein Live-Orderbuch/Bookmap, sondern ein periodischer Schnappschuss.",
+  "Hoehere Bid-Tiefe als Ask-Tiefe deutet auf mehr passive Kaufbereitschaft nahe dem Preis hin, und umgekehrt -- ein grobes Mass, keine Richtungsprognose.",
+  "Einzelne Wände (per Antippen aufklappbar): die groesste Einzel-Order je Seite und Boerse, statt der Summe aller Level -- zeigt WO genau viel Liquiditaet konzentriert liegt (potenzieller Widerstand/Unterstuetzung), waehrend die kumulierte Zahl nur die Gesamtmenge zeigt.",
+  "Bekannte Grenzen: sowohl Waende als auch die kumulierte Tiefe koennen jederzeit zurueckgezogen werden (Spoofing) -- ein Stand vor 5 Minuten ist keine Garantie, dass er jetzt noch so aussieht. Erscheint eine Zeile leer (—), fehlten Daten fuer diesen Erfassungszyklus.",
   "Kein Handelssignal -- eine Momentaufnahme passiver Liquiditaet, kein Hinweis auf zukuenftige Preisbewegung.",
 ].join("\n\n");
 
@@ -74,11 +74,13 @@ function WallLine({
   );
 }
 
-// Kumulierte Tiefe je Boerse (Nutzer-Wunsch 16.09.2026: "aus den orderbuch
-// wänden zusätzlich, nur bei antippen, eine kumulierte anzeigen, bid&ask").
-// bid_depth_usd/ask_depth_usd sind die Summe ALLER Level im ±0.5%-Band
-// (siehe collect-orderbook) -- dieselbe Rohbasis wie depth_imbalance, bisher
-// nirgends direkt angezeigt.
+// Kumulierte Tiefe je Boerse -- jetzt die STANDARDANSICHT (Nutzer-Korrektur
+// 16.09.2026: "umgekehrt, kumuliert wird automatisch angezeigt, bei tippen
+// auf kumuliert wird einzeln angezeigt", passend zur "weniger anzeigen"-
+// Grundlinie des Dashboards -- die kompaktere Kennzahl ist der Default, die
+// granularere (einzelne Wand je Boerse) steckt hinter dem Tap). bid_depth_usd/
+// ask_depth_usd sind die Summe ALLER Level im ±0.5%-Band (siehe
+// collect-orderbook) -- dieselbe Rohbasis wie depth_imbalance.
 function CumulativeDepthRow({ wall }: { wall: OrderbookWallSnapshot }) {
   const { bid_depth_usd: bid, ask_depth_usd: ask } = wall;
   return (
@@ -134,24 +136,22 @@ export default function OrderbookWallCard({ walls }: { walls: OrderbookWallSnaps
         <StaleBadge iso={walls[0].timestamp_utc} />
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-1">
         {walls.map((wall) => (
-          <ExchangeRow key={wall.exchange} wall={wall} />
+          <CumulativeDepthRow key={wall.exchange} wall={wall} />
         ))}
       </div>
 
-      {walls.some((w) => w.bid_depth_usd !== null || w.ask_depth_usd !== null) && (
-        <details className="pt-2 border-t border-border/60">
-          <summary className="text-[11px] text-text-faint cursor-pointer select-none">
-            Kumulierte Tiefe (Bid / Ask, ±0.5%)
-          </summary>
-          <div className="mt-2 space-y-1">
-            {walls.map((wall) => (
-              <CumulativeDepthRow key={wall.exchange} wall={wall} />
-            ))}
-          </div>
-        </details>
-      )}
+      <details className="pt-2 border-t border-border/60">
+        <summary className="text-[11px] text-text-faint cursor-pointer select-none">
+          Einzelne Wände je Börse
+        </summary>
+        <div className="mt-2 space-y-2">
+          {walls.map((wall) => (
+            <ExchangeRow key={wall.exchange} wall={wall} />
+          ))}
+        </div>
+      </details>
     </div>
   );
 }
