@@ -6,6 +6,14 @@ import type {
 
 // Env-Vars: GOOGLE_API_KEY, GOOGLE_MODEL (z.B. "gemini-..." – aktuelles
 // Modell zum Zeitpunkt der Aktivierung eintragen, kein Default hier).
+//
+// Free-Tier, kein Billing-Konto verknuepft (vom Nutzer am 16.09.2026 in
+// Google AI Studio bestaetigt) -- Anfragen ueber dem Gratis-Kontingent
+// werden abgelehnt, nicht abgerechnet. Damit in derselben Kategorie wie
+// groq.ts/mistral.ts/openrouter.ts: dieser Provider ist Teil der bewusst
+// kostenlos gehaltenen Kacheln (siehe Kommentar in tileConfig.ts) und darf
+// nicht durch einen kostenpflichtigen Anbieter (z.B. Anthropic) ersetzt
+// werden, ohne das explizit mit dem Nutzer abzuklaeren.
 
 function extractJson(raw: string): unknown {
   const cleaned = raw.replace(/^```json\s*|```$/g, "").trim();
