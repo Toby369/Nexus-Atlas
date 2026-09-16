@@ -90,9 +90,9 @@ function CumulativeDepthRow({ wall }: { wall: OrderbookWallSnapshot }) {
         <span className="text-text-faint">—</span>
       ) : (
         <span className="text-text-faint">
-          <span className="text-up">{formatUsd(bid)}</span>
-          <span className="mx-1">/</span>
-          <span className="text-down">{formatUsd(ask)}</span>
+          <span className="text-up">Bid {formatUsd(bid)}</span>
+          <span className="mx-1.5">·</span>
+          <span className="text-down">Ask {formatUsd(ask)}</span>
         </span>
       )}
     </div>
@@ -136,6 +136,9 @@ export default function OrderbookWallCard({ walls }: { walls: OrderbookWallSnaps
         <StaleBadge iso={walls[0].timestamp_utc} />
       </div>
 
+      <p className="text-[11px] text-text-faint uppercase tracking-[0.08em]">
+        Kumulierte Tiefe (±0.5% um Mid-Preis)
+      </p>
       <div className="space-y-1">
         {walls.map((wall) => (
           <CumulativeDepthRow key={wall.exchange} wall={wall} />
@@ -144,7 +147,7 @@ export default function OrderbookWallCard({ walls }: { walls: OrderbookWallSnaps
 
       <details className="pt-2 border-t border-border/60">
         <summary className="text-[11px] text-text-faint cursor-pointer select-none">
-          Einzelne Wände je Börse
+          Einzelne Wände je Börse (nur die größte Order pro Seite)
         </summary>
         <div className="mt-2 space-y-2">
           {walls.map((wall) => (
