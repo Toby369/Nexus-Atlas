@@ -48,11 +48,20 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     promptProfile: "market-structure",
     fallbackProviders: ["google"],
   },
+  // Fallback-Kette 16.09.2026 um Groq ergaenzt (Live-Vorfall: Perplexity ist
+  // nicht konfiguriert -- kein PERPLEXITY_API_KEY gesetzt, faellt also als
+  // Primaerprovider immer sofort durch -- und als Google zusaetzlich mit
+  // HTTP 503 ausfiel, hatte die Kachel dadurch de facto GAR KEINEN
+  // funktionierenden Fallback, nur einen toten). buildNewsAnalysisContext()
+  // liefert ausschliesslich bereits von Nexus gesammelte Schlagzeilen aus
+  // news_events (keine Live-Web-Suche) -- ein reiner Text-Provider wie Groq
+  // kann dieselbe Einordnungsaufgabe genauso leisten wie Perplexity, verliert
+  // hier also keine echte Faehigkeit.
   news: {
     tileId: "news",
     aiProvider: "auto", // -> perplexity (research)
     promptProfile: "news-analysis",
-    fallbackProviders: ["google"],
+    fallbackProviders: ["google", "groq"],
   },
   macro: {
     tileId: "macro",
@@ -83,11 +92,18 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   // generate/route.ts) -- Provider-Aufloesung/Fallback-Kette waren zuvor
   // nur ueber runReportAnalysis() (report_configs-Slots) im produktiven
   // Einsatz, hier zum ersten Mal ueber runTileAnalysis()/"auto".
+  // OpenAI-Fallback am 16.09.2026 entfernt (Nutzer-Bedingung "kostenlos" --
+  // OpenAI ist ebenfalls kostenpflichtig, kein Gratis-Tier, und war zudem
+  // ohnehin nie konfiguriert/kein OPENAI_API_KEY gesetzt, also bisher nur
+  // ein toter Fallback ohne echte Wirkung). Kein Ersatzprovider ergaenzt --
+  // Google primaer deckt signal-logic bereits ab, und bei einem Totalausfall
+  // beider Kacheln greift bewusst die "schlaegt fehl statt bezahltem
+  // Fallback"-Linie von Anthropic oben.
   handelslage: {
     tileId: "handelslage",
     aiProvider: "auto", // -> google (signal-logic)
     promptProfile: "handelslage",
-    fallbackProviders: ["openai"],
+    fallbackProviders: [],
   },
   // Gesamteinschaetzung-Zusammenfassung (Nutzer-Wunsch 15.09.2026) -- siehe
   // app/api/market-state-narrative/generate/route.ts. Gleiche Provider-Kette
@@ -96,7 +112,7 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     tileId: "market-state-narrative",
     aiProvider: "auto",
     promptProfile: "market-state-narrative",
-    fallbackProviders: ["openai"],
+    fallbackProviders: [],
   },
   // Eskalations-Kachel ("gezielte Eskalation", 05.09.2026): aiProvider hier
   // ist nur ein Platzhalter -- app/api/escalation/generate/route.ts ruft
