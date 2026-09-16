@@ -510,6 +510,13 @@ export interface OrderbookWallSnapshot {
   bid_wall_usd: number | null;
   ask_wall_price: number | null;
   ask_wall_usd: number | null;
+  // Kumulierte Bid-/Ask-Tiefe (USD) innerhalb eines ±0.5%-Bandes um den
+  // Mid-Preis (siehe collect-orderbook, DEPTH_RANGE_PCT) -- die Summe ALLER
+  // Level auf der jeweiligen Seite, nicht nur der groessten einzelnen Wand.
+  // War schon immer erfasst (Basis von depth_imbalance), bisher aber nirgends
+  // angezeigt (Nutzer-Wunsch 16.09.2026: "kumulierte Anzeige, bid&ask").
+  bid_depth_usd: number | null;
+  ask_depth_usd: number | null;
   status: string;
 }
 

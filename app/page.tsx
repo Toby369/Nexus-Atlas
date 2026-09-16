@@ -477,7 +477,7 @@ async function getLatestOrderbookWalls(): Promise<OrderbookWallSnapshot[]> {
   const { data, error } = await supabase
     .from("orderbook_snapshots")
     .select(
-      "exchange, timestamp_utc, mid_price, depth_imbalance, bid_wall_price, bid_wall_usd, ask_wall_price, ask_wall_usd, status"
+      "exchange, timestamp_utc, mid_price, depth_imbalance, bid_wall_price, bid_wall_usd, ask_wall_price, ask_wall_usd, bid_depth_usd, ask_depth_usd, status"
     )
     .eq("symbol", "BTCUSDT")
     .order("timestamp_utc", { ascending: false })
