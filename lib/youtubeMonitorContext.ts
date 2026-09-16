@@ -272,7 +272,18 @@ export async function findRecentVideoCandidates(
   return { candidates, channelErrors };
 }
 
-/** Filtert Kandidaten heraus, die bereits in youtube_video_analyses existieren. */
+/**
+ * Filtert Kandidaten heraus, die bereits ERFOLGREICH in
+ * youtube_video_analyses stehen. Nur status="ok" gilt als "gesehen" --
+ * status="error" (z.B. Gemini-Kontingent ausgeschoepft) blockiert die
+ * Analyse NICHT dauerhaft, sonst waere ein Video nach einem einzigen
+ * Kontingent-Fehler fuer immer von der Analyse ausgeschlossen, obwohl das
+ * Kontingent sich taeglich erholt (Bugfix 16.09.2026, Nutzer-Wunsch
+ * "verhindern dass report nicht vollzogen werden kann" -- der vorherige
+ * Stand behandelte JEDE Zeile inkl. Fehler als endgueltig gesehen). Der
+ * Retry ueberschreibt die alte Fehler-Zeile per Upsert auf video_id (siehe
+ * app/api/youtube-monitor/generate/route.ts), keine Duplikate.
+ */
 export async function filterUnseenVideos(
   candidates: YoutubeVideoCandidate[]
 ): Promise<YoutubeVideoCandidate[]> {
@@ -281,6 +292,7 @@ export async function filterUnseenVideos(
   const { data, error } = await supabase
     .from("youtube_video_analyses")
     .select("video_id")
+    .eq("status", "ok")
     .in(
       "video_id",
       candidates.map((c) => c.videoId)

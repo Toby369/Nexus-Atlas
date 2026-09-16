@@ -14,6 +14,21 @@
 // kostenlosen Kontingent laufen -- im Zweifel GOOGLE_VIDEO_MODEL explizit
 // auf ein aktuelles Flash-Modell setzen, siehe Google AI Studio).
 
+// Traegt den HTTP-Status des fehlgeschlagenen Gemini-Aufrufs mit -- der
+// Aufrufer (app/api/youtube-monitor/generate/route.ts) muss zwischen einem
+// Kontingent-Fehler (429, betrifft ALLE folgenden Videos in diesem Lauf
+// genauso) und einem videospezifischen Fehler unterscheiden koennen, ohne
+// den Fehlertext zu parsen (Nutzer-Wunsch 16.09.2026: "andere Optionen um
+// zu verhindern dass report nicht vollzogen werden kann").
+export class YoutubeVideoAnalysisError extends Error {
+  status?: number;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = "YoutubeVideoAnalysisError";
+    this.status = status;
+  }
+}
+
 export interface YoutubeVideoAnalysisResult {
   bias: "bullish" | "bearish" | "neutral";
   confidence: number;
@@ -101,10 +116,11 @@ export async function analyzeYoutubeVideo(
 
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
-    throw new Error(
+    throw new YoutubeVideoAnalysisError(
       `youtubeVideoAnalysis: HTTP ${res.status} bei Modell "${model}" -- ${errText.slice(0, 300)} ` +
         `(falls das Modell keine Video-URL-Analyse unterstuetzt: GOOGLE_VIDEO_MODEL auf ein aktuelles ` +
-        `Gemini-Flash-Modell setzen, siehe Google AI Studio).`
+        `Gemini-Flash-Modell setzen, siehe Google AI Studio).`,
+      res.status
     );
   }
 

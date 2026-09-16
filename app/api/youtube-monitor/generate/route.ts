@@ -6,7 +6,7 @@ import {
   filterUnseenVideos,
   MAX_NEW_VIDEOS_PER_RUN,
 } from "@/lib/youtubeMonitorContext";
-import { analyzeYoutubeVideo } from "@/lib/ai/youtubeVideoAnalysis";
+import { analyzeYoutubeVideo, YoutubeVideoAnalysisError } from "@/lib/ai/youtubeVideoAnalysis";
 import { checkAndRecordRateLimit } from "@/lib/rateLimit";
 import { computeYoutubeConsensus } from "@/lib/youtubeConsensus";
 import type { YoutubeVideoAnalysis } from "@/lib/types";
@@ -92,40 +92,75 @@ export async function POST() {
 
   const toAnalyze = candidates.slice(0, MAX_NEW_VIDEOS_PER_RUN);
   const inserted: YoutubeVideoAnalysis[] = [];
+  // Upsert statt Insert (Konflikt auf video_id, siehe UNIQUE-Constraint):
+  // filterUnseenVideos laesst fehlgeschlagene Videos jetzt bewusst erneut
+  // zu (Bugfix 16.09.2026) -- ein reines insert() wuerde bei so einem Retry
+  // an der UNIQUE-Constraint scheitern und die alte Fehler-Zeile stehen
+  // lassen, statt sie durch den neuen Versuch zu ersetzen.
+  let quotaExhausted = false;
 
   for (const candidate of toAnalyze) {
+    // Ein 429 (Kontingent ausgeschoepft) betrifft ALLE folgenden Videos in
+    // diesem Lauf identisch -- weitere Versuche wuerden nur denselben
+    // Fehler x-fach speichern und das ohnehin erschoepfte Kontingent weiter
+    // strapazieren. Abbrechen, die uebrigen Kandidaten bleiben unangetastet
+    // (kein Fehler-Eintrag) und werden beim naechsten Lauf ganz normal
+    // erneut versucht.
+    if (quotaExhausted) break;
+
     const contextText = `Titel: ${candidate.title}\nKanal: ${candidate.channelTitle}\nVeroeffentlicht: ${candidate.publishedAt}`;
 
     try {
       const { result, model } = await analyzeYoutubeVideo(candidate.url, contextText);
 
-      const { data, error: insertError } = await supabaseAdmin
+      const { data, error: upsertError } = await supabaseAdmin
         .from("youtube_video_analyses")
-        .insert({
+        .upsert(
+          {
+            video_id: candidate.videoId,
+            channel_title: candidate.channelTitle,
+            title: candidate.title,
+            published_at: candidate.publishedAt,
+            url: candidate.url,
+            generated_at: new Date().toISOString(),
+            model,
+            result,
+            status: "ok",
+            error: null,
+          },
+          { onConflict: "video_id" }
+        )
+        .select()
+        .single();
+
+      if (!upsertError && data) inserted.push(data);
+    } catch (err) {
+      const isQuotaError = err instanceof YoutubeVideoAnalysisError && err.status === 429;
+      if (isQuotaError) quotaExhausted = true;
+      // Kontingent-Fehler bekommen eine kurze, verstaendliche Meldung statt
+      // des vollen technischen Fehlertexts (Google-Fehler-JSON inkl. Doku-
+      // Links) -- der wird sonst 1:1 im Dashboard angezeigt (Nutzer-Meldung
+      // 16.09.2026, Screenshot zeigte den Rohtext).
+      const message = isQuotaError
+        ? "Gemini-Tageskontingent erreicht -- wird beim naechsten Lauf automatisch erneut versucht."
+        : err instanceof Error
+          ? err.message
+          : String(err);
+      await supabaseAdmin.from("youtube_video_analyses").upsert(
+        {
           video_id: candidate.videoId,
           channel_title: candidate.channelTitle,
           title: candidate.title,
           published_at: candidate.publishedAt,
           url: candidate.url,
-          model,
-          result,
-          status: "ok",
-        })
-        .select()
-        .single();
-
-      if (!insertError && data) inserted.push(data);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      await supabaseAdmin.from("youtube_video_analyses").insert({
-        video_id: candidate.videoId,
-        channel_title: candidate.channelTitle,
-        title: candidate.title,
-        published_at: candidate.publishedAt,
-        url: candidate.url,
-        status: "error",
-        error: message,
-      });
+          generated_at: new Date().toISOString(),
+          model: null,
+          result: null,
+          status: "error",
+          error: message,
+        },
+        { onConflict: "video_id" }
+      );
     }
   }
 
@@ -149,5 +184,6 @@ export async function POST() {
     newAnalyses: inserted,
     channelErrors,
     consensus,
+    quotaExhausted,
   });
 }

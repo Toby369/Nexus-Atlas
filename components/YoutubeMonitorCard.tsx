@@ -108,7 +108,12 @@ export default function YoutubeMonitorCard({
       if (!res.ok || !json.success) {
         throw new Error(json.error ?? `HTTP ${res.status}`);
       }
-      setStatusNote(`${json.analyzed} von ${json.checked} neuen Videos analysiert.`);
+      setStatusNote(
+        `${json.analyzed} von ${json.checked} neuen Videos analysiert.` +
+          (json.quotaExhausted
+            ? " Gemini-Tageskontingent erreicht -- restliche Videos werden beim naechsten Lauf automatisch nachgeholt."
+            : "")
+      );
 
       const newAnalyses = json.newAnalyses as YoutubeVideoAnalysis[];
       if (newAnalyses.length > 0) {
