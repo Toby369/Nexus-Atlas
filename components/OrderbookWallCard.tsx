@@ -13,9 +13,10 @@ import PanelInfo from "@/components/PanelInfo";
 // ("liegt gerade viel Liquiditaet in der Naehe des Preises").
 
 const INFO_TEXT = [
-  "Was das ist: kumulierte Bid-/Ask-Tiefe, gemittelt über alle erfassten Börsen -- je Börse zunächst die Summe ALLER Level innerhalb von ±0.5% um den Mid-Preis, danach der Durchschnitt über Binance/Bybit/OKX. Alle 5 Minuten erfasst -- kein Live-Orderbuch/Bookmap, sondern ein periodischer Schnappschuss.",
+  "Was das ist: zwei über alle erfassten Börsen gemittelte Kennzahlen. Kumulierte Tiefe: je Börse die Summe ALLER Level innerhalb von ±0.5% um den Mid-Preis, danach gemittelt über Binance/Bybit/OKX. Kumulierte Wand: die grösste Einzel-Order je Seite und Börse, ebenfalls gemittelt (Preis, Abstand zum Mid-Preis und Grösse). Alle 5 Minuten erfasst -- kein Live-Orderbuch/Bookmap, sondern ein periodischer Schnappschuss.",
   "Höhere Bid-Tiefe als Ask-Tiefe deutet auf mehr passive Kaufbereitschaft nahe dem Preis hin, und umgekehrt -- ein grobes Mass, keine Richtungsprognose.",
-  "Einzelne Wände je Börse (per Antippen aufklappbar): die grösste Einzel-Order je Seite und Börse, statt der gemittelten Summe -- zeigt WO genau viel Liquidität konzentriert liegt (potenzieller Widerstand/Unterstützung) und ob sich die Börsen unterscheiden, während die kumulierte Zahl oben nur den Durchschnitt zeigt.",
+  "Die 'Kumulierte Wand' ist ein rechnerischer Durchschnitt, keine echte Einzel-Order -- sie existiert an keiner Börse tatsächlich so. Zeigt nur grob, wie gross und wie nah am Preis die auffälligsten Level typischerweise liegen.",
+  "Einzelne Wände je Börse (per Antippen aufklappbar): dieselben Werte unaufbereitet je Börse -- zeigt, WO genau viel Liquidität konzentriert liegt (potenzieller Widerstand/Unterstützung) und ob sich die Börsen unterscheiden, statt sie im Durchschnitt zu verstecken.",
   "Bekannte Grenzen: sowohl Wände als auch die kumulierte Tiefe können jederzeit zurückgezogen werden (Spoofing) -- ein Stand vor 5 Minuten ist keine Garantie, dass er jetzt noch so aussieht. Erscheint eine Zeile leer (—), fehlten Daten für diesen Erfassungszyklus.",
   "Kein Handelssignal -- eine Momentaufnahme passiver Liquidität, kein Hinweis auf zukünftige Preisbewegung.",
 ].join("\n\n");
@@ -80,30 +81,45 @@ function average(values: (number | null)[]): number | null {
   return valid.reduce((sum, v) => sum + v, 0) / valid.length;
 }
 
-// EINE kumulierte Zeile ueber ALLE Boersen gemittelt -- Nutzer-Korrektur
-// 16.09.2026 ("kumuliert wird automatisch angezeigt, alle börsen wände
-// zusammen den durchschnitt"): nicht drei Zeilen (eine je Boerse), sondern
-// der Durchschnitt von bid_depth_usd/ask_depth_usd ueber alle Boersen mit
-// gueltigem Wert. Dient zugleich als <summary> des <details>-Elements --
-// Antippen klappt die Einzelwaende je Boerse auf (siehe ExchangeRow unten).
-// bid_depth_usd/ask_depth_usd sind je Boerse die Summe ALLER Level im
-// ±0.5%-Band (siehe collect-orderbook), dieselbe Rohbasis wie
-// depth_imbalance.
-function CumulativeDepthSummary({ walls }: { walls: OrderbookWallSnapshot[] }) {
-  const avgBid = average(walls.map((w) => w.bid_depth_usd));
-  const avgAsk = average(walls.map((w) => w.ask_depth_usd));
+// ZWEI kumulierte Kennzahlen ueber ALLE Boersen gemittelt -- Nutzer-Wunsch
+// 16.09.2026 ("kumuliert ... alle börsen zusammen den durchschnitt", dann
+// "und jetzt noch die kumulierte wand"): Tiefe (Summe aller Level) UND Wand
+// (groesste Einzel-Order) je gemittelt ueber Binance/Bybit/OKX statt einer
+// Zeile je Boerse. Zusammen die <summary> des <details>-Elements -- Antippen
+// (auf beide Zeilen) klappt die Einzelwaende je Boerse auf (ExchangeRow
+// unten, dieselben Rohwerte ungemittelt). bid_depth_usd/ask_depth_usd sind
+// je Boerse die Summe ALLER Level im ±0.5%-Band (siehe collect-orderbook),
+// dieselbe Rohbasis wie depth_imbalance. Die gemittelte Wand (Preis+Groesse)
+// ist ein rechnerischer Kennwert, keine an irgendeiner Boerse tatsaechlich
+// existierende Einzel-Order -- siehe INFO_TEXT.
+function CumulativeSummary({ walls }: { walls: OrderbookWallSnapshot[] }) {
+  const avgBidDepth = average(walls.map((w) => w.bid_depth_usd));
+  const avgAskDepth = average(walls.map((w) => w.ask_depth_usd));
+  const avgMid = average(walls.map((w) => w.mid_price));
+  const avgAskWallPrice = average(walls.map((w) => w.ask_wall_price));
+  const avgAskWallUsd = average(walls.map((w) => w.ask_wall_usd));
+  const avgBidWallPrice = average(walls.map((w) => w.bid_wall_price));
+  const avgBidWallUsd = average(walls.map((w) => w.bid_wall_usd));
+
   return (
-    <summary className="flex items-center justify-between gap-2 text-xs cursor-pointer select-none">
-      <span className="text-text-muted">Kumulierte Tiefe (Ø aller Börsen, ±0.5%)</span>
-      {avgBid === null || avgAsk === null ? (
-        <span className="text-text-faint">—</span>
-      ) : (
-        <span className="text-text-faint">
-          <span className="text-up">Bid {formatUsd(avgBid)}</span>
-          <span className="mx-1.5">·</span>
-          <span className="text-down">Ask {formatUsd(avgAsk)}</span>
-        </span>
-      )}
+    <summary className="cursor-pointer select-none space-y-1.5">
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <span className="text-text-muted">Kumulierte Tiefe (Ø aller Börsen, ±0.5%)</span>
+        {avgBidDepth === null || avgAskDepth === null ? (
+          <span className="text-text-faint">—</span>
+        ) : (
+          <span className="text-text-faint">
+            <span className="text-up">Bid {formatUsd(avgBidDepth)}</span>
+            <span className="mx-1.5">·</span>
+            <span className="text-down">Ask {formatUsd(avgAskDepth)}</span>
+          </span>
+        )}
+      </div>
+      <div className="space-y-1">
+        <p className="text-[11px] text-text-faint">Kumulierte Wand (Ø aller Börsen)</p>
+        <WallLine label="Ask-Wand" side="ask" price={avgAskWallPrice} usd={avgAskWallUsd} mid={avgMid} />
+        <WallLine label="Bid-Wand" side="bid" price={avgBidWallPrice} usd={avgBidWallUsd} mid={avgMid} />
+      </div>
     </summary>
   );
 }
@@ -146,7 +162,7 @@ export default function OrderbookWallCard({ walls }: { walls: OrderbookWallSnaps
       </div>
 
       <details>
-        <CumulativeDepthSummary walls={walls} />
+        <CumulativeSummary walls={walls} />
         <div className="mt-2 space-y-2 pt-2 border-t border-border/60">
           <p className="text-[11px] text-text-faint">Einzelne Wände je Börse (größte Order pro Seite):</p>
           {walls.map((wall) => (
