@@ -17,10 +17,13 @@ const CASCADE_MIN_COUNT = 3;
 // Cluster-Breite) -- bewusst benannte Konstanten statt Magic Numbers.
 const VELOCITY_BUCKET_MINUTES = 15;
 const PRICE_CLUSTER_BUCKET_USD = 200;
-// Ein Preis-Cluster wird nur angezeigt, wenn er mindestens diesen Anteil
-// des gesamten erfassten Notional-Werts auf sich vereint (sonst zu wenig
-// Konzentration fuer eine aussagekraeftige Aussage).
-const CLUSTER_MIN_SHARE = 0.3;
+// Wie viele der von der RPC bereits nach Notional-Wert absteigend
+// sortierten Preis-Cluster (max. 5, siehe get_liquidation_intelligence)
+// angezeigt werden. Nutzer-Entscheidung 17.09.2026: immer die staerksten
+// Cluster zeigen statt nur den einen dominanten (vorher: CLUSTER_MIN_SHARE
+// = 0.3, ein Cluster wurde nur ab 30% Anteil ueberhaupt angezeigt -- das
+// blendete z.B. einen echten zweiten Cluster mit 11% Anteil komplett aus).
+const TOP_CLUSTERS_COUNT = 4;
 
 function formatUsd(value: number) {
   if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
@@ -176,12 +179,13 @@ export default function LiquidationPanel({
   const cascade = hasCascade(events);
 
   const velocityTrend = intelligence ? describeVelocityTrend(intelligence.velocity) : null;
-  const topCluster =
-    intelligence && intelligence.total_notional_usd > 0 && intelligence.price_clusters.length > 0
-      ? intelligence.price_clusters[0]
-      : null;
-  const topClusterShare =
-    topCluster && intelligence ? topCluster.notional_usd / intelligence.total_notional_usd : 0;
+  // Preis-Cluster kommen von der RPC bereits absteigend nach Notional-Wert
+  // sortiert (LIMIT 5) -- hier nur auf TOP_CLUSTERS_COUNT begrenzt, keine
+  // eigene Sortierung/Filterung noetig.
+  const topClusters =
+    intelligence && intelligence.total_notional_usd > 0
+      ? intelligence.price_clusters.slice(0, TOP_CLUSTERS_COUNT)
+      : [];
   const oiSharePct =
     intelligence && intelligence.total_oi_usd
       ? (intelligence.total_notional_usd / intelligence.total_oi_usd) * 100
@@ -252,21 +256,38 @@ export default function LiquidationPanel({
               : "Vereinzelte Liquidationen, keine auffällige Häufung."}
           </p>
 
-          {(velocityTrend || (topCluster && topClusterShare >= CLUSTER_MIN_SHARE) || oiSharePct !== null) && (
+          {(velocityTrend || topClusters.length > 0 || oiSharePct !== null) && (
             <div className="flex flex-col gap-1 text-xs text-text-faint pt-1 border-t border-border/60">
               {velocityTrend && (
                 <span>
                   Liquidationsrate: <span className="text-text-muted">{velocityTrend}</span>
                 </span>
               )}
-              {topCluster && topClusterShare >= CLUSTER_MIN_SHARE && (
-                <span>
-                  Häufungspunkt nahe{" "}
-                  <span className="tabular font-mono text-text-muted">
-                    ${topCluster.price_bucket.toLocaleString("de-CH")}
-                  </span>{" "}
-                  ({formatUsd(topCluster.notional_usd)}, {Math.round(topClusterShare * 100)}% des Volumens)
-                </span>
+              {topClusters.length > 0 && (
+                <div className="space-y-0.5">
+                  <span className="text-text-muted">Preis-Cluster:</span>
+                  {topClusters.map((cluster) => {
+                    const half = PRICE_CLUSTER_BUCKET_USD / 2;
+                    const share =
+                      intelligence!.total_notional_usd > 0
+                        ? cluster.notional_usd / intelligence!.total_notional_usd
+                        : 0;
+                    return (
+                      <div
+                        key={cluster.price_bucket}
+                        className="flex items-center justify-between tabular font-mono"
+                      >
+                        <span>
+                          ${(cluster.price_bucket - half).toLocaleString("de-CH")}–$
+                          {(cluster.price_bucket + half).toLocaleString("de-CH")}
+                        </span>
+                        <span className="text-text-muted">
+                          {formatUsd(cluster.notional_usd)} ({Math.round(share * 100)}%)
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
               {oiSharePct !== null && (
                 <span>
