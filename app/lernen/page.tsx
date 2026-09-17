@@ -5,6 +5,7 @@ import LernenDashboard from "@/components/LernenDashboard";
 import LogoutButton from "@/components/LogoutButton";
 import { getKnowledgeBase } from "@/lib/knowledgeBaseContext";
 import { getMeinSystemChecklistData } from "@/lib/meinSystemContext";
+import { getGussSignalData } from "@/lib/tradingIndicatorsContext";
 
 export const revalidate = 0;
 
@@ -44,12 +45,13 @@ async function getChecklistHistory(): Promise<ChecklistRun[]> {
 }
 
 export default async function LernenPage() {
-  const [cards, progress, knowledgeBase, meinSystemData, checklistHistory] = await Promise.all([
+  const [cards, progress, knowledgeBase, meinSystemData, checklistHistory, gussData] = await Promise.all([
     getCards(),
     getProgress(),
     getKnowledgeBase(),
     getMeinSystemChecklistData(),
     getChecklistHistory(),
+    getGussSignalData(),
   ]);
 
   return (
@@ -83,6 +85,7 @@ export default async function LernenPage() {
           knowledgeBase={knowledgeBase}
           meinSystemData={meinSystemData}
           initialChecklistHistory={checklistHistory}
+          gussData={gussData}
         />
       </section>
 

@@ -239,3 +239,10 @@ So entsteht der Wert: CPI/PCE/NFP-Termine kommen direkt von FRED (St. Louis Fed,
 export const institutionalPlaybookInfo = `So liest du das: Ein reiner Lese-Leitfaden, keine eigene Datenquelle – zeigt, wie die bereits vorhandenen Kacheln (Gesamteinschätzung, Spot Pressure, OI Change, Liquidationen, Marktphase) sinnvoll zusammen gelesen werden können. Die Signal-Matrix greift dieselbe Long-Aufbau/Short-Aufbau/Short-Covering/Long-Abbau-Einteilung wieder auf, die auch in der Marktphasen-Kachel als „OI-Preis-Quadrant“ erscheint.
 
 So entsteht der Wert: Statischer, fest hinterlegter Text – kein KI-Modell, keine Berechnung, keine Aktualisierung nötig. Die vier Markt-Muster und die Tages-Routine sind Interpretationshilfen zur Orientierung, kein Handelssignal und keine Anlageberatung.`;
+
+// GUSS/VWAP-Vector/CVD (Umsetzungsplan "Exakte Faktoren", Phase 1-3): Tobys
+// eigene TradingView-Indikatoren, serverseitig nachgebaut in
+// lib/tradingIndicatorsContext.ts.
+export const gussSignalInfo = `So liest du das: GUSS ist ein Pullback-Einstiegs-Indikator (Original-Skript nicht einsehbar, Regel von Toby spezifiziert). "Berührt" heisst, der Docht einer Kerze seit dem letzten Swing-Hoch (im Aufwärtstrend) bzw. Swing-Tief (im Abwärtstrend) hat den EMA-Wert erreicht – eine Körper-Berührung ist nicht nötig. "Sauber" heisst, keine Kerze auf diesem Weg schloss entgegen der Pullback-Richtung. Beide Bedingungen müssen erfüllt sein, plus: Nexus' Regime-Engine muss den Markt aktuell als Trend einstufen (Trendausweitung bullisch/bärisch) – bei Seitwärts/Volatilitäts-Squeeze oder unklarem Regime wird GUSS bewusst als nicht anwendbar angezeigt statt eines erfundenen Signals. Da unklar ist, ob EMA21 oder EMA50 gemeint ist, werden beide Varianten parallel angezeigt. Reine Entscheidungsunterstützung, kein automatisches Handelssignal.
+
+So entsteht der Wert: Letzte 300 1H-Kerzen (Swing-Erkennung mit Lookback 20, wie Mo's VWAP-Vector-Skript), EMA21/EMA50 als volle Zeitreihe berechnet (nicht nur der aktuelle Endwert), Regime aus market_state_matrix.regime – bei jedem Seitenaufruf neu berechnet.`;

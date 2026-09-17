@@ -13,7 +13,9 @@ import {
 } from "@/lib/leitner";
 import { learningStreak, overview, perCategory, type QuizEntry } from "@/lib/quizStatistik";
 import type { MeinSystemChecklistData } from "@/lib/meinSystemContext";
+import type { GussSignalData } from "@/lib/tradingIndicatorsContext";
 import PanelInfo from "@/components/PanelInfo";
+import { GussSignalCard } from "@/components/TradingIndicatorsCards";
 
 // Lernplattform-Kachel (Leitner-Karteikasten), Nutzer-Wunsch "wie im
 // Trading Journal" -- Konzept aus KachelQuiz.vue/Lernen.vue im Crypto-
@@ -63,12 +65,14 @@ export default function LernenDashboard({
   knowledgeBase,
   meinSystemData,
   initialChecklistHistory,
+  gussData,
 }: {
   initialCards: QuizCard[];
   initialProgress: QuizProgressRow[];
   knowledgeBase: KnowledgeBaseEntry[];
   meinSystemData: MeinSystemChecklistData;
   initialChecklistHistory: ChecklistRun[];
+  gussData: GussSignalData;
 }) {
   const [cards, setCards] = useState(initialCards);
   const [progressRows, setProgressRows] = useState(initialProgress);
@@ -138,6 +142,7 @@ export default function LernenDashboard({
           knowledgeBase={knowledgeBase}
           meinSystemData={meinSystemData}
           initialChecklistHistory={initialChecklistHistory}
+          gussData={gussData}
         />
       )}
     </div>
@@ -730,10 +735,12 @@ function WissenPanel({
   knowledgeBase,
   meinSystemData,
   initialChecklistHistory,
+  gussData,
 }: {
   knowledgeBase: KnowledgeBaseEntry[];
   meinSystemData: MeinSystemChecklistData;
   initialChecklistHistory: ChecklistRun[];
+  gussData: GussSignalData;
 }) {
   const [module, setModule] = useState<WissenModule>("welz");
   const [checklistHistory, setChecklistHistory] = useState(initialChecklistHistory);
@@ -798,6 +805,7 @@ function WissenPanel({
       {module === "mein_system" && (
         <div className="space-y-3">
           <MeinSystemLiveValues data={meinSystemData} />
+          <GussSignalCard data={gussData} />
           <ChecklistBlock
             title="Entry-Regelwerk"
             items={MEIN_SYSTEM_MANUAL_CHECKLIST}
