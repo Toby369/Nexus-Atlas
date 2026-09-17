@@ -1,8 +1,13 @@
 "use client";
 
-import type { GussSignalData, GussVariantData } from "@/lib/tradingIndicatorsContext";
+import type {
+  GussSignalData,
+  GussVariantData,
+  VwapVectorData,
+  VwapEmaFan,
+} from "@/lib/tradingIndicatorsContext";
 import PanelInfo from "@/components/PanelInfo";
-import { gussSignalInfo } from "@/lib/panelInfo";
+import { gussSignalInfo, vwapVectorInfo } from "@/lib/panelInfo";
 
 // UI-Karten fuer Tobys eigene Trading-Indikatoren (GUSS/VWAP-Vector/CVD --
 // Umsetzungsplan "Exakte Faktoren"). Ausgelagert aus LernenDashboard.tsx
@@ -93,6 +98,75 @@ export function GussSignalCard({ data }: { data: GussSignalData }) {
           <GussVariantRow key={variant.emaPeriod} variant={variant} />
         ))}
       </div>
+    </div>
+  );
+}
+
+function VwapRow({ label, value, anchorUtc }: { label: string; value: number | null; anchorUtc?: string | null }) {
+  return (
+    <div className="flex items-center justify-between text-xs">
+      <span className="text-text-faint">
+        {label}
+        {anchorUtc && (
+          <span className="text-text-faint/70">
+            {" "}
+            (seit {new Date(anchorUtc).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit" })})
+          </span>
+        )}
+      </span>
+      <span className="text-text">{formatPrice(value)}</span>
+    </div>
+  );
+}
+
+function EmaFanRow({ fan }: { fan: VwapEmaFan }) {
+  return (
+    <div className="flex items-center justify-between text-xs">
+      <span className="text-text-faint">EMA-Fächer ({fan.interval})</span>
+      <span className="text-text">
+        {formatPrice(fan.ema20)} / {formatPrice(fan.ema50)} / {formatPrice(fan.ema100)} / {formatPrice(fan.ema200)} /{" "}
+        {formatPrice(fan.ema800)}
+      </span>
+    </div>
+  );
+}
+
+export function VwapVectorCard({ data }: { data: VwapVectorData }) {
+  return (
+    <div className="rounded-lg border border-border bg-surface-raised p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <p className="text-xs font-medium text-text-muted">VWAP-Vector (1H)</p>
+          <PanelInfo title="VWAP-Vector" content={vwapVectorInfo} />
+        </div>
+        <span className="text-xs text-text-faint">Preis {formatPrice(data.currentPrice)}</span>
+      </div>
+
+      <div className="space-y-1">
+        <VwapRow label="Tag-VWAP" value={data.dayVwap} />
+        <VwapRow label="Wochen-VWAP" value={data.weeklyVwap} anchorUtc={data.weeklyAnchorUtc} />
+        <VwapRow label="Monats-VWAP" value={data.monthlyVwap} anchorUtc={data.monthlyAnchorUtc} />
+        <VwapRow label="Swing-Hoch-VWAP" value={data.swingHighVwap} anchorUtc={data.swingHighAnchorUtc} />
+        <VwapRow label="Swing-Tief-VWAP" value={data.swingLowVwap} anchorUtc={data.swingLowAnchorUtc} />
+      </div>
+
+      <div className="space-y-1 pt-1 border-t border-border/60">
+        {data.emaFans.map((fan) => (
+          <EmaFanRow key={fan.interval} fan={fan} />
+        ))}
+      </div>
+
+      {data.fibLevels && (
+        <div className="space-y-1 pt-1 border-t border-border/60">
+          <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Fibonacci-Retracement</p>
+          {data.fibLevels.map((level) => (
+            <div key={level.ratio} className="flex items-center justify-between text-xs">
+              <span className="text-text-faint">{(level.ratio * 100).toFixed(1)}%</span>
+              <span className="text-text">{formatPrice(level.price)}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

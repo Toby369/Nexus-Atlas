@@ -22,12 +22,25 @@ const GUSS_SWING_LOOKBACK = 20;
 const GUSS_EMA_PERIODS = [21, 50] as const;
 type GussEmaPeriod = (typeof GUSS_EMA_PERIODS)[number];
 
+// VWAP-Vector nutzt dieselben 1H-Kerzen + Swing-Erkennung wie GUSS (siehe
+// fetchBaseData() unten) -- ein gemeinsamer Fetch statt zwei getrennter
+// Anfragen an candles/market_state_matrix.
+const VWAP_EMA_INTERVALS = ["1h", "4h"] as const;
+type VwapEmaInterval = (typeof VWAP_EMA_INTERVALS)[number];
+const FIB_RATIOS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1] as const;
+
 interface Candle {
   openTime: string;
   open: number;
   high: number;
   low: number;
   close: number;
+}
+
+interface TradingIndicatorsBaseData {
+  candles: Candle[];
+  regime: MarketRegime | null;
+  regimeAllowsGuss: boolean | null;
 }
 
 export interface GussVariantData {
@@ -146,7 +159,11 @@ function buildGussVariant(
   return { emaPeriod: period, emaValue: lastEma, trendDirection, pullbackTouchedEma: touched, pullbackClean: clean, active };
 }
 
-export async function getGussSignalData(): Promise<GussSignalData> {
+// Gemeinsamer Fetch fuer GUSS UND VWAP-Vector (beide brauchen dieselben
+// juengsten 1H-Kerzen + dasselbe Regime) -- EIN Query-Paar statt zweier,
+// wenn beide Faktoren zusammen ueber getTradingIndicatorsData() geladen
+// werden (siehe Umsetzungsplan Phase 2, "gemeinsame getTradingIndicatorsData()").
+async function fetchBaseData(): Promise<TradingIndicatorsBaseData> {
   const [{ data: candleRows, error: candleError }, { data: regimeRow, error: regimeError }] = await Promise.all([
     supabase
       .from("candles")
@@ -170,10 +187,10 @@ export async function getGussSignalData(): Promise<GussSignalData> {
   ]);
 
   if (candleError) {
-    console.error("tradingIndicatorsContext: Fehler beim Laden der Kerzen fuer GUSS:", candleError.message);
+    console.error("tradingIndicatorsContext: Fehler beim Laden der 1H-Kerzen:", candleError.message);
   }
   if (regimeError) {
-    console.error("tradingIndicatorsContext: Fehler beim Laden des Regimes fuer GUSS:", regimeError.message);
+    console.error("tradingIndicatorsContext: Fehler beim Laden des Regimes:", regimeError.message);
   }
 
   const candles: Candle[] = (candleRows ?? [])
@@ -189,6 +206,12 @@ export async function getGussSignalData(): Promise<GussSignalData> {
 
   const regime = (regimeRow?.regime as MarketRegime | undefined) ?? null;
   const regimeAllowsGuss = regime ? isTrendingRegime(regime) : null;
+
+  return { candles, regime, regimeAllowsGuss };
+}
+
+function computeGuss(base: TradingIndicatorsBaseData): GussSignalData {
+  const { candles, regime, regimeAllowsGuss } = base;
   const lastCandle = candles[candles.length - 1] ?? null;
 
   if (candles.length < GUSS_SWING_LOOKBACK * 2 + 1) {
@@ -219,4 +242,199 @@ export async function getGussSignalData(): Promise<GussSignalData> {
     closePrice: lastCandle?.close ?? null,
     dataAsOf: lastCandle?.openTime ?? null,
   };
+}
+
+export async function getGussSignalData(): Promise<GussSignalData> {
+  return computeGuss(await fetchBaseData());
+}
+
+// --- VWAP-Vector (Umsetzungsplan Phase 2) -----------------------------
+
+export interface VwapEmaFan {
+  interval: VwapEmaInterval;
+  ema20: number | null;
+  ema50: number | null;
+  ema100: number | null;
+  ema200: number | null;
+  ema800: number | null;
+}
+
+export interface FibLevel {
+  ratio: number;
+  price: number;
+}
+
+export interface VwapVectorData {
+  currentPrice: number | null;
+  dayVwap: number | null;
+  weeklyVwap: number | null;
+  weeklyAnchorUtc: string | null;
+  monthlyVwap: number | null;
+  monthlyAnchorUtc: string | null;
+  swingHighVwap: number | null;
+  swingHighAnchorUtc: string | null;
+  swingLowVwap: number | null;
+  swingLowAnchorUtc: string | null;
+  emaFans: VwapEmaFan[];
+  // Standard-Retracement-Grid (0/23,6/38,2/50/61,8/78,6/100%) zwischen dem
+  // juengsten Swing-Hoch und -Tief. Mo's Original-Skript erweitert dieses
+  // Grid vermutlich per ATR ueber 0%/100% hinaus (Fibonacci-Extension) --
+  // ohne einsehbaren Original-Quellcode wird hier bewusst nur das
+  // gesicherte Retracement-Grid nachgebaut, keine erratene ATR-Erweiterung.
+  fibLevels: FibLevel[] | null;
+  dataAsOf: string | null;
+}
+
+async function fetchEmaFan(interval: VwapEmaInterval): Promise<VwapEmaFan> {
+  const { data, error } = await supabase
+    .from("market_features")
+    .select("ema_20, ema_50, ema_100, ema_200, ema_800")
+    .eq("symbol", "BTCUSDT")
+    .eq("interval", interval)
+    .order("candle_open_time", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error(`tradingIndicatorsContext: Fehler beim Laden des EMA-Faechers (${interval}):`, error.message);
+  }
+
+  return {
+    interval,
+    ema20: data?.ema_20 ?? null,
+    ema50: data?.ema_50 ?? null,
+    ema100: data?.ema_100 ?? null,
+    ema200: data?.ema_200 ?? null,
+    ema800: data?.ema_800 ?? null,
+  };
+}
+
+function computeFibLevels(candles: Candle[], swings: FractalSwingResult): FibLevel[] | null {
+  let lastSwingHighIdx: number | null = null;
+  let lastSwingLowIdx: number | null = null;
+  for (let i = swings.isSwingHigh.length - 1; i >= 0; i--) {
+    if (lastSwingHighIdx === null && swings.isSwingHigh[i]) lastSwingHighIdx = i;
+    if (lastSwingLowIdx === null && swings.isSwingLow[i]) lastSwingLowIdx = i;
+    if (lastSwingHighIdx !== null && lastSwingLowIdx !== null) break;
+  }
+  if (lastSwingHighIdx === null || lastSwingLowIdx === null) return null;
+
+  const highPrice = candles[lastSwingHighIdx].high;
+  const lowPrice = candles[lastSwingLowIdx].low;
+  const range = highPrice - lowPrice;
+  if (range <= 0) return null;
+
+  return FIB_RATIOS.map((ratio) => ({ ratio, price: highPrice - ratio * range }));
+}
+
+async function computeVwapVector(base: TradingIndicatorsBaseData): Promise<VwapVectorData> {
+  const { candles } = base;
+  const lastCandle = candles[candles.length - 1] ?? null;
+
+  const dayAnchor = new Date();
+  dayAnchor.setUTCHours(0, 0, 0, 0);
+
+  const [anchoredRes, dayRes, emaFans] = await Promise.all([
+    // Deckt weekly_vwap/monthly_vwap bereits vollstaendig ab (siehe
+    // Umsetzungsplan Punkt 4/Recherche pg_get_functiondef) -- kein
+    // Doppelaufbau derselben Arithmetik.
+    supabase.rpc("get_anchored_vwap_summary"),
+    supabase.rpc("get_vwap_since", { p_anchor_utc: dayAnchor.toISOString() }),
+    Promise.all(VWAP_EMA_INTERVALS.map((interval) => fetchEmaFan(interval))),
+  ]);
+
+  if (anchoredRes.error) {
+    console.error("tradingIndicatorsContext: Fehler bei get_anchored_vwap_summary:", anchoredRes.error.message);
+  }
+  if (dayRes.error) {
+    console.error("tradingIndicatorsContext: Fehler bei get_vwap_since (Tag-Anker):", dayRes.error.message);
+  }
+
+  const anchored = (anchoredRes.data ?? null) as Record<string, unknown> | null;
+
+  let swingHighVwap: number | null = null;
+  let swingHighAnchorUtc: string | null = null;
+  let swingLowVwap: number | null = null;
+  let swingLowAnchorUtc: string | null = null;
+  let fibLevels: FibLevel[] | null = null;
+
+  if (candles.length >= GUSS_SWING_LOOKBACK * 2 + 1) {
+    const highs = candles.map((c) => c.high);
+    const lows = candles.map((c) => c.low);
+    const swings = detectFractalSwings(highs, lows, GUSS_SWING_LOOKBACK);
+
+    let lastSwingHighIdx: number | null = null;
+    let lastSwingLowIdx: number | null = null;
+    for (let i = swings.isSwingHigh.length - 1; i >= 0; i--) {
+      if (swings.isSwingHigh[i]) {
+        lastSwingHighIdx = i;
+        break;
+      }
+    }
+    for (let i = swings.isSwingLow.length - 1; i >= 0; i--) {
+      if (swings.isSwingLow[i]) {
+        lastSwingLowIdx = i;
+        break;
+      }
+    }
+
+    const [swingHighRes, swingLowRes] = await Promise.all([
+      lastSwingHighIdx !== null
+        ? supabase.rpc("get_vwap_since", { p_anchor_utc: candles[lastSwingHighIdx].openTime })
+        : Promise.resolve({ data: null, error: null }),
+      lastSwingLowIdx !== null
+        ? supabase.rpc("get_vwap_since", { p_anchor_utc: candles[lastSwingLowIdx].openTime })
+        : Promise.resolve({ data: null, error: null }),
+    ]);
+
+    if (swingHighRes.error) {
+      console.error("tradingIndicatorsContext: Fehler bei get_vwap_since (Swing-Hoch):", swingHighRes.error.message);
+    }
+    if (swingLowRes.error) {
+      console.error("tradingIndicatorsContext: Fehler bei get_vwap_since (Swing-Tief):", swingLowRes.error.message);
+    }
+
+    swingHighVwap = (swingHighRes.data as number | null) ?? null;
+    swingHighAnchorUtc = lastSwingHighIdx !== null ? candles[lastSwingHighIdx].openTime : null;
+    swingLowVwap = (swingLowRes.data as number | null) ?? null;
+    swingLowAnchorUtc = lastSwingLowIdx !== null ? candles[lastSwingLowIdx].openTime : null;
+
+    fibLevels = computeFibLevels(candles, swings);
+  }
+
+  return {
+    currentPrice: (anchored?.current_price as number | null) ?? lastCandle?.close ?? null,
+    dayVwap: (dayRes.data as number | null) ?? null,
+    weeklyVwap: (anchored?.weekly_vwap as number | null) ?? null,
+    weeklyAnchorUtc: (anchored?.weekly_anchor_utc as string | null) ?? null,
+    monthlyVwap: (anchored?.monthly_vwap as number | null) ?? null,
+    monthlyAnchorUtc: (anchored?.monthly_anchor_utc as string | null) ?? null,
+    swingHighVwap,
+    swingHighAnchorUtc,
+    swingLowVwap,
+    swingLowAnchorUtc,
+    emaFans,
+    fibLevels,
+    dataAsOf: lastCandle?.openTime ?? null,
+  };
+}
+
+export async function getVwapVectorData(): Promise<VwapVectorData> {
+  return computeVwapVector(await fetchBaseData());
+}
+
+// --- Kombinierter Einstiegspunkt (von app/lernen/page.tsx genutzt) -----
+
+export interface TradingIndicatorsData {
+  guss: GussSignalData;
+  vwapVector: VwapVectorData;
+}
+
+export async function getTradingIndicatorsData(): Promise<TradingIndicatorsData> {
+  const base = await fetchBaseData();
+  const [guss, vwapVector] = await Promise.all([
+    Promise.resolve(computeGuss(base)),
+    computeVwapVector(base),
+  ]);
+  return { guss, vwapVector };
 }

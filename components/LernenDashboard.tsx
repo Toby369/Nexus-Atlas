@@ -13,9 +13,9 @@ import {
 } from "@/lib/leitner";
 import { learningStreak, overview, perCategory, type QuizEntry } from "@/lib/quizStatistik";
 import type { MeinSystemChecklistData } from "@/lib/meinSystemContext";
-import type { GussSignalData } from "@/lib/tradingIndicatorsContext";
+import type { GussSignalData, VwapVectorData } from "@/lib/tradingIndicatorsContext";
 import PanelInfo from "@/components/PanelInfo";
-import { GussSignalCard } from "@/components/TradingIndicatorsCards";
+import { GussSignalCard, VwapVectorCard } from "@/components/TradingIndicatorsCards";
 
 // Lernplattform-Kachel (Leitner-Karteikasten), Nutzer-Wunsch "wie im
 // Trading Journal" -- Konzept aus KachelQuiz.vue/Lernen.vue im Crypto-
@@ -66,6 +66,7 @@ export default function LernenDashboard({
   meinSystemData,
   initialChecklistHistory,
   gussData,
+  vwapVectorData,
 }: {
   initialCards: QuizCard[];
   initialProgress: QuizProgressRow[];
@@ -73,6 +74,7 @@ export default function LernenDashboard({
   meinSystemData: MeinSystemChecklistData;
   initialChecklistHistory: ChecklistRun[];
   gussData: GussSignalData;
+  vwapVectorData: VwapVectorData;
 }) {
   const [cards, setCards] = useState(initialCards);
   const [progressRows, setProgressRows] = useState(initialProgress);
@@ -143,6 +145,7 @@ export default function LernenDashboard({
           meinSystemData={meinSystemData}
           initialChecklistHistory={initialChecklistHistory}
           gussData={gussData}
+          vwapVectorData={vwapVectorData}
         />
       )}
     </div>
@@ -736,11 +739,13 @@ function WissenPanel({
   meinSystemData,
   initialChecklistHistory,
   gussData,
+  vwapVectorData,
 }: {
   knowledgeBase: KnowledgeBaseEntry[];
   meinSystemData: MeinSystemChecklistData;
   initialChecklistHistory: ChecklistRun[];
   gussData: GussSignalData;
+  vwapVectorData: VwapVectorData;
 }) {
   const [module, setModule] = useState<WissenModule>("welz");
   const [checklistHistory, setChecklistHistory] = useState(initialChecklistHistory);
@@ -806,6 +811,7 @@ function WissenPanel({
         <div className="space-y-3">
           <MeinSystemLiveValues data={meinSystemData} />
           <GussSignalCard data={gussData} />
+          <VwapVectorCard data={vwapVectorData} />
           <ChecklistBlock
             title="Entry-Regelwerk"
             items={MEIN_SYSTEM_MANUAL_CHECKLIST}
