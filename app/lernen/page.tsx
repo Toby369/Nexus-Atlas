@@ -87,6 +87,7 @@ export default async function LernenPage() {
           initialChecklistHistory={checklistHistory}
           gussData={tradingIndicators.guss}
           vwapVectorData={tradingIndicators.vwapVector}
+          cvdData={tradingIndicators.cvd}
         />
       </section>
 

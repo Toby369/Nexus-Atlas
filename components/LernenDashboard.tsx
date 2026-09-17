@@ -13,9 +13,9 @@ import {
 } from "@/lib/leitner";
 import { learningStreak, overview, perCategory, type QuizEntry } from "@/lib/quizStatistik";
 import type { MeinSystemChecklistData } from "@/lib/meinSystemContext";
-import type { GussSignalData, VwapVectorData } from "@/lib/tradingIndicatorsContext";
+import type { CvdFootprintData, GussSignalData, VwapVectorData } from "@/lib/tradingIndicatorsContext";
 import PanelInfo from "@/components/PanelInfo";
-import { GussSignalCard, VwapVectorCard } from "@/components/TradingIndicatorsCards";
+import { CvdFootprintCard, GussSignalCard, VwapVectorCard } from "@/components/TradingIndicatorsCards";
 
 // Lernplattform-Kachel (Leitner-Karteikasten), Nutzer-Wunsch "wie im
 // Trading Journal" -- Konzept aus KachelQuiz.vue/Lernen.vue im Crypto-
@@ -67,6 +67,7 @@ export default function LernenDashboard({
   initialChecklistHistory,
   gussData,
   vwapVectorData,
+  cvdData,
 }: {
   initialCards: QuizCard[];
   initialProgress: QuizProgressRow[];
@@ -75,6 +76,7 @@ export default function LernenDashboard({
   initialChecklistHistory: ChecklistRun[];
   gussData: GussSignalData;
   vwapVectorData: VwapVectorData;
+  cvdData: CvdFootprintData;
 }) {
   const [cards, setCards] = useState(initialCards);
   const [progressRows, setProgressRows] = useState(initialProgress);
@@ -146,6 +148,7 @@ export default function LernenDashboard({
           initialChecklistHistory={initialChecklistHistory}
           gussData={gussData}
           vwapVectorData={vwapVectorData}
+          cvdData={cvdData}
         />
       )}
     </div>
@@ -740,12 +743,14 @@ function WissenPanel({
   initialChecklistHistory,
   gussData,
   vwapVectorData,
+  cvdData,
 }: {
   knowledgeBase: KnowledgeBaseEntry[];
   meinSystemData: MeinSystemChecklistData;
   initialChecklistHistory: ChecklistRun[];
   gussData: GussSignalData;
   vwapVectorData: VwapVectorData;
+  cvdData: CvdFootprintData;
 }) {
   const [module, setModule] = useState<WissenModule>("welz");
   const [checklistHistory, setChecklistHistory] = useState(initialChecklistHistory);
@@ -812,6 +817,7 @@ function WissenPanel({
           <MeinSystemLiveValues data={meinSystemData} />
           <GussSignalCard data={gussData} />
           <VwapVectorCard data={vwapVectorData} />
+          <CvdFootprintCard data={cvdData} />
           <ChecklistBlock
             title="Entry-Regelwerk"
             items={MEIN_SYSTEM_MANUAL_CHECKLIST}

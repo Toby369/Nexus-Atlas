@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import { detectFractalSwings, emaSeries, type FractalSwingResult } from "./swingDetection";
+import { detectFractalSwings, emaSeries, findPivots, type FractalSwingResult } from "./swingDetection";
 import { isTrendingRegime } from "./marketRegime";
 import type { MarketRegime } from "./types";
 
@@ -423,18 +423,176 @@ export async function getVwapVectorData(): Promise<VwapVectorData> {
   return computeVwapVector(await fetchBaseData());
 }
 
+// --- CVD Footprint (Umsetzungsplan Phase 3) ---------------------------
+
+// Wie viele der juengsten 1H-Kerzen aus dem gemeinsamen fetchBaseData()-
+// Fenster fuer die CVD-Berechnung genutzt werden (Untermenge von
+// GUSS_CANDLE_LOOKBACK) -- 48h decken sowohl den Trend-Lookback (5) als
+// auch den Divergenz-Lookback (10) mit deutlicher Reserve ab, ohne bei
+// jedem Seitenaufruf unnoetig viele 1-Minuten-Zeilen laden zu muessen.
+const CVD_HIGHER_TF_LOOKBACK = 48;
+// Gleicher Lookback wie CVD_TREND_LOOKBACK in collect-candles -- dieselbe
+// rising/falling/flat-Klassifikation, hier auf dem Intrabar-1m-Rollup statt
+// auf dem Naeherungswert der Kerzen-Richtung angewendet.
+const CVD_TREND_LOOKBACK = 5;
+// Mo's Pine-Skript nutzt divLb=10 fuer die Pivot-basierte Divergenz-
+// Erkennung -- derselbe Wert hier fuer findPivots().
+const CVD_DIVERGENCE_LOOKBACK = 10;
+
+export interface CvdDivergence {
+  type: "bullish" | "bearish";
+  atOpenTime: string;
+}
+
+export interface CvdFootprintData {
+  higherTf: "1h";
+  latestDelta: number | null;
+  latestCumulative: number | null;
+  trend: "rising" | "falling" | "flat" | null;
+  divergence: CvdDivergence | null;
+  dataAsOf: string | null;
+}
+
+function hourBucketKey(iso: string): number {
+  return Math.floor(Date.parse(iso) / 3_600_000);
+}
+
+// Aggregiert die reale 1-Minuten-Taker-Buy/Sell-Differenz (aus candles.
+// taker_buy_base_vol -- echte Binance-Aggressor-Seite, siehe collect-
+// candles-Kommentar) INNERHALB jeder 1H-Kerze zu einem echten Intrabar-
+// CVD-Footprint. Das ist NICHT dasselbe wie market_features.cvd_delta
+// (dort: 2*taker_buy_base_vol-volume AM NATIVEN INTERVALL selbst, kein
+// 1-Minuten-Rollup) -- siehe lib/panelInfo.ts::cvdFootprintInfo fuer die
+// Abgrenzung.
+export function bucketMinuteDeltas(
+  candles1h: Candle[],
+  minuteRows: { open_time: string; volume: number; taker_buy_base_vol: number | null }[]
+): number[] {
+  const bucketIndex = new Map<number, number>();
+  candles1h.forEach((c, i) => bucketIndex.set(hourBucketKey(c.openTime), i));
+
+  const delta = new Array(candles1h.length).fill(0);
+  for (const row of minuteRows) {
+    const idx = bucketIndex.get(hourBucketKey(row.open_time));
+    if (idx === undefined) continue; // ausserhalb des geladenen 1H-Fensters
+    const takerBuy = row.taker_buy_base_vol ?? 0;
+    delta[idx] += 2 * takerBuy - row.volume;
+  }
+  return delta;
+}
+
+export function classifyCvdTrend(delta: number[], cumulative: number[], lookback: number): "rising" | "falling" | "flat" | null {
+  const i = cumulative.length - 1;
+  if (i < lookback) return null;
+  const change = cumulative[i] - cumulative[i - lookback];
+  const recentAvgAbsDelta =
+    delta.slice(i - lookback + 1, i + 1).reduce((a, b) => a + Math.abs(b), 0) / lookback;
+  const flatThreshold = recentAvgAbsDelta * 0.5;
+  if (Math.abs(change) < flatThreshold) return "flat";
+  return change > 0 ? "rising" : "falling";
+}
+
+// Klassische Preis-/Oszillator-Divergenz: an den juengsten zwei Preis-
+// Pivot-Hochs (bzw. -Tiefs) wird NICHT ein eigenes CVD-Pivot verlangt,
+// sondern der CVD-Wert an genau diesen Preis-Pivot-Indizes verglichen --
+// Standard-Divergenz-Definition (wie bei RSI/MACD-Divergenz), robuster als
+// zwei unabhaengige, potenziell versetzte Pivot-Serien gegeneinander
+// abzugleichen.
+export function detectCvdDivergence(
+  candles: Candle[],
+  cumulative: number[],
+  lookback: number
+): CvdDivergence | null {
+  const closes = candles.map((c) => c.close);
+  const pivots = findPivots(closes, lookback);
+  const highs = pivots.filter((p) => p.kind === "high");
+  const lows = pivots.filter((p) => p.kind === "low");
+
+  let best: CvdDivergence | null = null;
+  let bestIdx = -1;
+
+  if (highs.length >= 2) {
+    const prev = highs[highs.length - 2];
+    const latest = highs[highs.length - 1];
+    if (latest.value > prev.value && cumulative[latest.index] < cumulative[prev.index]) {
+      best = { type: "bearish", atOpenTime: candles[latest.index].openTime };
+      bestIdx = latest.index;
+    }
+  }
+  if (lows.length >= 2) {
+    const prev = lows[lows.length - 2];
+    const latest = lows[lows.length - 1];
+    if (latest.value < prev.value && cumulative[latest.index] > cumulative[prev.index] && latest.index > bestIdx) {
+      best = { type: "bullish", atOpenTime: candles[latest.index].openTime };
+    }
+  }
+  return best;
+}
+
+async function computeCvdFootprint(base: TradingIndicatorsBaseData): Promise<CvdFootprintData> {
+  const candles1h = base.candles.slice(-CVD_HIGHER_TF_LOOKBACK);
+  const lastCandle = candles1h[candles1h.length - 1] ?? null;
+
+  if (candles1h.length < CVD_DIVERGENCE_LOOKBACK * 2 + 1) {
+    return { higherTf: "1h", latestDelta: null, latestCumulative: null, trend: null, divergence: null, dataAsOf: lastCandle?.openTime ?? null };
+  }
+
+  const { data: minuteRows, error } = await supabase
+    .from("candles")
+    .select("open_time, volume, taker_buy_base_vol")
+    .eq("exchange", "binance")
+    .eq("symbol", "BTCUSDT")
+    .eq("interval", "1m")
+    .gte("open_time", candles1h[0].openTime)
+    .order("open_time", { ascending: true })
+    .limit(CVD_HIGHER_TF_LOOKBACK * 60 + 200);
+
+  if (error) {
+    console.error("tradingIndicatorsContext: Fehler beim Laden der 1m-Kerzen fuer CVD:", error.message);
+  }
+
+  const rows = (minuteRows ?? []).map((r) => ({
+    open_time: r.open_time as string,
+    volume: Number(r.volume),
+    taker_buy_base_vol: r.taker_buy_base_vol === null ? null : Number(r.taker_buy_base_vol),
+  }));
+
+  const delta = bucketMinuteDeltas(candles1h, rows);
+  const cumulative: number[] = [];
+  let cum = 0;
+  for (const d of delta) {
+    cum += d;
+    cumulative.push(cum);
+  }
+
+  return {
+    higherTf: "1h",
+    latestDelta: delta[delta.length - 1] ?? null,
+    latestCumulative: cumulative[cumulative.length - 1] ?? null,
+    trend: classifyCvdTrend(delta, cumulative, CVD_TREND_LOOKBACK),
+    divergence: detectCvdDivergence(candles1h, cumulative, CVD_DIVERGENCE_LOOKBACK),
+    dataAsOf: lastCandle?.openTime ?? null,
+  };
+}
+
+export async function getCvdFootprintData(): Promise<CvdFootprintData> {
+  return computeCvdFootprint(await fetchBaseData());
+}
+
 // --- Kombinierter Einstiegspunkt (von app/lernen/page.tsx genutzt) -----
 
 export interface TradingIndicatorsData {
   guss: GussSignalData;
   vwapVector: VwapVectorData;
+  cvd: CvdFootprintData;
 }
 
 export async function getTradingIndicatorsData(): Promise<TradingIndicatorsData> {
   const base = await fetchBaseData();
-  const [guss, vwapVector] = await Promise.all([
+  const [guss, vwapVector, cvd] = await Promise.all([
     Promise.resolve(computeGuss(base)),
     computeVwapVector(base),
+    computeCvdFootprint(base),
   ]);
-  return { guss, vwapVector };
+  return { guss, vwapVector, cvd };
 }

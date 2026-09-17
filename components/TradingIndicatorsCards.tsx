@@ -1,13 +1,14 @@
 "use client";
 
 import type {
+  CvdFootprintData,
   GussSignalData,
   GussVariantData,
   VwapVectorData,
   VwapEmaFan,
 } from "@/lib/tradingIndicatorsContext";
 import PanelInfo from "@/components/PanelInfo";
-import { gussSignalInfo, vwapVectorInfo } from "@/lib/panelInfo";
+import { cvdFootprintInfo, gussSignalInfo, vwapVectorInfo } from "@/lib/panelInfo";
 
 // UI-Karten fuer Tobys eigene Trading-Indikatoren (GUSS/VWAP-Vector/CVD --
 // Umsetzungsplan "Exakte Faktoren"). Ausgelagert aus LernenDashboard.tsx
@@ -165,6 +166,68 @@ export function VwapVectorCard({ data }: { data: VwapVectorData }) {
               <span className="text-text">{formatPrice(level.price)}</span>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatDelta(value: number | null): string {
+  if (value === null) return "—";
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toFixed(2)}`;
+}
+
+const CVD_TREND_LABEL: Record<"rising" | "falling" | "flat", string> = {
+  rising: "steigend",
+  falling: "fallend",
+  flat: "seitwärts",
+};
+
+const CVD_TREND_CLASS: Record<"rising" | "falling" | "flat", string> = {
+  rising: "text-up",
+  falling: "text-down",
+  flat: "text-text-faint",
+};
+
+export function CvdFootprintCard({ data }: { data: CvdFootprintData }) {
+  return (
+    <div className="rounded-lg border border-border bg-surface-raised p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <p className="text-xs font-medium text-text-muted">CVD-Footprint ({data.higherTf})</p>
+          <PanelInfo title="CVD-Footprint" content={cvdFootprintInfo} />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-text-faint">Delta (letzte Kerze)</span>
+        <span className={data.latestDelta === null ? "text-text-faint" : data.latestDelta >= 0 ? "text-up" : "text-down"}>
+          {formatDelta(data.latestDelta)}
+        </span>
+      </div>
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-text-faint">Kumulativ (Fenster)</span>
+        <span className={data.latestCumulative === null ? "text-text-faint" : data.latestCumulative >= 0 ? "text-up" : "text-down"}>
+          {formatDelta(data.latestCumulative)}
+        </span>
+      </div>
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-text-faint">Trend</span>
+        <span className={data.trend === null ? "text-text-faint" : CVD_TREND_CLASS[data.trend]}>
+          {data.trend === null ? "—" : CVD_TREND_LABEL[data.trend]}
+        </span>
+      </div>
+
+      {data.divergence && (
+        <div
+          className={`rounded-md border p-2 text-xs ${
+            data.divergence.type === "bearish" ? "border-down/40 bg-down/10 text-down" : "border-up/40 bg-up/10 text-up"
+          }`}
+        >
+          {data.divergence.type === "bearish" ? "Bärische" : "Bullische"} CVD-Divergenz seit{" "}
+          {new Date(data.divergence.atOpenTime).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit" })} —
+          Interpretationshilfe, kein Handelssignal.
         </div>
       )}
     </div>
