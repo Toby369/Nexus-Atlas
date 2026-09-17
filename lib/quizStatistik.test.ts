@@ -12,6 +12,7 @@ function card(overrides: Partial<QuizCard> = {}): QuizCard {
     category: null,
     active: true,
     created_at: "2026-09-01T00:00:00Z",
+    pattern_key: null,
     ...overrides,
   };
 }

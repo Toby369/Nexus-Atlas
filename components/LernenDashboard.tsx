@@ -16,6 +16,7 @@ import type { MeinSystemChecklistData } from "@/lib/meinSystemContext";
 import type { CvdFootprintData, GussSignalData, VwapVectorData } from "@/lib/tradingIndicatorsContext";
 import PanelInfo from "@/components/PanelInfo";
 import { CvdFootprintCard, GussSignalCard, VwapVectorCard } from "@/components/TradingIndicatorsCards";
+import { CandlestickPatternIllustration } from "@/components/CandlestickPatternIllustration";
 
 // Lernplattform-Kachel (Leitner-Karteikasten), Nutzer-Wunsch "wie im
 // Trading Journal" -- Konzept aus KachelQuiz.vue/Lernen.vue im Crypto-
@@ -239,6 +240,7 @@ function SessionPanel({
         </div>
 
         <div className="min-h-[140px] flex flex-col justify-center text-center gap-3 py-4">
+          {entry.card.pattern_key && <CandlestickPatternIllustration pattern={entry.card.pattern_key} />}
           <p className="text-base font-medium text-text">{entry.card.question}</p>
           {!revealed ? (
             <div className="space-y-2 text-left">

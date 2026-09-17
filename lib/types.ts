@@ -460,6 +460,10 @@ export interface QuizCard {
   category: string | null;
   active: boolean;
   created_at: string;
+  // Optionaler Lookup-Schluessel fuer eine feste, im Code hinterlegte SVG-
+  // Illustration (siehe components/CandlestickPatternIllustration.tsx) --
+  // kein Bild-Upload/Speicher, nur fuer Kerzenmuster-Karten gesetzt.
+  pattern_key: string | null;
 }
 
 // Referenz-Wissen fuer die Wissens-Kacheln (Welz/Salomon/Mein System),
