@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import type {
   AnchoredSummary,
   DashboardPollBundle,
@@ -22,6 +23,7 @@ import type {
   SignalReviewSnapshot,
   TradeDebateSnapshot,
   CustomQueryRun,
+  ChartVisionAnalysis,
   TradingViewSignal,
   YoutubeVideoAnalysis,
   YoutubeOverallAnalysis,
@@ -60,6 +62,7 @@ import SignalReviewCard from "@/components/SignalReviewCard";
 import EscalationCard from "@/components/EscalationCard";
 import TradeDebateCard from "@/components/TradeDebateCard";
 import CustomQueryCard from "@/components/CustomQueryCard";
+import ChartVisionCard from "@/components/ChartVisionCard";
 import YoutubeMonitorCard from "@/components/YoutubeMonitorCard";
 import { getYoutubeMonitorConfig } from "@/lib/youtubeMonitorContext";
 import LeverageMapCard from "@/components/LeverageMapCard";
@@ -296,6 +299,50 @@ async function getLatestCustomQueries(): Promise<CustomQueryRun[]> {
     return [];
   }
   return data ?? [];
+}
+
+const CHART_VISION_BUCKET = "chart-vision-screenshots";
+const CHART_VISION_SIGNED_URL_TTL_SECONDS = 60 * 60;
+
+// Chart-Vision (Umsetzungsplan "Chart-Vision: LSOB & Trendlinien lesen",
+// Phase 3) -- nutzt bewusst getSupabaseAdmin() statt des anon-Clients
+// (anders als sonstige getLatest*-Funktionen hier): der Storage-Bucket ist
+// privat (keine anon-Policy, siehe Migration), Signed URLs koennen nur
+// server-seitig mit Service-Role erzeugt werden. chart_vision_analyses hat
+// aus demselben Grund bewusst KEINE anon-SELECT-Policy (siehe Migration).
+async function getLatestChartVisionAnalyses(): Promise<ChartVisionAnalysis[]> {
+  const admin = getSupabaseAdmin();
+  const { data, error } = await admin
+    .from("chart_vision_analyses")
+    .select("*")
+    .order("generated_at", { ascending: false })
+    .limit(10);
+
+  if (error) {
+    console.error("Fehler beim Laden der Chart-Vision-Analysen:", error.message);
+    return [];
+  }
+  const rows = (data ?? []) as ChartVisionAnalysis[];
+  if (rows.length === 0) return rows;
+
+  const { data: signedUrls, error: signedUrlError } = await admin.storage
+    .from(CHART_VISION_BUCKET)
+    .createSignedUrls(
+      rows.map((r) => r.storage_path),
+      CHART_VISION_SIGNED_URL_TTL_SECONDS
+    );
+
+  if (signedUrlError) {
+    console.error("Fehler beim Erzeugen der Chart-Vision-Signed-URLs:", signedUrlError.message);
+    return rows;
+  }
+
+  const urlByPath = new Map<string, string>(
+    (signedUrls ?? [])
+      .filter((s): s is typeof s & { path: string; signedUrl: string } => !s.error && Boolean(s.path) && Boolean(s.signedUrl))
+      .map((s) => [s.path, s.signedUrl])
+  );
+  return rows.map((r) => ({ ...r, signedUrl: urlByPath.get(r.storage_path) ?? undefined }));
 }
 
 // Krypto-YouTube-Monitor (Thema KI, 05.09.2026): letzte gespeicherte
@@ -639,6 +686,7 @@ export default async function Home({
     latestEscalation,
     latestTradeDebate,
     latestCustomQueries,
+    latestChartVisionAnalyses,
     latestYoutubeAnalyses,
     youtubeMonitorConfig,
     latestYoutubeOverallAnalysis,
@@ -673,6 +721,7 @@ export default async function Home({
     getLatestEscalation(),
     getLatestTradeDebate(),
     getLatestCustomQueries(),
+    getLatestChartVisionAnalyses(),
     getLatestYoutubeAnalyses(),
     getYoutubeMonitorConfig(),
     getLatestYoutubeOverallAnalysis(),
@@ -851,6 +900,7 @@ export default async function Home({
                     ),
                     "trade-debate": <TradeDebateCard initialSnapshot={latestTradeDebate} />,
                     "custom-query": <CustomQueryCard initialRuns={latestCustomQueries} />,
+                    "chart-vision": <ChartVisionCard initialAnalyses={latestChartVisionAnalyses} />,
                     "youtube-monitor": (
                       <YoutubeMonitorCard
                         initialAnalyses={latestYoutubeAnalyses}

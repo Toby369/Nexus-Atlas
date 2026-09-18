@@ -720,3 +720,41 @@ export interface CustomQueryRun {
   status: "ok" | "error";
   error: string | null;
 }
+
+// Chart-Vision (Umsetzungsplan "Chart-Vision: LSOB & Trendlinien lesen",
+// Phase 3) -- siehe lib/ai/chartVisionAnalysis.ts (Analyse) + ChartVisionCard.tsx.
+export interface ChartVisionResult {
+  overallReadability: "clear" | "partial" | "illegible";
+  lsob: {
+    visible: boolean;
+    zoneCount: number | null;
+    description: string;
+    relationToPrice: "above" | "below" | "at" | "mixed" | "unclear";
+  };
+  trendlines: {
+    visible: boolean;
+    count: number | null;
+    description: string;
+    relationToPrice: string;
+  };
+  visiblePriceLabel: string | null;
+  confidence: number;
+  caveats: string[];
+  summary: string;
+}
+
+export interface ChartVisionAnalysis {
+  id: number;
+  generated_at: string;
+  storage_path: string;
+  image_mime_type: string;
+  note: string | null;
+  provider: string | null;
+  model: string | null;
+  result: ChartVisionResult | null;
+  status: "ok" | "error";
+  error: string | null;
+  // Nur serverseitig ergaenzt (app/page.tsx), keine DB-Spalte -- 1h-gueltige
+  // Signed URL fuer den privaten Storage-Bucket.
+  signedUrl?: string;
+}

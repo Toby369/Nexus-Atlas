@@ -52,6 +52,7 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "trade-debate", title: "Trade-Debate (KI)" },
   { id: "custom-query", title: "Freie Anfrage (KI)" },
   { id: "youtube-monitor", title: "Krypto-YouTube-Monitor (KI)" },
+  { id: "chart-vision", title: "Chart-Vision: LSOB & Trendlinien (KI)" },
   { id: "positioning", title: "Positionierung" },
   { id: "liquidations", title: "Liquidationen" },
   { id: "etf-flow", title: "ETF-Flows & Makro" },
