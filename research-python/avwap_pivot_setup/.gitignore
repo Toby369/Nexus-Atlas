@@ -1,0 +1,5 @@
+data/*.csv
+output/*.csv
+output/*.pkl
+__pycache__/
+.pytest_cache/
