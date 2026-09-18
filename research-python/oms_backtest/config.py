@@ -47,5 +47,12 @@ class BacktestParams:
     max_leverage: float = 10.0
 
 
-TIMEFRAMES = ["1m", "5m"]  # Strategie-Vorgabe: "bevorzugt 1m bis 5m bei volatilen Crypto-Pairs"
+TIMEFRAMES = ["1m", "5m", "15m"]
+# Strategie-Vorgabe: "bevorzugt 1m bis 5m bei volatilen Crypto-Pairs". 15m
+# zusaetzlich auf Nutzer-Wunsch (18.09.2026) getestet, NACHDEM sich zeigte,
+# dass die Strategie unter dieser exakten SL-Regel (eigener Ausbruchskerzen-
+# Docht) auf 1m/5m mit realistischen Fees strukturell nicht handelbar ist
+# (siehe backtest_report.md "Kritische Einordnung") -- auf 15m sind Dochte
+# typischerweise ein groesserer Anteil des Preises, das Fee/Risiko-
+# Verhaeltnis damit potenziell guenstiger.
 DIRECTIONS = ["long", "short"]

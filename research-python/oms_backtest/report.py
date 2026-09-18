@@ -132,6 +132,23 @@ def _leverage_cap_share_table_md(trades_by_bucket: dict[tuple[str, str], list[Tr
     return header + "\n".join(rows)
 
 
+def _fee_drag_table_md(trades_by_bucket: dict[tuple[str, str], list[Trade]]) -> str:
+    header = (
+        "| Timeframe | Nicht Hebel-gedeckelt (n) | Ø Netto-Return dieser Trades | "
+        "Median SL-Abstand (% vom Preis) |\n"
+        "|---|---|---|---|\n"
+    )
+    rows = []
+    for tf in TIMEFRAMES:
+        not_capped = [t for t in trades_by_bucket.get((tf, "long"), []) + trades_by_bucket.get((tf, "short"), []) if not t.leverage_capped]
+        n = len(not_capped)
+        avg_return = sum(t.net_return_pct for t in not_capped) / n * 100 if n else float("nan")
+        risk_pcts = sorted((t.risk_price_distance / t.entry_price * 100) for t in not_capped)
+        median_risk_pct = risk_pcts[len(risk_pcts) // 2] if risk_pcts else float("nan")
+        rows.append(f"| {tf} | {n} | {_fmt(avg_return, 3, '%')} | {_fmt(median_risk_pct, 3, '%')} |")
+    return header + "\n".join(rows)
+
+
 def _raw_signal_quality_table_md(metrics: list[BucketMetrics]) -> str:
     header = (
         "| Timeframe | Richtung | Trades | Ø R-Multiple (brutto, ohne Fees) | Anteil R > 0 |\n"
@@ -206,6 +223,15 @@ def write_report_md(
     )
     lines.append(_leverage_cap_share_table_md(trades_by_bucket) + "\n")
 
+    lines.append("## Fee-Drag auch bei NICHT gedeckelten Trades\n")
+    lines.append(
+        "Selbst Trades, die NICHT vom Hebel-Deckel betroffen waren, verlieren im Schnitt Geld -- "
+        "das Fee/Risiko-Verhältnis ist bei den typischen SL-Abständen dieser Strategie (Docht der "
+        "Ausbruchskerze) auf allen drei Timeframes ungünstig, nicht nur bei den extrem engen "
+        "1m-Ausreißern. Siehe \"Kritische Einordnung\" für die Einordnung.\n"
+    )
+    lines.append(_fee_drag_table_md(trades_by_bucket) + "\n")
+
     lines.append("## Rohsignal-Qualität (ohne Fees/Positionsgrößen-Modell)\n")
     lines.append(
         "Rein preisbasierte Kennzahlen (R-Multiple aus Entry/Exit-Preisen, KEINE Fees, KEINE "
@@ -220,32 +246,41 @@ def write_report_md(
 
     lines.append("## Kritische Einordnung\n")
     lines.append(
-        "- **WICHTIG -- Total Return nahe -100% ist ein Fee-/Positionsgrößen-Artefakt, KEIN Urteil "
-        "über die Signalqualität**: Auf 1m/5m kann der Docht der Ausbruchskerze selbst (= SL-"
-        "Abstand bei dieser Strategie) extrem klein werden -- im hier verwendeten Datensatz teils "
-        "unter 1 USD bei einem BTC-Preis von über 60000 USD. Eine reine \"riskiere fix 1% Equity\"-"
-        "Positionsgrößen-Regel würde in diesem Fall eine absurd große Notional-Position verlangen. "
-        "Der `max_leverage`-Deckel (10x, `config.py`) verhindert zwar die vollständige Kontovernich"
-        "tung durch einen EINZELNEN solchen Trade (ohne Deckel: Total Return exakt -100% in jedem "
-        "Bucket bereits nach wenigen Trades) -- er löst das Grundproblem aber nicht: Sobald der "
-        "Deckel greift, ist die Positionsgröße NICHT MEHR vom (winzigen) SL-Abstand abhängig, "
-        "sondern fix bei `max_leverage * Equity / Preis`. Die dadurch anfallenden Fees "
-        "(2 x Taker-Fee auf diese fixe Notional) sind bei diesem Preis-Niveau UNABHÄNGIG davon, ob "
-        "der Trade gewinnt oder verliert, groesser als der durch den winzigen Preis-Abstand "
-        "erzielbare Brutto-Gewinn -- das Ergebnis ist ein garantierter kleiner Netto-Verlust auf "
-        "praktisch JEDEM gedeckelten Trade (siehe Tabelle oben: Ø Netto-Return der gedeckelten "
-        "Trades liegt konsistent um ca. -1.2%, unabhängig von Gewinn/Verlust-Ausgang), der sich "
-        "über tausende Trades multiplikativ zu einem Totalverlust aufsummiert. Auf 1m betrifft das "
-        "die deutliche Mehrheit aller Trades (siehe Anteil in der Tabelle) -- **diese Strategie ist "
-        "unter dieser exakten SL-Regel (Docht der eigenen Ausbruchskerze) und einer realistischen "
-        "Taker-Fee von 0.06%/Seite auf 1m/5m mit fixem Prozent-Risiko-Sizing strukturell nicht "
-        "handelbar**, selbst wenn die zugrunde liegende SR-Ausbruchs-Logik gerichtete Substanz "
-        "hätte. Das ist ein Befund über das Zusammenspiel von SL-Regel, Timeframe und Fee-Struktur "
-        "-- kein Bug im Backtest und keine erfundene Zusatzregel: Es wurde keine Mindest-SL-Distanz "
-        "oder sonstige Filterung der Signale eingeführt, um dieses Problem zu verdecken. Die "
-        "Rohsignal-Qualität (R-Multiple, siehe Tabelle unten) ist DESHALB die aussagekräftigere "
-        "Kennzahl für die reine SR-Ausbruchs-Logik dieser Strategie auf 1m/5m -- die Netto-Equity-"
-        "Kennzahlen oben sind für diese Timeframes praktisch nicht interpretierbar.\n"
+        "- **WICHTIG -- Total Return nahe -100% auf ALLEN DREI Timeframes ist primär ein "
+        "Fee/Risiko-Verhältnis-Problem der SL-Regel selbst, kein reines 1m/5m-Mikrostruktur-"
+        "Artefakt**: Ursprüngliche Annahme war, dass nur extrem enge Dochte auf 1m/5m (teils unter "
+        "1 USD bei einem BTC-Preis über 60000 USD) das Problem verursachen -- der Test auf 15m "
+        "(Nutzer-Wunsch, nachdem 1m/5m so nicht handelbar waren) zeigt aber: Auch auf 15m, wo nur "
+        "noch ein kleiner Teil der Trades ueberhaupt den Hebel-Deckel erreicht (siehe Tabelle "
+        "oben), bleibt der Total Return nahe -100%. Der Grund liegt tiefer: Diese Strategie setzt "
+        "den SL exakt an den Docht der eigenen Ausbruchskerze -- das ist strukturell ein ENGER "
+        "Stop (Median-SL-Abstand ueber alle drei Timeframes zwischen 0.13% und 0.28% des Preises, "
+        "siehe Tabelle \"Fee-Drag auch bei NICHT gedeckelten Trades\"). Bei einer fixen "
+        "Prozent-Risiko-Positionsgroesse (1% Equity) und einer taker-typischen Fee von 0.06% pro "
+        "Seite (0.12% Round-Trip) macht die Fee bei einem SL-Abstand von z.B. 0.26% des Preises "
+        "bereits ca. 2*0.06%/0.26% ≈ 46% des eingesetzten Ziel-Risikos aus -- UNABHÄNGIG davon, ob "
+        "der Trade gewinnt oder verliert, und UNABHÄNGIG vom Hebel-Deckel. Genau das zeigt sich in "
+        "den Daten: SELBST die nicht gedeckelten Trades verlieren im Schnitt Geld auf allen drei "
+        "Timeframes (siehe Tabelle oben, -0.48% bis -0.87% Ø Netto-Return je Trade), was sich ueber "
+        "hunderte bis tausende Trades multiplikativ zu einem Totalverlust aufsummiert. Der "
+        "Hebel-Deckel (10x, `config.py`) verhindert nur die KATASTROPHALE Sofort-Vernichtung durch "
+        "einen einzelnen Sub-Cent-Wick-Trade (ohne Deckel: garantiert -100% nach wenigen solchen "
+        "Trades) -- er behebt aber nicht das Grundproblem, dass diese SL-Regel + Fee-Struktur + "
+        "Prozent-Risiko-Sizing zusammen bei JEDEM Timeframe einen negativen Erwartungswert "
+        "erzeugen, VOR jeder Betrachtung der eigentlichen Trefferquote der SR-Logik. **Diese "
+        "Strategie ist unter dieser exakten SL-Regel (Docht der eigenen Ausbruchskerze) und einer "
+        "realistischen Taker-Fee von 0.06%/Seite mit fixem Prozent-Risiko-Sizing auf keinem der "
+        "drei getesteten Timeframes profitabel handelbar** -- unabhaengig davon, wie gut die "
+        "zugrunde liegende SR-Ausbruchs-Logik selbst waere. Das ist ein Befund über das "
+        "Zusammenspiel von SL-Regel, Fee-Struktur und Positionsgrößen-Modell -- kein Bug im "
+        "Backtest und keine erfundene Zusatzregel: Es wurde keine Mindest-SL-Distanz oder sonstige "
+        "Filterung der Signale eingeführt, um dieses Problem zu verdecken. Die Rohsignal-Qualität "
+        "(R-Multiple, siehe Tabelle unten) ist DESHALB die aussagekräftigere Kennzahl für die reine "
+        "SR-Ausbruchs-Logik dieser Strategie -- sie zeigt uebrigens selbst OHNE das Fee-Problem nur "
+        "eine sehr moderate, nahe-neutrale Substanz (Ø R zwischen -0.03 und +0.12, siehe unten), "
+        "sodass ein realistischer Fee-Abzug diese ohnehin schon schwache Kante zusaetzlich "
+        "auffrisst. Die Netto-Equity-Kennzahlen oben sind fuer alle drei Timeframes praktisch nicht "
+        "interpretierbar als Handelsergebnis.\n"
     )
     lines.append(
         "- **Overfitting-Risiko**: Die Parameter stammen aus dem Nutzer-Bericht zu einer fremden "
@@ -281,12 +316,6 @@ def write_report_md(
         "das Nachziehen des Stops auf Break-Even wirkt erst ab der Bar NACH Erreichen der Schwelle "
         "(siehe backtest.py `_resolve_exit_with_be`) -- beides sind eigene, dokumentierte "
         "Konventionen zur Vermeidung von Intrabar-Ordnungs-Ambiguität, keine Pine-Vorgabe.\n"
-    )
-    lines.append(
-        "- **1m/5m-Timeframes sind besonders anfällig für Fee- und Slippage-Verzerrung**: bei sehr "
-        "kurzen Timeframes machen 0.06% Fee pro Seite (0.12% Round-Trip) einen relativ größeren "
-        "Anteil der typischen Kursbewegung pro Trade aus als auf 15m/1h/4h -- die hier gezeigten "
-        "Netto-Kennzahlen reagieren empfindlicher auf die Fee-Annahme als im LSOB-Backtest.\n"
     )
     lines.append(
         "- **Getrennte Kapitalpools**: jede Timeframe/Richtung-Kombination simuliert mit einem "

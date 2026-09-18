@@ -21,7 +21,12 @@ In diesem Fall wurden die CSVs aus Nexus Atlas' eigener Supabase-`candles`-Tabel
 ```
 data/BTCUSDT_1m.csv
 data/BTCUSDT_5m.csv
+data/BTCUSDT_15m.csv
 ```
+
+15m kam auf Nutzer-Wunsch (18.09.2026) hinzu, nachdem sich zeigte, dass die Strategie auf 1m/5m
+mit realistischen Fees strukturell nicht handelbar ist (siehe unten) — die 15m-CSV ist identisch
+mit der bereits im `lsob_backtest`-Projekt vorhandenen (gleicher Zeitraum, gleiche Quelle).
 
 Spaltennamen sind flexibel (siehe `_COLUMN_ALIASES` in `data_loader.py`), erwartet werden
 sinngemaess: eine Zeitspalte (Unix-Timestamp in s/ms ODER ISO-Datum) plus `open`, `high`, `low`,
@@ -39,7 +44,7 @@ python run_backtest.py --source ccxt   # nur mit echtem Netzwerkzugriff
 Ergebnisse landen in `output/`:
 - `backtest_report.md` — Kennzahlen-Tabellen + kritische Einordnung
 - `equity_curves.png` — Equity-Kurven je Timeframe (Long/Short überlagert)
-- `trades_1m.csv`, `trades_5m.csv` — Trade-Rohdaten
+- `trades_1m.csv`, `trades_5m.csv`, `trades_15m.csv` — Trade-Rohdaten
 
 ## Tests
 
@@ -89,6 +94,17 @@ pytest
   absurd große Notional verlangen und allein durch Fees das Equity vernichten (ohne diesen Deckel
   war das Ergebnis eines ersten Testlaufs exakt -100% Total Return in jedem Bucket). Mit dem Deckel
   riskieren solche Trades bewusst weniger als das Ziel-Risiko — siehe `backtest_report.md`.
+
+## Ergebnis (Kurzfassung)
+
+Auf **allen drei getesteten Timeframes (1m/5m/15m) ist die Strategie unter dieser exakten SL-Regel
+(Docht der eigenen Ausbruchskerze) mit einer realistischen Taker-Fee von 0.06%/Seite und fixem
+Prozent-Risiko-Sizing NICHT profitabel handelbar** — auch nicht auf 15m, wo der Hebel-Deckel nur
+noch ~10% der Trades betrifft. Grund: der typische SL-Abstand dieser Strategie ist auf allen drei
+Timeframes klein (Median 0.13%–0.28% des Preises), sodass die Fee (0.12% Round-Trip) einen großen
+Teil des eingesetzten Ziel-Risikos aufzehrt — SELBST bei nicht Hebel-gedeckelten Trades. Die reine
+Rohsignal-Qualität (R-Multiple ohne Fees) ist ohnehin nur schwach positiv bis leicht negativ. Volle
+Herleitung mit Zahlen in `backtest_report.md`, Abschnitt "Kritische Einordnung".
 
 Siehe `backtest_report.md` (Abschnitt "Kritische Einordnung") für die vollständige Diskussion,
 inklusive Overfitting-Risiko und Backtest-≠-Live-Hinweis.
