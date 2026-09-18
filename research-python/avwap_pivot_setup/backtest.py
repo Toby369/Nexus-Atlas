@@ -57,18 +57,39 @@ def resolve_trade_exit(
     retrace_pct: float,
     vertical_bars: int,
 ):
+    """Wie `_resolve_trade_exit_arrays`, nimmt aber ein DataFrame entgegen und
+    konvertiert bei jedem Aufruf neu zu numpy-Arrays -- bequem fuer Tests/
+    Einzelaufrufe. `simulate_signals` (Hot Path, ein Aufruf pro Signal)
+    konvertiert stattdessen EINMAL und ruft `_resolve_trade_exit_arrays`
+    direkt auf, um die O(Signale * Kerzenanzahl) Neukonvertierung zu
+    vermeiden, die den Full-Dataset-Lauf unnoetig verlangsamt hat.
+    """
+    return _resolve_trade_exit_arrays(
+        df["high"].to_numpy(), df["low"].to_numpy(), df["close"].to_numpy(), df.index.to_numpy(),
+        entry_idx, is_long, entry_price, tp_pct, sl_pct, retrace_pct, vertical_bars,
+    )
+
+
+def _resolve_trade_exit_arrays(
+    highs: np.ndarray,
+    lows: np.ndarray,
+    closes: np.ndarray,
+    times: np.ndarray,
+    entry_idx: int,
+    is_long: bool,
+    entry_price: float,
+    tp_pct: float,
+    sl_pct: float,
+    retrace_pct: float,
+    vertical_bars: int,
+):
     """Identische Ausfuehrungs-Logik wie toby_setup_engine.run_toby_setup
     (SL/TP-Barrieren, danach Trailing-Ruecksetzer ab TP-Beruehrung), aber
     fuer einen EXPLIZIT VORGEGEBENEN Entry (Signal-Kerzen-Close) statt fuer
     jede Kerze -- Scan beginnt an der Kerze NACH dem Signal (kein Entry auf
     der Signal-Kerze selbst, sonst doppelte Verwendung derselben Kerze).
     """
-    n = len(df)
-    highs = df["high"].to_numpy()
-    lows = df["low"].to_numpy()
-    closes = df["close"].to_numpy()
-    times = df.index.to_numpy()
-
+    n = len(highs)
     window_end = min(entry_idx + 1 + vertical_bars, n)
     start = entry_idx + 1
 
@@ -141,13 +162,18 @@ def simulate_signals(
     lev = 20.0  # Tobys fixer Hebel
     notional = margin * lev
 
+    highs = df["high"].to_numpy()
+    lows = df["low"].to_numpy()
+    closes = df["close"].to_numpy()
+    times = df.index.to_numpy()
+
     trades: list[Trade] = []
     equity = bt_params.initial_equity
 
     for sig in sorted(signals, key=lambda s: s.bar_index):
         is_long = sig.direction == "LONG"
-        exit_price, reason, exit_time, moved_be, r_pct = resolve_trade_exit(
-            df, sig.bar_index, is_long, sig.entry_price,
+        exit_price, reason, exit_time, moved_be, r_pct = _resolve_trade_exit_arrays(
+            highs, lows, closes, times, sig.bar_index, is_long, sig.entry_price,
             bt_params.tp_pct, bt_params.sl_pct, bt_params.retrace_pct, vertical_bars,
         )
 
