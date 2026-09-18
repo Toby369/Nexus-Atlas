@@ -85,6 +85,21 @@ const NEWS_LOOKBACK_HOURS = 72;
 const LIQUIDATION_LOOKBACK_HOURS = 6;
 const LIQUIDATION_LIMIT = 300;
 const ETF_FLOW_LIMIT = 10;
+
+// Nutzer-Wunsch 18.09.2026: KI-Verlaufslisten/-Snapshots (Custom-Query,
+// Chart-Vision, Escalation, Trade-Debate, YouTube-Gesamtanalyse) sollen
+// aelter als 6h NICHT mehr angezeigt werden -- ein stehengebliebener, weit
+// veralteter Stand (z.B. weil ein neuerer Generierungsversuch scheiterte)
+// soll dann lieber als "noch nichts Aktuelles generiert" erscheinen statt
+// stillschweigend als aktuell zu wirken. Nur die ANZEIGE ist betroffen (rein
+// serverseitiger Query-Filter beim initialen Laden) -- die Zeilen bleiben in
+// der Datenbank erhalten. Bewusst NICHT auf die YouTube-Video-Analysen-Liste
+// angewendet: die zeigt Video-INHALT (haelt sich ueber Tage relevant), keine
+// KI-Live-Einschaetzung, die "veraltet" waere.
+const STALE_AI_RUN_CUTOFF_HOURS = 6;
+function staleAiRunCutoffIso(): string {
+  return new Date(Date.now() - STALE_AI_RUN_CUTOFF_HOURS * 60 * 60 * 1000).toISOString();
+}
 const SERIES_MAX_POINTS = 500;
 
 // 180 Punkte a 5 Min ~= 15 Std. Historie fuer die Zeitreihen-Charts.
@@ -257,6 +272,7 @@ async function getLatestEscalation(): Promise<EscalationSnapshot | null> {
   const { data, error } = await supabase
     .from("escalation_snapshots")
     .select("*")
+    .gte("generated_at", staleAiRunCutoffIso())
     .order("generated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -275,6 +291,7 @@ async function getLatestTradeDebate(): Promise<TradeDebateSnapshot | null> {
   const { data, error } = await supabase
     .from("trade_debate_snapshots")
     .select("*")
+    .gte("generated_at", staleAiRunCutoffIso())
     .order("generated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -293,6 +310,7 @@ async function getLatestCustomQueries(): Promise<CustomQueryRun[]> {
   const { data, error } = await supabase
     .from("custom_query_runs")
     .select("*")
+    .gte("generated_at", staleAiRunCutoffIso())
     .order("generated_at", { ascending: false })
     .limit(10);
 
@@ -317,6 +335,7 @@ async function getLatestChartVisionAnalyses(): Promise<ChartVisionAnalysis[]> {
   const { data, error } = await admin
     .from("chart_vision_analyses")
     .select("*")
+    .gte("generated_at", staleAiRunCutoffIso())
     .order("generated_at", { ascending: false })
     .limit(10);
 
@@ -376,6 +395,7 @@ async function getLatestYoutubeOverallAnalysis(): Promise<YoutubeOverallAnalysis
   const { data, error } = await supabase
     .from("youtube_overall_analyses")
     .select("*")
+    .gte("generated_at", staleAiRunCutoffIso())
     .order("generated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
