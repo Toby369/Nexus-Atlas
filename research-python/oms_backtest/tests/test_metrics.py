@@ -48,6 +48,12 @@ def test_compute_bucket_metrics_hand_calculated():
     assert m.total_return_pct == pytest.approx(-5.0)
     assert m.max_drawdown_pct == pytest.approx(-25.0, abs=0.01)
     assert m.final_equity == pytest.approx(95.0)
+    # r_multiple_gross = net_pnl/100 fuer jeden Trade (siehe _make_trade):
+    # [0.1, -0.05, 0.15, -0.3, 0.05] -> Mittel -0.01, 3 von 5 positiv.
+    assert m.avg_r_multiple_gross == pytest.approx(-0.01)
+    assert m.pct_positive_r_multiple == pytest.approx(60.0)
+    assert m.leverage_capped_count == 0
+    assert m.leverage_capped_pct == pytest.approx(0.0)
 
 
 def test_compute_bucket_metrics_empty():

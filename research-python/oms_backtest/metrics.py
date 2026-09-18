@@ -29,6 +29,15 @@ class BucketMetrics:
     sharpe_per_trade: float
     sharpe_annualized_approx: float
     final_equity: float
+    # Rohsignal-Qualitaet OHNE Fees/Positionsgroessen-Modell -- rein
+    # preisbasiert (siehe backtest_report.md "Kritische Einordnung": bei
+    # sehr kleinen SL-Abstaenden auf 1m/5m koennen Fees die Netto-Kennzahlen
+    # oben komplett dominieren; diese beiden Felder zeigen, ob die reine
+    # SR-Ausbruchs-Logik selbst gerichtete Substanz hat, unabhaengig davon).
+    avg_r_multiple_gross: float
+    pct_positive_r_multiple: float
+    leverage_capped_count: int
+    leverage_capped_pct: float
 
 
 def _max_drawdown_pct(equity_curve: np.ndarray) -> float:
@@ -51,6 +60,8 @@ def compute_bucket_metrics(
             winrate_pct=np.nan, profit_factor=np.nan, avg_win=np.nan, avg_loss=np.nan,
             total_return_pct=0.0, max_drawdown_pct=0.0, sharpe_per_trade=np.nan,
             sharpe_annualized_approx=np.nan, final_equity=initial_equity,
+            avg_r_multiple_gross=np.nan, pct_positive_r_multiple=np.nan,
+            leverage_capped_count=0, leverage_capped_pct=np.nan,
         )
 
     pnls = np.array([t.net_pnl for t in trades])
@@ -79,6 +90,13 @@ def compute_bucket_metrics(
     trades_per_year = len(trades) / span_years
     sharpe_annualized = sharpe_per_trade * np.sqrt(trades_per_year) if not np.isnan(sharpe_per_trade) else np.nan
 
+    r_multiples = np.array([t.r_multiple_gross for t in trades])
+    avg_r_multiple_gross = r_multiples.mean()
+    pct_positive_r_multiple = (r_multiples > 0).mean() * 100
+
+    leverage_capped_count = sum(1 for t in trades if t.leverage_capped)
+    leverage_capped_pct = leverage_capped_count / len(trades) * 100
+
     return BucketMetrics(
         timeframe=timeframe,
         direction=direction,
@@ -94,6 +112,10 @@ def compute_bucket_metrics(
         sharpe_per_trade=sharpe_per_trade,
         sharpe_annualized_approx=sharpe_annualized,
         final_equity=final_equity,
+        avg_r_multiple_gross=avg_r_multiple_gross,
+        pct_positive_r_multiple=pct_positive_r_multiple,
+        leverage_capped_count=leverage_capped_count,
+        leverage_capped_pct=leverage_capped_pct,
     )
 
 

@@ -110,17 +110,39 @@ def _breakeven_share_table_md(trades_by_bucket: dict[tuple[str, str], list[Trade
 
 def _leverage_cap_share_table_md(trades_by_bucket: dict[tuple[str, str], list[Trade]]) -> str:
     header = (
-        "| Timeframe | Richtung | Trades gesamt | davon Hebel-gedeckelt | Anteil |\n"
-        "|---|---|---|---|---|\n"
+        "| Timeframe | Richtung | Trades gesamt | davon Hebel-gedeckelt | Anteil | "
+        "Ø Netto-Return dieser Trades |\n"
+        "|---|---|---|---|---|---|\n"
     )
     rows = []
     for tf in TIMEFRAMES:
         for direction in ("long", "short"):
             trades = trades_by_bucket.get((tf, direction), [])
             n = len(trades)
-            capped = sum(1 for t in trades if t.leverage_capped)
+            capped_trades = [t for t in trades if t.leverage_capped]
+            capped = len(capped_trades)
             share = (capped / n * 100) if n else float("nan")
-            rows.append(f"| {tf} | {direction} | {n} | {capped} | {_fmt(share, 1, '%')} |")
+            avg_capped_return = (
+                sum(t.net_return_pct for t in capped_trades) / capped * 100 if capped else float("nan")
+            )
+            rows.append(
+                f"| {tf} | {direction} | {n} | {capped} | {_fmt(share, 1, '%')} | "
+                f"{_fmt(avg_capped_return, 2, '%')} |"
+            )
+    return header + "\n".join(rows)
+
+
+def _raw_signal_quality_table_md(metrics: list[BucketMetrics]) -> str:
+    header = (
+        "| Timeframe | Richtung | Trades | Ø R-Multiple (brutto, ohne Fees) | Anteil R > 0 |\n"
+        "|---|---|---|---|---|\n"
+    )
+    rows = []
+    for m in metrics:
+        rows.append(
+            f"| {m.timeframe} | {m.direction} | {m.trades} | {_fmt(m.avg_r_multiple_gross, 3)} | "
+            f"{_fmt(m.pct_positive_r_multiple, 1, '%')} |"
+        )
     return header + "\n".join(rows)
 
 
@@ -184,25 +206,46 @@ def write_report_md(
     )
     lines.append(_leverage_cap_share_table_md(trades_by_bucket) + "\n")
 
+    lines.append("## Rohsignal-Qualität (ohne Fees/Positionsgrößen-Modell)\n")
+    lines.append(
+        "Rein preisbasierte Kennzahlen (R-Multiple aus Entry/Exit-Preisen, KEINE Fees, KEINE "
+        "Positionsgrößen-Effekte) -- zeigt, ob die reine SR-Ausbruchs-Logik selbst gerichtete "
+        "Substanz hat, unabhängig vom Fee-/Hebel-Problem unten. R=0 bei Break-Even-Exit, R=-1 bei "
+        "vollem SL, R=+2 bei vollem TP (CRV 1:2).\n"
+    )
+    lines.append(_raw_signal_quality_table_md(metrics) + "\n")
+
     lines.append("## Equity-Kurven\n")
     lines.append(f"![Equity-Kurven]({equity_chart_relpath})\n")
 
     lines.append("## Kritische Einordnung\n")
     lines.append(
-        "- **Hebel-Deckel notwendig, um das Backtest-Risikomodell realistisch zu halten**: Auf "
-        "1m/5m kann der Docht der Ausbruchskerze selbst (= SL-Abstand bei dieser Strategie) extrem "
-        "klein werden -- im hier verwendeten Datensatz teils unter 1 USD bei einem BTC-Preis von "
-        "über 60000 USD. Eine reine \"riskiere fix 1% Equity\"-Positionsgrößen-Regel würde in "
-        "diesem Fall eine absurd große Notional-Position verlangen, um trotz des winzigen "
-        "Preis-Abstands 1% Equity zu riskieren -- auf jeder echten Börse durch Hebel-Limits "
-        "verhindert. OHNE den in `config.py` dokumentierten `max_leverage`-Deckel (10x) hätten "
-        "allein die (zur Notional proportionalen) Fees eines einzelnen solchen Trades das gesamte "
-        "Bucket-Equity vernichtet -- das war das tatsächliche Ergebnis eines ersten Testlaufs ohne "
-        "diesen Deckel (Total Return exakt -100% in jedem Bucket) und ist ein Artefakt des "
-        "Risikomodells, nicht der Signalqualität der Strategie. Mit dem Deckel riskieren solche "
-        "eng-gestoppten Trades bewusst WENIGER als das Ziel-Risiko (siehe Tabelle oben) -- ein "
-        "realistisches Verhalten, aber ebenfalls eine eigene Annahme, kein Wert aus dem "
-        "Strategie-Bericht.\n"
+        "- **WICHTIG -- Total Return nahe -100% ist ein Fee-/Positionsgrößen-Artefakt, KEIN Urteil "
+        "über die Signalqualität**: Auf 1m/5m kann der Docht der Ausbruchskerze selbst (= SL-"
+        "Abstand bei dieser Strategie) extrem klein werden -- im hier verwendeten Datensatz teils "
+        "unter 1 USD bei einem BTC-Preis von über 60000 USD. Eine reine \"riskiere fix 1% Equity\"-"
+        "Positionsgrößen-Regel würde in diesem Fall eine absurd große Notional-Position verlangen. "
+        "Der `max_leverage`-Deckel (10x, `config.py`) verhindert zwar die vollständige Kontovernich"
+        "tung durch einen EINZELNEN solchen Trade (ohne Deckel: Total Return exakt -100% in jedem "
+        "Bucket bereits nach wenigen Trades) -- er löst das Grundproblem aber nicht: Sobald der "
+        "Deckel greift, ist die Positionsgröße NICHT MEHR vom (winzigen) SL-Abstand abhängig, "
+        "sondern fix bei `max_leverage * Equity / Preis`. Die dadurch anfallenden Fees "
+        "(2 x Taker-Fee auf diese fixe Notional) sind bei diesem Preis-Niveau UNABHÄNGIG davon, ob "
+        "der Trade gewinnt oder verliert, groesser als der durch den winzigen Preis-Abstand "
+        "erzielbare Brutto-Gewinn -- das Ergebnis ist ein garantierter kleiner Netto-Verlust auf "
+        "praktisch JEDEM gedeckelten Trade (siehe Tabelle oben: Ø Netto-Return der gedeckelten "
+        "Trades liegt konsistent um ca. -1.2%, unabhängig von Gewinn/Verlust-Ausgang), der sich "
+        "über tausende Trades multiplikativ zu einem Totalverlust aufsummiert. Auf 1m betrifft das "
+        "die deutliche Mehrheit aller Trades (siehe Anteil in der Tabelle) -- **diese Strategie ist "
+        "unter dieser exakten SL-Regel (Docht der eigenen Ausbruchskerze) und einer realistischen "
+        "Taker-Fee von 0.06%/Seite auf 1m/5m mit fixem Prozent-Risiko-Sizing strukturell nicht "
+        "handelbar**, selbst wenn die zugrunde liegende SR-Ausbruchs-Logik gerichtete Substanz "
+        "hätte. Das ist ein Befund über das Zusammenspiel von SL-Regel, Timeframe und Fee-Struktur "
+        "-- kein Bug im Backtest und keine erfundene Zusatzregel: Es wurde keine Mindest-SL-Distanz "
+        "oder sonstige Filterung der Signale eingeführt, um dieses Problem zu verdecken. Die "
+        "Rohsignal-Qualität (R-Multiple, siehe Tabelle unten) ist DESHALB die aussagekräftigere "
+        "Kennzahl für die reine SR-Ausbruchs-Logik dieser Strategie auf 1m/5m -- die Netto-Equity-"
+        "Kennzahlen oben sind für diese Timeframes praktisch nicht interpretierbar.\n"
     )
     lines.append(
         "- **Overfitting-Risiko**: Die Parameter stammen aus dem Nutzer-Bericht zu einer fremden "
