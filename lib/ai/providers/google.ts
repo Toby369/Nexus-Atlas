@@ -3,6 +3,7 @@ import type {
   AIProvider,
   AIStructuredResult,
 } from "../types";
+import { fetchWithRetry } from "../fetchWithRetry";
 
 // Env-Vars: GOOGLE_API_KEY, GOOGLE_MODEL (z.B. "gemini-..." – aktuelles
 // Modell zum Zeitpunkt der Aktivierung eintragen, kein Default hier).
@@ -47,7 +48,7 @@ async function callGenerateContent(
 
   const contents = [{ role: "user", parts: [{ text: userPrompt }] }];
 
-  const res = await fetch(url, {
+  const res = await fetchWithRetry(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

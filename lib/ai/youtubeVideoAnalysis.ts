@@ -1,3 +1,5 @@
+import { fetchWithRetry } from "./fetchWithRetry";
+
 // Krypto-YouTube-Monitor (05.09.2026) -- bewusst NICHT ueber den generischen
 // AI-Router (lib/ai/router.ts/AIProvider-Interface): dessen
 // generateStructured() nimmt nur einen reinen Text-Prompt entgegen, hier
@@ -99,7 +101,7 @@ export async function analyzeYoutubeVideo(
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
 
-  const res = await fetch(url, {
+  const res = await fetchWithRetry(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

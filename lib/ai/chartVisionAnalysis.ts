@@ -1,3 +1,5 @@
+import { fetchWithRetry } from "./fetchWithRetry";
+
 // Chart-Vision (Umsetzungsplan "Chart-Vision: LSOB & Trendlinien lesen",
 // Phase 3 des Trading-Entscheidungsunterstuetzungs-Fahrplans) -- bewusst
 // NICHT ueber den generischen AI-Router (lib/ai/router.ts/AIProvider-
@@ -185,7 +187,7 @@ export async function analyzeChartVision(
     ? `Zusaetzliche Notiz von Toby zu diesem Screenshot: ${note.trim()}`
     : "Keine zusaetzliche Notiz -- analysiere ausschliesslich anhand des Bildes.";
 
-  const res = await fetch(url, {
+  const res = await fetchWithRetry(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
