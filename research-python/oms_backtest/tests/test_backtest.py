@@ -216,6 +216,45 @@ def test_simulate_bucket_short_tp_pnl():
     assert t.equity_after == pytest.approx(10_197.72, abs=0.01)
 
 
+def test_simulate_bucket_caps_position_size_when_stop_distance_tiny():
+    # Docht der Ausbruchskerze extrem nah am Entry (0.2 USD bei einem Preis
+    # von 64000) -- ohne Hebel-Deckel wuerde die reine Ziel-Risiko-Regel
+    # eine absurd grosse Notional verlangen (siehe config.py max_leverage).
+    df = _make_df(
+        [
+            {"open": 64000, "high": 64000, "low": 64000, "close": 64000},
+            {"open": 64000, "high": 64000.1, "low": 63999.7, "close": 63999.8},  # SL(63999.8) beruehrt
+        ]
+    )
+    signal = Signal(time=df.index[0], bar_index=0, direction="long", entry_price=64000, sl_price=63999.8, level=64100)
+    params = BacktestParams(crv=2.0, be_threshold_pct=0.30, fee_pct_per_side=0.0006, risk_per_trade_pct=1.0, initial_equity=100.0, max_leverage=10.0)
+
+    trades = simulate_bucket(df, [signal], params)
+    assert len(trades) == 1
+    t = trades[0]
+
+    assert t.leverage_capped is True
+    # Positionsgroesse gedeckelt auf max_leverage*equity/entry = 10*100/64000.
+    assert t.net_pnl == pytest.approx(-1.2031, abs=0.001)
+    # Der tatsaechlich riskierte Anteil bleibt WEIT unter dem Ziel-Risiko (1%),
+    # weil die Positionsgroesse durch den Hebel-Deckel begrenzt wurde.
+    assert abs(t.net_pnl) < params.initial_equity * params.risk_per_trade_pct / 100 * 2
+
+
+def test_simulate_bucket_does_not_cap_normal_stop_distance():
+    df = _make_df(
+        [
+            {"open": 100, "high": 100, "low": 100, "close": 100},
+            {"open": 96, "high": 101, "low": 94, "close": 95},
+        ]
+    )
+    signal = Signal(time=df.index[0], bar_index=0, direction="long", entry_price=100, sl_price=95, level=101.5)
+    params = BacktestParams(crv=2.0, be_threshold_pct=0.30, fee_pct_per_side=0.0006, risk_per_trade_pct=1.0, initial_equity=10_000.0, max_leverage=10.0)
+
+    trades = simulate_bucket(df, [signal], params)
+    assert trades[0].leverage_capped is False
+
+
 def test_simulate_bucket_skips_degenerate_zero_risk_signal():
     df = _make_df(
         [

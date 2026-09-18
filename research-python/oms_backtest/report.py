@@ -108,6 +108,22 @@ def _breakeven_share_table_md(trades_by_bucket: dict[tuple[str, str], list[Trade
     return header + "\n".join(rows)
 
 
+def _leverage_cap_share_table_md(trades_by_bucket: dict[tuple[str, str], list[Trade]]) -> str:
+    header = (
+        "| Timeframe | Richtung | Trades gesamt | davon Hebel-gedeckelt | Anteil |\n"
+        "|---|---|---|---|---|\n"
+    )
+    rows = []
+    for tf in TIMEFRAMES:
+        for direction in ("long", "short"):
+            trades = trades_by_bucket.get((tf, direction), [])
+            n = len(trades)
+            capped = sum(1 for t in trades if t.leverage_capped)
+            share = (capped / n * 100) if n else float("nan")
+            rows.append(f"| {tf} | {direction} | {n} | {capped} | {_fmt(share, 1, '%')} |")
+    return header + "\n".join(rows)
+
+
 def write_report_md(
     metrics: list[BucketMetrics],
     trades_by_bucket: dict[tuple[str, str], list[Trade]],
@@ -142,7 +158,11 @@ def write_report_md(
     lines.append(f"- Break-Even-Schwelle: {bt_params.be_threshold_pct * 100:.0f}% des Wegs von Entry zu TP")
     lines.append(f"- Fee pro Seite (Taker): {bt_params.fee_pct_per_side * 100}%")
     lines.append(f"- Risiko pro Trade: {bt_params.risk_per_trade_pct}% des Equity (je Bucket unabhängig)")
-    lines.append(f"- Start-Equity je Bucket: {bt_params.initial_equity}\n")
+    lines.append(f"- Start-Equity je Bucket: {bt_params.initial_equity}")
+    lines.append(
+        f"- Max. Hebel (Positions-Notional als Vielfaches des Equity): {bt_params.max_leverage}x -- "
+        "siehe \"Kritische Einordnung\" unten, warum dieser Deckel notwendig war.\n"
+    )
 
     lines.append("## Ergebnisse pro Timeframe & Richtung\n")
     lines.append(_metrics_table_md(metrics) + "\n")
@@ -156,10 +176,34 @@ def write_report_md(
     )
     lines.append(_breakeven_share_table_md(trades_by_bucket) + "\n")
 
+    lines.append("## Hebel-Deckel-Anteil\n")
+    lines.append(
+        "Anteil der Trades, bei denen der SL-Abstand (Docht der Ausbruchskerze) so klein war, dass "
+        "die reine Ziel-Risiko-Regel (1% Equity) den Hebel-Deckel überschritten hätte -- diese "
+        "Trades riskieren dadurch WENIGER als das Ziel-Risiko (siehe \"Kritische Einordnung\").\n"
+    )
+    lines.append(_leverage_cap_share_table_md(trades_by_bucket) + "\n")
+
     lines.append("## Equity-Kurven\n")
     lines.append(f"![Equity-Kurven]({equity_chart_relpath})\n")
 
     lines.append("## Kritische Einordnung\n")
+    lines.append(
+        "- **Hebel-Deckel notwendig, um das Backtest-Risikomodell realistisch zu halten**: Auf "
+        "1m/5m kann der Docht der Ausbruchskerze selbst (= SL-Abstand bei dieser Strategie) extrem "
+        "klein werden -- im hier verwendeten Datensatz teils unter 1 USD bei einem BTC-Preis von "
+        "über 60000 USD. Eine reine \"riskiere fix 1% Equity\"-Positionsgrößen-Regel würde in "
+        "diesem Fall eine absurd große Notional-Position verlangen, um trotz des winzigen "
+        "Preis-Abstands 1% Equity zu riskieren -- auf jeder echten Börse durch Hebel-Limits "
+        "verhindert. OHNE den in `config.py` dokumentierten `max_leverage`-Deckel (10x) hätten "
+        "allein die (zur Notional proportionalen) Fees eines einzelnen solchen Trades das gesamte "
+        "Bucket-Equity vernichtet -- das war das tatsächliche Ergebnis eines ersten Testlaufs ohne "
+        "diesen Deckel (Total Return exakt -100% in jedem Bucket) und ist ein Artefakt des "
+        "Risikomodells, nicht der Signalqualität der Strategie. Mit dem Deckel riskieren solche "
+        "eng-gestoppten Trades bewusst WENIGER als das Ziel-Risiko (siehe Tabelle oben) -- ein "
+        "realistisches Verhalten, aber ebenfalls eine eigene Annahme, kein Wert aus dem "
+        "Strategie-Bericht.\n"
+    )
     lines.append(
         "- **Overfitting-Risiko**: Die Parameter stammen aus dem Nutzer-Bericht zu einer fremden "
         "Strategie (Claudius Vertesi), nicht aus einer auf diesen Daten optimierten Suche -- das "

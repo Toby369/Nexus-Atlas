@@ -30,6 +30,21 @@ class BacktestParams:
     fee_pct_per_side: float = 0.0006
     risk_per_trade_pct: float = 1.0
     initial_equity: float = 10_000.0
+    # Max. Hebel (Positions-Notional als Vielfaches des Equity) -- eigene,
+    # dokumentierte Backtest-Annahme (kein Wert aus dem Strategie-Bericht):
+    # Auf 1m/5m kann der Docht der Ausbruchskerze selbst (= SL-Abstand)
+    # extrem klein werden (im echten Datensatz teils < 1 USD bei einem
+    # BTC-Preis von ueber 60000 USD). Eine reine "riskiere fix X% Equity"-
+    # Positionsgroessen-Regel wuerde dann eine absurd grosse Notional
+    # verlangen, um trotz des winzigen Preis-Abstands X% Equity zu
+    # riskieren -- auf jeder echten Boerse durch Hebel-Limits verhindert.
+    # Ohne dieses Limit wuerde ein einzelner solcher Trade allein durch die
+    # (zur Notional proportionalen) Fees das gesamte Equity vernichten,
+    # siehe backtest_report.md "Kritische Einordnung". 10x ist ein
+    # konservativer, gaengiger Hebel-Richtwert fuer BTC-Perpetuals (Binance
+    # erlaubt deutlich mehr) -- bei einem derart eng gedeckelten Trade wird
+    # dadurch bewusst WENIGER als risk_per_trade_pct tatsaechlich riskiert.
+    max_leverage: float = 10.0
 
 
 TIMEFRAMES = ["1m", "5m"]  # Strategie-Vorgabe: "bevorzugt 1m bis 5m bei volatilen Crypto-Pairs"

@@ -30,6 +30,7 @@ class Trade:
     exit_reason: str  # "sl" | "tp" | "breakeven" | "end_of_data"
     moved_to_breakeven: bool
     risk_price_distance: float  # auf Basis des URSPRUENGLICHEN SL (Positionsgroesse aendert sich nicht)
+    leverage_capped: bool  # True, wenn max_leverage die Positionsgroesse unter das Ziel-Risiko gedrueckt hat
     r_multiple_gross: float
     equity_before: float
     equity_after: float
@@ -147,7 +148,15 @@ def simulate_bucket(df: pd.DataFrame, signals: list[Signal], params: BacktestPar
         )
 
         risk_amount = equity * params.risk_per_trade_pct / 100
-        position_size = risk_amount / risk_dist
+        position_size_uncapped = risk_amount / risk_dist
+        # Hebel-Deckel: verhindert eine absurd grosse Notional, wenn der
+        # SL-Abstand (Docht der Ausbruchskerze) extrem klein ist -- siehe
+        # config.py BacktestParams.max_leverage. In diesem Fall wird
+        # bewusst WENIGER als das Ziel-Risiko riskiert (realistische
+        # Boersen-Beschraenkung), statt eine ueberzogene Position zu erlauben.
+        max_position_size = params.max_leverage * equity / sig.entry_price
+        position_size = min(position_size_uncapped, max_position_size)
+        leverage_capped = position_size < position_size_uncapped
 
         gross_pnl = position_size * (exit_price - sig.entry_price) * (1 if is_long else -1)
         entry_fee = position_size * sig.entry_price * params.fee_pct_per_side
@@ -171,6 +180,7 @@ def simulate_bucket(df: pd.DataFrame, signals: list[Signal], params: BacktestPar
                 exit_reason=exit_reason,
                 moved_to_breakeven=moved_to_be,
                 risk_price_distance=risk_dist,
+                leverage_capped=leverage_capped,
                 r_multiple_gross=r_multiple_gross,
                 equity_before=equity_before,
                 equity_after=equity,
@@ -188,7 +198,8 @@ def trades_to_dataframe(trades: list[Trade]) -> pd.DataFrame:
             columns=[
                 "entry_time", "exit_time", "direction", "entry_price", "sl_price", "tp_price",
                 "exit_price", "exit_reason", "moved_to_breakeven", "risk_price_distance",
-                "r_multiple_gross", "equity_before", "equity_after", "net_pnl", "net_return_pct",
+                "leverage_capped", "r_multiple_gross", "equity_before", "equity_after",
+                "net_pnl", "net_return_pct",
             ]
         )
     return pd.DataFrame([t.__dict__ for t in trades])

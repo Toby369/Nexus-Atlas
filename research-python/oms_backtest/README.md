@@ -84,6 +84,11 @@ pytest
 - Jeder Timeframe/Richtung-Bucket wird mit einem eigenen, unabhängigen Start-Equity simuliert (kein
   gemeinsamer Kapitalpool) — auf 1m/5m können sich Signale zeitlich deutlich stärker überlappen
   als auf 15m/1h/4h, siehe `backtest_report.md` "Kritische Einordnung".
+- **Hebel-Deckel (`max_leverage`, Default 10x)**: Auf 1m/5m kann der Docht der Ausbruchskerze
+  (= SL-Abstand) extrem klein werden — eine reine Ziel-Risiko-Positionsgrößen-Regel würde dann eine
+  absurd große Notional verlangen und allein durch Fees das Equity vernichten (ohne diesen Deckel
+  war das Ergebnis eines ersten Testlaufs exakt -100% Total Return in jedem Bucket). Mit dem Deckel
+  riskieren solche Trades bewusst weniger als das Ziel-Risiko — siehe `backtest_report.md`.
 
 Siehe `backtest_report.md` (Abschnitt "Kritische Einordnung") für die vollständige Diskussion,
 inklusive Overfitting-Risiko und Backtest-≠-Live-Hinweis.

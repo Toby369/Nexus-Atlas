@@ -18,6 +18,7 @@ def _make_trade(i: int, equity_before: float, net_pnl: float) -> Trade:
         exit_reason="tp" if net_pnl > 0 else "sl",
         moved_to_breakeven=False,
         risk_price_distance=5.0,
+        leverage_capped=False,
         r_multiple_gross=net_pnl / 100,
         equity_before=equity_before,
         equity_after=equity_before + net_pnl,
