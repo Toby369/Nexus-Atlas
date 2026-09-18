@@ -450,6 +450,25 @@ export interface MarketStateNarrativeSnapshot {
   error: string | null;
 }
 
+// System-Briefing (Umsetzungsplan Phase 4, 18.09.2026): fusioniert Tobys
+// eigenes Regelwerk (knowledge_base) + Salomon-Phase + Nexus' berechnete
+// Faktoren (14-Faktoren-Engine, Regime Matrix, GUSS/VWAP-Vector/CVD,
+// Liquidations-Cluster) + Chart-Vision-Read zu EINER Synthese -- gleiches
+// Muster wie MarketStateNarrativeResult/-Snapshot.
+export interface SystemBriefingResult {
+  narrative: string;
+}
+
+export interface SystemBriefingSnapshot {
+  id: number;
+  generated_at: string;
+  provider: string | null;
+  model: string | null;
+  result: SystemBriefingResult | null;
+  status: "ok" | "error";
+  error: string | null;
+}
+
 // Lernplattform-Kachel (Leitner-Karteikasten), Nutzer-Wunsch "wie im
 // Trading Journal" -- siehe lib/leitner.ts fuer die Uebergangsregeln.
 export interface QuizCard {

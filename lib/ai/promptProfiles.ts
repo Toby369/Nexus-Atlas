@@ -697,6 +697,56 @@ export const promptProfiles: Record<string, PromptProfile> = {
     },
   },
 
+  // --- System-Briefing (Umsetzungsplan Phase 4, 18.09.2026) ----------------
+  // "kombinierte Entscheidungsunterstuetzungs-Kachel": fusioniert Tobys
+  // eigenes Regelwerk (knowledge_base) + Salomon-Phase + Nexus' bereits
+  // berechnete Faktoren (14-Faktoren-Engine, Regime Matrix, GUSS/VWAP-Vector/
+  // CVD, Liquidations-Cluster) + Chart-Vision-Read. Anders als
+  // "market-state-narrative" (das NUR Widersprueche zwischen bereits
+  // angezeigten Sparten benennt) ist die Kernaufgabe hier, das Regelwerk AUF
+  // die Live-Werte anzuwenden -- nicht nur Widersprueche zwischen Sparten
+  // finden, sondern beurteilen, was sie laut Tobys eigenen Regeln bedeuten.
+  "system-briefing": {
+    id: "system-briefing",
+    category: "signal-logic",
+    description:
+      "6-10 Saetze: wendet Tobys eigenes Regelwerk (Welz/Salomon/Mein System) auf den aktuellen Stand von GUSS/VWAP-Vector/CVD, Regime, Salomon-Phase, Liquidationen und Chart-Vision an.",
+    systemPrompt:
+      "Du bekommst zwei Arten von Daten: regelwerk (Tobys eigenes, in knowledge_base hinterlegtes " +
+      "Welz-/Salomon-/'Mein Trading System'-Regelwerk -- ein Array aus module/section/title/content) " +
+      "und den aktuellen LIVE-Stand mehrerer Nexus-Sparten (mein_system_checklist: Funding/OI/EMA-" +
+      "Trendregime-Gates; trading_indicators: GUSS-Pullback-Signal, VWAP-Vector, CVD-Footprint; " +
+      "market_state: 14-Faktoren-Gesamteinschaetzung; regime_matrix: 5-Saeulen-Regime; salomon: " +
+      "Salomon-Phaseneinordnung, falls nicht null; liquidations: Preis-Cluster nahe am aktuellen " +
+      "Kurs; chart_vision: qualitative LSOB-/Trendlinien-Lesung eines TradingView-Screenshots, falls " +
+      "vorhanden und aktuell). ALLE Live-Werte werden dem Nutzer bereits einzeln in eigenen Kacheln " +
+      "angezeigt -- deine Aufgabe ist NICHT, sie nachzuerzaehlen. Stattdessen: WENDE das Regelwerk " +
+      "AUF die Live-Werte an. Konkret: (1) erfuellt mein_system_checklist gerade die im Regelwerk " +
+      "beschriebenen Einstiegs-Gates (Funding unter Schwelle, OI-Richtung, EMA13/50/200-Trendlage)? " +
+      "(2) bestaetigen GUSS, VWAP-Vector und CVD dieselbe Richtung, oder widersprechen sie sich? " +
+      "(3) falls salomon nicht null ist: nutze die genannte Phase als PRUEFRASTER wie im Regelwerk " +
+      "beschrieben -- stuetzen mein_system_checklist/trading_indicators/regime_matrix diese Phase, " +
+      "oder stehen sie im Spannungsverhaeltnis dazu? Nenne die Phase dabei hoechstens einmal; " +
+      "(4) ist chart_vision vorhanden: ordne die LSOB-Lage/Trendlinien qualitativ als zusaetzlichen " +
+      "bestaetigenden oder widersprechenden Hinweis ein, ohne die dortige summary/Confidence woertlich " +
+      "zu wiederholen. Ist chart_vision null, erwaehne explizit, dass kein aktueller Screenshot " +
+      "vorliegt, statt das einfach zu ignorieren. (5) liegen liquidations-Preis-Cluster nahe am " +
+      "aktuellen Kurs (siehe closePrice in mein_system_checklist), ordne sie als Risiko- oder " +
+      "Magnet-Hinweis ein, falls relevant -- sonst nicht erzwingen. Nutze regelwerk NUR als Referenz " +
+      "fuer bestehende Regeln, erfinde KEINE neuen Regeln, die dort nicht stehen. Keine Kursziele, " +
+      "keine Handelsempfehlung, keine erfundenen Daten ausserhalb des Kontexts. Ist market_state " +
+      "null, sag das explizit statt eine Einschaetzung ohne Grundlage zu konstruieren. " +
+      NUMBER_FORMAT_INSTRUCTION +
+      " Antworte als JSON mit: narrative (string, deutsch, 6-10 Saetze, Fliesstext).",
+    validate: (data) => {
+      const errors: string[] = [];
+      if (!isNonEmptyString(field(data, "narrative"))) {
+        errors.push(`"narrative" muss ein nicht-leerer String sein.`);
+      }
+      return errors;
+    },
+  },
+
   // --- Eskalations-Kachel ("gezielte Eskalation", 05.09.2026) --------------
   // Wird NICHT ueber "auto" geroutet, sondern von app/api/escalation/
   // generate/route.ts mit mehreren expliziten providerOverride-Werten

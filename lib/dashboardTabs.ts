@@ -71,6 +71,7 @@ export const DASHBOARD_TABS: DashboardTabMeta[] = [
       "custom-query",
       "youtube-monitor",
       "chart-vision",
+      "system-briefing",
       "institutional-playbook",
       "lernen",
     ],

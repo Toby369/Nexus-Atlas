@@ -114,6 +114,15 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     promptProfile: "market-state-narrative",
     fallbackProviders: [],
   },
+  // System-Briefing (Umsetzungsplan Phase 4, 18.09.2026) -- gleiche Provider-
+  // Kette wie market-state-narrative/handelslage (signal-logic-Kategorie,
+  // google primaer, kein bezahlter Fallback).
+  "system-briefing": {
+    tileId: "system-briefing",
+    aiProvider: "auto",
+    promptProfile: "system-briefing",
+    fallbackProviders: [],
+  },
   // Eskalations-Kachel ("gezielte Eskalation", 05.09.2026): aiProvider hier
   // ist nur ein Platzhalter -- app/api/escalation/generate/route.ts ruft
   // runTileAnalysis() mehrfach mit explizitem providerOverride auf (je ein

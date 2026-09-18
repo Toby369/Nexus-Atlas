@@ -15,6 +15,7 @@ import type {
   MarketState,
   MarketStateMatrix,
   MarketStateNarrativeSnapshot,
+  SystemBriefingSnapshot,
   NewsAnalysisSnapshot,
   NewsEvent,
   OiChangeByExchange,
@@ -63,6 +64,7 @@ import EscalationCard from "@/components/EscalationCard";
 import TradeDebateCard from "@/components/TradeDebateCard";
 import CustomQueryCard from "@/components/CustomQueryCard";
 import ChartVisionCard from "@/components/ChartVisionCard";
+import SystemBriefingCard from "@/components/SystemBriefingCard";
 import YoutubeMonitorCard from "@/components/YoutubeMonitorCard";
 import { getYoutubeMonitorConfig } from "@/lib/youtubeMonitorContext";
 import LeverageMapCard from "@/components/LeverageMapCard";
@@ -514,6 +516,24 @@ async function getLatestMarketStateNarrative(): Promise<MarketStateNarrativeSnap
   return data;
 }
 
+// System-Briefing (Umsetzungsplan Phase 4, 18.09.2026) -- reines Lesen, kein
+// AI-Aufruf (der passiert nur ueber POST /api/system-briefing/generate,
+// siehe SystemBriefingCard.tsx).
+async function getLatestSystemBriefing(): Promise<SystemBriefingSnapshot | null> {
+  const { data, error } = await supabase
+    .from("system_briefings")
+    .select("*")
+    .order("generated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Fehler beim Laden des System-Briefings:", error.message);
+    return null;
+  }
+  return data;
+}
+
 const ORDERBOOK_EXCHANGES = ["binance", "bybit", "okx"] as const;
 
 // Nutzer-Wunsch nach einer "Bookmap"-Ansicht: kein Live-L2-Feed (siehe
@@ -687,6 +707,7 @@ export default async function Home({
     latestTradeDebate,
     latestCustomQueries,
     latestChartVisionAnalyses,
+    latestSystemBriefing,
     latestYoutubeAnalyses,
     youtubeMonitorConfig,
     latestYoutubeOverallAnalysis,
@@ -722,6 +743,7 @@ export default async function Home({
     getLatestTradeDebate(),
     getLatestCustomQueries(),
     getLatestChartVisionAnalyses(),
+    getLatestSystemBriefing(),
     getLatestYoutubeAnalyses(),
     getYoutubeMonitorConfig(),
     getLatestYoutubeOverallAnalysis(),
@@ -901,6 +923,7 @@ export default async function Home({
                     "trade-debate": <TradeDebateCard initialSnapshot={latestTradeDebate} />,
                     "custom-query": <CustomQueryCard initialRuns={latestCustomQueries} />,
                     "chart-vision": <ChartVisionCard initialAnalyses={latestChartVisionAnalyses} />,
+                    "system-briefing": <SystemBriefingCard initialSnapshot={latestSystemBriefing} />,
                     "youtube-monitor": (
                       <YoutubeMonitorCard
                         initialAnalyses={latestYoutubeAnalyses}
