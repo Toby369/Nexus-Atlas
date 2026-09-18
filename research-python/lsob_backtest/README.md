@@ -40,6 +40,20 @@ python run_backtest.py            # liest aus data/*.csv
 python run_backtest.py --source ccxt   # nur mit echtem Netzwerkzugriff
 ```
 
+### CRV-Walk-Forward-Validierung (1:1.5 / 1:2 / 1:3)
+
+```bash
+python run_crv_walk_forward.py            # liest aus data/*.csv
+```
+
+Statt einer einzelnen In-Sample-CRV-Wahl über den gesamten Zeitraum: pro Fold wird die CRV nur
+anhand des (trade-genau gepurgten) Train-Fensters gewählt, dann auf das zeitlich anschließende
+Test-Fenster angewendet -- rollierend über mehrere Folds (`crv_walk_forward.py`, nutzt
+`PurgedWalkForwardCV` aus `research-python/src/validation/walk_forward.py`). Ergebnis in
+`output/crv_walk_forward_report.md` + `output/crv_walk_forward_equity.png`: Fold-für-Fold-Tabelle,
+Out-of-Sample-Vergleich Walk-Forward-Auswahl vs. feste CRV, Equity-Kurven. Details/Begründung
+(Purging ohne Embargo, Auswahlkriterium Total Return) direkt im erzeugten Report.
+
 Ergebnisse landen in `output/`:
 - `backtest_report.md` — Kennzahlen-Tabellen + kritische Einordnung
 - `equity_curves.png` — Equity-Kurven je Timeframe (Long/Short überlagert)

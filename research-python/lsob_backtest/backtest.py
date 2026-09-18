@@ -30,12 +30,38 @@ class Trade:
     net_return_pct: float  # net_pnl / equity_before
 
 
+# Cache fuer _resolve_exit, Schluessel auf (id(df), len(df), entry_idx,
+# is_long, sl, tp). Grund: dieselbe (Signal, CRV)-Kombination taucht in der
+# Walk-Forward-Validierung (crv_walk_forward.py) mehrfach auf -- einmal je
+# Fold, dessen expandierendes Train-Fenster ein frueheres Signal erneut
+# enthaelt, UND nochmal in den Fixed-CRV-Baselines. Der Vorwaerts-Scan
+# selbst haengt NICHT vom Fold/Equity ab (nur von Preisdaten + SL/TP-
+# Level), ist also ein reiner, sicher cachebarer Wert. id(df) statt df
+# selbst als Schluessel, da DataFrames nicht hashbar sind -- len(df) zaehlt
+# zusaetzlich mit, um eine (extrem unwahrscheinliche, aber moegliche)
+# id()-Wiederverwendung durch den Garbage Collector zwischen zwei
+# VERSCHIEDENEN DataFrames abzufangen. Wer mehrere Timeframes hintereinander
+# verarbeitet, sollte trotzdem explizit clear_resolve_exit_cache() zwischen
+# Timeframes aufrufen (siehe run_crv_walk_forward.py) statt sich allein auf
+# len(df) zu verlassen.
+_resolve_exit_cache: dict[tuple[int, int, int, bool, float, float], tuple[float, str, object]] = {}
+
+
+def clear_resolve_exit_cache() -> None:
+    _resolve_exit_cache.clear()
+
+
 def _resolve_exit(df: pd.DataFrame, entry_idx: int, is_long: bool, sl: float, tp: float):
     """Sucht ab der Bar NACH dem Entry die erste Bar, die SL oder TP
     beruehrt. Treffen beide in derselben Bar, wird konservativ SL
     angenommen (nicht bekannt, welches Level intrabar zuerst erreicht
     wurde) -- siehe README "Methodische Annahmen".
     """
+    cache_key = (id(df), len(df), entry_idx, is_long, sl, tp)
+    cached = _resolve_exit_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     n = len(df)
     highs = df["high"].to_numpy()
     lows = df["low"].to_numpy()
@@ -52,11 +78,17 @@ def _resolve_exit(df: pd.DataFrame, entry_idx: int, is_long: bool, sl: float, tp
             hit_tp = l <= tp
 
         if hit_sl:
-            return sl, "sl", times[j]
+            result = (sl, "sl", times[j])
+            _resolve_exit_cache[cache_key] = result
+            return result
         if hit_tp:
-            return tp, "tp", times[j]
+            result = (tp, "tp", times[j])
+            _resolve_exit_cache[cache_key] = result
+            return result
 
-    return closes[-1], "end_of_data", times[-1]
+    result = (closes[-1], "end_of_data", times[-1])
+    _resolve_exit_cache[cache_key] = result
+    return result
 
 
 def simulate_bucket(df: pd.DataFrame, signals: list[Signal], params: BacktestParams) -> list[Trade]:

@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from backtest import _resolve_exit, simulate_bucket
+from backtest import _resolve_exit, _resolve_exit_cache, clear_resolve_exit_cache, simulate_bucket
 from config import BacktestParams
 from lsob_engine import Signal
 
@@ -109,6 +109,23 @@ def test_simulate_bucket_short_tp_pnl():
     assert t.exit_price == 90
     assert t.net_pnl == pytest.approx(197.72, abs=0.01)
     assert t.equity_after == pytest.approx(10_197.72, abs=0.01)
+
+
+def test_resolve_exit_cache_returns_consistent_result_and_can_be_cleared():
+    clear_resolve_exit_cache()
+    df = _make_df(
+        [
+            {"open": 100, "high": 100, "low": 100, "close": 100},
+            {"open": 96, "high": 101, "low": 94, "close": 95},
+        ]
+    )
+    first = _resolve_exit(df, entry_idx=0, is_long=True, sl=95, tp=110)
+    assert len(_resolve_exit_cache) == 1
+    second = _resolve_exit(df, entry_idx=0, is_long=True, sl=95, tp=110)
+    assert first == second  # Cache-Hit liefert exakt denselben Wert, kein Neu-Scan
+
+    clear_resolve_exit_cache()
+    assert len(_resolve_exit_cache) == 0
 
 
 def test_simulate_bucket_skips_degenerate_zero_risk_signal():
