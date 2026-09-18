@@ -40,6 +40,11 @@ python run_backtest.py            # liest aus data/*.csv
 python run_backtest.py --source ccxt   # nur mit echtem Netzwerkzugriff
 ```
 
+`run_backtest.py` wendet standardmäßig auch den MACD+RSI-Bestätigungsfilter an (Nutzer-Vorgabe
+18.09.2026, aus Erfahrung: nicht jedes valide LSOB-Signal wird gehandelt) und zeigt im Report BEIDE
+Varianten nebeneinander -- "Alle LSOB-Signale" vs. "MACD+RSI-bestätigt" (Long nur bei MACD-Linie
+über Signal-Linie UND RSI(14) > 50, Short umgekehrt, siehe `momentum_filter.py`/`indicators.py`).
+
 ### CRV-Walk-Forward-Validierung (1:1.5 / 1:2 / 1:3)
 
 ```bash

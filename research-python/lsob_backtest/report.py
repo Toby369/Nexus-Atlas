@@ -15,9 +15,12 @@ import pandas as pd
 from backtest import Trade, trades_to_dataframe
 from config import BacktestParams, LsobParams, TIMEFRAMES
 from metrics import BucketMetrics, bucket_metrics_to_dataframe
+from momentum_filter import MomentumFilterParams
 
 _COLOR_LONG = "#2E7D32"
 _COLOR_SHORT = "#C62828"
+_COLOR_UNFILTERED = "#9E9E9E"
+_COLOR_FILTERED = "#1565C0"
 
 
 def plot_equity_curves(
@@ -73,6 +76,41 @@ def _fmt(value: float, digits: int = 2, suffix: str = "") -> str:
     return f"{value:.{digits}f}{suffix}"
 
 
+def plot_momentum_filter_comparison(
+    trades_by_bucket: dict[tuple[str, str], list[Trade]],
+    filtered_trades_by_bucket: dict[tuple[str, str], list[Trade]],
+    initial_equity: float,
+    output_path: str,
+) -> None:
+    fig, axes = plt.subplots(len(TIMEFRAMES), 2, figsize=(11, 3.4 * len(TIMEFRAMES)), sharex=False)
+
+    def _curve(trades):
+        if not trades:
+            return [], []
+        xs = [trades[0].entry_time] + [t.exit_time for t in trades]
+        ys = [initial_equity] + [t.equity_after for t in trades]
+        return xs, ys
+
+    for row, tf in enumerate(TIMEFRAMES):
+        for col, direction in enumerate(("long", "short")):
+            ax = axes[row, col]
+            xs, ys = _curve(trades_by_bucket.get((tf, direction), []))
+            if xs:
+                ax.plot(xs, ys, label="Alle LSOB-Signale", color=_COLOR_UNFILTERED, linewidth=1.0, alpha=0.85)
+            xs, ys = _curve(filtered_trades_by_bucket.get((tf, direction), []))
+            if xs:
+                ax.plot(xs, ys, label="MACD+RSI-bestätigt", color=_COLOR_FILTERED, linewidth=1.6)
+
+            ax.axhline(initial_equity, color="gray", linewidth=0.8, linestyle="--")
+            ax.set_title(f"{tf} — {direction}")
+            ax.legend(loc="upper left", fontsize=7)
+            ax.grid(alpha=0.25)
+
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=150)
+    plt.close(fig)
+
+
 def _metrics_table_md(metrics: list[BucketMetrics]) -> str:
     header = (
         "| Timeframe | Richtung | Trades | Winrate | Profit Factor | Ø Gewinn | Ø Verlust | "
@@ -90,6 +128,26 @@ def _metrics_table_md(metrics: list[BucketMetrics]) -> str:
     return header + "\n".join(rows)
 
 
+def _filter_comparison_table_md(metrics: list[BucketMetrics], filtered_metrics: list[BucketMetrics]) -> str:
+    filtered_by_key = {(m.timeframe, m.direction): m for m in filtered_metrics}
+    header = (
+        "| Timeframe | Richtung | Variante | Trades | Winrate | Profit Factor | Total Return | Max Drawdown |\n"
+        "|---|---|---|---|---|---|---|---|\n"
+    )
+    rows = []
+    for m in metrics:
+        fm = filtered_by_key[(m.timeframe, m.direction)]
+        rows.append(
+            f"| {m.timeframe} | {m.direction} | Alle LSOB-Signale | {m.trades} | {_fmt(m.winrate_pct, 1, '%')} | "
+            f"{_fmt(m.profit_factor, 2)} | {_fmt(m.total_return_pct, 1, '%')} | {_fmt(m.max_drawdown_pct, 1, '%')} |"
+        )
+        rows.append(
+            f"| {m.timeframe} | {m.direction} | MACD+RSI-bestätigt | {fm.trades} | {_fmt(fm.winrate_pct, 1, '%')} | "
+            f"{_fmt(fm.profit_factor, 2)} | {_fmt(fm.total_return_pct, 1, '%')} | {_fmt(fm.max_drawdown_pct, 1, '%')} |"
+        )
+    return header + "\n".join(rows)
+
+
 def write_report_md(
     metrics: list[BucketMetrics],
     lsob_params: LsobParams,
@@ -97,6 +155,9 @@ def write_report_md(
     data_ranges: dict[str, tuple[pd.Timestamp, pd.Timestamp]],
     output_path: str,
     equity_chart_relpath: str,
+    filtered_metrics: list[BucketMetrics] | None = None,
+    momentum_params: MomentumFilterParams | None = None,
+    filtered_chart_relpath: str | None = None,
 ) -> None:
     lines: list[str] = []
     lines.append("# LSOB-Rekonstruktion: Backtest-Report\n")
@@ -131,6 +192,26 @@ def write_report_md(
 
     lines.append("## Equity-Kurven\n")
     lines.append(f"![Equity-Kurven]({equity_chart_relpath})\n")
+
+    if filtered_metrics is not None and momentum_params is not None:
+        lines.append("## Zusätzlicher Filter: MACD-Crossover + RSI (Nutzer-Vorgabe, aus Erfahrung)\n")
+        lines.append(
+            "Nicht jedes valide LSOB-Signal wird gehandelt -- zusätzlich muss ein Momentum-Filter "
+            "bestätigen (siehe momentum_filter.py):\n"
+        )
+        lines.append(
+            f"- Long nur wenn MACD-Linie über der Signal-Linie liegt UND RSI({momentum_params.rsi_period}) > 50."
+        )
+        lines.append(
+            f"- Short nur wenn MACD-Linie unter der Signal-Linie liegt UND RSI({momentum_params.rsi_period}) < 50."
+        )
+        lines.append(
+            f"- MACD({momentum_params.macd_fast}/{momentum_params.macd_slow}/{momentum_params.macd_signal}), "
+            "beide Indikatoren auf der Confirmation-Kerze selbst geprüft (kein Blick auf spätere Bars).\n"
+        )
+        lines.append(_filter_comparison_table_md(metrics, filtered_metrics) + "\n")
+        if filtered_chart_relpath:
+            lines.append(f"![MACD+RSI-Filter-Vergleich]({filtered_chart_relpath})\n")
 
     lines.append("## Kritische Einordnung\n")
     lines.append(
@@ -176,6 +257,14 @@ def write_report_md(
         "Beschreibung ('Retest → Rejection-Kerze → Confirmation-Kerze') als drei getrennte Kerzen "
         "erwartet hat, sollte diesen Unterschied kennen (siehe lsob_engine.py).\n"
     )
+    if filtered_metrics is not None:
+        lines.append(
+            "- **MACD+RSI-Filter reduziert die Stichprobe spürbar**: weniger Trades bedeutet auch "
+            "weniger statistische Aussagekraft der Kennzahlen -- eine bessere Winrate bei deutlich "
+            "weniger Trades kann ebenso gut Zufall sein wie ein echter Effekt. Kein eigener Walk-"
+            "Forward-Test für diesen Filter in diesem Report (siehe crv_walk_forward.py für das "
+            "Muster, falls gewünscht).\n"
+        )
 
     with open(output_path, "w") as f:
         f.write("\n".join(lines))
