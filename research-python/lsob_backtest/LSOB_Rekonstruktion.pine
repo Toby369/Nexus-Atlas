@@ -1,0 +1,343 @@
+//@version=5
+indicator("LSOB Rekonstruktion (eigene Implementierung)", overlay=true, max_boxes_count=500, max_lines_count=500, max_labels_count=500)
+
+// =========================================================================
+// HINWEIS: Dies ist KEINE Kopie des Original-LSOB-Indikators von Claudius
+// Vertesi. Es ist eine eigenständige Nachbildung der öffentlich
+// beschriebenen SMC-Logik (Liquidity Sweep -> Order Block -> Retest ->
+// Rejection -> Signal), aufgebaut auf Basis der von dir bereitgestellten
+// Parameter-Screenshots. Verhalten kann in Details vom Original abweichen.
+// =========================================================================
+
+// ---------------- CORE LOGIC ----------------
+grp1 = "Core Logic"
+pivotLen        = input.int(15, "Pivot Length (Highs/Lows)", group=grp1)
+boxInvalidTolPc = input.float(20, "Box Invalidation Tolerance %", group=grp1)
+retestTolPc     = input.float(10, "Re-Test Tolerance %", group=grp1)
+strictWickInval = input.bool(false, "Strict Wick Invalidation", group=grp1)
+maxWickPenPc    = input.float(50, "Max Wick Penetration %", group=grp1)
+maxHistoryBars  = input.int(2000, "Max History Bars", group=grp1)
+
+// ---------------- LSOB VISUALS ----------------
+grp2 = "LSOB Visuals"
+showShort   = input.bool(true, "Show Short LSOB", group=grp2)
+shortColor  = input.color(color.red, "", group=grp2, inline="s")
+shortWidth  = input.int(1, "Short Width", group=grp2)
+showLong    = input.bool(true, "Show Long LSOB", group=grp2)
+longColor   = input.color(color.green, "", group=grp2, inline="l")
+longWidth   = input.int(1, "Long Width", group=grp2)
+
+// ---------------- PRE-WARN LINE ----------------
+grp3 = "Pre-Warn Line"
+showPreWarn   = input.bool(true, "Show Pre-Warn Line", group=grp3)
+atrDistance   = input.float(0.5, "ATR Distance", group=grp3)
+preWarnColor  = input.color(color.gray, "Color", group=grp3)
+preWarnWidth  = input.int(1, "Width", group=grp3)
+placementDelay= input.int(3, "Placement Delay (Bars)", group=grp3)
+expiryBars    = input.int(150, "Expiry (Bars)", group=grp3)
+
+// ---------------- SIGNALS ----------------
+grp4 = "Signals"
+sigCreated  = input.bool(false, "LSOB Created Alert", group=grp4)
+sigEntry    = input.bool(true, "LSOB Entry Signal", group=grp4)
+sigPreWarn  = input.bool(true, "LSOB Pre-Warn Signal", group=grp4)
+
+grp4b = "Alarm Timeframes"
+alarm5m  = input.bool(false, "5m", group=grp4b, inline="a1")
+alarm6m  = input.bool(false, "6m", group=grp4b, inline="a1")
+alarm10m = input.bool(false, "10m", group=grp4b, inline="a1")
+alarm15m = input.bool(false, "15m", group=grp4b, inline="a2")
+alarm24m = input.bool(false, "24m", group=grp4b, inline="a2")
+alarm30m = input.bool(false, "30m", group=grp4b, inline="a2")
+alarm2h  = input.bool(false, "2h", group=grp4b, inline="a3")
+alarm4h  = input.bool(true, "4h", group=grp4b, inline="a3")
+alarm1D  = input.bool(true, "1D", group=grp4b, inline="a3")
+alarm1W  = input.bool(true, "1W", group=grp4b, inline="a3")
+
+f_tfAllowed() =>
+    tf = timeframe.period
+    (tf == "5" and alarm5m) or (tf == "6" and alarm6m) or (tf == "10" and alarm10m) or
+     (tf == "15" and alarm15m) or (tf == "24" and alarm24m) or (tf == "30" and alarm30m) or
+     (tf == "120" and alarm2h) or (tf == "240" and alarm4h) or (tf == "D" and alarm1D) or (tf == "W" and alarm1W)
+
+tfAllowed = f_tfAllowed()
+
+// ---------------- MOVING AVERAGES ----------------
+grpMA = "Moving Averages"
+ma1Type = input.string("EMA", "MA1 Type", options=["EMA","SMA","WMA"], group=grpMA)
+ma1Len  = input.int(800, "MA1 Length", group=grpMA)
+ma2Type = input.string("EMA", "MA2 Type", options=["EMA","SMA","WMA"], group=grpMA)
+ma2Len  = input.int(50, "MA2 Length", group=grpMA)
+ma3Type = input.string("EMA", "MA3 Type", options=["EMA","SMA","WMA"], group=grpMA)
+ma3Len  = input.int(200, "MA3 Length", group=grpMA)
+ma4Type = input.string("EMA", "MA4 Type", options=["EMA","SMA","WMA"], group=grpMA)
+ma4Len  = input.int(400, "MA4 Length", group=grpMA)
+ma5Type = input.string("EMA", "MA5 Type", options=["EMA","SMA","WMA"], group=grpMA)
+ma5Len  = input.int(800, "MA5 Length", group=grpMA)
+showMA1 = input.bool(false, "Show MA1", group=grpMA)
+showMA2 = input.bool(false, "Show MA2", group=grpMA)
+showMA3 = input.bool(false, "Show MA3", group=grpMA)
+showMA4 = input.bool(false, "Show MA4", group=grpMA)
+showMA5 = input.bool(false, "Show MA5", group=grpMA)
+
+f_ma(src, len, type) =>
+    type == "EMA" ? ta.ema(src, len) : type == "SMA" ? ta.sma(src, len) : ta.wma(src, len)
+
+ma1 = f_ma(close, ma1Len, ma1Type)
+ma2 = f_ma(close, ma2Len, ma2Type)
+ma3 = f_ma(close, ma3Len, ma3Type)
+ma4 = f_ma(close, ma4Len, ma4Type)
+ma5 = f_ma(close, ma5Len, ma5Type)
+
+plot(showMA1 ? ma1 : na, "MA1", color=color.new(color.yellow, 0))
+plot(showMA2 ? ma2 : na, "MA2", color=color.new(color.gray, 0))
+plot(showMA3 ? ma3 : na, "MA3", color=color.new(color.orange, 0))
+plot(showMA4 ? ma4 : na, "MA4", color=color.new(color.silver, 0))
+plot(showMA5 ? ma5 : na, "MA5", color=color.new(color.silver, 0))
+
+// ---------------- CANDLE PATTERNS ----------------
+grpCP = "Candle Patterns"
+showAdvWicks   = input.bool(false, "Advancing Wicks", group=grpCP)
+showRetrWicks  = input.bool(false, "Retracing Wicks", group=grpCP)
+minBodyPc      = input.float(30, "Min Body %", group=grpCP)
+diffTolPc      = input.float(20, "Diff Tolerance %", group=grpCP)
+showDolphin    = input.bool(false, "Show Dolphin (Näherung)", group=grpCP)
+
+barRange   = high - low
+bodySize   = math.abs(close - open)
+bodyPct    = barRange == 0 ? 0 : (bodySize / barRange) * 100
+upperWick  = high - math.max(close, open)
+lowerWick  = math.min(close, open) - low
+
+// Advancing Wick: dominanter Wick in Trendrichtung, Body erfüllt Min-Body%
+isAdvancingWick = bodyPct >= minBodyPc and close > open and lowerWick > upperWick * (1 + diffTolPc/100)
+isRetracingWick = bodyPct >= minBodyPc and close < open and upperWick > lowerWick * (1 + diffTolPc/100)
+
+// "Dolphin" – Näherung: sehr kleiner Body mit beidseitig langen Wicks (Unentschlossenheits-/Reversal-Kerze)
+isDolphin = bodyPct <= (100 - minBodyPc) and upperWick > barRange*0.3 and lowerWick > barRange*0.3
+
+plotshape(showAdvWicks and isAdvancingWick, title="Advancing Wick", style=shape.triangleup, location=location.belowbar, color=color.green, size=size.tiny)
+plotshape(showRetrWicks and isRetracingWick, title="Retracing Wick", style=shape.triangledown, location=location.abovebar, color=color.red, size=size.tiny)
+plotshape(showDolphin and isDolphin, title="Dolphin", style=shape.triangledown, location=location.abovebar, color=color.white, size=size.tiny)
+
+// ---------------- PIVOTS & LIQUIDITY SWEEP ----------------
+ph = ta.pivothigh(high, pivotLen, pivotLen)
+pl = ta.pivotlow(low, pivotLen, pivotLen)
+
+var float lastPH = na
+var float lastPL = na
+if not na(ph)
+    lastPH := ph
+if not na(pl)
+    lastPL := pl
+
+// Sweep: aktueller Wick durchbricht letztes Pivot-High/Low, Body bleibt (meist) innerhalb
+sweepHigh = not na(lastPH) and high > lastPH and close < lastPH  // Short-Sweep (Liquidity oberhalb abgefischt)
+sweepLow  = not na(lastPL) and low  < lastPL and close > lastPL  // Long-Sweep (Liquidity unterhalb abgefischt)
+
+// ---------------- ORDER BLOCK STRUKTUR ----------------
+type OB
+    box   box
+    line  preWarnLine
+    float top
+    float bottom
+    bool  isLong
+    bool  confirmed
+    bool  invalid
+    int   createdBar
+    bool  preWarnPlaced
+
+var OB[] obList = array.new<OB>()
+atrVal = ta.atr(14)
+
+// --- Neue Order Blocks erzeugen ---
+if sweepLow and showLong
+    ob = OB.new(na, na, low, high, true, false, false, bar_index, false)
+    ob.box := box.new(bar_index, high, bar_index, low, border_color=longColor, bgcolor=color.new(longColor, 85), extend=extend.right)
+    array.push(obList, ob)
+    if sigCreated and tfAllowed
+        alert("LSOB Created (Long) @ " + str.tostring(close), alert.freq_once_per_bar)
+
+if sweepHigh and showShort
+    ob = OB.new(na, na, low, high, false, false, false, bar_index, false)
+    ob.box := box.new(bar_index, high, bar_index, low, border_color=shortColor, bgcolor=color.new(shortColor, 85), extend=extend.right)
+    array.push(obList, ob)
+    if sigCreated and tfAllowed
+        alert("LSOB Created (Short) @ " + str.tostring(close), alert.freq_once_per_bar)
+
+// --- Bestehende Order Blocks verwalten: Invalidierung, Retest, Pre-Warn, Confirmation ---
+if array.size(obList) > 0
+    for i = array.size(obList) - 1 to 0
+        ob = array.get(obList, i)
+        boxHeight = ob.top - ob.bottom
+        age = bar_index - ob.createdBar
+
+        // Ablauf nach Max History Bars
+        if age > maxHistoryBars
+            box.delete(ob.box)
+            if not na(ob.preWarnLine)
+                line.delete(ob.preWarnLine)
+            array.remove(obList, i)
+            continue
+
+        // Invalidierung
+        invalTol = boxHeight * boxInvalidTolPc / 100
+        bool invalidated = false
+        if ob.isLong
+            invalidated := strictWickInval ? (low < ob.bottom - invalTol) : (close < ob.bottom - invalTol)
+        else
+            invalidated := strictWickInval ? (high > ob.top + invalTol) : (close > ob.top + invalTol)
+
+        // Max Wick Penetration Check (zusätzliches Invalidierungskriterium)
+        if not invalidated
+            if ob.isLong
+                pen = (ob.top - low) / boxHeight * 100
+                if low < ob.bottom and pen > maxWickPenPc
+                    invalidated := true
+            else
+                pen = (high - ob.bottom) / boxHeight * 100
+                if high > ob.top and pen > maxWickPenPc
+                    invalidated := true
+
+        if invalidated
+            box.delete(ob.box)
+            if not na(ob.preWarnLine)
+                line.delete(ob.preWarnLine)
+            array.remove(obList, i)
+            continue
+
+        // Box weiterziehen (rechter Rand)
+        box.set_right(ob.box, bar_index)
+
+        // Pre-Warn Line platzieren (nach Placement Delay, Ablauf nach Expiry)
+        if showPreWarn and not ob.preWarnPlaced and age >= placementDelay and age <= expiryBars
+            float lvl = ob.isLong ? ob.top + atrVal*atrDistance : ob.bottom - atrVal*atrDistance
+            ob.preWarnLine := line.new(bar_index, lvl, bar_index + 20, lvl, color=preWarnColor, width=preWarnWidth, style=line.style_dashed)
+            ob.preWarnPlaced := true
+            if sigPreWarn and tfAllowed
+                alert((ob.isLong ? "LSOB Pre-Warn (Long)" : "LSOB Pre-Warn (Short)") + " @ " + str.tostring(lvl), alert.freq_once_per_bar)
+
+        // Retest + Rejection + Confirmation -> Entry Signal
+        if not ob.confirmed
+            retestTol = boxHeight * retestTolPc / 100
+            bool retested = ob.isLong ? (low <= ob.top + retestTol and low >= ob.bottom - retestTol) : (high >= ob.bottom - retestTol and high <= ob.top + retestTol)
+            bool rejection = ob.isLong ? (low < ob.top and close > ob.bottom) : (high > ob.bottom and close < ob.top)
+
+            if retested and rejection
+                bool confirmCandle = ob.isLong ? (close > open) : (close < open)
+                if confirmCandle
+                    ob.confirmed := true
+                    label.new(bar_index, ob.isLong ? low : high, ob.isLong ? "LSOB Long" : "LSOB Short",
+                         style=ob.isLong ? label.style_label_up : label.style_label_down,
+                         color=ob.isLong ? longColor : shortColor, textcolor=color.white, size=size.small)
+                    if sigEntry and tfAllowed
+                        alert((ob.isLong ? "LSOB Entry Signal (Long)" : "LSOB Entry Signal (Short)") + " @ " + str.tostring(close), alert.freq_once_per_bar)
+
+// ---------------- FAIR VALUE GAPS ----------------
+grpFVG = "Fair Value Gaps"
+maxFVGperTF   = input.int(10, "Max FVGs per TF", group=grpFVG)
+fvgFillPc     = input.float(50, "FVG Fill Removal % (Wick)", group=grpFVG)
+fvgMinSizeATR = input.float(0.4, "FVG Min Size (ATR Multi)", group=grpFVG)
+fvgDeactivateBars = input.int(0, "FVG Length / Deactivate after N Bars (0 = unbegrenzt)", group=grpFVG)
+
+var box[] fvgBoxes = array.new<box>()
+var float[] fvgTop = array.new<float>()
+var float[] fvgBot = array.new<float>()
+var bool[]  fvgBull = array.new<bool>()
+var int[]   fvgBar  = array.new<int>()
+
+bullFVG = low > high[2] and (low - high[2]) > atrVal * fvgMinSizeATR
+bearFVG = high < low[2]  and (low[2] - high) > atrVal * fvgMinSizeATR
+
+if bullFVG
+    b = box.new(bar_index[1], low, bar_index, high[2], border_color=color.new(color.green,50), bgcolor=color.new(color.green, 85), extend=extend.right)
+    array.push(fvgBoxes, b)
+    array.push(fvgTop, low)
+    array.push(fvgBot, high[2])
+    array.push(fvgBull, true)
+    array.push(fvgBar, bar_index)
+
+if bearFVG
+    b = box.new(bar_index[1], low[2], bar_index, high, border_color=color.new(color.red,50), bgcolor=color.new(color.red, 85), extend=extend.right)
+    array.push(fvgBoxes, b)
+    array.push(fvgTop, low[2])
+    array.push(fvgBot, high)
+    array.push(fvgBull, false)
+    array.push(fvgBar, bar_index)
+
+if array.size(fvgBoxes) > 0
+    for i = array.size(fvgBoxes) - 1 to 0
+        gTop = array.get(fvgTop, i)
+        gBot = array.get(fvgBot, i)
+        gBull = array.get(fvgBull, i)
+        gBar = array.get(fvgBar, i)
+        gapSize = gTop - gBot
+        filled = gBull ? (low <= gTop - gapSize*fvgFillPc/100) : (high >= gBot + gapSize*fvgFillPc/100)
+        expired = fvgDeactivateBars > 0 and (bar_index - gBar) > fvgDeactivateBars
+        if filled or expired
+            box.delete(array.get(fvgBoxes, i))
+            array.remove(fvgBoxes, i)
+            array.remove(fvgTop, i)
+            array.remove(fvgBot, i)
+            array.remove(fvgBull, i)
+            array.remove(fvgBar, i)
+        else
+            box.set_right(array.get(fvgBoxes, i), bar_index)
+
+    // Max FVGs pro TF begrenzen (älteste entfernen)
+    while array.size(fvgBoxes) > maxFVGperTF
+        box.delete(array.get(fvgBoxes, 0))
+        array.remove(fvgBoxes, 0)
+        array.remove(fvgTop, 0)
+        array.remove(fvgBot, 0)
+        array.remove(fvgBull, 0)
+        array.remove(fvgBar, 0)
+
+// =========================================================================
+// LSOB MTF (Multi-Timeframe-Zonen)
+// Hinweis: request.security auf einen höheren TF für Pivot-Erkennung ist
+// naturgemäß repaint-behaftet (das Pivot bestätigt sich erst nach
+// mtfPivotLen Bars auf dem höheren TF) - das gilt vermutlich auch fürs
+// Original.
+// =========================================================================
+grpMTF = "LSOB MTF"
+mtfTF        = input.timeframe("15", "Zeitrahmen", group=grpMTF)
+mtfPivotLen  = input.int(5, "Pivot Len", group=grpMTF)
+mtfMaxZones  = input.int(3, "Max Zones per TF", group=grpMTF)
+showShortMTF = input.bool(false, "Show Short MTF", group=grpMTF)
+mtfShortColor= input.color(color.red, "", group=grpMTF, inline="ms")
+showLongMTF  = input.bool(false, "Show Long MTF", group=grpMTF)
+mtfLongColor = input.color(color.green, "", group=grpMTF, inline="ml")
+
+// Sweep-Erkennung auf dem höheren Timeframe berechnen
+f_mtfSweep() =>
+    mph = ta.pivothigh(high, mtfPivotLen, mtfPivotLen)
+    mpl = ta.pivotlow(low, mtfPivotLen, mtfPivotLen)
+    var float lph = na
+    var float lpl = na
+    if not na(mph)
+        lph := mph
+    if not na(mpl)
+        lpl := mpl
+    sHigh = not na(lph) and high > lph and close < lph
+    sLow  = not na(lpl) and low  < lpl and close > lpl
+    [sHigh, sLow, high, low, time]
+
+[mtfSweepHigh, mtfSweepLow, mtfHigh, mtfLow, mtfTime] = request.security(syminfo.tickerid, mtfTF, f_mtfSweep(), lookahead=barmerge.lookahead_off)
+
+var box[] mtfShortBoxes = array.new<box>()
+var box[] mtfLongBoxes  = array.new<box>()
+
+if showShortMTF and mtfSweepHigh and mtfTime != mtfTime[1]
+    b = box.new(bar_index, mtfHigh, bar_index + 5, mtfLow, border_color=mtfShortColor, bgcolor=color.new(mtfShortColor, 88), extend=extend.right)
+    array.push(mtfShortBoxes, b)
+    while array.size(mtfShortBoxes) > mtfMaxZones
+        box.delete(array.get(mtfShortBoxes, 0))
+        array.remove(mtfShortBoxes, 0)
+
+if showLongMTF and mtfSweepLow and mtfTime != mtfTime[1]
+    b = box.new(bar_index, mtfHigh, bar_index + 5, mtfLow, border_color=mtfLongColor, bgcolor=color.new(mtfLongColor, 88), extend=extend.right)
+    array.push(mtfLongBoxes, b)
+    while array.size(mtfLongBoxes) > mtfMaxZones
+        box.delete(array.get(mtfLongBoxes, 0))
+        array.remove(mtfLongBoxes, 0)
