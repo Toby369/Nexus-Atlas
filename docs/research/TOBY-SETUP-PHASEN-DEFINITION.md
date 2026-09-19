@@ -204,10 +204,65 @@ Indikator-Regime und Knickpunkt-Struktur genügt, um kein Richtungslabel zu
 vergeben. Richtungsphasen sind kürzer (Median 9h) als Seitwärts-Phasen
 (Median 19h, längster durchgehender Seitwärts-Abschnitt 191h ≈ 8 Tage).
 
+## Verknüpfung 1h-Phasen mit 15m-Setups (Stufe 3)
+
+`research-python/toby_setup/join_phase_to_setups.py` — verknüpft jeden der
+6 Setup-Datensätze aus Stufe 1 (2 Richtungen × 3 Hebel, je 141.667 Entries)
+mit der Phase der zuletzt **bestätigten** 1h-Kerze zum Entry-Zeitpunkt.
+Wiederverwendet `wave_anchor_research/mtf_join.py::confirmed_asof_join`
+(bereits gebaut und getestet für genau diesen Zweck) statt den Join neu zu
+implementieren — kein Blick in die Zukunft: eine 1h-Kerze zählt erst ab
+ihrem eigenen Schlusszeitpunkt als bekannt, `entry_time` einer 15m-Kerze
+ist zugleich deren eigener Schlusszeitpunkt (identische Konvention wie im
+Wave-Anchor-Projekt). Für die ersten 3 Entries pro Kombination (vor der
+allerersten bestätigten 1h-Kerze um 01:00 Uhr) ist keine Phase zuordenbar
+(NaN, kein künstliches Auffüllen).
+
+Ergebnis: **Setups pro Phase** (gepoolt über alle 6 Kombinationen, zur
+Orientierung — die Verteilung entspricht fast exakt den 1h-Bar-Anteilen
+aus Stufe 2, da 15m-Entries nur eine feinere Abtastung derselben
+Phasen-Zeitachse sind):
+
+| Phase | Setups | Anteil |
+|---|---|---|
+| Aufwärts | 131.976 | 15.53% |
+| Abwärts | 133.296 | 15.68% |
+| Seitwärts | 584.712 | 68.79% |
+
+**Tier-Verteilung nach Setup-Ausrichtung zur Phase** (deskriptiv, noch
+keine Signifikanzprüfung — das folgt erst in der Signal-Zeitfenster-Stufe
+mit BH-FDR, gleiche Methodik wie im Wave-Anchor-Projekt):
+
+| Setup | mit der Phase | gegen die Phase | in Seitwärts |
+|---|---|---|---|
+| LONG erreicht ≥ Standard 4 (TP20+) | 33.71% (in Aufwärts) | 32.13% (in Abwärts) | 33.50% |
+| SHORT erreicht ≥ Standard 4 (TP20+) | 34.08% (in Abwärts) | 31.37% (in Aufwärts) | 32.09% |
+
+Und speziell bei Standard-1-Extended (TP35+, mit Trailing):
+
+| Setup | mit der Phase | gegen die Phase |
+|---|---|---|
+| LONG → Standard 1 Extended | 23.14% (Aufwärts) | 20.33% (Abwärts) |
+| SHORT → Standard 1 Extended | 23.24% (Abwärts) | 19.26% (Aufwärts) |
+
+Ein Setup **mit** der Phase (LONG in Aufwärts, SHORT in Abwärts) schneidet
+in beiden Kennzahlen durchgehend besser ab als eines **gegen** die Phase —
+Differenz ca. 1.6–2.7 Prozentpunkte (TP20+) bzw. 2.8–4.0 Prozentpunkte
+(TP35+-Extended). Rein deskriptiv, kein Signifikanztest, keine Korrektur
+für Mehrfachtests — aber ein plausibler, richtungskonsistenter Effekt in
+beide Richtungen (LONG und SHORT jeweils in ihrer "eigenen" Phase besser),
+der die Grundannahme des Projekts stützt und die weitere Signal-Analyse
+rechtfertigt.
+
+Ausführliche Daten: `output/tiered_mfe_with_phase_{direction}_{leverage}x.csv`
+(je 141.667 Zeilen, gitignored) und
+`output/setup_tier_distribution_by_phase.csv` (Übersichtstabelle, gitignored).
+
 ## Offen / nächster Schritt
 
-Noch nicht gebaut: Verknüpfung der 1h-Phasenreihe mit den 15m-Setup-Events
-aus Stufe 1 (point-in-time-Join, konfirmierter HTF-Wert, gleiches Muster
-wie `wave_anchor_research/mtf_join.py`), danach Signal-Zeitfenster-
-Extraktion (bis 4h / bis 1h / bis 15m vor Entry / im laufenden 15m-Trade)
-und die Paar-/Dreier-Kombinatorik pro Phase/Zeitfenster.
+Signal-Zeitfenster-Extraktion (bis 4h / bis 1h / bis 15m vor Entry / im
+laufenden 15m-Trade): für jeden Setup-Entry die zu diesem Zeitpunkt
+tatsächlich aktiven Nexus-Signale festhalten (ebenfalls point-in-time,
+konfirmierter Wert), dann Häufigkeit/Ko-Auftreten (Einzelsignale, Paare,
+Dreier) pro Phase/Zeitfenster, mit gepoolter BH-FDR-Korrektur (Methodik-
+Vorlage: Wave-Anchor-Projekt).
