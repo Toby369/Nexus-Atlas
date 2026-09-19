@@ -1,4 +1,7 @@
-"""Toby Setup: 20x Hebel, ~10 USDT Einsatz, SL 10%/TP 30% der Marge ->
+"""Toby Setup Standard 2 (siehe ../TOBY_SETUP_STANDARDS.py -- "Toby Setup"
+ist keine einzelne Definition, sondern 4 Standards mit fixem SL 10% und
+variabler TP-Distanz; hier TP 30% = Standard 2, NICHT der Referenz-Standard
+1 mit TP 35%): 20x Hebel, ~10 USDT Einsatz, SL 10%/TP 30% der Marge ->
 SL 0.5%/TP 1.5% Kursbewegung (CRV 3:1). Trailing-Exit nach TP-Beruehrung:
 10% Marge-Rueckgang vom bisherigen Hoch/Tief seit TP-Beruehrung -> 0.5%
 Kursbewegung (Nutzer-Vorgabe 18.09.2026, "wie sl/tp als Hebelprozent").

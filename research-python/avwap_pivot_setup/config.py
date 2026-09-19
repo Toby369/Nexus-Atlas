@@ -23,8 +23,12 @@ class AvwapPivotParams:
 
 @dataclass(frozen=True)
 class BacktestParams:
-    # Toby-Setup-Exit-Parameter, 1:1 identisch zu toby_setup/config.py:
-    # SL 10%/TP 30%/Trailing-Ruecksetzer 10% Marge bei 20x Hebel.
+    # Toby-Setup-Exit-Parameter, Standard 2 (siehe ../TOBY_SETUP_STANDARDS.py
+    # -- "Toby Setup" ist keine einzelne Definition, sondern 4 Standards mit
+    # fixem SL 10% und variabler TP-Distanz; hier TP 30% = Standard 2, NICHT
+    # der Referenz-Standard 1 mit TP 35%), 1:1 identisch zu
+    # toby_setup/run_toby_setup.py: SL 10%/TP 30%/Trailing-Ruecksetzer 10%
+    # Marge bei 20x Hebel.
     tp_pct: float = 1.5
     sl_pct: float = 0.5
     retrace_pct: float = 0.5

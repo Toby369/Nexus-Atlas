@@ -1,5 +1,12 @@
 # AVWAP-Pivot-Konfluenz-Rejection: Backtest — 2026-09-18
 
+> **Korrektur 19.09.2026:** Toby hat klargestellt, dass "Toby Setup" kein einzelnes Setup ist,
+> sondern 4 benannte Standards mit fixem SL 10% und variabler TP-Distanz (Standard 1/Referenz:
+> TP 35%, CRV 3,5:1 — Standard 2: TP 30%, CRV 3:1 — Standard 3: TP 25%, CRV 2,5:1 — Standard 4:
+> TP 20%, CRV 2:1; siehe `knowledge_base` module='mein_system'). Dieser Bericht testet mit TP 30%
+> tatsächlich **Standard 2**, nicht den Referenz-Standard (Standard 1). Die Zahlen unten sind
+> unverändert korrekt — nur die ursprüngliche Bezeichnung "Tobys exaktes Setup" war irreführend.
+
 ## 1. Fragestellung
 
 Toby verwirft explizit die "jede Kerze ist ein Signal"-Methodik der bisherigen Toby-Setup-Reports
