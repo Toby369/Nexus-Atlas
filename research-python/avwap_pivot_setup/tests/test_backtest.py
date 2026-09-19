@@ -89,7 +89,10 @@ def test_simulate_signals_computes_correct_usdt_pnl_for_sl_trade():
         {"open": 99.8, "high": 100, "low": 99.0, "close": 99.2},  # SL(99.5) getroffen, real fill 99.0 -> r=-1.0%
     ]
     df = _make_df(rows)
-    signal = Signal(time=df.index[0], bar_index=0, direction="LONG", entry_price=100, level=98, confluence_count=1)
+    signal = Signal(
+        time=df.index[0], bar_index=0, direction="LONG", entry_price=100, level=98,
+        confluence_count=1, line_touch_number=1,
+    )
     params = BacktestParams(
         tp_pct=1.5, sl_pct=0.5, retrace_pct=0.5, max_hold_hours=48.0,
         fee_pct_per_side=0.0006, initial_equity=1000.0,

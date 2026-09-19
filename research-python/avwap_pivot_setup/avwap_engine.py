@@ -16,6 +16,19 @@ Look-Ahead-Sicherheit: eine an Bar `t` enthuellte Pivot-Linie (Pine-Lag,
 siehe pivots.py) ist fruehestens ab Bar `t+1` fuer Signale nutzbar -- nicht
 auf der Enthuellungs-Bar selbst, da ihr exakter AVWAP-Wert (inkl. dieser
 Bar) erst mit deren eigenem Schluss feststeht.
+
+Line-Touch-Zaehlung (Stefan Salomon, "je mehr Beruehrungspunkte, desto
+relevanter die Linie" -- Toby-Nachfrage 19.09.2026, siehe knowledge_base
+module='salomon'): eine AVWAP-Linie bleibt per Konstruktion nur aktiv,
+solange sie noch nicht durchbrochen wurde -- jede Beruehrung, die NICHT
+zur Invalidierung fuehrt, ist also bereits eine erfolgreiche Ablehnung
+(Rejection-Signal). `ActiveLine.touch_count` zaehlt, wie oft genau DIESE
+Linie bereits erfolgreich abgelehnt hat, BEVOR die aktuelle Beruehrung
+gewertet wird; `Signal.line_touch_number` haelt fest, die wievielte
+Beruehrung dieser spezifischen Linie das aktuelle Signal ist (1 = erster
+Test ueberhaupt). Reine Metadaten -- kein Einfluss auf Signalerzeugung
+selbst, ermoeglicht aber eine Auswertung, ob spaetere (oefter bereits
+gehaltene) Beruehrungen zuverlaessiger sind als die erste.
 """
 
 from dataclasses import dataclass, field
@@ -32,6 +45,7 @@ class ActiveLine:
     anchor_idx: int
     cum_pv: float
     cum_v: float
+    touch_count: int = 0  # Anzahl bereits erfolgreicher Ablehnungen dieser Linie (Salomon)
 
     @property
     def value(self) -> float:
@@ -46,6 +60,7 @@ class Signal:
     entry_price: float  # Close der Rejection-Kerze
     level: float  # Wert der naechstliegenden (primaeren) getesteten AVWAP-Linie
     confluence_count: int  # Anzahl gleichzeitig beruehrter aktiver Linien derselben Seite
+    line_touch_number: int  # die wievielte erfolgreiche Beruehrung DIESER Linie (Salomon-Metrik)
 
 
 def run_avwap_pivot_signals(df: pd.DataFrame, params: AvwapPivotParams) -> list[Signal]:
@@ -87,16 +102,18 @@ def run_avwap_pivot_signals(df: pd.DataFrame, params: AvwapPivotParams) -> list[
         if touched_res:
             primary = touched_res[0]  # naechstliegende Linie von unten
             if c < primary.value:
+                primary.touch_count += 1
                 signals.append(
-                    Signal(times[t], t, "SHORT", c, primary.value, len(touched_res))
+                    Signal(times[t], t, "SHORT", c, primary.value, len(touched_res), primary.touch_count)
                 )
 
         touched_sup = sorted((ln for ln in active_support if l <= ln.value <= h), key=lambda ln: ln.value)
         if touched_sup:
             primary = touched_sup[-1]  # naechstliegende Linie von oben
             if c > primary.value:
+                primary.touch_count += 1
                 signals.append(
-                    Signal(times[t], t, "LONG", c, primary.value, len(touched_sup))
+                    Signal(times[t], t, "LONG", c, primary.value, len(touched_sup), primary.touch_count)
                 )
 
         # 3. Invalidierung: Schlusskurs bricht eine Linie eindeutig -> nicht mehr S/R.

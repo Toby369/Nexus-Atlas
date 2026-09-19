@@ -187,8 +187,59 @@ Rauschen zu trennen.
   Rejection-Erkennung)
 - `research-python/avwap_pivot_setup/backtest.py` — Trade-Auflösung + $-P&L unter Tobys Setup
 - `research-python/avwap_pivot_setup/run_backtest.py` — Orchestrierung über 5m/15m/1h
-- `research-python/avwap_pivot_setup/tests/` — 18 Unit-Tests (Pivots, Signal-Engine, Backtest,
+- `research-python/avwap_pivot_setup/tests/` — 19 Unit-Tests (Pivots, Signal-Engine, Backtest,
   Metriken)
 - `research-python/avwap_pivot_setup/output/signals_{5m,15m,1h}.csv`,
   `trades_{5m,15m,1h}.csv` — vollständige Einzel-Signal-/Trade-Rohdaten (nicht committed, siehe
   `.gitignore`)
+
+## 8. Update 2026-09-19: Test von Salomons "je mehr Berührungen, desto stärker die Linie"
+
+Anlass: Recherche zu Stefan Salomon (dessen Chartanalyse-Methodik bereits als `knowledge_base`
+(module='salomon') in Nexus Atlas hinterlegt ist — siehe neu ergänzter Eintrag "Käufer-/
+Verkäuferzonen (Unterstützung/Widerstand)") ergab sein zentrales Trendlinien-Prinzip: **je mehr
+Berührungspunkte eine Linie bereits erfolgreich überstanden hat, desto relevanter/stärker gilt sie
+als Unterstützung/Widerstand.** Toby bat darum, dieses Prinzip in die AVWAP-Engine einzubauen und
+erneut zu backtesten.
+
+**Umsetzung**: Da eine AVWAP-Linie per Konstruktion nur aktiv bleibt, solange sie noch nicht per
+Schlusskurs durchbrochen wurde, ist JEDE Berührung, die kein Durchbruch war, bereits eine
+erfolgreiche Ablehnung. `avwap_engine.py` zählt deshalb pro Linie (`ActiveLine.touch_count`), wie
+oft sie bereits erfolgreich abgelehnt hat, und hält für jedes neue Signal fest, die wievielte
+Berührung dieser konkreten Linie es ist (`Signal.line_touch_number`, 1 = allererste Berührung).
+Reine Metadaten ohne Rückwirkung auf die Signalerzeugung selbst — ermöglicht aber, Trades nach
+`line_touch_number` zu bucketen und Winrate/PnL zu vergleichen. 1 neuer Unit-Test
+(`test_line_touch_number_increments_across_repeated_rejections_of_same_line`) verifiziert die
+Zählung an einer Linie mit drei aufeinanderfolgenden Ablehnungen.
+
+**Ergebnis** (Winrate nach `line_touch_number`-Bucket, alle drei Zeitebenen zusammengefasst,
+n=4.561 bis 41.223 je Bucket):
+
+| Bucket (Berührung Nr.) | n | Winrate | Ø PnL/Trade |
+|---|---|---|---|
+| 1 (erste Berührung) | 41.223 | 24,0% | -0,60 USDT |
+| 2 | 21.612 | 23,9% | -0,61 USDT |
+| 3 | 10.876 | 24,5% | -0,58 USDT |
+| 4 | 5.243 | 24,5% | -0,59 USDT |
+| 5+ | 4.561 | 24,1% | -0,61 USDT |
+
+Gleiches Bild auf jeder einzelnen Zeitebene (5m/15m/1h) einzeln betrachtet. Die Winrate bewegt sich
+in allen Buckets innerhalb von ±1 Prozentpunkt um denselben Wert (~24%), OHNE erkennbaren
+Aufwärtstrend mit steigender Berührungszahl — Bucket 5+ performt nicht besser als Bucket 1, trotz
+großer Stichproben (kein Rauschen-Artefakt). **Salomons Prinzip lässt sich für diese konkrete
+AVWAP-Pivot-Konfluenz-Rejection-Definition NICHT bestätigen**: eine Linie, die bereits mehrfach
+erfolgreich gehalten hat, ist in diesem Backtest kein zuverlässigeres Signal als eine Linie beim
+allerersten Test.
+
+**Einordnung**: das schließt Salomons Prinzip nicht grundsätzlich aus — sein Konzept bezieht sich
+auf manuell gezogene Trendlinien (die über die Zeit im Preis-Winkel wandern und deren Berührungen
+über Wochen/Monate verstreut sind), während die hier getestete AVWAP-Linie ein statischer,
+horizontaler Wert ab einem festen Anker-Pivot ist — eine methodisch andere Definition von
+"Linie". Möglich, dass das Prinzip bei einer klassischen (geneigten) Trendlinien-Implementierung
+anders ausfällt; das wäre ein eigener, hier nicht durchgeführter Test.
+
+## 9. Artefakte (aktualisiert)
+
+- `research-python/avwap_pivot_setup/avwap_engine.py` — inkl. `touch_count`/`line_touch_number`
+  (Abschnitt 8)
+- `research-python/avwap_pivot_setup/tests/test_avwap_engine.py` — inkl. neuem Touch-Count-Test

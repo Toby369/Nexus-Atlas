@@ -38,6 +38,7 @@ def test_resistance_rejection_produces_short_signal_with_correct_level():
     assert s.entry_price == 102
     assert s.level == pytest.approx(103.0)
     assert s.confluence_count == 1
+    assert s.line_touch_number == 1
 
 
 def test_no_signal_fires_on_the_reveal_bar_itself():
@@ -142,3 +143,25 @@ def test_support_rejection_produces_long_signal_symmetric():
     assert s.bar_index == 4
     assert s.entry_price == 98
     assert s.confluence_count == 1
+    assert s.line_touch_number == 1
+
+
+def test_line_touch_number_increments_across_repeated_rejections_of_same_line():
+    # Eine Linie (Pivot bei Index 2, revealed 3, dominantes Volumen damit der
+    # Wert ueber mehrere Beruehrungen stabil bleibt) wird DREIMAL beruehrt und
+    # jedes Mal abgelehnt (Docht erreicht die Linie, Close bleibt darunter),
+    # ohne je durchbrochen zu werden -- touch_number muss 1, 2, 3 zaehlen.
+    rows = [
+        _flat(100), _flat(100),
+        {"open": 100, "high": 110, "low": 100, "close": 105, "volume": 1000},  # Index 2: Pivot-High
+        _flat(100),  # Index 3: Reveal
+        {"open": 100, "high": 110, "low": 100, "close": 102, "volume": 10},  # Index 4: Touch #1, Rejection
+        {"open": 100, "high": 110, "low": 100, "close": 102, "volume": 10},  # Index 5: Touch #2, Rejection
+        {"open": 100, "high": 110, "low": 100, "close": 102, "volume": 10},  # Index 6: Touch #3, Rejection
+    ]
+    df = _make_df(rows)
+    signals = run_avwap_pivot_signals(df, AvwapPivotParams(pivot_length=1, max_active_lines_per_side=5))
+
+    short_signals = [s for s in signals if s.direction == "SHORT"]
+    assert len(short_signals) == 3
+    assert [s.line_touch_number for s in short_signals] == [1, 2, 3]
