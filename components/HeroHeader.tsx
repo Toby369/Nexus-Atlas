@@ -25,6 +25,7 @@ import {
   shouldSuppressRegimeDirectionalLabel,
 } from "@/lib/marketRegime";
 import { getSalomonInterpretation } from "@/lib/salomonInterpretation";
+import { detectMomentumDivergence } from "@/lib/momentumDivergence";
 import {
   regimeDirection,
   spotPressureDirection,
@@ -41,7 +42,7 @@ import StatusLineSummary, { type StatusLineItem } from "@/components/StatusLineS
 import TradingHoursBadge from "@/components/TradingHoursBadge";
 import MarketStateNarrativeCard from "@/components/MarketStateNarrativeCard";
 import PanelInfo from "@/components/PanelInfo";
-import { marketStateInfo, MARKET_STATE_FACTOR_INFO } from "@/lib/panelInfo";
+import { marketStateInfo, MARKET_STATE_FACTOR_INFO, momentumDivergenceInfo } from "@/lib/panelInfo";
 
 const CUMULATIVE_ETF_DAYS = 5;
 const LIQUIDATION_LOOKBACK_HOURS = 6;
@@ -482,6 +483,7 @@ export default function HeroHeader({
   const mtf = state.mtf_alignment;
   const confidenceBreakdown = computeConfidenceBreakdown(state);
   const salomonInterpretation = getSalomonInterpretation(patterns, mtf);
+  const momentumDivergence = detectMomentumDivergence(state);
 
   return (
     <section className="rounded-lg border border-accent/40 bg-surface-raised p-6 space-y-3">
@@ -502,6 +504,13 @@ export default function HeroHeader({
           {DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD}/100 — für eine Richtungsaussage zu unsicher, daher
           hier als &bdquo;{UNCLEAR_STATE_LABEL}&ldquo; angezeigt. Faktoren-Detail unten unverändert
           einsehbar.
+        </p>
+      )}
+
+      {momentumDivergence.triggered && (
+        <p className="flex items-center gap-1 text-xs text-down/90">
+          ⚠️ Momentum bestätigt den Trend nicht mehr (Prototyp-Hinweis)
+          <PanelInfo title="Momentum-Divergenz-Hinweis" content={momentumDivergenceInfo} />
         </p>
       )}
 
