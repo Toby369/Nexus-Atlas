@@ -1,0 +1,6 @@
+data/*.csv
+output/*.csv
+output/*.pkl
+run_backtest.log
+__pycache__/
+.pytest_cache/
