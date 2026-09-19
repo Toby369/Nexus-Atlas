@@ -1,8 +1,12 @@
-"""WaveTrend-Oszillator (LazyBear-Original + VuManChu-Cipher-B-Tuning), siehe
+"""WaveTrend-Oszillator (LazyBear-Original + VuManChu-Cipher-B), siehe
 docs/research/WAVE-ANCHOR-CODE-RECONSTRUCTION.md Abschnitt 1 -- exakte Formel
-1:1 aus dem tatsächlich eingesehenen VuManChu-Cipher-B-Pine-Quelltext
-reproduziert (Kategorie C dort), NICHT aus Wave Anchors eigenem (nicht
-zugänglichen) Code.
+1:1 aus der vom Nutzer gelieferten Pine-v4-Primaerquelle von VuManChu B
+Divergences/Cipher-B reproduziert (Kategorie C dort, jetzt Primaerquelle statt
+GitHub-Drittkopie), NICHT aus Wave Anchors eigenem (nicht zugaenglichen) Code.
+Diese Datei berechnet BEIDE Wellen (wt1 und wt2) -- welche StormCat1s Wave
+Anchor tatsaechlich fuer seine Schwellenvergleiche verwendet, ist Kategorie D
+(siehe Abschnitt 3 des Reconstruction-Dokuments), beide werden in features.py
+vollstaendig getrennt als Feature-Familien getestet.
 
     esa = EMA(src, chlen)
     de  = EMA(|src - esa|, chlen)
@@ -10,10 +14,11 @@ zugänglichen) Code.
     wt1 = EMA(ci, avg)
     wt2 = SMA(wt1, malen)
 
-`src` = HLC3 (Default). Da Kategorie D besteht, ob Wave Anchor die
-LazyBear-Originalparameter (n1=10/n2=21/signal=4) oder die VuManChu-Defaults
-(chlen=9/avg=12/malen=3) verwendet, werden BEIDE Presets bereitgestellt und
-in der Forschung parallel getestet (siehe config.py).
+`src` = HLC3 (Default, `wtMASource` in der Primaerquelle). Da Kategorie D
+besteht, ob Wave Anchor die LazyBear-Originalparameter (n1=10/n2=21/signal=4,
+Vorgaenger-Indikator, Kategorie B) oder die jetzt primaerquellenbestaetigten
+VuManChu-Parameter (chlen=9/avg=12/malen=3) verwendet, werden BEIDE Presets
+bereitgestellt und in der Forschung parallel getestet.
 """
 
 from __future__ import annotations

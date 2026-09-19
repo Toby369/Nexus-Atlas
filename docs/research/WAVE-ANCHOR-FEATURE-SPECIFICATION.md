@@ -1,10 +1,15 @@
-# Wave Anchor: Feature-Spezifikation — 2026-09-19
+# Wave Anchor: Feature-Spezifikation — 2026-09-19 (v2, aktualisiert)
 
 Dieses Dokument beschreibt exakt, was `research-python/wave_anchor_research/` berechnet — als
 präzise Referenz für `WAVE-ANCHOR-RESEARCH-REPORT.md` und für jeden, der den Code nachvollziehen
 will, ohne ihn selbst zu lesen. Es behauptet nicht, Wave Anchors Original-Implementierung
 nachzubilden (siehe `WAVE-ANCHOR-CODE-RECONSTRUCTION.md`, Kategorie A ist leer) — es beschreibt
 die **eigene, look-ahead-sichere Forschungsimplementierung** des Konzepts.
+
+**v2-Änderungen gegenüber v1**: WT1 und WT2 werden jetzt vollständig getrennt getestet (statt nur
+WT2 anzunehmen); alle drei aus der Primärquelle bestätigten Threshold-Paare (±53/±60/+100,-75)
+werden getestet (statt nur ±60); die Testmatrix folgt jetzt der Nutzer-Nummerierung TEST 1–12
+(Abschnitt 9).
 
 ## 1. Datenbasis
 
@@ -55,9 +60,10 @@ kein Warmup-Auffüllen — die ersten `N-1` Werte je Stufe sind `NaN`, keine kü
 Vorbelegung). `wt2` ist ein einfacher gleitender Durchschnitt (`rolling(window=malen,
 min_periods=malen).mean()`) von `wt1`.
 
-Alle Schwellenvergleiche (siehe Abschnitt 4) verwenden **`wt2`**, nicht `wt1` — eine dokumentierte
-Annahme (Kategorie D), konsistent mit VuManChu Cipher B's eigener `wtOversold`/`wtOverbought`-
-Logik (die ebenfalls `wt2` prüft, wenn auch gegen ±53 statt ±60).
+**v2**: alle Schwellenvergleiche (Abschnitt 4) werden jetzt für **WT1 und WT2 getrennt**
+durchgeführt (`features.WAVE_NAMES = ["wt1", "wt2"]`) — in v1 wurde nur `wt2` angenommen; das ist
+jetzt aufgehoben, da Kategorie D bestand (siehe Code-Reconstruction-Dokument Abschnitt 3) und die
+v2-Aufgabenstellung explizit verlangt, beide Wellen unabhängig zu testen.
 
 ## 3. Look-Ahead-sicherer MTF-Join
 
@@ -74,38 +80,47 @@ Zwei Studien-Setups (`assemble.py::STUDY_SETUPS`):
 | "15m monitors 1H+4H" | 15m | 1h | 4h |
 | "1H monitors 4H+1D" | 1h | 4h | 1d |
 
-## 4. Feature-Definitionen (je HTF-Bar berechnet, dann projiziert)
+## 4. Feature-Definitionen (je HTF-Bar berechnet, dann projiziert) — v2, je Welle × Level
 
-Alle in `features.py::compute_htf_observations()`. `OB_THRESHOLD = +60.0`,
-`OS_THRESHOLD = -60.0` (strikte `>`/`<`-Vergleiche, `wt2 == 60.0` selbst zählt NICHT als OB).
+Alle in `features.py::compute_htf_observations()`. **v2-Neuerung**: jede Größe wird jetzt für
+**beide Wellen** (`wt1`, `wt2`) und — wo sinnvoll — für **alle drei Threshold-Level** getrennt
+berechnet (`features.THRESHOLD_LEVELS`, aus der Primärquelle, siehe Code-Reconstruction-Dokument
+Abschnitt 2):
 
-- **State**: `"OB"` wenn `wt2 > 60`, `"OS"` wenn `wt2 < -60`, sonst `"NEUTRAL"`. `None` solange
-  `wt2` selbst `NaN` ist (Anlaufzeit).
-- **Direction**: Vorzeichen von `wt2.diff()` — `"RISING"` (> 0), `"FALLING"` (< 0), `"FLAT"`
-  (== 0). `None` solange `diff` `NaN` ist.
-- **Distance**: `dist_from_ob60 = 60 - wt2`, `dist_from_os60 = wt2 - (-60)` — kontinuierliche
-  Größen, vorzeichenbehaftet (negativ = bereits jenseits der Schwelle).
-- **Cross Events** (vier, je ein Boolean pro HTF-Bar): `cross_up_60` (`wt2[t-1] < 60 ≤ wt2[t]`),
-  `cross_down_60` (`wt2[t-1] ≥ 60 > wt2[t]`), `cross_down_minus60` (`wt2[t-1] > -60 ≥ wt2[t]`),
-  `cross_up_minus60` (`wt2[t-1] ≤ -60 < wt2[t]`). Während der Anlaufzeit (aktueller oder
-  vorheriger Wert `NaN`): `False`, kein Cross feststellbar.
-- **Anchor Duration**: `anchor_duration_ob`/`anchor_duration_os` — Anzahl aufeinanderfolgender
-  bestätigter HTF-Bars, die ununterbrochen im jeweiligen Zustand waren (Reset auf 0 sobald der
-  Zustand verlassen wird). `NaN` solange `state` selbst unbekannt ist.
+| Level | OB | OS |
+|---|---|---|
+| L1 | +53 | -53 |
+| L2 | +60 | -60 |
+| L3 | +100 | -75 |
 
-**Design-Entscheidung (dokumentiert, nicht Teil der unzugänglichen Original-Spezifikation)**:
-Cross-Events sind über die Projektion auf die LTF-Zeitachse "sticky" für die gesamte Dauer der
-HTF-Periode, in der sie auftraten — nicht nur für die eine LTF-Bar, die die Bestätigung selbst
-auslöst. Das folgt derselben `confirmed_asof_join`-Semantik wie State/Direction, damit alle
-Größen dieselbe Verfügbarkeitsregel teilen.
+Spaltenschema: `{wave}_{level}_{groesse}`, z. B. `wt2_L2_state`, `wt1_L1_dist_from_ob`. Strikte
+`>`/`<`-Vergleiche — der Grenzwert selbst zählt NICHT als OB/OS.
+
+- **State** (je Welle × Level): `"OB"` wenn Welle `> ob`, `"OS"` wenn Welle `< os`, sonst
+  `"NEUTRAL"`. `None` solange die Welle selbst `NaN` ist (Anlaufzeit).
+- **Direction** (je Welle, level-unabhängig): Vorzeichen von `wave.diff()` — `"RISING"` (> 0),
+  `"FALLING"` (< 0), `"FLAT"` (== 0). `None` solange `diff` `NaN` ist.
+- **Distance** (je Welle × Level): `dist_from_ob = ob - wave`, `dist_from_os = wave - os` —
+  kontinuierliche, vorzeichenbehaftete Größen (negativ = bereits jenseits der Schwelle).
+- **Cross Events** (je Welle × Level, vier Booleans): `cross_up_ob`, `cross_down_ob`,
+  `cross_down_os`, `cross_up_os` — analog zu v1, jetzt parametrisiert über `ob`/`os` statt fest
+  ±60. Während der Anlaufzeit: `False`, kein Cross feststellbar.
+- **Anchor Duration** (je Welle × Level): `anchor_duration_ob`/`anchor_duration_os` — Anzahl
+  aufeinanderfolgender bestätigter HTF-Bars, die ununterbrochen im jeweiligen Zustand waren.
+  `NaN` solange `state` selbst unbekannt ist.
+
+**Design-Entscheidung (unverändert aus v1)**: Cross-Events sind über die Projektion auf die
+LTF-Zeitachse "sticky" für die gesamte Dauer der HTF-Periode, in der sie auftraten — nicht nur für
+die eine LTF-Bar der Bestätigung selbst. Das folgt derselben `confirmed_asof_join`-Semantik wie
+State/Direction.
 
 ## 5. MTF-Konfluenz
 
 `features.py::mtf_confluence(state_a, state_b)`: wenn beide States identisch (`OB`/`OB`,
 `OS`/`OS`, `NEUTRAL`/`NEUTRAL`) → dieser gemeinsame Zustand; sonst `"MIXED"`. `None`, wenn einer
-der beiden States fehlt. Berechnet für `mtf_confluence_combined` (HTF A × HTF B kombiniert) in
-`assemble.py`; die Einzel-States `htfA_state`/`htfB_state` selbst dienen als "1H only"/"4H only"
-(bzw. "4H only"/"1D only") Äquivalente für Test G.
+der beiden States fehlt. **v2**: berechnet für alle 6 (Welle × Level)-Kombinationen
+(`mtf_confluence_wt1_L1` … `mtf_confluence_wt2_L3`) in `assemble.py`, nicht mehr nur für eine feste
+Kombination.
 
 ## 6. Target-Definitionen
 
@@ -150,21 +165,38 @@ LTF-Zeitachse projiziert (derselbe Mechanismus wie alle anderen HTF-Größen):
   in Terzile (`LOW`/`MID`/`HIGH`) über die volle verfügbare 1D-Historie eingeteilt
   (`pandas.qcut(q=3)`).
 
-## 9. Statistik-Zellen (Tests A–G)
+## 9. Statistik-Zellen (TEST 1–12, v2)
 
-Siehe `stats_battery.py` und `run_research.py::_generate_cells()`. Pro (Studien-Setup ×
-WaveTrend-Preset × Split × Horizont) werden 31 Zellen erzeugt:
+Siehe `stats_battery.py` und `run_research.py::_generate_cells()`. **v2 ersetzt die v1-Kategorien
+A–G durch die Nutzer-Testmatrix TEST 1–12** (Aufgabenstellung v2, Abschnitt 14). Pro (Studien-Setup
+× WaveTrend-Preset × Split × Horizont):
 
-| Kategorie | Beschreibung | Zellen/Horizont |
-|---|---|---|
-| A | Rank-IC von `htfA_wt2`/`htfB_wt2` gegen `forward_return` | 2 |
-| B | Anchor-State (OB/OS vs. Rest), je `htfA_state`/`htfB_state`/`mtf_confluence_combined` | 6 |
-| C | Vier Cross-Events, je HTF A/B | 8 |
-| D | Slope (RISING/FALLING vs. Rest), je HTF A/B | 4 |
-| E | Rank-IC von `dist_from_ob60`/`dist_from_os60`, je HTF A/B | 4 |
-| F | State × Slope-Kombinationen (3 States × 2 Richtungen), NUR HTF A (Scope-Entscheidung — HTF B
-    wäre bei den kleineren 4H/1D-Stichproben deutlich dünner besetzt) | 6 |
-| G | `mtf_confluence_combined == "MIXED"` vs. Rest | 1 |
+| Test | Beschreibung | Level-Scope | Zellen/Horizont |
+|---|---|---|---|
+| TEST 1 | Rank-IC von `wt1`, je HTF A/B | level-unabhängig | 2 |
+| TEST 2 | Rank-IC von `wt2`, je HTF A/B | level-unabhängig | 2 |
+| TEST 3 | WT1-State (OB/OS vs. Rest), je HTF A/B | **alle 3 Level** | 12 |
+| TEST 4 | WT2-State (OB/OS vs. Rest), je HTF A/B | **alle 3 Level** | 12 |
+| TEST 5 | Vier Cross-Events, je HTF A/B, je Welle | **nur L2 (±60)** | 16 |
+| TEST 6 | Slope (RISING/FALLING vs. Rest), je HTF A/B, je Welle | level-unabhängig | 8 |
+| TEST 7 | Rank-IC von `dist_from_ob`/`dist_from_os`, je HTF A/B, je Welle | **nur L2** | 8 |
+| TEST 8 | Rank-IC von `anchor_duration_ob`/`_os`, je HTF A/B, je Welle | **nur L2** | 8 |
+| TEST 9/10 | MTF-Konfluenz (OB/OS/MIXED vs. Rest), je Welle (welches Setup "9" bzw. "10" entspricht, ergibt sich aus `study_setup`) | **nur L2** | 6 |
+| TEST 11 | State × Slope (3 States × 2 Richtungen), NUR HTF A, je Welle | **nur L2** | 12 |
+| TEST 12 | Rank-IC der 4 Baseline-Kontrollgrößen (`baseline_momentum/_ema_trend/_rsi/_macd_hist`) — im Report explizit gegen TEST 1–4 gestellt (Abschnitt 19 der Aufgabenstellung) | — | 4 |
+
+**Summe: 90 Zellen/Horizont/Setup/Preset** (v1 hatte 31 — die Erweiterung kommt aus der
+WT1/WT2-Trennung und den zusätzlichen Threshold-Leveln bei TEST 3/4).
+
+**Dokumentierte Scope-Entscheidung (vor jeder Ergebnisbetrachtung festgelegt, aus
+Rechenzeitgründen)**: TEST 5/7/8/9/10/11 laufen nur auf Level 2 (±60) statt allen drei Leveln —
+begründet durch (a) die Nutzer-Testmatrix selbst benennt TEST 5 explizit als "Cross ±60", (b)
+Distanz/Duration sind kontinuierliche Transformationen der bereits in TEST 1/2 getesteten
+Rohwelle, zusätzliche Level dort wären stark redundant, (c) ±60 ist das in allen gefundenen
+öffentlichen Beschreibungen konsistent genannte Anchor-Level (Kategorie B). TEST 3/4 (State selbst)
+laufen dagegen explizit auf allen 3 Leveln, da Abschnitt 6 der Aufgabenstellung das für die
+zentrale Threshold-Frage ausdrücklich verlangt. TEST 11 bleibt wie in v1 auf HTF A beschränkt (HTF
+B wäre bei den kleineren 4H/1D-Stichproben deutlich dünner besetzt).
 
 Zwei Test-Mechaniken:
 
@@ -191,9 +223,15 @@ Chronologischer 80/20-Split je (Setup × Preset)-Kombination (`_split_train_oos`
 anschließend auf dem bis dahin unberührten `OOS`-Split erneut getestet (identische
 Zellendefinition, höhere Replikatzahl: 5000 statt 1000/200), ohne weitere Parameteranpassung.
 
-## 11. Nicht (mehr) offene Punkte
+## 11. Performance-Optimierung (v2)
 
-Replikatzahlen wurden aus gemessener Rechenzeit abgeleitet (nicht aus Rigor-Erwägungen reduziert):
-`N_REPLICATES_CONDITION = 1000` (~0.7s/Zelle selbst beim längsten 7D-Horizont),
-`N_REPLICATES_IC = 200` (Rank-IC ist ~40× teurer pro Replikat, da `scipy.stats.spearmanr` nicht
-vektorisiert werden kann). OOS-Bestätigung verwendet für beide Zelltypen 5000 Replikate.
+**v2-Änderung**: die Rank-IC-Bootstrap-Berechnung (`evaluate_rank_ic`) wurde optimiert — statt
+`scipy.stats.spearmanr` pro Bootstrap-Replikat neu aufzurufen (v1: ~28s/Zelle bei 1000
+Replikaten auf dem vollen 113k-Zeilen-Trainingsset, der Grund, warum der v1-Lauf nicht in
+praktikabler Zeit fertig wurde), werden die Ränge beider Reihen EINMAL vorab berechnet
+(`scipy.stats.rankdata`) und die Bootstrap-Schleife berechnet pro Replikat nur noch eine
+vektorisierte Pearson-Korrelation auf den bereits berechneten Rang-Arrays — mathematisch exakt
+äquivalent zu Spearman (Spearman-IC = Pearson-Korrelation der Ränge), aber ca. 25× schneller
+(gemessen: 1.1s/Zelle bei 1000 Replikaten selbst beim teuersten 7D-Horizont). Dadurch konnte
+`N_REPLICATES_IC` von v1s 200 auf 1000 angehoben werden — gleiche Rigor-Stufe wie die
+Condition-Zellen. OOS-Bestätigung verwendet für beide Zelltypen weiterhin 5000 Replikate.

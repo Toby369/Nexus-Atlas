@@ -2,8 +2,7 @@ import numpy as np
 import pandas as pd
 
 from features import (
-    OB_THRESHOLD,
-    OS_THRESHOLD,
+    THRESHOLD_LEVELS,
     _anchor_duration,
     _direction,
     _state,
@@ -15,16 +14,26 @@ from wavetrend import WaveTrendParams
 
 
 def test_state_classification_boundaries():
-    # Spec: "above +60" / "below -60" -- strikte Ungleichung, 60.0/-60.0
+    # Spec: "above +X" / "below -X" -- strikte Ungleichung, die Grenzwerte
     # selbst sind NEUTRAL (Grenzwert gehoert noch nicht zur Anchor-Zone).
-    wt2 = pd.Series([70.0, 60.0, 59.9, 0.0, -59.9, -60.0, -70.0, np.nan])
-    state = _state(wt2)
+    # Getestet mit Level 2 (±60), stellvertretend fuer alle drei Level (die
+    # Vergleichsoperatoren in _state sind level-unabhaengig).
+    wave = pd.Series([70.0, 60.0, 59.9, 0.0, -59.9, -60.0, -70.0, np.nan])
+    state = _state(wave, 60.0, -60.0)
     assert list(state) == ["OB", "NEUTRAL", "NEUTRAL", "NEUTRAL", "NEUTRAL", "NEUTRAL", "OS", None]
 
 
+def test_state_classification_differs_by_level():
+    # Derselbe Rohwert 55.0 ist bei Level 1 (±53) bereits OB, bei Level 2
+    # (±60) noch NEUTRAL -- Kernzweck der v2-Level-Trennung.
+    wave = pd.Series([55.0])
+    assert list(_state(wave, 53.0, -53.0)) == ["OB"]
+    assert list(_state(wave, 60.0, -60.0)) == ["NEUTRAL"]
+
+
 def test_direction_classification_sign_based_default():
-    wt2 = pd.Series([10.0, 15.0, 15.0, 10.0])
-    direction = _direction(wt2)
+    wave = pd.Series([10.0, 15.0, 15.0, 10.0])
+    direction = _direction(wave)
     # erste Bar: kein vorheriger Wert -> None
     assert direction.iloc[0] is None
     assert list(direction.iloc[1:]) == ["RISING", "FLAT", "FALLING"]
@@ -60,15 +69,28 @@ def _htf_4h_df_for_cross() -> pd.DataFrame:
     return pd.DataFrame({"open": price, "high": price + 0.5, "low": price - 0.5, "close": price}, index=idx)
 
 
-def test_cross_up_60_fires_during_strong_rally_and_not_before():
+def test_cross_up_ob_fires_during_strong_rally_and_not_before():
     df = _htf_4h_df_for_cross()
     obs = compute_htf_observations(df, WaveTrendParams(chlen=9, avg=12, malen=3, label="t"))
-    assert obs["cross_up_60"].any(), "Erwartete mindestens ein cross_up_60-Event waehrend der Rally"
-    first_cross_idx = obs.index[obs["cross_up_60"]][0]
+    col = "wt2_L2_cross_up_ob"
+    assert obs[col].any(), "Erwartete mindestens ein cross_up_ob-Event (WT2, Level 2) waehrend der Rally"
+    first_cross_idx = obs.index[obs[col]][0]
     # Vor dem Ramp-Start (erste 40 Bars, Aufwaerm-Phase) darf kein Cross auftreten.
-    assert not obs.loc[df.index[:40], "cross_up_60"].any()
+    assert not obs.loc[df.index[:40], col].any()
     assert first_cross_idx in df.index[40:]
     assert first_cross_idx == pd.Timestamp("2025-01-10 00:00", tz="UTC")
+
+
+def test_all_wave_level_combinations_present():
+    df = _htf_4h_df_for_cross()
+    obs = compute_htf_observations(df, WaveTrendParams(chlen=9, avg=12, malen=3, label="t"))
+    assert "wt1" in obs.columns and "wt2" in obs.columns
+    for wave in ("wt1", "wt2"):
+        assert f"{wave}_direction" in obs.columns
+        for level in THRESHOLD_LEVELS:
+            for suffix in ("state", "dist_from_ob", "dist_from_os", "cross_up_ob", "cross_down_ob",
+                           "cross_down_os", "cross_up_os", "anchor_duration_ob", "anchor_duration_os"):
+                assert f"{wave}_{level}_{suffix}" in obs.columns
 
 
 def test_join_htf_to_ltf_is_lookahead_safe_end_to_end():
@@ -81,7 +103,7 @@ def test_join_htf_to_ltf_is_lookahead_safe_end_to_end():
 
     joined = join_htf_to_ltf(ltf, "1h", obs, "4h", prefix="htf4h")
     assert list(joined.index) == list(ltf.index)
-    assert "htf4h_state" in joined.columns
+    assert "htf4h_wt2_L2_state" in joined.columns
 
     # Fuer jede HTF-Bar i (ausser der ersten): die LTF-Bar unmittelbar VOR
     # der Bestaetigung von Bar i muss noch den Wert von Bar i-1 sehen (nicht

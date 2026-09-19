@@ -1,8 +1,29 @@
-"""Orchestriert die vollstaendige Wave-Anchor-Statistik-Batterie
-(Aufgabenstellung Abschnitt 10-15): Tests A-G je Studien-Setup x
-WaveTrend-Preset, TRAIN_VAL/OOS-Split (80/20, chronologisch, OOS bis zum
+"""Orchestriert die vollstaendige Wave-Anchor-Statistik-Batterie v2
+(Aufgabenstellung v2, Abschnitt 14 "TESTMATRIX", TEST 1-12): je Studien-Setup
+x WaveTrend-Preset, TRAIN_VAL/OOS-Split (80/20, chronologisch, OOS bis zum
 Freeze unberuehrt), gepoolte BH-FDR-Korrektur, OOS-Bestaetigung der
 ueberlebenden Zellen, Regime-Aufschluesselung der bestaetigten Zellen.
+
+WICHTIG (v2-Neuerung): WT1 UND WT2 werden vollstaendig getrennt getestet
+(Abschnitt 5), sowie -- wo die Nutzer-Testmatrix es nicht explizit auf ein
+Level (±60) einschraenkt -- alle drei aus der Primaerquelle bestaetigten
+Threshold-Paare (Abschnitt 6). Dokumentierte Scope-Entscheidung (aus
+Rechenzeitgruenden, VOR jeder Ergebnisbetrachtung festgelegt, siehe
+WAVE-ANCHOR-FEATURE-SPECIFICATION.md):
+  - TEST 3/4 (State):      alle 3 Level (Abschnitt 6 verlangt das explizit)
+  - TEST 5 (Cross):        nur Level 2 (±60, wie in der Nutzer-Nummerierung
+                             "TEST 5: Cross ±60" explizit benannt)
+  - TEST 7 (Distance):     nur Level 2 (Distanz ist eine kontinuierliche
+                             Transformation der Rohwelle -- TEST 1/2 deckt
+                             die Rohwert-Korrelation bereits ab)
+  - TEST 8 (Duration):     nur Level 2
+  - TEST 9/10 (Konfluenz): nur Level 2 (Hauptfokus laut allen gefundenen
+                             oeffentlichen Beschreibungen)
+  - TEST 11 (State x Slope): nur Level 2, HTF A only
+  - TEST 12 (vs. Momentum): eigene IC-Zellenserie auf den bereits
+                             vorhandenen baseline_*-Spalten, im Report
+                             explizit numerisch gegen TEST-1/2/3/4-IC/Effekt-
+                             groessen gestellt
 
 Aufruf: python run_research.py
 """
@@ -18,6 +39,7 @@ import pandas as pd
 
 from assemble import STUDY_SETUPS, assemble
 from data_loader import load_ohlc
+from features import THRESHOLD_LEVELS, WAVE_NAMES
 from mtf_join import close_time_of, confirmed_asof_join
 from regime import compute_daily_regimes
 from stats_battery import CellResult, apply_bh_fdr, cells_to_dataframe, evaluate_condition_vs_complement, evaluate_rank_ic
@@ -28,8 +50,11 @@ OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
 WT_PRESETS = {"LazyBear": LAZYBEAR_ORIGINAL, "VuManChu": VUMANCHU_DEFAULT}
 OOS_FRACTION = 0.20
 N_REPLICATES_CONDITION = 1000
-N_REPLICATES_IC = 200
+N_REPLICATES_IC = 1000  # nach Rang-Vorberechnung (stats_battery.py) kein Kostenunterschied mehr zu Condition-Zellen
 SEED_BASE = 20260919  # heutiges Datum als fixer, dokumentierter Seed
+
+L2 = "L2"  # ±60, Hauptfokus-Level fuer TEST 5/7/8/9/10/11 (siehe Modul-Docstring)
+BASELINE_COLS = ["baseline_momentum", "baseline_ema_trend", "baseline_rsi", "baseline_macd_hist"]
 
 
 def _split_train_oos(df: pd.DataFrame, oos_fraction: float) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -67,47 +92,65 @@ def _generate_cells(
         )
 
     for horizon in HORIZON_LABELS:
-        # A: Raw WaveTrend (Rank-IC)
-        cells.append(ic_cell("htfA_wt2", "htfA_wt2", "A", horizon))
-        cells.append(ic_cell("htfB_wt2", "htfB_wt2", "A", horizon))
+        # TEST 1/2: WT1/WT2 Rohwert (Rank-IC), je HTF A/B.
+        for wave, test_cat in [("wt1", "TEST1"), ("wt2", "TEST2")]:
+            for prefix in ["htfA", "htfB"]:
+                cells.append(ic_cell(f"{prefix}_{wave}", f"{prefix}_{wave}", test_cat, horizon))
 
-        # B: Anchor State (OB/OS vs. Rest), je htfA/htfB/kombiniert
-        for prefix, colname in [("htfA", "htfA_state"), ("htfB", "htfB_state"), ("combined", "mtf_confluence_combined")]:
-            for state in ["OB", "OS"]:
-                cells.append(cond_cell(f"{prefix}_state", state, df[colname] == state, "B", horizon))
+        # TEST 3/4: WT1/WT2-State (OB/OS vs. Rest), je HTF A/B, ALLE 3 Level.
+        for wave, test_cat in [("wt1", "TEST3"), ("wt2", "TEST4")]:
+            for prefix in ["htfA", "htfB"]:
+                for level in THRESHOLD_LEVELS:
+                    colname = f"{prefix}_{wave}_{level}_state"
+                    for state in ["OB", "OS"]:
+                        cells.append(cond_cell(f"{prefix}_{wave}_{level}_state", state, df[colname] == state, test_cat, horizon))
 
-        # C: Cross Events, je htfA/htfB
+        # TEST 5: Cross-Events, nur Level 2 (±60), je HTF A/B, je Welle.
         for prefix in ["htfA", "htfB"]:
-            for event in ["cross_up_60", "cross_down_60", "cross_down_minus60", "cross_up_minus60"]:
-                col = f"{prefix}_{event}"
-                cells.append(cond_cell(f"{prefix}_{event}", event, df[col].astype(bool), "C", horizon))
+            for wave in WAVE_NAMES:
+                for event in ["cross_up_ob", "cross_down_ob", "cross_down_os", "cross_up_os"]:
+                    col = f"{prefix}_{wave}_{L2}_{event}"
+                    cells.append(cond_cell(f"{prefix}_{wave}_{L2}_{event}", event, df[col].astype(bool), "TEST5", horizon))
 
-        # D: Slope, je htfA/htfB
+        # TEST 6: Slope, je HTF A/B, je Welle (level-unabhaengig).
         for prefix in ["htfA", "htfB"]:
-            colname = f"{prefix}_direction"
-            for d in ["RISING", "FALLING"]:
-                cells.append(cond_cell(f"{prefix}_direction", d, df[colname] == d, "D", horizon))
+            for wave in WAVE_NAMES:
+                colname = f"{prefix}_{wave}_direction"
+                for d in ["RISING", "FALLING"]:
+                    cells.append(cond_cell(f"{prefix}_{wave}_direction", d, df[colname] == d, "TEST6", horizon))
 
-        # E: Distance (Rank-IC), je htfA/htfB, je ob/os
+        # TEST 7: Distance (Rank-IC), nur Level 2, je HTF A/B, je Welle, je ob/os.
         for prefix in ["htfA", "htfB"]:
-            for dist_col in [f"{prefix}_dist_from_ob60", f"{prefix}_dist_from_os60"]:
-                cells.append(ic_cell(dist_col, dist_col, "E", horizon))
+            for wave in WAVE_NAMES:
+                for dist_col in [f"{prefix}_{wave}_{L2}_dist_from_ob", f"{prefix}_{wave}_{L2}_dist_from_os"]:
+                    cells.append(ic_cell(dist_col, dist_col, "TEST7", horizon))
 
-        # F: State x Slope (htfA only, Scope-Entscheidung siehe Report)
-        for state in ["OB", "OS", "NEUTRAL"]:
-            for d in ["RISING", "FALLING"]:
-                combo_mask = (df["htfA_state"] == state) & (df["htfA_direction"] == d)
-                cells.append(
-                    cond_cell("htfA_state_x_direction", f"{state}+{d}", combo_mask, "F", horizon)
-                )
+        # TEST 8: Anchor Duration (Rank-IC), nur Level 2, je HTF A/B, je Welle, je ob/os.
+        for prefix in ["htfA", "htfB"]:
+            for wave in WAVE_NAMES:
+                for dur_col in [f"{prefix}_{wave}_{L2}_anchor_duration_ob", f"{prefix}_{wave}_{L2}_anchor_duration_os"]:
+                    cells.append(ic_cell(dur_col, dur_col, "TEST8", horizon))
 
-        # G: MTF-Konfluenz -- MIXED-Zusatzfall (OB/OS-kombiniert bereits unter B erfasst)
-        cells.append(
-            cond_cell(
-                "mtf_confluence_combined", "MIXED",
-                df["mtf_confluence_combined"] == "MIXED", "G", horizon,
-            )
-        )
+        # TEST 9/10: MTF-Konfluenz, nur Level 2, je Welle (welches Setup
+        # "9" bzw. "10" entspricht, ergibt sich aus setup_label selbst).
+        for wave in WAVE_NAMES:
+            colname = f"mtf_confluence_{wave}_{L2}"
+            for state in ["OB", "OS", "MIXED"]:
+                cells.append(cond_cell(colname, state, df[colname] == state, "TEST9_10", horizon))
+
+        # TEST 11: State x Slope, nur Level 2, HTF A only.
+        for wave in WAVE_NAMES:
+            state_col = f"htfA_{wave}_{L2}_state"
+            dir_col = f"htfA_{wave}_direction"
+            for state in ["OB", "OS", "NEUTRAL"]:
+                for d in ["RISING", "FALLING"]:
+                    combo_mask = (df[state_col] == state) & (df[dir_col] == d)
+                    cells.append(cond_cell(f"htfA_{wave}_{L2}_state_x_direction", f"{state}+{d}", combo_mask, "TEST11", horizon))
+
+        # TEST 12: Baseline-Vergleichsgroessen (Momentum/EMA/RSI/MACD),
+        # Rank-IC -- im Report explizit gegen TEST1-4 gestellt.
+        for col in BASELINE_COLS:
+            cells.append(ic_cell(col, col, "TEST12_BASELINE", horizon))
 
     return cells
 
@@ -176,7 +219,7 @@ def main() -> None:
         setup = next(s for s in STUDY_SETUPS if s.label == setup_label)
         horizon_bars = horizon_bars_for_timeframe(setup.ltf)
 
-        if c.test_category in ("A", "E"):
+        if c.test_category in ("TEST1", "TEST2", "TEST7", "TEST8", "TEST12_BASELINE"):
             oos_result = evaluate_rank_ic(
                 oos_df[c.feature], oos_df[f"forward_return_{c.horizon}"], horizon_bars[c.horizon],
                 seed=next(seed_counter), n_replicates=5000,
@@ -184,12 +227,12 @@ def main() -> None:
                 test_category=c.test_category, feature=c.feature, horizon=c.horizon,
             )
         else:
-            if c.test_category == "F":
+            if c.test_category == "TEST11":
                 state, direction = c.condition.split("+")
-                mask = (oos_df["htfA_state"] == state) & (oos_df["htfA_direction"] == direction)
-            elif c.test_category == "C":
-                col = c.feature
-                mask = oos_df[col].astype(bool)
+                wave = "wt1" if "wt1" in c.feature else "wt2"
+                mask = (oos_df[f"htfA_{wave}_{L2}_state"] == state) & (oos_df[f"htfA_{wave}_direction"] == direction)
+            elif c.test_category == "TEST5":
+                mask = oos_df[c.feature].astype(bool)
             else:
                 mask = oos_df[c.feature] == c.condition
             oos_result = evaluate_condition_vs_complement(
