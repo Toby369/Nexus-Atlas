@@ -108,9 +108,106 @@ noch kein Signal-Bezug):
   eine separate "genau Standard 1, nicht weiter gelaufen"-Klasse existiert
   bei dieser Logik nicht.
 
+## Strukturelle Phasen (Stufe 2): Aufwärts / Abwärts / Seitwärts
+
+Abgestimmt mit Toby am 19.09.2026 nach Recherche zu drei Quellen:
+
+1. **Salomon** (`knowledge_base` module='salomon'): HH/HL/LH/LL ist "das
+   Grundvokabular der Struktur", S/R-Zonen und Trendlinien werden aus
+   Swing-Punkten gezogen (mind. 2 Berührungspunkte, diskretionär). Salomon
+   selbst gibt keine numerische Seitwärts-Schwelle vor — sein Zyklusmodell
+   (Akkumulation/Markup/Distribution/Markdown) kennt nur die
+   seitwärts-artigen Übergangsphasen Akkumulation/Distribution.
+2. **Marktüblich** (Web-Recherche + Tobys eigene Zusammenfassung, beide
+   deckungsgleich): ADX<20 = Range (Wilders eigene Schwelle, 20-25 =
+   ausdrücklich unentschiedene Grauzone, "keine offizielle Regel"), HH/HL
+   vs. LH/LL nach Dow-Theorie, Bollinger-Squeeze als Volatilitäts-Bestätigung.
+3. **Bereits im Code**: `src/regime.py::classify_market_regime` — ein
+   bereits fertiger, getesteter, look-ahead-geprüfter 5-Label-Klassifikator
+   mit genau diesen Zahlen (ADX≥25 Trend / ADX<20 + Bollinger-Bandwidth≤0.05
+   Squeeze / 20-25 Grauzone), kalibriert für BTC/USDT-Stundenkerzen.
+
+### Nutzer-Entscheidungen (Rückfrage 19.09.2026)
+
+- **Edge-Cases** (`HIGH_VOLA_REVERSION`, `UNRESOLVED_NEUTRAL` aus regime.py,
+  passen nicht direkt ins 3-Phasen-Modell): in die naheliegendste Phase
+  einsortieren, kein 4. Bucket.
+- **Struktur-Check**: zusätzlich zur reinen Indikator-Definition ein
+  expliziter Swing-Pivot-/Knickpunkt-Check (echter HH/HL- bzw. LH/LL-Bruch)
+  als zweite, unabhängige Bestätigung — nicht nur Indikator-Schwellen.
+- **Makro-/Halving-Zyklus-Ebene**: bleibt vorerst außen vor, späterer
+  Ausbauschritt.
+
+### Kombinationslogik (final, implementiert)
+
+**Schritt 1 — Indikator-Regime → gerichteter "Lean"** (Edge-Case-Mapping):
+
+| regime.py-Label | Lean |
+|---|---|
+| `TREND_EXPANSION_BULLISH` | Aufwärts |
+| `TREND_EXPANSION_BEARISH` | Abwärts |
+| `VOLA_SQUEEZE_RANGING` | Seitwärts |
+| `HIGH_VOLA_REVERSION`, Kurs über Mittelwert gestreckt (`dist_zscore_sma50>0`) | Aufwärts |
+| `HIGH_VOLA_REVERSION`, Kurs unter Mittelwert gestreckt | Abwärts |
+| `UNRESOLVED_NEUTRAL`, schwacher aber konsistenter Aufwärts-Ansatz (`slope>0` und `+DI>-DI`) | Aufwärts |
+| `UNRESOLVED_NEUTRAL`, schwacher Abwärts-Ansatz | Abwärts |
+| `UNRESOLVED_NEUTRAL` sonst (inkl. fehlende Daten) | Seitwärts |
+
+**Schritt 2 — Lean + Swing-Struktur (neu: `src/swing_structure.py`,
+kausale ZigZag-Pivot-Erkennung mit ATR-Vielfachem als Reversal-Schwelle,
+Default `atr_multiple=2.0` — skaliert automatisch mit BTCs wechselnder
+Volatilität statt eines fixen %-Werts) → finale Phase**:
+
+- Aufwärts UND Struktur bestätigt HH+HL → **AUFWÄRTS**
+- Abwärts UND Struktur bestätigt LH+LL → **ABWÄRTS**
+- alles andere (Widerspruch, Struktur MIXED/UNKNOWN, oder Indikator selbst
+  schon Seitwärts) → **SEITWÄRTS**
+
+Konservativ per Design: ein Richtungslabel braucht **beide** unabhängigen
+Signale, ein Widerspruch fällt auf Seitwärts zurück — konsistent mit der
+bereits im Projekt etablierten "lieber keine Aussage als eine erfundene"-
+Philosophie (`UNRESOLVED_NEUTRAL`-Fallback, SL-Tie-Break in
+`toby_setup_engine.py`).
+
+### Implementierung
+
+- `research-python/src/swing_structure.py` — `compute_zigzag_pivots()`,
+  `classify_swing_structure()`. 9 Tests (`tests/test_swing_structure.py`),
+  inkl. Look-ahead-Truncation-Test (gleiche Technik wie `regime.py`).
+- `research-python/src/structural_phase.py` — `classify_structural_phase()`,
+  kombiniert regime.py + swing_structure.py. 8 Tests
+  (`tests/test_structural_phase.py`), inkl. Look-ahead-Test.
+- Volle Testsuite (`research-python/tests/`, 390 Tests) weiterhin grün,
+  keine Regression.
+- `research-python/toby_setup/run_phase_segmentation.py` — berechnet die
+  Feature-Matrix (`src/features/*`) und die kombinierte Phase auf
+  **1h-Bars** (gleiche Kalibrierung wie regime.py selbst, gleiche
+  Konvention wie das Wave-Anchor-Projekt: langsamere Struktur-Signale auf
+  einem höheren Timeframe berechnen). Datenbasis:
+  `toby_setup/data/BTCUSDT_1h.csv` (Kopie aus `wave_anchor_research/`,
+  identischer Zeitraum 2022-09-04 bis 2026-09-18, 35.422 Stundenkerzen).
+  Verknüpfung mit den 15m-Setup-Events (point-in-time, kein Lookahead) ist
+  der nächste Schritt.
+
+### Ergebnis (voller Datensatz, 1h-Bars)
+
+| Phase | Bar-Anteil | Segmente | Ø Dauer | Median-Dauer | Max. Dauer |
+|---|---|---|---|---|---|
+| Aufwärts | 15.52% (5.499h) | 429 | 12.8h | 9h | 64h |
+| Abwärts | 15.68% (5.554h) | 451 | 12.3h | 9h | 82h |
+| Seitwärts | 68.80% (24.369h) | 881 | 27.7h | 19h | 191h |
+
+Deskriptiv: die strenge Doppel-Bestätigung (Indikator UND Swing-Struktur
+müssen übereinstimmen) ist bewusst konservativ — knapp 69% aller Stunden
+fallen auf Seitwärts, weil schon ein alleiniger Widerspruch zwischen
+Indikator-Regime und Knickpunkt-Struktur genügt, um kein Richtungslabel zu
+vergeben. Richtungsphasen sind kürzer (Median 9h) als Seitwärts-Phasen
+(Median 19h, längster durchgehender Seitwärts-Abschnitt 191h ≈ 8 Tage).
+
 ## Offen / nächster Schritt
 
-Noch nicht gebaut (folgt nach Rückmeldung dieser Zahlen an Toby): Phasen-
-Segmentierung (Aufwärts/Abwärts/Seitwärts, via `src/regime.py`), danach
-Signal-Zeitfenster-Extraktion (bis 4h / bis 1h / bis 15m vor Entry / im
-laufenden 15m-Trade) und die Paar-/Dreier-Kombinatorik pro Phase/Zeitfenster.
+Noch nicht gebaut: Verknüpfung der 1h-Phasenreihe mit den 15m-Setup-Events
+aus Stufe 1 (point-in-time-Join, konfirmierter HTF-Wert, gleiches Muster
+wie `wave_anchor_research/mtf_join.py`), danach Signal-Zeitfenster-
+Extraktion (bis 4h / bis 1h / bis 15m vor Entry / im laufenden 15m-Trade)
+und die Paar-/Dreier-Kombinatorik pro Phase/Zeitfenster.
