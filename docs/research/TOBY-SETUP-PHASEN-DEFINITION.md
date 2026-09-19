@@ -258,11 +258,120 @@ Ausführliche Daten: `output/tiered_mfe_with_phase_{direction}_{leverage}x.csv`
 (je 141.667 Zeilen, gitignored) und
 `output/setup_tier_distribution_by_phase.csv` (Übersichtstabelle, gitignored).
 
+## Testmethode Paar-/Dreier-Häufigkeit (mit Nutzer abgestimmt, 19.09.2026)
+
+Zwei getrennte Fragen: **Frage A** (reine Häufigkeit, rein deskriptiv, dient
+als Vorfilter) vs. **Frage B** (Zusammenhang mit Setup-Qualität, echter
+Test). Kontrollgruppe für Frage B: "restliche Setups in derselben Phase/
+demselben Fenster" (nicht der Gesamtdurchschnitt, sonst mischt sich der
+Phase-Effekt selbst rein). Test: HAC/Newey-West-Regression (Logit für TP20+
+ja/nein, OLS für `final_mfe_margin_pct`), 1:1 derselbe Baustein wie
+`wave_anchor_research/incremental_value.py`; Block-Bootstrap
+(`src/validation/block_bootstrap.py`) als Robustheits-Check auf den
+auffälligsten Zellen. Mindeststichprobe pro Zelle, sonst `DATEN_
+UNZUREICHEND`. BH-FDR über den **gesamten gepoolten Zellsatz** (ein Pool).
+OOS-Freeze + Purging/Embargo wie im Wave-Anchor- bzw. Market-State-Projekt.
+
+**Kombinatorik-Eindämmung** (Nutzer-Entscheidung): hierarchisch vorfiltern
+— erst Einzelsignale nach Häufigkeit zählen (Frage A, NICHT nach Outcome
+gefiltert, sonst Cherry-Picking), nur ausreichend häufige Signale gehen in
+die Paar-Stufe, nur überlebende Paare in die Dreier-Stufe. Zusätzlich
+priorisiert: **gruppenübergreifende** Paare (z.B. Momentum×Orderflow)
+gegenüber gruppeninternen (vermutlich redundant/korreliert).
+
+## Signalgruppen (unabhängig von der Phasen-Konstruktion)
+
+**Zirkularitäts-Ausschluss**: die Phase selbst ist aus ADX/DI/Slope/
+Bollinger-Bandwidth (Indikator-Regime) und Knickpunkt-Struktur (HH/HL vs.
+LH/LL) gebaut — `structure`/`trend_strength`/`trend_regime`-Faktoren, die
+rohen ADX/DI/Slope/Bandwidth-Werte, das `regime.py`-Label und das
+`swing_structure`-Label sind deshalb aus dem Signal-Katalog ausgeschlossen
+(sonst würde man effektiv "korreliert Aufwärts mit Aufwärts?" testen).
+
+Backfillbar über die vollen 4 Jahre (2022-09-04 bis 2026-09-18, bestätigt:
+`taker_buy_base_vol` und `volume` sind für den kompletten Zeitraum
+vorhanden, nicht nur seit Kurzem): 13 Signale in 3 Gruppen.
+
+| Gruppe | Signale | Quelle |
+|---|---|---|
+| Momentum | `momentum_divergence` (ADX≥25 + MACD-Histogramm widerspricht Trendrichtung) | Port von `lib/momentumDivergence.ts` |
+| Orderflow | `cvd_bullish`/`cvd_bearish` (CVD-Trend aus `taker_buy_base_vol`), `vwap_above`/`vwap_below` (Tages-Anker-VWAP) | `legacy_factors.py`-Faktoren auf selbst berechnetem CVD/VWAP |
+| Entry-Muster | `doji`, `hammer`, `hanging_man`, `bullish_engulfing`, `bearish_engulfing`, `morning_star`, `evening_star`, `guss_signal` | Kerzenmuster-Bericht + GUSS (siehe unten) |
+
+Nicht rückrechenbar über die vollen 4 Jahre (externe Feeds erst seit
+Mitte/Ende August 2026 aktiv): Funding, Sentiment, Open-Interest-Faktoren,
+Orderbook, Options, Makro, Basis, Liquidations-Cluster — fallen für die
+Vollhistorie-Analyse weg.
+
+**GUSS-Korrektur** (wichtiger Zwischenfund): die erste Portierung (1:1 aus
+der internen, unbestätigten TS-Rekonstruktion in
+`lib/tradingIndicatorsContext.ts`) verlangte, dass buchstäblich jede Kerze
+im Pullback-Segment (im Schnitt ~51 1h-Bars) richtungskonform schließt —
+bei BTC-Rauschen statistisch quasi unmöglich, daher **0 Treffer** auf dem
+vollen Datensatz. Der Nutzer lieferte die offizielle Indikator-Beschreibung
+nach (TradingView-Changelog): Standard-EMA ist **50** (nicht 21), die Regel
+verlangt nur eine "zusammenhängende Gegenbewegung" bis zur EMA-Berührung,
+kein Bar-für-Bar-Zwang, und das Signal ist ein **Ereignis** ("in diesem
+Moment entsteht ein GUSS-Signal"), kein Dauerzustand. Neu implementiert in
+`src/signals/guss.py`: feuert einmalig bei der ersten EMA-Berührung, sofern
+der Ursprungs-Swing bis dahin das Extrem des Segments geblieben ist (kein
+neues Hoch/Tief dazwischen — die direkte Lesart von "zusammenhängend", ohne
+einen erfundenen Bar-für-Bar-Schwellenwert). Jetzt 2.938 Ereignisse über
+4 Jahre (8.3% der 1h-Bars) — plausibel.
+
+## Stufe 4: Signal-Zeitfenster-Extraktion
+
+`research-python/toby_setup/compute_signals.py` — berechnet alle 13 Signale
+über den vollen Datensatz (12 nativ auf 15m, `guss_signal` nativ auf 1h).
+`extract_signal_windows.py` — für jeden der 141.667 15m-Zeitpunkte (Signal-
+und Entry-Zeitpunkte sind unabhängig von Richtung/Hebel identisch, daher
+EINE gemeinsame Extraktion statt 6): vier kumulative Fenster, alle endend
+an der Signal-Kerze S (Close = Entry-Zeitpunkt E):
+- `w15m`: nur S selbst
+- `w1h`: die letzten 4 15m-Kerzen bis und mit S
+- `w4h`: die letzten 16 15m-Kerzen bis und mit S
+- `wtrade`: die Entry-Kerze E selbst (laufender Trade)
+
+GUSS wird zuerst point-in-time-sicher auf das 15m-Raster projiziert (nur
+auf der einen 15m-Kerze pro Stunde, deren Schlusszeit mit der 1H-
+Bestätigung zusammenfällt), danach identische Rolling-Window-Logik wie für
+die 15m-nativen Signale. Verschachtelungs-Invariante geprüft (w15m⊆w1h⊆w4h,
+0 Verletzungen über alle 13 Signale). Phase per `confirmed_asof_join`
+angehängt (3 Zeilen ohne Phase, vor der ersten bestätigten 1h-Kerze).
+
+Ausgabe: `output/signal_windows.csv` (141.667 Zeilen, 55 Spalten: signal_
+time/entry_time/phase + 13×4 boolesche Fenster-Signal-Spalten, gitignored).
+
+## Stufe A: Einzelsignal-Häufigkeit (Vorfilter)
+
+`research-python/toby_setup/frequency_stage_a.py`. Beispiel Fenster `w1h`:
+
+| Signal | Aufwärts | Abwärts | Seitwärts | Gesamt |
+|---|---|---|---|---|
+| cvd_bullish | 71.2% | 62.8% | 65.9% | 66.3% |
+| vwap_above | 65.6% | 34.2% | 46.2% | 47.3% |
+| momentum_divergence | 31.9% | 35.5% | 23.6% | 26.8% |
+| guss_signal | 2.0% | 2.5% | 11.0% | 8.3% |
+| hammer | 20.4% | 24.1% | 22.6% | 22.5% |
+| morning_star (seltenstes Signal) | 5.8% | 5.4% | 5.4% | 5.5% |
+
+Mit Mindeststichprobe n≥500 je Phase×Fenster-Zelle erreichen **alle 13
+Signale in allen Zellen** den Vorfilter — bei Phasengrößen von 22.000 bis
+97.000 Zeitpunkten selbst beim seltensten Signal (`guss_signal` in
+Aufwärts/Abwärts, ~2%) komfortabel erfüllt. Daraus **463 gruppen-
+übergreifende Paar-Kandidaten** (über alle Phase×Fenster-Zellen), in
+`output/frequency_stage_a_pair_candidates.csv` (gitignored). Auffällig
+(rein deskriptiv, noch kein Test): `vwap_above` und `cvd_bullish` sind in
+Aufwärts deutlich häufiger als in Abwärts (65.6% vs. 34.2% bzw. 71.2% vs.
+62.8%) — plausibel, da beide Signale selbst Trendrichtung ausdrücken;
+`guss_signal` ist in Seitwärts überraschend am häufigsten (11.0% vs. ~2%
+in beiden Richtungsphasen) — konsistent damit, dass ein "Pullback zur
+EMA50, der die Trendrichtung nie verlässt" in einer bereits als klar
+gerichtet klassifizierten Phase seltener neu entsteht.
+
 ## Offen / nächster Schritt
 
-Signal-Zeitfenster-Extraktion (bis 4h / bis 1h / bis 15m vor Entry / im
-laufenden 15m-Trade): für jeden Setup-Entry die zu diesem Zeitpunkt
-tatsächlich aktiven Nexus-Signale festhalten (ebenfalls point-in-time,
-konfirmierter Wert), dann Häufigkeit/Ko-Auftreten (Einzelsignale, Paare,
-Dreier) pro Phase/Zeitfenster, mit gepoolter BH-FDR-Korrektur (Methodik-
-Vorlage: Wave-Anchor-Projekt).
+Stufe B: tatsächliche Paar-Häufigkeit für die 463 Kandidaten zählen, dann
+den echten Test (HAC-Regression gegen `final_mfe_margin_pct`/TP20+, siehe
+Testmethode oben) für die Zellen mit ausreichender Paar-Stichprobe, danach
+gepoolte BH-FDR-Korrektur über den gesamten Zellsatz und OOS-Freeze.
