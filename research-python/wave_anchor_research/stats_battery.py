@@ -61,13 +61,45 @@ class CellResult:
     block_length: int
     bh_significant: bool | None = None
     bh_adjusted_p: float | None = None
+    # v3 Event-Study-Zusatzgroessen (Abschnitt 15): Median und Hit-Rate der
+    # BEDINGUNGS-Gruppe direkt aus den Rohdaten (kein Bootstrap noetig, reine
+    # deskriptive Statistik) -- nur fuer Bedingungs-Zellen populiert, bei
+    # Rank-IC-Zellen None (dort nicht sinnvoll definiert).
+    median_condition: float | None = None
+    hit_rate_condition: float | None = None
+
+
+MIN_BLOCK_LENGTH = 10  # siehe Begruendung unten
 
 
 def _block_length_for_horizon(horizon_bars: int) -> int:
     """2x der Horizont-Bar-Zahl -- konservative Marge oberhalb der
     strukturellen Abhaengigkeitslaenge, exakt dieselbe Regel wie
-    src/validation/block_bootstrap.py's eigene Herleitung (H=7d -> L=14d)."""
-    return max(2, 2 * horizon_bars)
+    src/validation/block_bootstrap.py's eigene Herleitung (H=7d -> L=14d).
+    Mindestens `MIN_BLOCK_LENGTH=10`: fuer sehr kurze Horizonte (z.B. der
+    1H-Horizont bei 1h-LTF, wo 2xhorizon_bars=2 waere) faengt ein derart
+    kurzer Block kaum noch Autokorrelationsstruktur ein -- UND
+    `draw_moving_block_indices` (block_bootstrap.py) baut pro Replikat
+    `ceil(n/block_length)` einzelne numpy-Arrays per Python-Schleife auf,
+    was bei sehr kurzer Blocklaenge und n~100k Zeilen unverhaeltnismaessig
+    teuer wird (empirisch gemessen: block_length=2 -> ~54ms/Aufruf,
+    block_length=384 -> ~0.44ms/Aufruf, Faktor ~120x). Die Untergrenze ist
+    also sowohl methodisch als auch aus Rechenzeitgruenden sinnvoll, VOR
+    jeder Ergebnisbetrachtung festgelegt."""
+    return max(MIN_BLOCK_LENGTH, 2 * horizon_bars)
+
+
+def _effective_n_replicates(block_length: int, requested: int) -> int:
+    """Reduziert die Replikatzahl NUR aus Rechenzeitgruenden bei sehr
+    kurzer Blocklaenge (siehe `_block_length_for_horizon`-Docstring fuer die
+    Kalibrierungsmessung) -- nie aus Ergebnis-/Signifikanz-Erwaegungen,
+    diese Staffelung ist rein an `block_length` (nicht an irgendeinem
+    Zwischenergebnis) festgemacht und daher VOR jeder Analyse determiniert."""
+    if block_length < 20:
+        return min(requested, 250)
+    if block_length < 100:
+        return min(requested, 500)
+    return requested
 
 
 def evaluate_condition_vs_complement(
@@ -99,14 +131,22 @@ def evaluate_condition_vs_complement(
         )
 
     baseline = float(fr.mean())
+    effective_n_replicates = _effective_n_replicates(block_length, n_replicates)
     result = block_bootstrap_mean_difference(
         returns=fr, condition_mask=mask, baseline=baseline, seed=seed,
-        block_length=block_length, n_replicates=n_replicates,
+        block_length=block_length, n_replicates=effective_n_replicates,
     )
+    # v3 Event-Study-Zusatzgroessen (Abschnitt 15): Median und Hit-Rate
+    # (Anteil positiver Forward-Returns) direkt aus den Rohdaten der
+    # Bedingungs-Gruppe -- rein deskriptiv, kein Bootstrap noetig.
+    cond_returns = fr[mask]
+    median_condition = float(np.median(cond_returns))
+    hit_rate_condition = float((cond_returns > 0).mean())
     return CellResult(
         study_setup, wt_preset, split, test_category, feature, condition, horizon,
         n_cond, n_comp, result.difference, baseline, result.ci_lower, result.ci_upper,
         result.p_value, "OK", result.n_valid_replicates, block_length,
+        median_condition=median_condition, hit_rate_condition=hit_rate_condition,
     )
 
 
@@ -162,9 +202,10 @@ def evaluate_rank_ic(
             return 0.0
         return float((fr_c * rr_c).sum() / denom)
 
+    effective_n_replicates = _effective_n_replicates(block_length, n_replicates)
     boot = moving_block_bootstrap(
         n_obs=n, statistic_fn=_stat, baseline=0.0, seed=seed,
-        block_length=block_length, n_replicates=n_replicates,
+        block_length=block_length, n_replicates=effective_n_replicates,
     )
     return CellResult(
         study_setup, wt_preset, split, test_category, feature, "rank_ic", horizon,

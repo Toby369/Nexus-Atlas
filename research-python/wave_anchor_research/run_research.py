@@ -1,29 +1,25 @@
-"""Orchestriert die vollstaendige Wave-Anchor-Statistik-Batterie v2
-(Aufgabenstellung v2, Abschnitt 14 "TESTMATRIX", TEST 1-12): je Studien-Setup
-x WaveTrend-Preset, TRAIN_VAL/OOS-Split (80/20, chronologisch, OOS bis zum
-Freeze unberuehrt), gepoolte BH-FDR-Korrektur, OOS-Bestaetigung der
-ueberlebenden Zellen, Regime-Aufschluesselung der bestaetigten Zellen.
+"""Orchestriert die vollstaendige Wave-Anchor-Statistik-Batterie v3
+(Aufgabenstellung v3): je Studien-Setup x WaveTrend-Preset, TRAIN_VAL/OOS-
+Split (80/20, chronologisch, OOS bis zum Freeze unberuehrt), gepoolte
+BH-FDR-Korrektur, OOS-Bestaetigung der ueberlebenden Zellen.
 
-WICHTIG (v2-Neuerung): WT1 UND WT2 werden vollstaendig getrennt getestet
-(Abschnitt 5), sowie -- wo die Nutzer-Testmatrix es nicht explizit auf ein
-Level (±60) einschraenkt -- alle drei aus der Primaerquelle bestaetigten
-Threshold-Paare (Abschnitt 6). Dokumentierte Scope-Entscheidung (aus
-Rechenzeitgruenden, VOR jeder Ergebnisbetrachtung festgelegt, siehe
-WAVE-ANCHOR-FEATURE-SPECIFICATION.md):
-  - TEST 3/4 (State):      alle 3 Level (Abschnitt 6 verlangt das explizit)
-  - TEST 5 (Cross):        nur Level 2 (±60, wie in der Nutzer-Nummerierung
-                             "TEST 5: Cross ±60" explizit benannt)
-  - TEST 7 (Distance):     nur Level 2 (Distanz ist eine kontinuierliche
-                             Transformation der Rohwelle -- TEST 1/2 deckt
-                             die Rohwert-Korrelation bereits ab)
-  - TEST 8 (Duration):     nur Level 2
-  - TEST 9/10 (Konfluenz): nur Level 2 (Hauptfokus laut allen gefundenen
-                             oeffentlichen Beschreibungen)
-  - TEST 11 (State x Slope): nur Level 2, HTF A only
-  - TEST 12 (vs. Momentum): eigene IC-Zellenserie auf den bereits
-                             vorhandenen baseline_*-Spalten, im Report
-                             explizit numerisch gegen TEST-1/2/3/4-IC/Effekt-
-                             groessen gestellt
+WICHTIG (v3-Aenderungen ggue. v2):
+  - Levels: NUR NOCH ±60 (v3 Abschnitt 4: "Nicht auf +53/-53 aendern -- das
+    ist NICHT die Wave-Anchor-Anchor-Grenze"). TEST 3/4 (State) laufen daher
+    jetzt -- anders als in v2 -- nur auf Level 2, nicht mehr auf allen drei
+    VuManChu-Leveln (die waren in v2 noch Kategorie-D-Vorsicht, jetzt per
+    Nutzer-Screenshot der offiziellen Beschreibungsseite direkt auf ±60
+    bestaetigt, siehe WAVE-ANCHOR-ORIGINAL-SOURCE.md).
+  - Parameter: NUR NOCH das primaerquellenbestaetigte 9/12/3-Preset (v3
+    Abschnitt 24 "KEINE PARAMETER-OPTIMIERUNG" -- das LazyBear-Preset war in
+    v1/v2 eine von zwei GLEICHERMASSEN PLAUSIBLEN Annahmen; jetzt ist 9/12/3
+    direkt bestaetigt, ein Parallel-Test waere kein "Vergleich zweier
+    plausibler Annahmen" mehr, sondern Bewegung Richtung Parameteroptimierung
+    -- explizit nicht Teil dieses Tests).
+  - WT1 heisst im Original "Fast Wave", WT2 "Slow Wave" (v3 Abschnitt 3) --
+    Code-intern bleiben die Bezeichner wt1/wt2 (aus wavetrend.py/features.py
+    uebernommen, bereits getestet), die Fast/Slow-Terminologie wird in den
+    Dokumenten (WAVE-ANCHOR-FEATURE-SPEC.md etc.) als Aequivalenz gefuehrt.
 
 Aufruf: python run_research.py
 """
@@ -39,21 +35,22 @@ import pandas as pd
 
 from assemble import STUDY_SETUPS, assemble
 from data_loader import load_ohlc
-from features import THRESHOLD_LEVELS, WAVE_NAMES
+from features import WAVE_NAMES
+from incremental_value import evaluate_incremental_value, results_to_dataframe
 from mtf_join import close_time_of, confirmed_asof_join
 from regime import compute_daily_regimes
-from stats_battery import CellResult, apply_bh_fdr, cells_to_dataframe, evaluate_condition_vs_complement, evaluate_rank_ic
+from stats_battery import CellResult, _block_length_for_horizon, apply_bh_fdr, cells_to_dataframe, evaluate_condition_vs_complement, evaluate_rank_ic
 from targets import HORIZON_LABELS, horizon_bars_for_timeframe
-from wavetrend import LAZYBEAR_ORIGINAL, VUMANCHU_DEFAULT
+from wavetrend import VUMANCHU_DEFAULT
 
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
-WT_PRESETS = {"LazyBear": LAZYBEAR_ORIGINAL, "VuManChu": VUMANCHU_DEFAULT}
+WT_PRESETS = {"VuManChu-Confirmed(9/12/3)": VUMANCHU_DEFAULT}  # v3: einziges bestaetigtes Preset, siehe Docstring
 OOS_FRACTION = 0.20
 N_REPLICATES_CONDITION = 1000
 N_REPLICATES_IC = 1000  # nach Rang-Vorberechnung (stats_battery.py) kein Kostenunterschied mehr zu Condition-Zellen
 SEED_BASE = 20260919  # heutiges Datum als fixer, dokumentierter Seed
 
-L2 = "L2"  # ±60, Hauptfokus-Level fuer TEST 5/7/8/9/10/11 (siehe Modul-Docstring)
+L2 = "L2"  # ±60 -- v3: das EINZIGE getestete Level (Docstring oben)
 BASELINE_COLS = ["baseline_momentum", "baseline_ema_trend", "baseline_rsi", "baseline_macd_hist"]
 
 
@@ -97,13 +94,13 @@ def _generate_cells(
             for prefix in ["htfA", "htfB"]:
                 cells.append(ic_cell(f"{prefix}_{wave}", f"{prefix}_{wave}", test_cat, horizon))
 
-        # TEST 3/4: WT1/WT2-State (OB/OS vs. Rest), je HTF A/B, ALLE 3 Level.
+        # TEST 3/4: WT1/WT2-State (OB/OS vs. Rest), je HTF A/B, NUR Level 2
+        # (±60 -- v3: einzige bestaetigte Anchor-Grenze, siehe Modul-Docstring).
         for wave, test_cat in [("wt1", "TEST3"), ("wt2", "TEST4")]:
             for prefix in ["htfA", "htfB"]:
-                for level in THRESHOLD_LEVELS:
-                    colname = f"{prefix}_{wave}_{level}_state"
-                    for state in ["OB", "OS"]:
-                        cells.append(cond_cell(f"{prefix}_{wave}_{level}_state", state, df[colname] == state, test_cat, horizon))
+                colname = f"{prefix}_{wave}_{L2}_state"
+                for state in ["OB", "OS"]:
+                    cells.append(cond_cell(f"{prefix}_{wave}_{L2}_state", state, df[colname] == state, test_cat, horizon))
 
         # TEST 5: Cross-Events, nur Level 2 (±60), je HTF A/B, je Welle.
         for prefix in ["htfA", "htfB"]:
@@ -197,6 +194,32 @@ def main() -> None:
             )
             all_train_cells.extend(cells)
             print(f"[{combo_label}] {len(cells)} TRAIN_VAL-Zellen in {time.time()-t1:.1f}s")
+
+    # Incremental-Value-Test (v3 Abschnitt 18): Baseline vs. Baseline+Wave-Anchor,
+    # je Setup x Horizont x Ziel-Typ, auf TRAIN_VAL UND (unveraendert, ohne
+    # weitere Anpassung) auf OOS -- beantwortet v3 Frage J ("OOS reproduzierbar?")
+    # direkt, ohne separate Survivor-Selektion (nur 2 Setups x 6 Horizonte x
+    # 2 Zieltypen = 24 Zellen je Split, kein Performance-Problem).
+    print("\nIncremental-Value-Test (Baseline vs. Baseline+WaveAnchor) ...")
+    incremental_results = []
+    for setup in STUDY_SETUPS:
+        horizon_bars = horizon_bars_for_timeframe(setup.ltf)
+        full_df = assembled_by_combo[(setup.label, next(iter(WT_PRESETS)))]
+        train_df, oos_df = _split_train_oos(full_df, OOS_FRACTION)
+        for horizon in HORIZON_LABELS:
+            block_length = _block_length_for_horizon(horizon_bars[horizon])
+            for split_name, split_df in [("TRAIN_VAL", train_df), ("OOS", oos_df)]:
+                incremental_results.append(evaluate_incremental_value(
+                    split_df, f"forward_return_{horizon}", "forward_return", horizon, block_length,
+                    f"{setup.label} | {split_name}",
+                ))
+                incremental_results.append(evaluate_incremental_value(
+                    split_df, f"direction_{horizon}", "direction", horizon, block_length,
+                    f"{setup.label} | {split_name}",
+                ))
+    incremental_df = results_to_dataframe(incremental_results)
+    incremental_df.to_csv(os.path.join(OUTPUT_DIR, "incremental_value.csv"), index=False)
+    print(f"  {len(incremental_results)} Incremental-Value-Zellen gespeichert.")
 
     print(f"\nGesamt TRAIN_VAL-Zellen: {len(all_train_cells)}. Wende BH-FDR an (EIN Pool) ...")
     apply_bh_fdr(all_train_cells, alpha=0.05)
