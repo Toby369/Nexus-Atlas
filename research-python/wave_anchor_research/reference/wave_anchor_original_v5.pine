@@ -1,0 +1,136 @@
+// Quelle: vom Nutzer direkt bereitgestellter Pine-v5-Originalquelltext des
+// "Wave Anchor Indicator" (Autor-Handle laut oeffentlicher TradingView-Seite:
+// StormCat1). Statische Referenzkopie, NICHT Teil der ausfuehrbaren
+// Forschungspipeline (dieses Verzeichnis wird von keinem Python-Modul
+// importiert) -- dient ausschliesslich als zitierbare Primaerquelle fuer
+// docs/research/WAVE-ANCHOR-ORIGINAL-SOURCE.md (Kategorie A).
+//
+// Empfangen am 2026-09-19 im Rahmen der Wave-Anchor-Research-v3-Aufgabe.
+
+//@version=5
+indicator(title='Wave Anchor Indicator', shorttitle='Wave Anchor Indicator', overlay=true)
+
+// Thanks to LazyBear via VuManChu for WaveTrend Oscillator https://www.tradingview.com/script/2KE8wTuF-Indicator-WaveTrend-Oscillator-WT/
+// Thanks also to all the open source coders whose generosity help a newbie like me learn a little coding and create something useful.
+
+
+// Input parameters for WaveTrend
+wtChannelLen = input(9, title='WT Channel Length', group='WaveTrend Settings')
+wtAverageLen = input(12, title='WT Average Length', group='WaveTrend Settings')
+wtMASource = input(hlc3, title='WT MA Source', group='WaveTrend Settings')
+wtMALen = input(3, title='WT MA Length', group='WaveTrend Settings')
+
+// User option to choose wave type
+waveType = input.string("Fast Wave", title="Select Wave Type", options=["Fast Wave", "Slow Wave"], group="Wave Selection")
+
+// Display options for 15m timeframe
+displayOption15m = input.string("None", title="Display Options for 15m", options=["None", "1H/TP1", "4H/TP2", "Both"], group="Display Options")
+// Display options for 1H timeframe
+displayOption1h = input.string("None", title="Display Options for 1H", options=["None", "4H/TP1", "D/TP2", "Both"], group="Display Options")
+
+// Overbought and Oversold levels
+overboughtLevel = 60
+oversoldLevel = -60
+
+// WaveTrend function
+f_wavetrend(src, chlen, avg, malen, tf) =>
+    tfsrc = request.security(syminfo.tickerid, tf, src)
+    esa = ta.ema(tfsrc, chlen)
+    de = ta.ema(math.abs(tfsrc - esa), chlen)
+    ci = (tfsrc - esa) / (0.015 * de)
+    wt1 = request.security(syminfo.tickerid, tf, ta.ema(ci, avg)) // Fast Wave
+    wt2 = request.security(syminfo.tickerid, tf, ta.sma(wt1, malen)) // Slow Wave
+    [wt1, wt2]
+
+// Fetch WaveTrend values from the 4-hour, Daily, and 1-hour timeframes
+[wt1_4h, wt2_4h] = f_wavetrend(wtMASource, wtChannelLen, wtAverageLen, wtMALen, "240")
+[wt1_daily, wt2_daily] = f_wavetrend(wtMASource, wtChannelLen, wtAverageLen, wtMALen, "D")
+[wt1_1h, wt2_1h] = f_wavetrend(wtMASource, wtChannelLen, wtAverageLen, wtMALen, "60")  // Fetch values for 1-hour timeframe
+
+// Define conditions for 15m and 1H timeframes
+crossover15m_1H_overbought = ta.crossover(waveType == "Fast Wave" ? wt1_1h : wt2_1h, overboughtLevel)
+crossunder15m_1H_overbought = ta.crossunder(waveType == "Fast Wave" ? wt1_1h : wt2_1h, overboughtLevel)
+crossunder15m_1H_oversold = ta.crossunder(waveType == "Fast Wave" ? wt1_1h : wt2_1h, oversoldLevel)
+crossover15m_1H_oversold = ta.crossover(waveType == "Fast Wave" ? wt1_1h : wt2_1h, oversoldLevel)
+
+crossover15m_4H_overbought = ta.crossover(waveType == "Fast Wave" ? wt1_4h : wt2_4h, overboughtLevel)
+crossunder15m_4H_overbought = ta.crossunder(waveType == "Fast Wave" ? wt1_4h : wt2_4h, overboughtLevel)
+crossunder15m_4H_oversold = ta.crossunder(waveType == "Fast Wave" ? wt1_4h : wt2_4h, oversoldLevel)
+crossover15m_4H_oversold = ta.crossover(waveType == "Fast Wave" ? wt1_4h : wt2_4h, oversoldLevel)
+
+crossover1H_4H_overbought = ta.crossover(waveType == "Fast Wave" ? wt1_4h : wt2_4h, overboughtLevel)
+crossunder1H_4H_overbought = ta.crossunder(waveType == "Fast Wave" ? wt1_4h : wt2_4h, overboughtLevel)
+crossunder1H_4H_oversold = ta.crossunder(waveType == "Fast Wave" ? wt1_4h : wt2_4h, oversoldLevel)
+crossover1H_4H_oversold = ta.crossover(waveType == "Fast Wave" ? wt1_4h : wt2_4h, oversoldLevel)
+
+crossover1H_D_overbought = ta.crossover(waveType == "Fast Wave" ? wt1_daily : wt2_daily, overboughtLevel)
+crossunder1H_D_overbought = ta.crossunder(waveType == "Fast Wave" ? wt1_daily : wt2_daily, overboughtLevel)
+crossunder1H_D_oversold = ta.crossunder(waveType == "Fast Wave" ? wt1_daily : wt2_daily, oversoldLevel)
+crossover1H_D_oversold = ta.crossover(waveType == "Fast Wave" ? wt1_daily : wt2_daily, oversoldLevel)
+
+// Create alert conditions with matching titles and messages
+alertcondition(crossover15m_1H_overbought, title="D/15 Long TP1 Reached", message="D/15 Long TP1 Reached")
+alertcondition(crossunder15m_1H_overbought, title="1H wave breaking below 60", message="1H wave breaking below 60")
+alertcondition(crossunder15m_1H_oversold, title="D/15 Short TP1 Reached", message="D/15 Short TP1 Reached")
+alertcondition(crossover15m_1H_oversold, title="1H wave breaking above -60", message="1H wave breaking above -60")
+
+alertcondition(crossover15m_4H_overbought, title="D/15 Long TP2 Reached", message="D/15 Long TP2 Reached")
+alertcondition(crossunder15m_4H_overbought, title="4H wave breaking below 60", message="4H wave breaking below 60")
+alertcondition(crossunder15m_4H_oversold, title="D/15 Short TP2 Reached", message="D/15 Short TP2 Reached")
+alertcondition(crossover15m_4H_oversold, title="4H wave breaking above -60", message="4H wave breaking above -60")
+
+alertcondition(crossover1H_4H_overbought, title="W/1H Long TP1 Reached", message="W/1H Long TP1 Reached")
+alertcondition(crossunder1H_4H_overbought, title="4H wave breaking below 60", message="4H wave breaking below 60")
+alertcondition(crossunder1H_4H_oversold, title="W/1H Short TP1 Reached", message="W/1H Short TP1 Reached")
+alertcondition(crossover1H_4H_oversold, title="4H wave breaking above -60", message="4H wave breaking above -60")
+
+alertcondition(crossover1H_D_overbought, title="W/1H Long TP2 Reached", message="W/1H Long TP2 Reached")
+alertcondition(crossunder1H_D_overbought, title="Daily wave breaking below 60", message="Daily wave breaking below 60")
+alertcondition(crossunder1H_D_oversold, title="W/1H Short TP2 Reached", message="W/1H Short TP2 Reached")
+alertcondition(crossover1H_D_oversold, title="Daily wave breaking above -60", message="Daily wave breaking above -60")
+
+
+// Generate labels and handle display logic
+// Define an offset for the labels to prevent overlap (50% of the candle size)
+offset = (high - low) * 0.5  // 50% of the candle size
+
+// Overbought and Oversold Labels with Correct Triangle Directions, Arrow Symbols, and Offset
+if (timeframe.period == "15")
+    if (displayOption15m == "1H/TP1" or displayOption15m == "Both")
+        if (crossover15m_1H_overbought)
+            label.new(bar_index, high + offset, "▲ 1H", color=color.green, style=label.style_label_down, textcolor=color.white, size=size.small)
+        if (crossunder15m_1H_overbought)
+            label.new(bar_index, high + offset, "▼ 1H", color=color.red, style=label.style_label_down, textcolor=color.white, size=size.small)
+        if (crossunder15m_1H_oversold)
+            label.new(bar_index, low - offset, "▼ 1H", color=color.red, style=label.style_label_up, textcolor=color.white, size=size.small)  // Oversold cross down
+        if (crossover15m_1H_oversold)
+            label.new(bar_index, low - offset, "▲ 1H", color=color.green, style=label.style_label_up, textcolor=color.white, size=size.small)  // Oversold cross up
+    if (displayOption15m == "4H/TP2" or displayOption15m == "Both")
+        if (crossover15m_4H_overbought)
+            label.new(bar_index, high + offset, "▲ 4H", color=color.green, style=label.style_label_down, textcolor=color.white, size=size.small)
+        if (crossunder15m_4H_overbought)
+            label.new(bar_index, high + offset, "▼ 4H", color=color.red, style=label.style_label_down, textcolor=color.white, size=size.small)
+        if (crossunder15m_4H_oversold)
+            label.new(bar_index, low - offset, "▼ 4H", color=color.red, style=label.style_label_up, textcolor=color.white, size=size.small)  // Oversold cross down
+        if (crossover15m_4H_oversold)
+            label.new(bar_index, low - offset, "▲ 4H", color=color.green, style=label.style_label_up, textcolor=color.white, size=size.small)  // Oversold cross up
+
+if (timeframe.period == "60")
+    if (displayOption1h == "4H/TP1" or displayOption1h == "Both")
+        if (crossover1H_4H_overbought)
+            label.new(bar_index, high + offset, "▲ 4H", color=color.green, style=label.style_label_down, textcolor=color.white, size=size.small)
+        if (crossunder1H_4H_overbought)
+            label.new(bar_index, high + offset, "▼ 4H", color=color.red, style=label.style_label_down, textcolor=color.white, size=size.small)
+        if (crossunder1H_4H_oversold)
+            label.new(bar_index, low - offset, "▼ 4H", color=color.red, style=label.style_label_up, textcolor=color.white, size=size.small)  // Oversold cross down
+        if (crossover1H_4H_oversold)
+            label.new(bar_index, low - offset, "▲ 4H", color=color.green, style=label.style_label_up, textcolor=color.white, size=size.small)  // Oversold cross up
+    if (displayOption1h == "D/TP2" or displayOption1h == "Both")
+        if (crossover1H_D_overbought)
+            label.new(bar_index, high + offset, "▲ D", color=color.green, style=label.style_label_down, textcolor=color.white, size=size.small)
+        if (crossunder1H_D_overbought)
+            label.new(bar_index, high + offset, "▼ D", color=color.red, style=label.style_label_down, textcolor=color.white, size=size.small)
+        if (crossunder1H_D_oversold)
+            label.new(bar_index, low - offset, "▼ D", color=color.red, style=label.style_label_up, textcolor=color.white, size=size.small)  // Oversold cross down
+        if (crossover1H_D_oversold)
+            label.new(bar_index, low - offset, "▲ D", color=color.green, style=label.style_label_up, textcolor=color.white, size=size.small)  // Oversold cross up

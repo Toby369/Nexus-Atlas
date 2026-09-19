@@ -1,127 +1,194 @@
-# Wave Anchor: Original-Source-Dokumentation — 2026-09-19 (v3)
+# Wave Anchor: Original-Source-Dokumentation — 2026-09-19 (v3, Kategorie A jetzt verifiziert)
 
-## 0. Was tatsächlich vorliegt — ehrliche Bestandsaufnahme
+## 0. Update: Originalquelltext liegt jetzt tatsächlich vor
 
-**Wichtige Klarstellung zu Beginn**: In der v3-Aufgabenstellung heißt es, der "vollständige
-Originalcode" befinde sich "im vorherigen Prompt". Das stimmt nicht ganz — im vorherigen Prompt
-wurde der Pine-**v4**-Quelltext von **VuManChu B Divergences/Cipher-B** geliefert (Funktion
-`f_wavetrend`, Level `obLevel/osLevel=±53`, `obLevel2/osLevel2=±60`, `obLevel3/osLevel3=+100/-75`)
-— das ist die Abhängigkeit, auf der Wave Anchor laut eigener Aussage aufbaut, **nicht** Wave
-Anchors eigener Code selbst. Der in der v3-Aufgabenstellung beschriebene Pine-**v5**-Code (mit
-`ta.ema()`, `ta.crossover()`, `ta.crossunder()`, `request.security(...)`, TP-Alert-Labels wie
-`"D/15 Long TP1 Reached"`, expliziter Fast-Wave/Slow-Wave-Auswahl) wurde in dieser Unterhaltung
-**nicht als Quelltext übermittelt** — ich habe ihn nicht direkt gesehen.
+**Wichtige Korrektur gegenüber der ersten v3-Fassung dieses Dokuments**: der Nutzer hat den
+vollständigen Pine-**v5**-Quelltext des "Wave Anchor Indicator" nachgereicht (nach einer
+Rückfrage, da vorher nur die öffentliche Beschreibungsseite und der VuManChu-Abhängigkeitscode
+vorlagen). Statische Referenzkopie:
+`research-python/wave_anchor_research/reference/wave_anchor_original_v5.pine` (nicht Teil der
+ausführbaren Pipeline, dient nur als zitierbare Quelle für dieses Dokument).
 
-Zusätzlich hat der Nutzer vier Screenshots der **offiziellen TradingView-Beschreibungsseite** des
-Wave-Anchor-Indikators geliefert (Changelog, "How It Works", Credits) — das ist echte, direkte
-Evidenz von der Indikator-Seite selbst, aber **weiterhin nicht der Pine-Quelltext**.
+**Kategorie A ist ab jetzt NICHT mehr leer.** Alle unten als "A" markierten Punkte sind direkt aus
+diesem Quelltext gelesen, keine Rekonstruktion.
 
-**Kategorie A (verifiziert aus Originalquelltext) bleibt daher leer.** `tradingview.com` ist in
-dieser Sandbox weiterhin vollständig `EGRESS_BLOCKED` (erneut geprüft für v3) — eine unabhängige
-Verifikation des Skripttexts ist technisch nicht möglich.
+**Legende (unverändert):**
+- **A — VERIFIED FROM ORIGINAL SOURCE**: direkt aus dem jetzt vorliegenden Quelltext.
+- **U — USER-DESCRIBED**: Nutzer-Beschreibung vor Quelltext-Erhalt (v3-Aufgabenstellung selbst)
+  — im Rückblick fast durchgängig exakt zutreffend, siehe Abschnitt 6.
+- **B — VERIFIED FROM PUBLIC DESCRIPTION**: offizielle TradingView-Beschreibungsseite (Screenshots).
+- **C — RECONSTRUCTED FROM OPEN-SOURCE DEPENDENCY**: VuManChu-Pine-v4-Quelltext.
+- **D — UNKNOWN**: nicht mehr relevant für die Kernlogik (siehe Abschnitt 7 für die verbleibenden
+  offenen Punkte).
 
-**Legende (erweitert um Kategorie U für v3):**
-- **A — VERIFIED FROM ORIGINAL SOURCE**: direkt aus StormCat1s Skript gelesen. **Leer.**
-- **U — USER-DESCRIBED**: detaillierte technische Beschreibung des Codes direkt vom Nutzer (v3-
-  Aufgabenstellung selbst: Parameterwerte, Funktionsnamen, Pine-Konstrukte). Wird als
-  zuverlässige Fachauskunft behandelt, aber NICHT unabhängig durch Code-Einsicht verifiziert.
-- **B — VERIFIED FROM PUBLIC DESCRIPTION**: aus der offiziellen TradingView-Beschreibungsseite
-  (jetzt per Nutzer-Screenshot direkt belegt) bzw. aus unabhängigen Web-Beschreibungen (v1).
-- **C — RECONSTRUCTED FROM OPEN-SOURCE DEPENDENCY**: aus dem tatsächlich gelieferten VuManChu-
-  Pine-v4-Quelltext (Primärquelle für die WaveTrend-Formel selbst, nicht für Wave Anchor).
-- **D — UNKNOWN**: nicht belegbar, nicht geraten.
-
-## 1. WaveTrend-Parameter
-
-| Größe | Wert | Kategorie |
-|---|---|---|
-| WT Channel Length | 9 | U (v3-Beschreibung) / C (identisch zum gelieferten VuManChu-Code) |
-| WT Average Length | 12 | U / C |
-| WT MA Length | 3 | U / C |
-| Source | HLC3 | U / C |
-
-Diese drei Werte sind bereits aus der v2-Primärquelle (VuManChu-Code) als `chlen=9/avg=12/malen=3`
-bekannt (Kategorie C) — die v3-Beschreibung stimmt exakt damit überein, was die Plausibilität der
-Nutzer-Beschreibung stützt, sie aber nicht zu Kategorie A erhebt.
+## 1. Header und Herkunft (Kategorie A)
 
 ```
-src = HLC3
-esa = EMA(src, 9)
-de  = EMA(|src - esa|, 9)
-ci  = (src - esa) / (0.015 * de)
-WT1 = EMA(ci, 12)
-WT2 = SMA(WT1, 3)
+//@version=5
+indicator(title='Wave Anchor Indicator', shorttitle='Wave Anchor Indicator', overlay=true)
+// Thanks to LazyBear via VuManChu for WaveTrend Oscillator ...
 ```
 
-## 2. Fast Wave / Slow Wave
+Bestätigt: Pine v5, Titel exakt "Wave Anchor Indicator", explizite Danksagung an LazyBear/VuManChu
+für die WaveTrend-Basis — konsistent mit der bereits in v1/v2 dokumentierten Abhängigkeit.
 
-**Kategorie U**: laut Nutzer-Beschreibung bietet der Originalcode eine echte Nutzerauswahl
-zwischen `Fast Wave = WT1` und `Slow Wave = WT2`. In den Screenshots der offiziellen
-Beschreibungsseite wird diese Auswahl NICHT erwähnt (Kategorie B liefert dazu keine Bestätigung
-oder Widerlegung). Die Forschungsimplementierung exponiert **beide** als vollständig getrennte,
-gleichrangige Feature-Familien (`fast_wave` = Alias für `wt1`, `slow_wave` = Alias für `wt2`),
-konsistent mit v3 Abschnitt 3 ("Nicht vorher entscheiden, welche besser ist").
+## 2. WaveTrend-Parameter (Kategorie A, exakt)
 
-## 3. Anchor-Levels: nur ±60
+```
+wtChannelLen = input(9, ...)
+wtAverageLen = input(12, ...)
+wtMASource   = input(hlc3, ...)
+wtMALen      = input(3, ...)
+```
 
-**Kategorie B, jetzt direkt von der offiziellen Beschreibungsseite bestätigt** (Nutzer-Screenshot,
-Abschnitt "Key Concept: Anchored Waves"): *"momentum waves in overbought (above 60) or oversold
-(below -60) conditions on higher time frames are considered 'anchored'."* Explizit **kein** ±53 —
-das stammt aus der VuManChu-Basis (dort `obLevel/osLevel`) und ist laut expliziter v3-Vorgabe
-NICHT die Wave-Anchor-Anchor-Grenze. Die v3-Forschungsimplementierung testet **ausschließlich
-±60** (im Unterschied zu v2, das alle drei VuManChu-Level parallel getestet hatte — diese
-Einschränkung ist jetzt durch die direkte Beschreibungsseiten-Bestätigung UND die explizite
-Nutzervorgabe gerechtfertigt, nicht mehr nur eine Kategorie-D-Annahme).
+`chlen=9, avg=12, malen=3, src=HLC3` — **exakt bestätigt**, identisch zu allen bisherigen
+Annahmen (Kategorie C aus v2, Kategorie U aus der ersten v3-Fassung). Als `input(...)` deklariert
+(vom Nutzer im TradingView-UI änderbar), aber die hier verwendeten **Default-Werte** sind die
+oben genannten — v3 Abschnitt 24 verlangt explizit, bei den Default-/Originalparametern zu bleiben.
 
-## 4. Timeframe-Pairing
+## 3. Fast Wave / Slow Wave (Kategorie A — jetzt exakt bestätigt)
 
-**Kategorie B, jetzt direkt bestätigt** (Nutzer-Screenshot, "Time Frame Pairings"): *"On the
-15-minute time frame, the indicator tracks anchor conditions from the 1-hour and 4-hour time
-frames. On the 1-hour chart, it monitors 4-hour and daily time frame anchor conditions."* Exakt
-identisch zur bereits in v1/v2 verwendeten Kopplung — keine Änderung am Code nötig.
+```
+waveType = input.string("Fast Wave", title="Select Wave Type", options=["Fast Wave", "Slow Wave"], ...)
+...
+wt1 = request.security(..., ta.ema(ci, avg)) // Fast Wave
+wt2 = request.security(..., ta.sma(wt1, malen)) // Slow Wave
+...
+(waveType == "Fast Wave" ? wt1_1h : wt2_1h)
+```
 
-## 5. Event- vs. State-Charakter
+**Bestätigt exakt**: `WT1 = "Fast Wave"`, `WT2 = "Slow Wave"`, echter Nutzer-Dropdown
+(`input.string`), Default = `"Fast Wave"` (WT1). **Wichtiger neuer Befund**: im Original wird die
+Wave-Type-Auswahl **global für alle Cross-Bedingungen gleichzeitig** angewendet (ein einziger
+Toggle, nicht pro Timeframe oder Event separat wählbar) — d. h. der Originalindikator zeigt zu
+jedem Zeitpunkt IMMER nur eine der beiden Wellen an, nie beide gleichzeitig. Die
+Forschungsimplementierung testet dennoch — wie in v3 Abschnitt 3 explizit gefordert — **beide
+Wellen parallel als unabhängige Forschungshypothesen**, da nicht bekannt ist, welche Einstellung
+ein Nutzer tatsächlich wählt.
 
-**Kategorie B, jetzt direkt bestätigt** (Nutzer-Screenshot, "How It Works" / "Labeling Signals"):
-*"the indicator shows labels when higher time frame momentum waves ... cross the overbought or
-oversold levels. Labels above price indicate overbought conditions, with green labels when the
-wave crosses upward and red labels when crossing downward."* Das ist eindeutig ein **Cross-Event**
-(Label erscheint am Kreuzungsmoment, farbcodiert nach Richtung), keine kontinuierliche
-Zustandsanzeige. Konsistent mit der `ta.crossover()`/`ta.crossunder()`-Verwendung, die der Nutzer
-in v3 beschreibt (Kategorie U). Die Forschungsimplementierung testet — wie schon in v1/v2 — EVENT
-(Cross) und STATE (anhaltende Zone) weiterhin getrennt (v3 Abschnitt 7 verlangt das explizit),
-mit dem Hinweis, dass laut dieser Beschreibung das EVENT die primäre, vom Original tatsächlich
-sichtbar gemachte Größe ist.
+## 4. Anchor-Levels (Kategorie A — exakt, fest codiert, kein Input)
 
-## 6. TP-Alert-Labels
+```
+overboughtLevel = 60
+oversoldLevel = -60
+```
 
-**Kategorie U**: Label-Texte wie `"D/15 Long TP1 Reached"` werden laut Nutzer-Beschreibung vom
-Original verwendet. Diese Bezeichnungen sind reine Alert-/Anzeige-Texte und werden — wie in v3
-Abschnitt 8 explizit gefordert — NICHT als Handelsregeln in die Forschung übernommen. Die
-Forschung testet stattdessen objektiv Forward Return/MFE/MAE/Direction/Magnitude (siehe
-`WAVE-ANCHOR-FEATURE-SPEC.md`).
+**Bestätigt**: ±60 ist fest im Code verdrahtet (`= 60`, nicht `input(60, ...)`) — es gibt in
+diesem Indikator **keine** Möglichkeit, ±53 oder ein anderes Level einzustellen. Das validiert
+vollständig die v3-Entscheidung, die Forschung ausschließlich auf L2 (±60) zu beschränken — es
+ist nicht nur die naheliegendste, sondern die **einzige im Code vorkommende** Anchor-Schwelle.
 
-## 7. `request.security()` — v5-Syntax
+## 5. `f_wavetrend`-Funktion (Kategorie A — exakte Struktur bestätigt)
 
-**Kategorie U**: laut Nutzer-Beschreibung `request.security(syminfo.tickerid, tf, src)` bzw.
-`request.security(syminfo.tickerid, tf, ta.ema(...))`, ohne explizite `lookahead`-Angabe — exakt
-dieselbe 3-Parameter-Form wie im tatsächlich gelieferten v4-VuManChu-Code (dort `security(...)`
-ohne `request.`-Präfix, Pine v4 vs. v5-Namensraum-Unterschied, funktional identisch). Volle
-Analyse in `WAVE-ANCHOR-SECURITY-AUDIT.md`.
+```
+f_wavetrend(src, chlen, avg, malen, tf) =>
+    tfsrc = request.security(syminfo.tickerid, tf, src)
+    esa = ta.ema(tfsrc, chlen)
+    de = ta.ema(math.abs(tfsrc - esa), chlen)
+    ci = (tfsrc - esa) / (0.015 * de)
+    wt1 = request.security(syminfo.tickerid, tf, ta.ema(ci, avg))
+    wt2 = request.security(syminfo.tickerid, tf, ta.sma(wt1, malen))
+    [wt1, wt2]
+```
 
-## 8. Zusammenfassung
+**Bestätigt exakt die in `WAVE-ANCHOR-SECURITY-AUDIT.md` (v3, vor Quelltext-Erhalt) analysierte
+Struktur**: `esa`/`de`/`ci` sind NICHT selbst in `request.security()` gewrappt, nur `tfsrc` (roh)
+sowie `wt1`/`wt2` (fertige Endgrößen, über den bereits von `tfsrc` abhängigen Zwischenwert `ci`
+verschachtelt). Meine vorherige strukturelle Analyse (Kategorie B/D, spekulativ aus dem
+VuManChu-Code abgeleitet) war exakt zutreffend — jetzt Kategorie A. Kein expliziter
+`gaps`/`lookahead`-Parameter — Pine-Default gilt (siehe Security-Audit-Dokument, dort weiterhin
+gültig, jetzt mit Kategorie-A-Bestätigung der Aufrufstruktur).
 
-| Baustein | Kategorie | Quelle |
+Aufgerufen für drei Timeframes:
+```
+[wt1_4h, wt2_4h]       = f_wavetrend(..., "240")   // 4 Stunden
+[wt1_daily, wt2_daily] = f_wavetrend(..., "D")     // Daily
+[wt1_1h, wt2_1h]       = f_wavetrend(..., "60")    // 1 Stunde
+```
+
+Kein 15m-eigener `f_wavetrend`-Aufruf — auf dem 15m-Chart selbst wird nur der 1H- und 4H-Wave
+referenziert, nicht der 15m-Wave selbst (der Indikator vergleicht also NICHT das aktuelle
+Chart-Timeframe mit sich selbst, sondern ausschließlich HTF-Werte).
+
+## 6. Timeframe-Mapping und Cross-Bedingungen (Kategorie A — exakt bestätigt)
+
+```
+if (timeframe.period == "15")
+    ... crossover15m_1H_*, crossover15m_4H_* ...
+if (timeframe.period == "60")
+    ... crossover1H_4H_*, crossover1H_D_* ...
+```
+
+**Exakt bestätigt**: 15m-Chart nutzt 1H+4H, 1H-Chart nutzt 4H+Daily — identisch zur bereits in
+v1/v2/v3 verwendeten `STUDY_SETUPS`-Konfiguration, keine Code-Änderung nötig.
+
+Vier Cross-Typen je (Chart-TF, HTF)-Paar, exakt wie in `features.py` bereits implementiert:
+
+| Original-Code | v3-Bezeichnung | Code-Spaltenname (dieses Projekt) |
 |---|---|---|
-| WaveTrend-Formel (esa/de/ci/wt1/wt2) | C (Zahlenwerte) / U (v5-Syntax-Beschreibung) | VuManChu-v4-Primärquelle + Nutzer-Beschreibung |
-| Parameter 9/12/3 | C + U übereinstimmend | Beide Quellen decken sich |
-| Fast Wave=WT1/Slow Wave=WT2 | U | Nur Nutzer-Beschreibung, nicht in Screenshots erwähnt |
-| ±60 als einzige Anchor-Grenze | B (jetzt Screenshot-bestätigt) | Offizielle Beschreibungsseite |
-| 15m→1H+4H, 1H→4H+1D | B (Screenshot-bestätigt) | Offizielle Beschreibungsseite |
-| Event-/Cross-Charakter | B (Screenshot-bestätigt) + U (ta.crossover/under) | Beide konsistent |
-| TP-Alert-Label-Texte | U | Nur Nutzer-Beschreibung, nicht produktionsrelevant |
-| `request.security()`-Aufrufform | U + C (identische Struktur im v4-Code) | Konsistent zwischen beiden Quellen |
+| `ta.crossover(wave, +60)` | `CROSS_ABOVE_PLUS60` | `cross_up_ob` |
+| `ta.crossunder(wave, +60)` | `CROSS_BELOW_PLUS60` | `cross_down_ob` |
+| `ta.crossunder(wave, -60)` | `CROSS_BELOW_MINUS60` | `cross_down_os` |
+| `ta.crossover(wave, -60)` | `CROSS_ABOVE_MINUS60` | `cross_up_os` |
 
-**Konsequenz**: höheres Vertrauen als in v1/v2 (mehrere unabhängig konsistente Quellen: v4-Code,
-offizielle Beschreibungsseite, Nutzer-Beschreibung), aber weiterhin **keine** Kategorie-A-Aussage
-über den literalen Pine-v5-Quelltext möglich.
+**Exakte 1:1-Übereinstimmung mit der bereits implementierten Feature-Engine** — keine
+Code-Änderung an `features.py` nötig, die Forschungsimplementierung bildet die vier Cross-Events
+bereits korrekt ab.
+
+**Wichtiger Befund**: die 4H- und Daily-Wellen werden EINMAL berechnet und dann sowohl für den
+15m-Chart-Kontext (`crossover15m_4H_*`) als auch für den 1H-Chart-Kontext (`crossover1H_4H_*`)
+identisch wiederverwendet — dieselbe zugrunde liegende HTF-Größe, nur unter zwei verschiedenen
+Variablennamen für zwei verschiedene Anzeige-Kontexte. Das bestätigt exakt das
+Architekturprinzip dieses Forschungsprojekts: HTF-Größen werden EINMAL berechnet
+(`compute_htf_observations`) und dann look-ahead-sicher auf jede relevante LTF-Zeitachse
+projiziert (`confirmed_asof_join`) — keine Neuberechnung je Chart-Kontext nötig.
+
+## 7. Alert-Labels und "TP1"/"TP2"-Semantik (Kategorie A)
+
+```
+alertcondition(crossover15m_1H_overbought, title="D/15 Long TP1 Reached", ...)
+alertcondition(crossover15m_4H_overbought, title="D/15 Long TP2 Reached", ...)
+alertcondition(crossover1H_4H_overbought,  title="W/1H Long TP1 Reached", ...)
+alertcondition(crossover1H_D_overbought,   title="W/1H Long TP2 Reached", ...)
+alertcondition(crossunder15m_1H_oversold,  title="D/15 Short TP1 Reached", ...)
+... (analog fuer TP2, Short, 1H-Chart)
+```
+
+**Wichtige inhaltliche Beobachtung** (nicht in Code übernommen, nur zur Einordnung im
+Ergebnisteil des Abschlussberichts relevant): die Original-Benennung verknüpft einen
+**Aufwärts-Cross durch +60** (Wave wird "overbought") mit einem **"Long TP" (Take-Profit-für-
+Long)**-Label, nicht mit einem Long-Einstiegssignal. Das deutet auf eine **Mean-Reversion-/
+Exit-Interpretation** hin (im Sinne der in der Beschreibungsseite genannten "TP Mint"-Strategie:
+ein bereits laufender Long wird bei HTF-Overbought-Anchor eher abgesichert/geschlossen als neu
+eröffnet), nicht auf eine Trendfolge-Interpretation. Für die Forschung bleibt das reine
+Kontext-Information — es werden weiterhin ausschließlich objektive Forward-Return/MFE/MAE/
+Direction-Größen getestet (v3 Abschnitt 8), keine TP-Regel wird nachgebaut. Die
+Interpretationsrichtung (mean-reversion vs. trend-continuation) wird aber im Abschlussbericht
+beim Lesen der Vorzeichen der Effektgrößen berücksichtigt.
+
+Kein Hinweis auf Divergenz-Logik im gesamten Quelltext — **Kategorie A bestätigt jetzt
+definitiv**, dass Wave Anchor keine Divergenz-Erkennung verwendet (war in v1/v2 Kategorie D mit
+"vermutlich nein").
+
+## 8. Zusammenfassung — was jetzt Kategorie A ist
+
+| Baustein | v1/v2/erste-v3-Fassung | Jetzt |
+|---|---|---|
+| WaveTrend-Formel (esa/de/ci/wt1/wt2) | C / U | **A** |
+| Parameter 9/12/3 | C / U | **A** |
+| Fast Wave=WT1/Slow Wave=WT2 | U | **A** |
+| ±60 als EINZIGE Anchor-Grenze (fest codiert) | B / U | **A** |
+| Verschachtelte `request.security()`-Struktur | B (Struktur) / D (Konsequenz) | **A (Struktur)** / D bleibt (exakte Pine-Laufzeit-Numerik) |
+| 15m→1H+4H, 1H→4H+1D | B | **A** |
+| Vier Cross-Events (crossover/crossunder an ±60) | B / U | **A** |
+| Divergenz-Logik NICHT verwendet | D ("vermutlich nein") | **A** (definitiv, kein Vorkommen im Code) |
+| TP1/TP2-Label-Semantik (Exit- statt Entry-Interpretation) | — (nicht bekannt) | **A** (neu, siehe Abschnitt 7) |
+| Exakte Pine-v5-Laufzeit-Konsequenz der Verschachtelung (Variante 1 vs. 2) | D | **D bleibt** (nur durch echte Pine-Ausführung klärbar, hier nicht verfügbar) |
+
+**Konsequenz für die Forschung**: die bereits laufende v3-Statistik-Batterie testet exakt die
+jetzt bestätigte Logik (WT1/WT2 getrennt, nur ±60, 15m→1H+4H/1H→4H+1D, vier Cross-Events) — **kein
+Neu-Lauf nötig**, die Zellendefinitionen waren bereits korrekt. Einzige verbleibende
+Kategorie-D-Unsicherheit: die exakte numerische Konsequenz der verschachtelten
+`request.security()`-Aufrufe auf die Feinstruktur von `wt1`/`wt2` zwischen zwei HTF-Updates (siehe
+`WAVE-ANCHOR-SECURITY-AUDIT.md` Abschnitt 3) — betrifft nicht die Bestätigungszeitpunkte selbst
+und damit nicht die Look-Ahead-Sicherheit.

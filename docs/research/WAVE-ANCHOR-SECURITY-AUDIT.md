@@ -1,25 +1,29 @@
-# Wave Anchor: `request.security()`-Semantik-Audit — 2026-09-19 (v3)
+# Wave Anchor: `request.security()`-Semantik-Audit — 2026-09-19 (v3, Kategorie A verifiziert)
 
-Aktualisiert `WAVE-ANCHOR-PINE4-SECURITY-AUDIT.md` (v2) für die in v3 vom Nutzer beschriebene
-Pine-v5-Syntax. Die zugrunde liegende Sprachsemantik von `security()`/`request.security()` hat
-sich zwischen Pine v4 und v5 in den hier relevanten Punkten (Default-`gaps`/`lookahead`,
+**Update**: der tatsächliche Pine-v5-Quelltext liegt jetzt vor (siehe
+`WAVE-ANCHOR-ORIGINAL-SOURCE.md` Abschnitt 0/5). Die in diesem Dokument ursprünglich als
+Kategorie U/B (vom Nutzer beschrieben bzw. aus dem VuManChu-Code übertragen) geführte
+Aufrufstruktur ist jetzt **Kategorie A** — exakt bestätigt, keine Abweichung zur vorherigen
+Analyse. Die zugrunde liegende Sprachsemantik von `security()`/`request.security()` hat sich
+zwischen Pine v4 und v5 in den hier relevanten Punkten (Default-`gaps`/`lookahead`,
 historical-vs-realtime-Verhalten) **nicht** geändert — v5 führte primär den `request.`-Namensraum
-und strengere Typisierung ein, nicht neue Bar-Merge-Semantik. Diese Analyse gilt daher für beide
-Versionen gleichermaßen; wo etwas v5-spezifisch ist, ist es gekennzeichnet.
+und strengere Typisierung ein, nicht neue Bar-Merge-Semantik.
 
-## 1. Vom Nutzer beschriebene Aufrufe (Kategorie U, siehe ORIGINAL-SOURCE.md)
+## 1. Tatsächliche Aufrufe (Kategorie A, aus `f_wavetrend` im Originalquelltext)
 
 ```
-request.security(syminfo.tickerid, tf, src)
-request.security(syminfo.tickerid, tf, ta.ema(...))
+tfsrc = request.security(syminfo.tickerid, tf, src)
+esa = ta.ema(tfsrc, chlen)                              // NICHT security-gewrappt
+de = ta.ema(math.abs(tfsrc - esa), chlen)                // NICHT security-gewrappt
+ci = (tfsrc - esa) / (0.015 * de)                        // NICHT security-gewrappt
+wt1 = request.security(syminfo.tickerid, tf, ta.ema(ci, avg))
+wt2 = request.security(syminfo.tickerid, tf, ta.sma(wt1, malen))
 ```
 
-Beide **ohne** explizite `lookahead`-Angabe — strukturell identisch zur tatsächlich gelieferten
-v4-VuManChu-Primärquelle (`security(syminfo.tickerid, tf, src)` bzw.
-`security(syminfo.tickerid, tf, ema(ci, avg))`, siehe `WAVE-ANCHOR-PINE4-SECURITY-AUDIT.md`
-Abschnitt 2). Dieselbe verschachtelte Struktur ist also plausibel auch hier vorhanden: ein Aufruf
-liefert den rohen HTF-Quellwert, ein zweiter (verschachtelter) Aufruf liefert einen bereits von
-`ta.ema()`/`ta.crossover()` abgeleiteten Ausdruck.
+Beide `request.security()`-Aufrufe **ohne** explizite `lookahead`-Angabe — **exakt bestätigt**,
+keine Abweichung zur vorherigen strukturellen Analyse (die aus dem VuManChu-v4-Code abgeleitet
+worden war, Kategorie B/C). Die verschachtelte Struktur (nur `tfsrc`, `wt1`, `wt2` gewrappt;
+`esa`/`de`/`ci` nicht) ist jetzt Kategorie A, keine Vermutung mehr.
 
 ## 2. Pine `request.security()`-Defaults (Kategorie B — öffentlich dokumentiertes Sprachverhalten,
    für v4 UND v5 gültig)
@@ -35,17 +39,20 @@ liefert den rohen HTF-Quellwert, ein zweiter (verschachtelter) Aufruf liefert ei
 3. `gaps`-Default (`barmerge.gaps_off`): letzter bestätigter HTF-Wert wird zwischen HTF-Updates
    auf der LTF-Zeitachse fortgeschrieben (Stufenfunktion).
 
-## 3. Verschachtelte `request.security()`-Aufrufe — Konsequenz (Kategorie B/D, siehe
-   PINE4-SECURITY-AUDIT.md Abschnitt 3 für die volle technische Herleitung)
+## 3. Verschachtelte `request.security()`-Aufrufe — Konsequenz (Struktur jetzt Kategorie A,
+   numerische Konsequenz weiterhin Kategorie D)
 
-Unverändert aus v2: wenn ein zweiter `security()`/`request.security()`-Aufruf einen Ausdruck
-umschließt, der selbst bereits von einem ersten `security()`-Aufruf abhängt (hier: `ta.ema(ci,
-avg)`, wobei `ci` von `tfsrc = request.security(tf, src)` abhängt), wertet Pine den gesamten
-Ausdrucksbaum im Zielkontext neu aus — ein bekanntes, offiziell dokumentiertes Pine-Verhalten bei
-verschachtelten `security()`-Aufrufen (Kategorie B), dessen exakte numerische Konsequenz für
-`WT1`/`WT2` ohne echte Pine-Laufzeitumgebung nicht abschließend verifizierbar ist (Kategorie D).
-Die Forschungsimplementierung wählt weiterhin die konservative, robust nachbaubare
-"Direct-HTF"-Variante (komplette Pipeline auf HTF-eigenen OHLC-Kerzen berechnet).
+Jetzt am tatsächlichen Quelltext bestätigt (Kategorie A): der zweite `request.security()`-Aufruf
+(`wt1 = request.security(tf, ta.ema(ci, avg))`) umschließt einen Ausdruck, der selbst bereits von
+einem ersten `request.security()`-Aufruf abhängt (`ci` hängt über `tfsrc` vom ersten Aufruf ab).
+Das ist ein bekanntes, offiziell dokumentiertes Pine-Verhalten bei verschachtelten
+`security()`-Aufrufen: Pine wertet den gesamten Ausdrucksbaum im Zielkontext neu aus. Die exakte
+numerische Konsequenz für `WT1`/`WT2` (Feinstruktur zwischen zwei HTF-Updates) bleibt ohne echte
+Pine-Laufzeitumgebung nicht abschließend verifizierbar (Kategorie D — dieser einzelne Punkt ist
+strukturell, nicht empirisch, klärbar). Die Forschungsimplementierung wählt weiterhin die
+konservative, robust nachbaubare "Direct-HTF"-Variante (komplette Pipeline auf HTF-eigenen
+OHLC-Kerzen berechnet) — jetzt mit Kategorie-A-Bestätigung, dass dies strukturell exakt die im
+Original verwendete Aufrufkette nachbildet.
 
 ## 4. Reproduzierbarer Test (v3 Abschnitt 9 verlangt explizit einen Test, nicht nur Theorie)
 
@@ -78,5 +85,5 @@ sondern nur die Glättungsfeinstruktur zwischen zwei HTF-Updates.
 | Default `gaps` bei fehlendem Parameter | `gaps_off` (Stufenfunktion) | B |
 | Relevanz von Realtime-Bar-Verhalten für diese Forschung | Keine (nur historische Bars verwendet) | — |
 | Variante A vs. B für diese Forschung | Fallen zusammen | Begründete Designentscheidung |
-| Verschachtelte security()-Aufrufe vorhanden | Ja (plausibel, Kategorie U/C-Struktur) | B (Struktur) / D (exakte Konsequenz) |
-| **SECURITY AUDIT: PASS/FAIL** | **PASS** (keine unsichere `lookahead_on`-Verwendung in den beschriebenen Aufrufen, kein Beleg für Zukunftsdatenzugriff) | — |
+| Verschachtelte security()-Aufrufe vorhanden | Ja, exakt bestätigt im Originalquelltext | **A** (Struktur) / D (exakte numerische Konsequenz) |
+| **SECURITY AUDIT: PASS/FAIL** | **PASS** (im tatsächlichen Quelltext keine `lookahead_on`-Verwendung, kein Beleg für Zukunftsdatenzugriff — Kategorie A) | — |
