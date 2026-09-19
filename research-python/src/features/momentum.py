@@ -162,6 +162,38 @@ def adx(ohlc: pd.DataFrame, period: int = 14) -> pd.DataFrame:
     )
 
 
+def macd(
+    price: pd.Series,
+    fast_period: int = 12,
+    slow_period: int = 26,
+    signal_period: int = 9,
+) -> pd.DataFrame:
+    """MACD (Moving Average Convergence Divergence), Standardparameter 12/26/9.
+
+        macd_line      = EMA(price, fast_period) - EMA(price, slow_period)
+        macd_signal    = EMA(macd_line, signal_period)
+        macd_histogram = macd_line - macd_signal
+
+    Alle drei EMAs kausal (``adjust=False``, ``min_periods=Periode`` -- kein
+    Blick in die Zukunft, gleiche Konvention wie ueberall in diesem Projekt,
+    z.B. ``wave_anchor_research/wavetrend.py``).
+
+    Returns
+    -------
+    pd.DataFrame mit Spalten: macd_line, macd_signal, macd_histogram.
+    """
+    _assert_sorted_index(price, "macd")
+    ema_fast = price.ewm(span=fast_period, adjust=False, min_periods=fast_period).mean()
+    ema_slow = price.ewm(span=slow_period, adjust=False, min_periods=slow_period).mean()
+    macd_line = ema_fast - ema_slow
+    macd_signal = macd_line.ewm(span=signal_period, adjust=False, min_periods=signal_period).mean()
+    macd_histogram = macd_line - macd_signal
+
+    return pd.DataFrame(
+        {"macd_line": macd_line, "macd_signal": macd_signal, "macd_histogram": macd_histogram}
+    )
+
+
 def log_return(price: pd.Series, periods: int) -> pd.Series:
     """Log return over `periods` bars: ln(P_t / P_{t-periods}).
 

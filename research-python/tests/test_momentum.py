@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.features.momentum import adx, log_return, return_momentum
+from src.features.momentum import adx, log_return, macd, return_momentum
 from tests.lookahead_utils import (
     assert_no_lookahead_on_future_perturbation,
     assert_no_lookahead_on_truncation,
@@ -163,3 +163,30 @@ class TestReturnMomentumNoLookahead:
     def test_log_return_rejects_negative_periods(self, synthetic_price):
         with pytest.raises(ValueError):
             log_return(synthetic_price, periods=0)
+
+
+class TestMacdCorrectness:
+    def test_matches_manual_ema_difference(self, synthetic_price):
+        result = macd(synthetic_price, fast_period=12, slow_period=26, signal_period=9)
+        ema_fast = synthetic_price.ewm(span=12, adjust=False, min_periods=12).mean()
+        ema_slow = synthetic_price.ewm(span=26, adjust=False, min_periods=26).mean()
+        expected_line = ema_fast - ema_slow
+        expected_signal = expected_line.ewm(span=9, adjust=False, min_periods=9).mean()
+        pd.testing.assert_series_equal(result["macd_line"], expected_line.rename("macd_line"))
+        pd.testing.assert_series_equal(result["macd_signal"], expected_signal.rename("macd_signal"))
+        pd.testing.assert_series_equal(
+            result["macd_histogram"], (expected_line - expected_signal).rename("macd_histogram")
+        )
+
+    def test_nan_during_warmup_then_finite(self, synthetic_price):
+        result = macd(synthetic_price)
+        assert result["macd_histogram"].iloc[:33].isna().all()  # slow(26)+signal(9)-1 warmup, grob
+        assert result["macd_histogram"].iloc[-1] == result["macd_histogram"].iloc[-1]  # nicht NaN
+
+
+class TestMacdNoLookahead:
+    def test_truncation_reproduces_historical_values(self, synthetic_price):
+        assert_no_lookahead_on_truncation(macd, synthetic_price, cutoff_pos=70)
+
+    def test_future_perturbation_does_not_change_past(self, synthetic_price):
+        assert_no_lookahead_on_future_perturbation(macd, synthetic_price, cutoff_pos=70)
