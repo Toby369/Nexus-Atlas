@@ -14,17 +14,20 @@ export interface DashboardTileMeta {
   id: string;
   title: string;
   // Ab lg: (3-spaltiges Grid, siehe DashboardLayout.tsx) spannt diese Kachel
-  // alle 3 Spalten statt einer -- fuer "institutional-playbook" gesetzt
-  // (drei Tabs mit mehreren Absaetzen je Tab waeren in 1/3-Spalte zu eng).
-  // Ehemals auch fuer "live-price" gesetzt (Preis+OI Change+Chart+Kurznotiz+
-  // OI-je-Boerse in einer Kachel gebuendelt) -- Nutzer-Feedback 05.09.2026
-  // ("kann noch nicht alle Kacheln individuell Groesse einstellen und
-  // verschieben") fuehrte dazu, diese 5 Abschnitte wieder in eigenstaendige
-  // Kacheln aufzuteilen (siehe components/LivePriceDataProvider.tsx). Jede
-  // Kachel ist jetzt selbst per Hoehen-Resize/Breiten-Buttons steuerbar,
-  // wodurch das urspruengliche Problem (grosse leere Flaechen unter
-  // kuerzeren Nachbarn in derselben Grid-Zeile) nicht mehr zwingend
-  // zurueckkehrt wie vor der Buendelung.
+  // alle 3 Spalten statt einer -- fuer "system-briefing" gesetzt (Fliesstext
+  // aus vielen fusionierten Quellen waere in 1/3-Spalte zu eng). Ehemals auch
+  // fuer "live-price" gesetzt (Preis+OI Change+Chart+Kurznotiz+OI-je-Boerse
+  // in einer Kachel gebuendelt) -- Nutzer-Feedback 05.09.2026 ("kann noch
+  // nicht alle Kacheln individuell Groesse einstellen und verschieben")
+  // fuehrte dazu, diese 5 Abschnitte wieder in eigenstaendige Kacheln
+  // aufzuteilen (siehe components/LivePriceDataProvider.tsx). Jede Kachel
+  // ist jetzt selbst per Hoehen-Resize/Breiten-Buttons steuerbar, wodurch
+  // das urspruengliche Problem (grosse leere Flaechen unter kuerzeren
+  // Nachbarn in derselben Grid-Zeile) nicht mehr zwingend zurueckkehrt wie
+  // vor der Buendelung. Ehemals auch fuer "institutional-playbook" gesetzt --
+  // diese Kachel ist seit 20.09.2026 Bestandteil von "lernen" (Wissen-Tab,
+  // eigenes Modul neben Welz/Salomon/Mein System, siehe
+  // components/LernenDashboard.tsx), keine eigene Kachel mehr.
   fullWidth?: boolean;
 }
 
@@ -56,15 +59,18 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "youtube-monitor", title: "Krypto-YouTube-Monitor (KI)" },
   { id: "chart-vision", title: "Chart-Vision: LSOB & Trendlinien (KI)" },
   // Umsetzungsplan Phase 4 (18.09.2026): fusioniert Regelwerk+Salomon+alle
-  // berechneten Nexus-Faktoren+Chart-Vision zu einer Synthese -- fullWidth
-  // wie "institutional-playbook", da der Fliesstext aus vielen fusionierten
-  // Quellen in einer 1/3-Spalte zu eng waere.
+  // berechneten Nexus-Faktoren+Chart-Vision zu einer Synthese -- fullWidth,
+  // da der Fliesstext aus vielen fusionierten Quellen in einer 1/3-Spalte
+  // zu eng waere.
   { id: "system-briefing", title: "System-Briefing: Regelwerk & Nexus-Faktoren (KI)", fullWidth: true },
   { id: "positioning", title: "Positionierung" },
   { id: "liquidations", title: "Liquidationen" },
   { id: "etf-flow", title: "ETF-Flows & Makro" },
   { id: "news-risk", title: "News & Risiko" },
-  { id: "institutional-playbook", title: "Institutional Playbook", fullWidth: true },
+  // "Institutional Playbook" (vormals eigene Kachel) ist seit 20.09.2026 ein
+  // Modul im "Wissen"-Tab der "lernen"-Kachel (neben Welz/Salomon/Mein
+  // System) -- reines statisches Nachschlagewerk ohne Live-Daten, passt
+  // inhaltlich besser zur Lernen-Kachel als zu den KI-Einschaetzungen.
 ];
 
 export const DASHBOARD_TILE_IDS = DASHBOARD_TILES.map((t) => t.id);

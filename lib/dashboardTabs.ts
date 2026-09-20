@@ -74,7 +74,6 @@ export const DASHBOARD_TABS: DashboardTabMeta[] = [
       "escalation",
       "trade-debate",
       "system-briefing",
-      "institutional-playbook",
     ],
   },
   {

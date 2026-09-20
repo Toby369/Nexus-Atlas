@@ -49,7 +49,6 @@ import NewsRiskPanel from "@/components/NewsRiskPanel";
 import LiquidationPanel from "@/components/LiquidationPanel";
 import EtfFlowPanel from "@/components/EtfFlowPanel";
 import EconomicCalendarPanel from "@/components/EconomicCalendarPanel";
-import InstitutionalPlaybookCard from "@/components/InstitutionalPlaybookCard";
 import MarketContextCard from "@/components/MarketContextCard";
 import RegimeMatrixCard from "@/components/RegimeMatrixCard";
 import HandelslageCard from "@/components/HandelslageCard";
@@ -971,7 +970,6 @@ export default async function Home({
                         initialOverallAnalysis={latestYoutubeOverallAnalysis}
                       />
                     ),
-                    "institutional-playbook": <InstitutionalPlaybookCard />,
                   }}
                 />
               </LivePriceDataProvider>
