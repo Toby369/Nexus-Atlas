@@ -369,9 +369,97 @@ in beiden Richtungsphasen) — konsistent damit, dass ein "Pullback zur
 EMA50, der die Trendrichtung nie verlässt" in einer bereits als klar
 gerichtet klassifizierten Phase seltener neu entsteht.
 
+## Stufe B: statistischer Test (Einzelsignale + Paare gegen Setup-Qualität)
+
+`research-python/toby_setup/join_signals_with_outcomes.py` — verknüpft
+`signal_windows.csv` mit den Outcomes bei 20x Hebel (Hebel-Invarianz aus
+Stufe 1 begründet den Verzicht auf 25x/30x hier — redundante Rechenzeit
+ohne neue Information), LONG und SHORT getrennt (n=141.664 je Richtung).
+`signal_stats.py` — `evaluate_cell()`, HAC-Regression (Logit für
+`reached_tp20`, OLS für `final_mfe_margin_pct`, `block_length=384`
+= max(10, 2×192) nach der `stats_battery.py`-Regel), `MIN_N=100`,
+`split_train_val_oos()` (80/20 chronologisch, 192 Bars/48h Embargo vor der
+Grenze — verhindert, dass ein TRAIN_VAL-Outcome-Fenster in den OOS-Zeitraum
+hineinreicht). 4 Validierungstests bestanden (starker/kein Effekt korrekt
+erkannt, INSUFFICIENT_DATA korrekt ausgelöst, Embargo-Grenze korrekt).
+
+### Wichtiger Zwischenfund: Kontamination im `wtrade`-Fenster
+
+`run_stage_b.py` lief zunächst über alle 4 Fenster inkl. `wtrade` — Ergebnis:
+**145 von 280 `wtrade`-Zellen** hatten p<0,001 (binär), gegenüber nur 1–3
+von ~280–340 bei `w15m`/`w1h`/`w4h`. Ursache identifiziert: Kerzenmuster/
+CVD/VWAP-Position der Entry-Kerze hängen von **deren eigenem Schlusskurs**
+ab, und `final_mfe_margin_pct` misst die günstigste Kursbewegung ab
+demselben Entry-Preis **inklusive dieser ersten Kerze** — Signal und
+Outcome teilen sich Information aus derselben Kerze (z.B. bewegt eine
+"bearish_engulfing"-Entry-Kerze bei SHORT den Kurs per Definition schon
+innerhalb dieser Kerze günstig, was direkt ins MFE einfließt). Kein echter
+Befund, sondern eine Konstruktions-Kontamination. **Konsequenz**: `wtrade`
+wird aus dem BH-FDR-Pool ausgeschlossen (separat, unkorrigiert und als
+unzuverlässig gekennzeichnet in `stage_b_train_val_results.csv` ausgegeben),
+nur `w15m`/`w1h`/`w4h` (strikt vor der Entry-Kerze, keine Überlappung mit
+dem Outcome) fließen in die Signifikanzaussage ein.
+
+### Ergebnis TRAIN_VAL (bereinigt)
+
+1.238 Zellen ausgewertet (156 Einzelsignal- + 463 Paar-Kandidaten × 2
+Richtungen), 1.228 mit Status OK. Gepoolte BH-FDR über 1.896 Tests (beide
+Ziel-Typen zusammen, `w15m`/`w1h`/`w4h` only): **11 Zellen signifikant** —
+alle ausschließlich beim **stetigen** Ziel (`final_mfe_margin_pct`), **keine
+einzige** beim binären Ziel (`reached_tp20`) — d.h. kein getestetes
+Signal/Paar verschiebt nach Korrektur die Wahrscheinlichkeit, TP20+ zu
+erreichen, aber einige verschieben die Tiefe der erreichten Kursbewegung.
+Auffällig: `momentum_divergence+vwap_above` erscheint 3× (Aufwärts-Phase,
+alle 3 Fenster, LONG und SHORT) mit gegensätzlichem Vorzeichen — für LONG
+positiv (mehr MFE), für SHORT negativ — plausibel: Kurs über VWAP bei
+gleichzeitiger Momentum-Divergenz während einer bereits als Aufwärts
+klassifizierten Phase spricht eher für eine (bullische) Fortsetzung.
+
+### OOS-Bestätigung
+
+`run_stage_b_oos.py` — alle 11 TRAIN_VAL-Überlebenden unverändert auf dem
+eingefrorenen OOS-Anteil (n=28.333 je Richtung) nachgerechnet, keine
+Nach-Optimierung. **Nur 3 von 11 reproduzieren** (gleiche Richtung des
+Effekts UND p<0,05, unkorrigiert bei nur noch 11 Zellen):
+
+| Richtung | Phase | Fenster | Signal | TRAIN_VAL p (stetig) | OOS p (stetig) | OOS Δ MFE |
+|---|---|---|---|---|---|---|
+| SHORT | Seitwärts | w15m | `vwap_below` | 0.00013 | 0.015 | +3.46 Punkte |
+| SHORT | Seitwärts | w1h | `vwap_below` | 0.00014 | 0.021 | +3.10 Punkte |
+| SHORT | Seitwärts | w1h | `bullish_engulfing`+`vwap_below` | 0.00018 | 0.037 | +2.55 Punkte |
+
+Die übrigen 8 (u.a. das auf TRAIN_VAL auffällige
+`momentum_divergence+vwap_above`) reproduzieren auf OOS **nicht** (p>0,5
+in den meisten Fällen) — klassisches Overfitting-Muster einer nicht
+korrigierten Einzelbetrachtung, genau wofür die OOS-Stufe da ist.
+
+**Einzige robuste, OOS-reproduzierte Beobachtung dieses Projekts**: SHORT-
+Setups im **Seitwärts**-Regime erreichen eine deutlich höhere maximale
+Kursbewegung (MFE), wenn der Kurs zum Entry-Zeitpunkt **unter dem
+Tages-VWAP** liegt — unabhängig davon, ob zusätzlich ein Bullish-Engulfing-
+Muster vorliegt. Wichtige Einschränkungen: (1) nur beim stetigen Ziel, nicht
+bei der TP20+-Erreichungswahrscheinlichkeit; (2) die Paar-Variante
+(`bullish_engulfing`+`vwap_below`) liegt in Effektgröße und p-Wert nah an
+`vwap_below` allein — ob das Muster einen eigenständigen Beitrag liefert
+oder nur "vwap_below plus Rauschen" ist, wurde nicht formal geprüft
+(keine Redundanz-/Korrelationsanalyse zwischen beiden Signalen gerechnet);
+(3) drei von ursprünglich 619 getesteten
+Zellen (×2 Richtungen) — bei einem so kleinen Anteil ist auch ein
+verbleibendes Zufallsergebnis nicht auszuschließen, trotz OOS-Bestätigung.
+
+Rohdaten: `output/stage_b_train_val_results.csv`,
+`output/stage_b_train_val_survivors.csv`, `output/stage_b_oos_confirmation.csv`
+(alle gitignored).
+
 ## Offen / nächster Schritt
 
-Stufe B: tatsächliche Paar-Häufigkeit für die 463 Kandidaten zählen, dann
-den echten Test (HAC-Regression gegen `final_mfe_margin_pct`/TP20+, siehe
-Testmethode oben) für die Zellen mit ausreichender Paar-Stichprobe, danach
-gepoolte BH-FDR-Korrektur über den gesamten Zellsatz und OOS-Freeze.
+Dreier-Kombinationen (nur aus den wenigen Paaren, die die Paar-Stufe
+überlebt haben — hier: praktisch keine, da nur 3 Paare/Einzelsignale
+OOS-reproduziert haben und einer davon redundant ist) sind bei diesem
+Befund nicht mehr sinnvoll zu verfolgen. Offene Optionen: (a) das Projekt
+mit diesem einen robusten, aber engen Befund abschließen; (b) gezielt
+`vwap_below` in Seitwärts/SHORT vertiefen (z.B. Interaktion mit weiteren
+Fenstern/Signalen, die hier noch nicht kombiniert wurden); (c) die
+Kontamination im `wtrade`-Fenster methodisch anders auflösen (z.B. MFE ab
+Bar 1 statt Bar 0 messen) und `wtrade` als eigenständige, sauber
+definierte Frage neu aufsetzen.
