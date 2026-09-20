@@ -45,7 +45,9 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "funding-rate", title: "Funding Rate" },
   { id: "orderbook-walls", title: "Orderbuch-Wände" },
   { id: "divergence-radar", title: "Divergenz-Radar" },
-  { id: "news-analysis", title: "News-Einordnung (KI)" },
+  // "News-Einordnung (KI)" (vormals eigene Kachel) ist seit 20.09.2026 ein
+  // aufklappbarer Abschnitt in "news-risk" (NewsRiskPanel.tsx) -- deckte
+  // dieselben Schlagzeilen ab, keine eigene Kachel mehr.
   { id: "signal-engine", title: "Signal Engine (KI)" },
   { id: "signal-review", title: "Periodischer Rückblick (KI)" },
   { id: "escalation", title: "Eskalation: Zweitmeinungen (KI)" },

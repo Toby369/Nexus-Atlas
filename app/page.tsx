@@ -58,7 +58,6 @@ import OrderbookWallCard from "@/components/OrderbookWallCard";
 import DivergenceRadarCard from "@/components/DivergenceRadarCard";
 import ConfluenceScoreCard from "@/components/ConfluenceScoreCard";
 import RegimeScoreCard from "@/components/RegimeScoreCard";
-import NewsAnalysisCard from "@/components/NewsAnalysisCard";
 import SignalEngineCard from "@/components/SignalEngineCard";
 import SignalReviewCard from "@/components/SignalReviewCard";
 import EscalationCard from "@/components/EscalationCard";
@@ -225,9 +224,11 @@ async function getHighImpactNews(): Promise<NewsEvent[]> {
   return data ?? [];
 }
 
-// News-Kachel (KI-Ergaenzung, 05.09.2026): letzter zwischengespeicherter
+// News-Einordnung (KI-Ergaenzung, 05.09.2026): letzter zwischengespeicherter
 // Stand -- reines Lesen, kein AI-Aufruf (der passiert nur ueber POST
-// /api/news-analysis/generate, siehe NewsAnalysisCard.tsx).
+// /api/news-analysis/generate). Seit 20.09.2026 kein eigenes Panel mehr,
+// sondern aufklappbarer Abschnitt in NewsRiskPanel.tsx (identische
+// Datenquelle, siehe dortiger Kommentar).
 async function getLatestNewsAnalysis(): Promise<NewsAnalysisSnapshot | null> {
   const { data, error } = await supabase
     .from("news_analysis_snapshots")
@@ -951,8 +952,9 @@ export default async function Home({
                     "etf-flow": (
                       <EtfFlowPanel initialFlows={recentEtfFlows} macroNews={highImpactNews} />
                     ),
-                    "news-risk": <NewsRiskPanel initialNews={highImpactNews} />,
-                    "news-analysis": <NewsAnalysisCard initialSnapshot={latestNewsAnalysis} />,
+                    "news-risk": (
+                      <NewsRiskPanel initialNews={highImpactNews} initialNewsAnalysis={latestNewsAnalysis} />
+                    ),
                     "signal-engine": <SignalEngineCard initialSnapshot={latestSignalEngine} />,
                     "signal-review": <SignalReviewCard initialSnapshot={latestSignalReview} />,
                     escalation: (

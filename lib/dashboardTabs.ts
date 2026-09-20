@@ -59,22 +59,28 @@ export const DASHBOARD_TABS: DashboardTabMeta[] = [
       "news-risk",
     ],
   },
+  // 20.09.2026 -- vormals ein einzelner "KI-Analysen & Lernen"-Tab mit 11
+  // Kacheln (Nutzer-Feedback: zu viele Kacheln/Tabs, unuebersichtlich).
+  // Aufgeteilt nach Funktion: bewertende/lesende Analysen (dieser Tab
+  // aktualisiert sich per Klick, man liest sie) vs. aktiv bediente
+  // Werkzeuge + Lernmaterial (der Nutzer stellt hier selbst eine Frage/
+  // startet eine Suche/lernt Karteikarten).
   {
-    id: "ki-lernen",
-    label: "KI-Analysen & Lernen",
+    id: "ki-einschaetzungen",
+    label: "KI-Einschätzungen",
     tileIds: [
-      "news-analysis",
       "signal-engine",
       "signal-review",
       "escalation",
       "trade-debate",
-      "custom-query",
-      "youtube-monitor",
-      "chart-vision",
       "system-briefing",
       "institutional-playbook",
-      "lernen",
     ],
+  },
+  {
+    id: "tools-lernen",
+    label: "Tools & Lernen",
+    tileIds: ["custom-query", "youtube-monitor", "chart-vision", "lernen"],
   },
 ];
 

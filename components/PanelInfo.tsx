@@ -106,7 +106,7 @@ export default function PanelInfo({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-label={`Info: ${title}`}
-        className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[11px] text-text-faint hover:text-text-muted focus:outline-none focus-visible:ring-1 focus-visible:ring-accent/40"
+        className="inline-flex h-[18px] w-[18px] items-center justify-center rounded-full text-xs text-text-muted hover:text-text focus:outline-none focus-visible:ring-1 focus-visible:ring-accent/40"
       >
         ⓘ
       </button>
