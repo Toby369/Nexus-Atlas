@@ -51,10 +51,15 @@ def evaluate_cell(
     window: str,
     kind: str,
     signal_label: str,
+    block_length: int = BLOCK_LENGTH,
 ) -> CellResult:
     """`sub`: bereits auf eine Phase eingeschraenkter DataFrame mit Spalten
     `reached_tp20`/`final_mfe_margin_pct`. `indicator`: boolesche Serie
-    (gleicher Index wie `sub`), True = Signal(-Kombination) anwesend."""
+    (gleicher Index wie `sub`), True = Signal(-Kombination) anwesend.
+    `block_length`: HAC-Fensterbreite, siehe Modul-Docstring fuer die
+    Herleitungsregel -- Default 384 (15m-Setup-Basis, 192 Bars = 48h
+    Horizont); bei anderer Setup-Aufloesung (z.B. 5m: 576 Bars = 48h,
+    block_length=1152) vom Aufrufer explizit ueberschreiben."""
     n = len(sub)
     n_with = int(indicator.sum())
     n_without = n - n_with
@@ -81,9 +86,9 @@ def evaluate_cell(
         if y_bin.sum() < 10 or (n - y_bin.sum()) < 10:
             p_bin = np.nan
         else:
-            logit = sm.Logit(y_bin, x).fit(disp=0, cov_type="HAC", cov_kwds={"maxlags": BLOCK_LENGTH})
+            logit = sm.Logit(y_bin, x).fit(disp=0, cov_type="HAC", cov_kwds={"maxlags": block_length})
             p_bin = float(logit.pvalues[1])
-        ols = sm.OLS(y_cont, x).fit(cov_type="HAC", cov_kwds={"maxlags": BLOCK_LENGTH})
+        ols = sm.OLS(y_cont, x).fit(cov_type="HAC", cov_kwds={"maxlags": block_length})
         p_cont = float(ols.pvalues[1])
     except (PerfectSeparationError, np.linalg.LinAlgError, ValueError) as exc:
         return CellResult(
