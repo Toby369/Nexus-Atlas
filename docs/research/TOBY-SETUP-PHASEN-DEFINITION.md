@@ -463,3 +463,127 @@ Fenstern/Signalen, die hier noch nicht kombiniert wurden); (c) die
 Kontamination im `wtrade`-Fenster methodisch anders auflösen (z.B. MFE ab
 Bar 1 statt Bar 0 messen) und `wtrade` als eigenständige, sauber
 definierte Frage neu aufsetzen.
+
+## Pivot auf 5m-Setup-Basis (20.09.2026)
+
+### Anlass
+
+Nach Vorlage der obigen 15m-Ergebnisse stellte der Nutzer die
+Grundannahme in Frage: *"buchstäblich jede einzelne 15m-Kerze der letzten
+4 Jahre als Trade: das ist aber nicht meine idee! und ich frage mich ob
+15m genügt für entry, da ich teilweise schon bei 5m einsteige."* Zwei
+getrennte Punkte:
+
+1. Die Setup-Basis "jede Kerze = hypothetischer Entry" war ursprünglich
+   aus `toby_setup_engine.py` übernommen worden (einem älteren Baustein
+   dieses Projekts), nicht eine bewusste Entscheidung des Nutzers für
+   *dieses* Signal-Test-Projekt — zu Recht als unklar zurückgewiesen.
+2. Die 15m-Auflösung bildet sein reales Entry-Verhalten nicht ab, da er
+   teilweise auf 5m-Basis einsteigt.
+
+Per `AskUserQuestion` zwei getrennte Entscheidungen eingeholt:
+- **Auflösung**: 5m ("passt zu deinem echten Entry-Verhalten").
+- **Setup-Basis**: weiterhin **jede Kerze** ("neutrale Baseline") —
+  Punkt 1 oben wurde damit explizit als bewusste, informierte
+  Entscheidung bestätigt statt stillschweigend fortgeschrieben.
+
+### Datenlücke + Backfill
+
+5m-Kerzen waren in der Datenbank nur ab 2024-09-04 vorhanden (Start des
+Live-Collectors), nicht seit 2022-09-04 wie beim 15m-Datensatz. Auf
+Nutzer-Entscheid ("Erst 5m-Historie bis 2022 zurück-backfillen") wurde die
+Lücke geschlossen:
+
+- Diese Sandbox kann `fapi.binance.com` nicht direkt erreichen
+  (Egress-Policy blockiert die CONNECT-Tunnel, verifiziert per
+  `curl`/Proxy-Status). Historische Binance-Daten müssen daher über eine
+  Supabase-Infrastrukturkomponente mit eigenem Netzwerkzugang laufen.
+- Die produktive Edge Function `backfill-history` holt genau das (Kline-
+  Historie → `candles`), kannte aber `"5m"` als Intervall noch nicht
+  (nur `"1m"/"15m"/"1h"/"4h"/"1d"`). Mit expliziter Nutzer-Freigabe
+  ("Ja, Function erweitern und deployen") minimal erweitert (analog zum
+  bestehenden `"1m"`-Muster: nur `candles`, bewusst ohne
+  `market_features` — `market_features_interval_check` erlaubt ohnehin
+  nur 15m/1h/4h/1d) und deployed (Version 9→10).
+- Auch der Supabase-Projekt-Host selbst ist von dieser Sandbox aus nicht
+  direkt per HTTPS erreichbar (gleiche Egress-Policy). Die Function wurde
+  daher serverseitig über `pg_net.http_post` aus der Postgres-Instanz
+  selbst aufgerufen (führt mit eigenem Netzwerkzugang aus, unabhängig vom
+  Sandbox-Egress) — 6 sequentielle Aufrufe à ~122 Tage
+  (`MAX_REQUESTS=60`-Sicherheitsdeckel der Function begrenzt ~90.000
+  Kerzen/Aufruf), alle mit `success:true` bestätigt.
+- Verifikation: `candles`-Tabelle für `interval='5m'` deckt jetzt
+  lückenlos 2022-09-04 00:00 UTC bis 2026-09-14 06:15 UTC ab (423.724
+  Kerzen — exakt die für einen durchgehenden 5-Minuten-Raster über diesen
+  Zeitraum erwartete Anzahl, keine Lücken). Export als
+  `data/BTCUSDT_5m_full_with_volume.csv` (gitignored) per gechunktem
+  SQL-Extrakt (12×, je ~2,4 MB, wegen Tool-Zeichenlimit).
+
+### Pipeline-Anpassung
+
+Alle Stufen als parallele `*_5m.py`-Skripte neu aufgesetzt (15m-Skripte/
+-Ergebnisse bleiben unverändert als historischer Vergleichspunkt
+erhalten) — identische Methodik, nur Timeframe-Konstanten auf das 3×
+feinere Raster skaliert:
+
+| Konstante | 15m-Lauf | 5m-Lauf | Herleitung |
+|---|---|---|---|
+| `vertical_bars` (Stufe 1, MFE-Horizont) | 192 | 576 | 48h ÷ Bar-Dauer |
+| Fenster `w15m` | 1 Bar | 3 Bars | 15min ÷ Bar-Dauer |
+| Fenster `w1h` | 4 Bars | 12 Bars | 1h ÷ Bar-Dauer |
+| Fenster `w4h` | 16 Bars | 48 Bars | 4h ÷ Bar-Dauer |
+| HAC `block_length` | 384 | 1152 | max(10, 2×vertical_bars) |
+| OOS-Embargo | 192 Bars | 576 Bars | 48h ÷ Bar-Dauer (= vertical_bars) |
+
+Die 1h-Phasenreihe (Stufe 2, `output/phase_segmentation_1h.csv`) und das
+GUSS-Signal (1H-nativ, `output/signals_1h.csv`) sind von der Setup-Basis-
+Auflösung unabhängig und wurden unverändert wiederverwendet — nur ihre
+Projektion auf das Entry-Raster (Stufe 3/4) wurde auf 5m umgestellt.
+`signal_stats.py::evaluate_cell()` bekam dafür einen optionalen
+`block_length`-Parameter (Default unverändert 384, damit die bestehenden
+15m-Aufrufe unverändert bleiben).
+
+### Ergebnis (5m, TRAIN_VAL + OOS)
+
+`run_stage_b_5m.py`: 1.328 Zellen (156 Einzelsignal- + 508 Paar-
+Kandidaten × 2 Richtungen, `output/frequency_stage_a_pair_candidates_5m.csv`),
+1.316 mit Status OK. Gepoolte BH-FDR über 1.988 Tests (beide Ziel-Typen,
+`w15m`/`w1h`/`w4h` only, `wtrade` aus identischem Kontaminationsgrund wie
+im 15m-Lauf ausgeschlossen): **2 Zellen signifikant** (beide nur beim
+stetigen Ziel, LONG/Aufwärts):
+
+| Richtung | Phase | Fenster | Signal | TRAIN_VAL p (stetig) |
+|---|---|---|---|---|
+| LONG | Aufwärts | w15m | `momentum_divergence`+`vwap_below` | 0.00000023 |
+| LONG | Aufwärts | w1h | `hammer`+`vwap_below` | 0.000017 |
+
+`run_stage_b_oos_5m.py`: **0 von 2 reproduzieren** auf OOS (n=13.026)
+Richtung UND p<0,05 — beide OOS-p-Werte weit über 0,05 (0.30 bzw. 0.84).
+
+**Damit reproduziert am 5m-Grid, das Tobys realem Entry-Verhalten näher
+kommt, keines der TRAIN_VAL-Ergebnisse auf dem eingefrorenen OOS-Anteil**
+— ein noch schwächeres Ergebnis als am 15m-Grid (dort 3 von 11). Der dort
+gefundene robuste Befund (`vwap_below` in SHORT/Seitwärts) taucht am
+5m-Grid nicht als BH-FDR-Überlebender wieder auf (weder positiv noch
+negativ geprüft — die 15m-Zelle wurde nicht gezielt am 5m-Grid
+nachgetestet, da sie den TRAIN_VAL-Filter dort gar nicht erst
+durchlief). Rohdaten: `output/stage_b_train_val_results_5m.csv`,
+`output/stage_b_train_val_survivors_5m.csv`,
+`output/stage_b_oos_confirmation_5m.csv` (alle gitignored).
+
+### Einordnung
+
+Diese Verschärfung des Nullbefunds bei feinerer, dem echten Entry-
+Verhalten näherer Auflösung ist kein Widerspruch zum 15m-Ergebnis,
+sondern eine Präzisierung: sie zeigt, dass der einzige am 15m-Grid
+gefundene robuste Effekt nicht automatisch auf die Auflösung übertragbar
+ist, auf der tatsächlich gehandelt wird. Für die eingangs gestellte Frage
+("sind Nexus-Signale VOR dem Entry prädiktiv für die Setup-Qualität?")
+bleibt die Antwort in diesem eng gefassten Testrahmen (neutrale
+"jede-Kerze"-Baseline, 13 Einzelsignale + gruppenübergreifende Paare, 3
+Phasen, 3 Zeitfenster) am für Toby relevantesten Zeithorizont: **kein
+belastbares Ja**. Das ist eine Aussage über diesen spezifischen,
+begrenzten Testrahmen — nicht über den Wert der Nexus-Faktoren insgesamt
+(die z.B. in anderen Projekten dieser Session, etwa der Triple-Barrier-
+Analyse der exakten SL/TP/Hebel-Konfiguration, in anderer Fragestellung
+geprüft wurden).
