@@ -587,3 +587,81 @@ begrenzten Testrahmen — nicht über den Wert der Nexus-Faktoren insgesamt
 (die z.B. in anderen Projekten dieser Session, etwa der Triple-Barrier-
 Analyse der exakten SL/TP/Hebel-Konfiguration, in anderer Fragestellung
 geprüft wurden).
+
+## Konfluenz-Score-Test: "testen wir auch falsch?" (20.09.2026)
+
+### Anlass
+
+Nach dem Nullbefund am 5m-Grid stellte der Nutzer die Testmethodik selbst
+in Frage. Zurecht: der bisherige Aufbau hat drei konkrete Schwächen, die
+einen echten Effekt verdecken können, ohne dass er nicht existiert —
+
+1. **Nie echte Konfluenz getestet.** Stufe B testet Einzelsignale und
+   Paare, nie 3+ gleichzeitig übereinstimmende Signale — genau das
+   Muster, nach dem Toby real handelt.
+2. **"Jede Kerze"-Baseline verdünnt jedes echte Setup.** Bei 423.724
+   Kerzen sind die allermeisten kein Setup, das je genommen würde; ein in
+   den seltenen echten Konfluenz-Momenten starker Effekt kann im gepoolten
+   Test aus reinem Rauschen verschwinden.
+3. **Konservative Korrektur bei kleinen Effekten.** `block_length=1152`
+   (voller 48h-Horizont) plus gepoolte BH-FDR über ~2000 Tests gleichzeitig
+   drückt die Power stark — ein echter, aber kleiner Effekt (2-3 Punkte)
+   hat kaum eine Chance, das zu überleben.
+
+### Umsetzung: Konfluenz-Score statt Einzelsignal/Paar
+
+`compute_confluence_5m.py`: je Richtung EIN Score = Anzahl gleichzeitig
+aktiver, **richtungskonformer** Signale (0..7) im Fenster, statt eines
+booleschen Einzel-/Paar-Indikators. Dabei zwei zusätzliche Korrekturen
+gegenüber Stufe B aufgedeckt und behoben:
+
+- `momentum_divergence` und `guss_signal` wurden in Stufe B als EIN Flag
+  identisch für LONG und SHORT getestet, obwohl beide Signale intern eine
+  Richtung tragen. Hier in ihre bullische/bärische Hälfte aufgesplittet
+  (Momentum: DI-Richtung + MACD-Histogramm-Vorzeichen; GUSS: Trendrichtung
+  des Pullback-Ursprungs, post-hoc aus `close` vs. `EMA50` an der
+  feuernden Bar rekonstruiert — `src/signals/guss.py` selbst blieb
+  unverändert, da bereits validiert) — nur die zur getesteten Richtung
+  passende Hälfte fließt in den jeweiligen Score ein. `doji` bleibt außen
+  vor (kein inhärenter Richtungsbezug).
+- BULLISH_SIGNALS (`cvd_bullish`, `vwap_above`, `hammer`,
+  `bullish_engulfing`, `morning_star`, `momentum_bullish`, `guss_bullish`)
+  für LONG, BEARISH_SIGNALS (Spiegelbild) für SHORT — Score = Summe der im
+  Fenster (`w15m`=3, `w1h`=12, `w4h`=48 Bars @5m) aktiven Signale dieser
+  Gruppe.
+
+`signal_stats.py::evaluate_continuous_predictor()` (neu, mit
+`validate_continuous_predictor.py` an synthetischen Daten getestet):
+HAC-Logit/OLS mit dem Score als **stetigem** Regressor (nicht
+Gruppenindikator) — angemessener für eine Zählgröße, deutlich weniger
+Verdünnung. `run_confluence_test_5m.py`: nur 2 Richtungen × 3 Phasen × 3
+Fenster = **18 Zellen** (36 gepoolte Tests über beide Ziel-Typen) statt
+1.988 in Stufe B — derselbe TRAIN_VAL/OOS-Split mit Embargo (576 Bars).
+
+### Ergebnis
+
+**0 von 36 gepoolten Tests BH-signifikant** — auch der weit besser
+gepowerte, richtungskorrekte Konfluenz-Test findet keinen robusten Effekt.
+Nächstliegend: SHORT/Abwärts/`w15m` mit p=0,0045 (unkorrigiert;
+Konfluenz-Score korreliert hier positiv mit `final_mfe_margin_pct`,
+inhaltlich plausibel — bärische Konfluenz in einer bereits bestätigten
+Abwärtsphase), übersteht aber die BH-FDR-Schwelle bei 36 Tests nicht
+(bräuchte p≤0,0014 für Rang 1). Volltabelle: alle 18 Zellen zeigen
+durchweg kleine, größtenteils inkonsistente Effektrichtungen zwischen den
+drei Fenstern derselben Phase — kein Muster, das auf einen verdeckten,
+aber realen Effekt hindeutet. Rohdaten:
+`output/confluence_train_val_results_5m.csv`,
+`output/confluence_{long,short}_5m.csv` (alle gitignored).
+
+### Einordnung
+
+Die Kritik an der Testmethodik war berechtigt und die Korrektur war es
+wert, gemacht zu werden — der Konfluenz-Test ist strenger genommen der
+angemessenere Test für die tatsächliche Fragestellung. Er ändert aber das
+Ergebnis nicht: selbst mit ~55× weniger Tests (also entsprechend mehr
+Power) und korrekter Richtungszuordnung bleibt kein Signal übrig. Das
+stützt die Interpretation aus dem 15m/5m-Vergleich: der wiederholte
+Nullbefund ist wahrscheinlich kein Artefakt einer zu strengen oder falsch
+aufgebauten Testmethodik, sondern spiegelt tatsächlich fehlende
+prädiktive Kraft dieser 13 Signale (einzeln, paarweise UND als
+richtungskonforme Konfluenz) für die hier getestete Fragestellung wider.

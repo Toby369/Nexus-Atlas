@@ -102,6 +102,104 @@ def evaluate_cell(
     )
 
 
+@dataclass
+class ContinuousResult:
+    """Ergebnis fuer einen STETIGEN Praediktor (z.B. Konfluenz-Score = Anzahl
+    gleichzeitig aktiver, richtungskonformer Signale) statt eines binaeren
+    Einzelsignals -- siehe run_confluence_test_5m.py. Motivation: die
+    Einzelsignal-/Paar-Tests in run_stage_b*.py verduennen jedes echte
+    Konfluenz-Setup mit ~95%+ irrelevanten "kein Setup"-Zeilen und testen nie
+    mehr als 2 Signale gleichzeitig -- ein Score-Regressor mit wenigen
+    Zellen (Phase x Fenster) hat dagegen viel mehr Power pro Test (kein
+    grosser BH-FDR-Pool noetig) und bildet echte Mehrfach-Uebereinstimmung ab."""
+
+    direction: str
+    phase: str
+    window: str
+    n: int
+    max_score: int
+    mean_score: float
+    coef_binary: float
+    p_value_binary: float
+    coef_continuous: float
+    p_value_continuous: float
+    high_threshold: int
+    n_high: int
+    n_low: int
+    rate_high: float
+    rate_low: float
+    mean_mfe_high: float
+    mean_mfe_low: float
+    status: str  # "OK" | "INSUFFICIENT_DATA" | "FIT_ERROR"
+    error_message: str = ""
+
+
+def evaluate_continuous_predictor(
+    sub: pd.DataFrame,
+    score: pd.Series,
+    direction: str,
+    phase: str,
+    window: str,
+    block_length: int = BLOCK_LENGTH,
+    high_threshold: int | None = None,
+) -> ContinuousResult:
+    """`sub`: bereits auf eine Phase eingeschraenkter DataFrame mit Spalten
+    `reached_tp20`/`final_mfe_margin_pct`. `score`: stetiger (nicht-negativer
+    Integer) Konfluenz-Score, gleicher Index wie `sub`. `high_threshold`:
+    Score-Schwelle fuer die deskriptive High-vs-Rest-Gegenueberstellung
+    (Default: oberstes Quartil der beobachteten Score-Verteilung, mindestens
+    1). Regression: score als STETIGER Regressor (nicht Gruppenindikator) --
+    angemessener fuer eine Zaehlgroesse als ein With/Without-Split."""
+    n = len(sub)
+    max_score = int(score.max()) if n > 0 else 0
+
+    def _insufficient(msg: str = "") -> ContinuousResult:
+        return ContinuousResult(
+            direction, phase, window, n, max_score, np.nan, np.nan, np.nan, np.nan, np.nan,
+            high_threshold or 0, 0, 0, np.nan, np.nan, np.nan, np.nan, "INSUFFICIENT_DATA", msg,
+        )
+
+    if n < 2 * MIN_N:
+        return _insufficient(f"n={n}, MIN_N={MIN_N} (je Gruppe)")
+
+    if high_threshold is None:
+        high_threshold = max(1, int(np.quantile(score.to_numpy(), 0.75)))
+
+    is_high = score >= high_threshold
+    n_high = int(is_high.sum())
+    n_low = n - n_high
+    if n_high < MIN_N or n_low < MIN_N:
+        return _insufficient(f"n_high={n_high}, n_low={n_low} bei high_threshold={high_threshold}, MIN_N={MIN_N}")
+
+    y_bin = sub["reached_tp20"].astype(int).to_numpy()
+    y_cont = sub["final_mfe_margin_pct"].to_numpy()
+    x = sm.add_constant(score.to_numpy().astype(float))
+
+    rate_high = float(y_bin[is_high.to_numpy()].mean())
+    rate_low = float(y_bin[~is_high.to_numpy()].mean())
+    mean_mfe_high = float(y_cont[is_high.to_numpy()].mean())
+    mean_mfe_low = float(y_cont[~is_high.to_numpy()].mean())
+
+    try:
+        if y_bin.sum() < 10 or (n - y_bin.sum()) < 10:
+            coef_bin, p_bin = np.nan, np.nan
+        else:
+            logit = sm.Logit(y_bin, x).fit(disp=0, cov_type="HAC", cov_kwds={"maxlags": block_length})
+            coef_bin, p_bin = float(logit.params[1]), float(logit.pvalues[1])
+        ols = sm.OLS(y_cont, x).fit(cov_type="HAC", cov_kwds={"maxlags": block_length})
+        coef_cont, p_cont = float(ols.params[1]), float(ols.pvalues[1])
+    except (PerfectSeparationError, np.linalg.LinAlgError, ValueError) as exc:
+        return ContinuousResult(
+            direction, phase, window, n, max_score, float(score.mean()), np.nan, np.nan, np.nan, np.nan,
+            high_threshold, n_high, n_low, rate_high, rate_low, mean_mfe_high, mean_mfe_low, "FIT_ERROR", str(exc),
+        )
+
+    return ContinuousResult(
+        direction, phase, window, n, max_score, float(score.mean()), coef_bin, p_bin, coef_cont, p_cont,
+        high_threshold, n_high, n_low, rate_high, rate_low, mean_mfe_high, mean_mfe_low, "OK",
+    )
+
+
 def results_to_dataframe(results: list[CellResult]) -> pd.DataFrame:
     return pd.DataFrame([r.__dict__ for r in results])
 
