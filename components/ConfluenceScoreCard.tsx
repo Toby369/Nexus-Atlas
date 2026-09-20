@@ -187,7 +187,13 @@ function ScoreRow({ row, label, tone }: { row: ConfluenceScoreRow | null; label:
       <div className="space-y-1 pt-1 border-t border-border/60">
         <TrendConfirmationLine trendCount={row.trendCount} trendSignals={row.trendSignals} />
         <FactorLine
-          label={`Fear & Greed${row.fearGreedClassification ? ` (${row.fearGreedClassification})` : ""}`}
+          label={`Fear & Greed${
+            row.fearGreedValue !== null
+              ? ` (${row.fearGreedValue}${row.fearGreedClassification ? ` · ${row.fearGreedClassification}` : ""})`
+              : row.fearGreedClassification
+                ? ` (${row.fearGreedClassification})`
+                : ""
+          }`}
           active={row.fearGreedActive}
         />
         <FactorLine label={`Makro-Regime${row.makroRegime ? ` (${row.makroRegime})` : ""}`} active={row.makroActive} />

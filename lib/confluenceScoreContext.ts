@@ -22,6 +22,7 @@ export interface ConfluenceScoreRow {
   trendCount: number;
   trendSignals: TrendSignalState[];
   fearGreedActive: boolean;
+  fearGreedValue: number | null;
   fearGreedClassification: string | null;
   makroActive: boolean;
   makroRegime: string | null;
@@ -49,6 +50,7 @@ export async function buildConfluenceScore(): Promise<ConfluenceScoreResult> {
     trend_count: number;
     trend_signals: { name: string; active: boolean }[] | null;
     fear_greed_active: boolean;
+    fear_greed_value: number | string | null;
     fear_greed_classification: string | null;
     makro_active: boolean;
     makro_regime: string | null;
@@ -62,6 +64,7 @@ export async function buildConfluenceScore(): Promise<ConfluenceScoreResult> {
     trendCount: row.trend_count,
     trendSignals: row.trend_signals ?? [],
     fearGreedActive: row.fear_greed_active,
+    fearGreedValue: row.fear_greed_value !== null ? Number(row.fear_greed_value) : null,
     fearGreedClassification: row.fear_greed_classification,
     makroActive: row.makro_active,
     makroRegime: row.makro_regime,
