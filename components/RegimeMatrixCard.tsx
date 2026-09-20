@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import type { AnchoredSummary, MarketState, MarketStateMatrix, TradingViewSignal } from "@/lib/types";
+import type {
+  AnchoredSummary,
+  MarketState,
+  MarketStateMatrix,
+  ShortTermRangeCheck,
+  TradingViewSignal,
+} from "@/lib/types";
 import PanelInfo from "@/components/PanelInfo";
 import { marketStateMatrixInfo, REGIME_MATRIX_METRIC_INFO } from "@/lib/panelInfo";
 import { formatAnchorBadge, formatAnchorRangeBadge } from "@/lib/anchor";
@@ -16,6 +22,7 @@ import {
   regimeDescription,
   regimeColorClass,
   shouldSuppressRegimeDirectionalLabel,
+  isTrendingRegime,
   computeEngineDivergence,
   trendVerdict,
   signDirection,
@@ -83,6 +90,18 @@ async function fetchLatestMatrix(): Promise<{ data: MarketStateMatrix | null; ok
   return { data, ok: true };
 }
 
+// 20.09.2026: kurzfristiger Seitwaerts-Check (siehe lib/types.ts::
+// ShortTermRangeCheck) -- eigener RPC-Read, unabhaengig von der 1h-Matrix
+// oben, daher eigene Fetch-Funktion statt Wiederverwendung.
+async function fetchShortTermRangeCheck(): Promise<ShortTermRangeCheck | null> {
+  const { data, error } = await supabase.rpc("get_short_term_range_check");
+  if (error) {
+    console.error("Fehler beim Laden des kurzfristigen Seitwaerts-Checks:", error.message);
+    return null;
+  }
+  return data?.[0] ?? null;
+}
+
 // Phase 2 TradingView-Integration: juengstes Signal der letzten
 // TRADINGVIEW_SIGNAL_FRESHNESS_HOURS. Der Frische-Cutoff steckt bereits im
 // Query (wie beim initialen Server-Fetch in app/page.tsx) -- kein
@@ -108,6 +127,7 @@ async function fetchLatestTradingViewSignal(): Promise<TradingViewSignal | null>
 
 export default function RegimeMatrixCard({
   initialMatrix,
+  initialShortTermRangeCheck,
   marketState,
   initialTradingViewSignal,
   anchorIso,
@@ -115,6 +135,10 @@ export default function RegimeMatrixCard({
   initialAnchoredSummary,
 }: {
   initialMatrix: MarketStateMatrix | null;
+  // Kurzfristiger Seitwaerts-Check (20.09.2026, siehe fetchShortTermRangeCheck
+  // oben) -- unabhaengig von initialMatrix, kann null sein (z.B. zu wenig
+  // 15m-Historie fuer die letzten 16 Bars).
+  initialShortTermRangeCheck: ShortTermRangeCheck | null;
   // Fuer die Confidence-Sperre (siehe unten) -- dieselbe market_states-Zeile,
   // die MarketStateCard bereits erhaelt, kein Zusatz-Query.
   marketState: MarketState | null;
@@ -137,16 +161,19 @@ export default function RegimeMatrixCard({
   const [expanded, setExpanded] = useState(false);
   const [tradingViewSignal, setTradingViewSignal] = useState(initialTradingViewSignal);
   const [anchoredSummary, setAnchoredSummary] = useState(initialAnchoredSummary);
+  const [shortTermRangeCheck, setShortTermRangeCheck] = useState(initialShortTermRangeCheck);
 
   useEffect(() => {
     const load = async () => {
-      const [{ data, ok }, signal] = await Promise.all([
+      const [{ data, ok }, signal, rangeCheck] = await Promise.all([
         fetchLatestMatrix(),
         fetchLatestTradingViewSignal(),
+        fetchShortTermRangeCheck(),
       ]);
       setLastSyncOk(ok);
       if (ok && data) setMatrix(data);
       setTradingViewSignal(signal);
+      setShortTermRangeCheck(rangeCheck);
     };
     const interval = setInterval(load, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
@@ -223,6 +250,15 @@ export default function RegimeMatrixCard({
       : marketState?.overall_state === "BEARISH"
         ? "bärisch"
         : null;
+
+  // Kurzfristiger Seitwaerts-Check (20.09.2026): nur relevant, wenn die 1h-
+  // Engine gerade eine gerichtete Trendausweitung zeigt UND diese
+  // Richtungsaussage nicht schon durch die Confidence-Sperre unterdrueckt
+  // wird (suppressDirectional) -- sonst wuerde hier ein "Trend evtl.
+  // nachlaufend"-Hinweis zu einer Richtung erscheinen, die ohnehin schon als
+  // "Unklar" angezeigt wird.
+  const showStaleTrendHint =
+    !suppressDirectional && isTrendingRegime(matrix.regime) && shortTermRangeCheck?.is_ranging === true;
 
   // "Seit Anker"-Regime-Vergleich: dieselbe Confidence-Sperre wie oben,
   // nur mit der Confidence zum Anker-Zeitpunkt statt der aktuellen --
@@ -341,6 +377,20 @@ export default function RegimeMatrixCard({
         <p className={`text-xs ${marketState?.overall_state === "BULLISH" ? "text-up" : "text-down"}`}>
           Gesamteinschätzung und Marktphase stimmen richtungsmäßig überein (beide{" "}
           {marketStateDirectionLabel}).
+        </p>
+      )}
+
+      {/* 20.09.2026 -- Nutzer-Beobachtung: die 1h-Engine kann nach einem
+          abgeschlossenen Trendimpuls mehrere Stunden "nachlaufen" (ADX/
+          Regressionssteigung bleiben erhoeht, obwohl der Kurs bereits
+          seitwaerts laeuft) -- siehe get_short_term_range_check() RPC.
+          Bewusst nur als Hinweis, nicht als eigenes Regime/eigene Kachel:
+          reine Zusatzinformation zur bestehenden 1h-Aussage oben. */}
+      {showStaleTrendHint && shortTermRangeCheck && (
+        <p className="text-xs text-accent">
+          Kurzfristig (15m, letzte {shortTermRangeCheck.lookback_bars / 4}h) bereits seitwärts (ADX{" "}
+          {fmtNum(shortTermRangeCheck.adx_14, 0)}, enge Bollinger-Bandbreite) — 1h-Trend-Signal evtl.
+          nachlaufend.
         </p>
       )}
 

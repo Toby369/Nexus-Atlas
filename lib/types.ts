@@ -397,6 +397,22 @@ export interface MarketStateMatrix {
   created_at: string;
 }
 
+// Kurzfristiger Seitwaerts-Check (20.09.2026, siehe get_short_term_range_check()
+// RPC) -- die 1h-Regime-Engine oben kann nach einem abgeschlossenen
+// Trendimpuls mehrere Stunden "nachlaufen" (ADX/Regressionssteigung bleiben
+// von der vorherigen Bewegung erhoeht, obwohl der Kurs bereits seitwaerts
+// laeuft). Dieser Check liest NUR die letzten `lookback_bars` 15m-Kerzen +
+// den aktuellen 15m-ADX, unabhaengig von der 1h-Engine -- reiner Read, keine
+// Historie/kein Cron.
+export interface ShortTermRangeCheck {
+  as_of: string | null;
+  interval: string;
+  lookback_bars: number;
+  adx_14: number | null;
+  bb_width: number | null;
+  is_ranging: boolean;
+}
+
 // Naechster bekannter Termin je verfolgtem Wirtschaftsereignis (siehe
 // Edge Function collect-economic-calendar + lib/economicCalendar.ts fuer
 // die BTC-Einordnung je event_key). event_date ist ein reines Datum

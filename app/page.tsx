@@ -22,6 +22,7 @@ import type {
   OrderbookWallSnapshot,
   SignalEngineSnapshot,
   SignalReviewSnapshot,
+  ShortTermRangeCheck,
   TradeDebateSnapshot,
   CustomQueryRun,
   ChartVisionAnalysis,
@@ -160,6 +161,20 @@ async function getLatestMarketStateMatrix(): Promise<MarketStateMatrix | null> {
     return null;
   }
   return data;
+}
+
+// 20.09.2026: kurzfristiger Seitwaerts-Check (siehe lib/types.ts::
+// ShortTermRangeCheck fuer die Herleitung) -- eigene RPC statt Tabellen-
+// Query, da nur der aktuelle Wert gebraucht wird (kein Verlauf/keine
+// Historie).
+async function getShortTermRangeCheck(): Promise<ShortTermRangeCheck | null> {
+  const { data, error } = await supabase.rpc("get_short_term_range_check");
+
+  if (error) {
+    console.error("Fehler beim Laden des kurzfristigen Seitwaerts-Checks:", error.message);
+    return null;
+  }
+  return data?.[0] ?? null;
 }
 
 // Phase 2 TradingView-Integration (Feasibility-Review vom 29.08.2026): das
@@ -705,6 +720,7 @@ export default async function Home({
     snapshots,
     marketState,
     marketStateMatrix,
+    shortTermRangeCheck,
     highImpactNews,
     recentLiquidations,
     recentEtfFlows,
@@ -741,6 +757,7 @@ export default async function Home({
     getSnapshotHistory(),
     getLatestMarketState(),
     getLatestMarketStateMatrix(),
+    getShortTermRangeCheck(),
     getHighImpactNews(),
     getRecentLiquidations(),
     getRecentEtfFlows(),
@@ -902,6 +919,7 @@ export default async function Home({
                     "regime-matrix": (
                       <RegimeMatrixCard
                         initialMatrix={marketStateMatrix}
+                        initialShortTermRangeCheck={shortTermRangeCheck}
                         marketState={marketState}
                         initialTradingViewSignal={latestTradingViewSignal}
                         anchorIso={anchorIso}
