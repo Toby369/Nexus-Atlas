@@ -16,6 +16,8 @@ describe("marketRegime", () => {
       "HIGH_VOLA_REVERSION",
       "TREND_EXPANSION_BULLISH",
       "TREND_EXPANSION_BEARISH",
+      "TREND_FORMING_BULLISH",
+      "TREND_FORMING_BEARISH",
       "VOLA_SQUEEZE_RANGING",
       "UNRESOLVED_NEUTRAL",
     ];
@@ -53,6 +55,14 @@ describe("marketRegime", () => {
 
     it("ist true für TREND_EXPANSION_BEARISH", () => {
       expect(isTrendingRegime("TREND_EXPANSION_BEARISH")).toBe(true);
+    });
+
+    it("ist true für TREND_FORMING_BULLISH", () => {
+      expect(isTrendingRegime("TREND_FORMING_BULLISH")).toBe(true);
+    });
+
+    it("ist true für TREND_FORMING_BEARISH", () => {
+      expect(isTrendingRegime("TREND_FORMING_BEARISH")).toBe(true);
     });
 
     it("ist false für HIGH_VOLA_REVERSION", () => {
@@ -102,6 +112,21 @@ describe("marketRegime", () => {
 
     it("sperrt NICHT, wenn Confidence über der Schwelle liegt", () => {
       expect(shouldSuppressRegimeDirectionalLabel("TREND_EXPANSION_BULLISH", 80)).toBe(false);
+    });
+
+    it("sperrt TREND_FORMING_BULLISH/BEARISH genauso wie die volle Trendausweitung, wenn Confidence unter der Schwelle liegt", () => {
+      expect(
+        shouldSuppressRegimeDirectionalLabel(
+          "TREND_FORMING_BULLISH",
+          DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD - 1
+        )
+      ).toBe(true);
+      expect(
+        shouldSuppressRegimeDirectionalLabel(
+          "TREND_FORMING_BEARISH",
+          DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD - 1
+        )
+      ).toBe(true);
     });
 
     it("sperrt NICHT-gerichtete Regimes nie, unabhängig von der Confidence", () => {

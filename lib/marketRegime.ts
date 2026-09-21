@@ -23,6 +23,8 @@ export const ALL_MARKET_REGIMES: readonly MarketRegime[] = [
   "HIGH_VOLA_REVERSION",
   "TREND_EXPANSION_BULLISH",
   "TREND_EXPANSION_BEARISH",
+  "TREND_FORMING_BULLISH",
+  "TREND_FORMING_BEARISH",
   "VOLA_SQUEEZE_RANGING",
   "UNRESOLVED_NEUTRAL",
 ];
@@ -31,6 +33,8 @@ const REGIME_LABELS: Record<MarketRegime, string> = {
   HIGH_VOLA_REVERSION: "Hohe Volatilität / Reversion",
   TREND_EXPANSION_BULLISH: "Trendausweitung (bullisch)",
   TREND_EXPANSION_BEARISH: "Trendausweitung (bärisch)",
+  TREND_FORMING_BULLISH: "Trendbildung (bullisch)",
+  TREND_FORMING_BEARISH: "Trendbildung (bärisch)",
   VOLA_SQUEEZE_RANGING: "Volatilitäts-Squeeze / Seitwärts",
   UNRESOLVED_NEUTRAL: "Unklar / kein Regime",
 };
@@ -42,6 +46,10 @@ const REGIME_DESCRIPTIONS: Record<MarketRegime, string> = {
     "Starker, aufwärtsgerichteter Trend: ADX zeigt Trendstärke, +DI dominiert -DI, und die Regressionssteigung ist positiv.",
   TREND_EXPANSION_BEARISH:
     "Starker, abwärtsgerichteter Trend: ADX zeigt Trendstärke, -DI dominiert +DI, und die Regressionssteigung ist negativ.",
+  TREND_FORMING_BULLISH:
+    "+DI dominiert -DI und die Regressionssteigung ist positiv, aber ADX liegt noch unter der Trendschwelle (25) — ein sich formender, noch nicht vollständig bestätigter Aufwärtstrend.",
+  TREND_FORMING_BEARISH:
+    "-DI dominiert +DI und die Regressionssteigung ist negativ, aber ADX liegt noch unter der Trendschwelle (25) — ein sich formender, noch nicht vollständig bestätigter Abwärtstrend.",
   VOLA_SQUEEZE_RANGING:
     "Schwacher Trend (niedriger ADX) bei gleichzeitig komprimierten Bollinger-Bändern — typische \"Coiling\"-Phase vor einem möglichen Ausbruch.",
   UNRESOLVED_NEUTRAL:
@@ -52,6 +60,8 @@ const REGIME_COLOR_CLASSES: Record<MarketRegime, string> = {
   HIGH_VOLA_REVERSION: "text-accent",
   TREND_EXPANSION_BULLISH: "text-up",
   TREND_EXPANSION_BEARISH: "text-down",
+  TREND_FORMING_BULLISH: "text-up",
+  TREND_FORMING_BEARISH: "text-down",
   VOLA_SQUEEZE_RANGING: "text-text-muted",
   UNRESOLVED_NEUTRAL: "text-text-faint",
 };
@@ -68,10 +78,17 @@ export function regimeColorClass(regime: MarketRegime): string {
   return REGIME_COLOR_CLASSES[regime];
 }
 
-// true fuer die beiden gerichteten Trend-Regimes -- Hilfsfunktion fuer
+// true fuer alle vier gerichteten Trend-Regimes (volle Trendausweitung UND
+// die schwaechere Trendbildung, seit 21.09.2026, siehe SQL-Migration
+// close_regime_adx_dead_zone_trend_forming) -- Hilfsfunktion fuer
 // zukuenftige UI-Filter/Badges (z.B. "nur Trend-Phasen anzeigen").
 export function isTrendingRegime(regime: MarketRegime): boolean {
-  return regime === "TREND_EXPANSION_BULLISH" || regime === "TREND_EXPANSION_BEARISH";
+  return (
+    regime === "TREND_EXPANSION_BULLISH" ||
+    regime === "TREND_EXPANSION_BEARISH" ||
+    regime === "TREND_FORMING_BULLISH" ||
+    regime === "TREND_FORMING_BEARISH"
+  );
 }
 
 // Confidence-Sperre fuer die Regime-Anzeige (Phase 4, Punkt 2 -- "Behalte
@@ -126,7 +143,11 @@ export const SIGNAL_DIRECTION_COLOR: Record<SignalDirection, string> = {
 // Kennzahlen wirken in classify_market_regime() (research-python/src/
 // regime.py) ohnehin nur GEMEINSAM richtungsbestimmend -- deshalb hier ein
 // einzelnes Verdikt statt drei unabhaengig geratener Einzel-Badges, mit
-// demselben adx_trend_threshold=25 (RegimeThresholds in regime.py).
+// demselben adx_range_threshold=20 (RegimeThresholds in regime.py): seit dem
+// 21.09.2026-Fix (TREND_FORMING_BULLISH/BEARISH) zaehlt uebereinstimmende
+// Richtung schon ab ADX 20 als Badge-wuerdig, nicht erst ab der vollen
+// Trendausweitungs-Schwelle 25 -- sonst wuerde dieses Einzel-Badge "neutral"
+// zeigen, waehrend die Marktphase-Ueberschrift bereits "Trendbildung" sagt.
 export function trendVerdict(
   adx: number | null,
   plusDi: number | null,
@@ -134,8 +155,8 @@ export function trendVerdict(
   slope: number | null
 ): SignalDirection {
   if (adx === null || plusDi === null || minusDi === null || slope === null) return "neutral";
-  if (adx >= 25 && plusDi > minusDi && slope > 0) return "up";
-  if (adx >= 25 && minusDi > plusDi && slope < 0) return "down";
+  if (adx >= 20 && plusDi > minusDi && slope > 0) return "up";
+  if (adx >= 20 && minusDi > plusDi && slope < 0) return "down";
   return "neutral";
 }
 

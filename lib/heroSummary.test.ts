@@ -19,6 +19,14 @@ describe("regimeDirection", () => {
     expect(regimeDirection("TREND_EXPANSION_BEARISH")).toBe("bearish");
   });
 
+  it("TREND_FORMING_BULLISH -> bullish", () => {
+    expect(regimeDirection("TREND_FORMING_BULLISH")).toBe("bullish");
+  });
+
+  it("TREND_FORMING_BEARISH -> bearish", () => {
+    expect(regimeDirection("TREND_FORMING_BEARISH")).toBe("bearish");
+  });
+
   it("nicht-gerichtete Regimes -> not_comparable", () => {
     expect(regimeDirection("VOLA_SQUEEZE_RANGING")).toBe("not_comparable");
     expect(regimeDirection("HIGH_VOLA_REVERSION")).toBe("not_comparable");
@@ -115,6 +123,14 @@ describe("regimeArrowDirection", () => {
 
   it("TREND_EXPANSION_BEARISH -> down (unterdrueckt=false)", () => {
     expect(regimeArrowDirection("TREND_EXPANSION_BEARISH", false)).toBe("down");
+  });
+
+  it("TREND_FORMING_BULLISH -> up (unterdrueckt=false)", () => {
+    expect(regimeArrowDirection("TREND_FORMING_BULLISH", false)).toBe("up");
+  });
+
+  it("TREND_FORMING_BEARISH -> down (unterdrueckt=false)", () => {
+    expect(regimeArrowDirection("TREND_FORMING_BEARISH", false)).toBe("down");
   });
 
   it("VOLA_SQUEEZE_RANGING/HIGH_VOLA_REVERSION -> neutral (echtes, nicht gerichtetes Regime)", () => {

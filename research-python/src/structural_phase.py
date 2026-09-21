@@ -4,7 +4,8 @@ docs/research/TOBY-SETUP-PHASEN-DEFINITION.md Abschnitt "Strukturelle
 Phasen". Kombiniert zwei bereits unabhaengig gebaute/getestete Bausteine:
 
 1. `src.regime.classify_market_regime` -- Indikator-Regime (ADX/+DI/-DI/
-   Slope/Bollinger-Bandwidth/ATR-Ratio/Distanz-Z-Score), 5 Labels.
+   Slope/Bollinger-Bandwidth/ATR-Ratio/Distanz-Z-Score), seit 21.09.2026
+   7 Labels (TREND_FORMING_BULLISH/BEARISH ergaenzt, siehe regime.py).
 2. `src.swing_structure.classify_swing_structure` -- Knickpunkt-/Swing-
    Pivot-Struktur (HH/HL vs. LH/LL nach Dow-Theorie), 4 Labels.
 
@@ -21,9 +22,21 @@ Nutzer-Entscheidungen 19.09.2026 (per Rueckfrage geklaert):
   als eine erfundene"-Philosophie (siehe regime.py UNRESOLVED_NEUTRAL,
   toby_setup_engine.py SL-Tie-Break).
 
+21.09.2026: regime.py bekam TREND_FORMING_BULLISH/BEARISH fuer die vormals
+tote ADX-20-25-Zone bei uebereinstimmender Richtung (Toby-Feedback: eine
+Stunden anhaltende bullische Bewegung blieb im Live-Regime durchgehend
+UNRESOLVED_NEUTRAL). Die "schwacher Lean trotz ADX < 25"-Idee unten (per
+19.09.2026-Entscheidung eingefuehrt) existierte in diesem Modul bereits VOR
+diesem Fix, nur als Sonderfall unterhalb von UNRESOLVED_NEUTRAL -- die beiden
+neuen Regime-Labels bekommen jetzt denselben Lean explizit ueber ihr eigenes
+Label statt ueber den UNRESOLVED_NEUTRAL-Sonderfall zugewiesen. Der
+UNRESOLVED_NEUTRAL-Sonderfall bleibt bestehen (deckt weiterhin den separaten,
+noch unveraenderten Fall ADX < 20 UND nicht gesqueezt UND trotzdem gerichtet
+ab -- siehe Kommentar in _regime_lean).
+
 Schritt 1 -- Regime -> gerichteter "Lean" (mit Edge-Case-Mapping):
-  TREND_EXPANSION_BULLISH                         -> LEAN_UP
-  TREND_EXPANSION_BEARISH                         -> LEAN_DOWN
+  TREND_EXPANSION_BULLISH, TREND_FORMING_BULLISH  -> LEAN_UP
+  TREND_EXPANSION_BEARISH, TREND_FORMING_BEARISH  -> LEAN_DOWN
   VOLA_SQUEEZE_RANGING                            -> LEAN_SIDEWAYS
   HIGH_VOLA_REVERSION, dist_zscore_sma50 > 0       -> LEAN_UP (Kurs aktuell
                                                       oberhalb seines Mittel-
@@ -31,8 +44,13 @@ Schritt 1 -- Regime -> gerichteter "Lean" (mit Edge-Case-Mapping):
   HIGH_VOLA_REVERSION, dist_zscore_sma50 <= 0      -> LEAN_DOWN
   UNRESOLVED_NEUTRAL, slope > 0 UND +DI > -DI      -> LEAN_UP (schwacher,
                                                       aber richtungs-
-                                                      konsistenter Ansatz
-                                                      trotz ADX < 25)
+                                                      konsistenter Ansatz;
+                                                      seit 21.09.2026 nur noch
+                                                      fuer ADX < 20 UND nicht
+                                                      gesqueezt -- die ADX-
+                                                      20-25-Zone bekommt jetzt
+                                                      eigene TREND_FORMING_*-
+                                                      Labels, siehe oben)
   UNRESOLVED_NEUTRAL, slope < 0 UND -DI > +DI      -> LEAN_DOWN
   UNRESOLVED_NEUTRAL, sonst (inkl. fehlende Daten) -> LEAN_SIDEWAYS
 
@@ -50,6 +68,8 @@ from src.regime import (
     REGIME_HIGH_VOLA_REVERSION,
     REGIME_TREND_EXPANSION_BEARISH,
     REGIME_TREND_EXPANSION_BULLISH,
+    REGIME_TREND_FORMING_BEARISH,
+    REGIME_TREND_FORMING_BULLISH,
     REGIME_UNRESOLVED_NEUTRAL,
     REGIME_VOLA_SQUEEZE_RANGING,
     RegimeThresholds,
@@ -77,12 +97,20 @@ def _regime_lean(features: pd.DataFrame, regime: pd.Series) -> pd.Series:
     lean = pd.Series(_LEAN_SIDEWAYS, index=features.index, dtype=object)
     lean[regime == REGIME_TREND_EXPANSION_BULLISH] = _LEAN_UP
     lean[regime == REGIME_TREND_EXPANSION_BEARISH] = _LEAN_DOWN
+    # TREND_FORMING_* (regime.py, 21.09.2026): dieselbe Richtungsaussage wie
+    # TREND_EXPANSION_*, nur mit ADX in der 20-25-Zone statt >=25 -- bekommt
+    # denselben Lean.
+    lean[regime == REGIME_TREND_FORMING_BULLISH] = _LEAN_UP
+    lean[regime == REGIME_TREND_FORMING_BEARISH] = _LEAN_DOWN
     lean[regime == REGIME_VOLA_SQUEEZE_RANGING] = _LEAN_SIDEWAYS
 
     is_reversion = regime == REGIME_HIGH_VOLA_REVERSION
     lean[is_reversion & (dist_z > 0)] = _LEAN_UP
     lean[is_reversion & (dist_z <= 0)] = _LEAN_DOWN
 
+    # Seit regime.py 21.09.2026 deckt dieser UNRESOLVED_NEUTRAL-Sonderfall nur
+    # noch ADX < 20 UND nicht gesqueezt ab (die ADX-20-25-Zone bekommt jetzt
+    # eigene TREND_FORMING_*-Labels oben, faellt also gar nicht mehr hierher).
     is_neutral = regime == REGIME_UNRESOLVED_NEUTRAL
     weak_up = is_neutral & (slope > 0) & (plus_di > minus_di)
     weak_down = is_neutral & (slope < 0) & (minus_di > plus_di)

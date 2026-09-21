@@ -172,8 +172,8 @@ function directionFromOverallState(
 }
 
 function directionFromRegime(regime: MarketRegime): "BULLISH" | "BEARISH" | null {
-  if (regime === "TREND_EXPANSION_BULLISH") return "BULLISH";
-  if (regime === "TREND_EXPANSION_BEARISH") return "BEARISH";
+  if (regime === "TREND_EXPANSION_BULLISH" || regime === "TREND_FORMING_BULLISH") return "BULLISH";
+  if (regime === "TREND_EXPANSION_BEARISH" || regime === "TREND_FORMING_BEARISH") return "BEARISH";
   return null;
 }
 

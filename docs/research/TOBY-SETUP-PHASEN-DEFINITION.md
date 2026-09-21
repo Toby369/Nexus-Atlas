@@ -146,12 +146,29 @@ Abgestimmt mit Toby am 19.09.2026 nach Recherche zu drei Quellen:
 |---|---|
 | `TREND_EXPANSION_BULLISH` | Aufwärts |
 | `TREND_EXPANSION_BEARISH` | Abwärts |
+| `TREND_FORMING_BULLISH` (neu, siehe Update 21.09.2026 unten) | Aufwärts |
+| `TREND_FORMING_BEARISH` (neu, siehe Update 21.09.2026 unten) | Abwärts |
 | `VOLA_SQUEEZE_RANGING` | Seitwärts |
 | `HIGH_VOLA_REVERSION`, Kurs über Mittelwert gestreckt (`dist_zscore_sma50>0`) | Aufwärts |
 | `HIGH_VOLA_REVERSION`, Kurs unter Mittelwert gestreckt | Abwärts |
 | `UNRESOLVED_NEUTRAL`, schwacher aber konsistenter Aufwärts-Ansatz (`slope>0` und `+DI>-DI`) | Aufwärts |
 | `UNRESOLVED_NEUTRAL`, schwacher Abwärts-Ansatz | Abwärts |
 | `UNRESOLVED_NEUTRAL` sonst (inkl. fehlende Daten) | Seitwärts |
+
+> **Update 21.09.2026** (Toby-Feedback am Live-Dashboard: eine Stunden
+> anhaltende, klar bullische BTC-Bewegung blieb in der "Marktphase"-Kachel
+> durchgehend `UNRESOLVED_NEUTRAL`, weil ADX nie über die Trend-Schwelle 25
+> kam, obwohl `+DI`/`-DI` und Steigung die ganze Zeit übereinstimmten):
+> `regime.py::classify_market_regime` bekam zwei neue Labels,
+> `TREND_FORMING_BULLISH`/`_BEARISH`, für genau die ADX-20-25-Grauzone bei
+> übereinstimmender Richtung — ersetzt dort das bisherige `UNRESOLVED_NEUTRAL`
+> durch eine ehrliche, abgeschwächte Richtungsaussage. Der oben beschriebene
+> `UNRESOLVED_NEUTRAL`-Sonderfall ("schwacher Aufwärts-/Abwärts-Ansatz")
+> bleibt bestehen, deckt aber seitdem nur noch den separaten Fall ADX<20 UND
+> nicht gesqueezt ab (die 20-25-Zone hat jetzt ihr eigenes Label). Betrifft
+> sowohl den Live-Pipeline-Gegenpart (`classify_market_regime()` SQL-Funktion,
+> Migration `close_regime_adx_dead_zone_trend_forming`) als auch dieses
+> research-python-Modul.
 
 **Schritt 2 — Lean + Swing-Struktur (neu: `src/swing_structure.py`,
 kausale ZigZag-Pivot-Erkennung mit ATR-Vielfachem als Reversal-Schwelle,

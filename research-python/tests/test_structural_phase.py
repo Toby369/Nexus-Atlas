@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from src.regime import REGIME_UNRESOLVED_NEUTRAL
+from src.regime import REGIME_TREND_FORMING_BULLISH, REGIME_UNRESOLVED_NEUTRAL
 from src.structural_phase import ALL_PHASES, PHASE_DOWN, PHASE_SIDEWAYS, PHASE_UP, classify_structural_phase
 from src.swing_structure import STRUCTURE_BEARISH, STRUCTURE_BULLISH, STRUCTURE_MIXED
 from tests.lookahead_utils import make_datetime_index
@@ -78,13 +78,28 @@ class TestClassifyStructuralPhase:
         assert result["swing_structure"].iloc[-1] != STRUCTURE_BULLISH
         assert (result["phase"] == PHASE_SIDEWAYS).all()
 
-    def test_unresolved_neutral_with_weak_up_lean_maps_to_sideways_without_structure(self):
-        # UNRESOLVED_NEUTRAL (ADX in der 20-25-Luecke) mit schwachem Aufwaerts-
-        # Lean (slope>0, +DI>-DI) -- ohne Swing-Struktur-Bestaetigung bleibt
-        # es trotzdem Seitwaerts (Edge-Case-Mapping betrifft nur den Lean-
-        # Schritt, nicht die Endklassifikation ohne Struktur-Bestaetigung).
+    def test_trend_forming_bullish_with_up_lean_maps_to_sideways_without_structure(self):
+        # TREND_FORMING_BULLISH (ADX in der 20-25-Luecke, regime.py seit
+        # 21.09.2026) mit Aufwaerts-Lean (slope>0, +DI>-DI) -- ohne Swing-
+        # Struktur-Bestaetigung bleibt es trotzdem Seitwaerts (Edge-Case-
+        # Mapping betrifft nur den Lean-Schritt, nicht die Endklassifikation
+        # ohne Struktur-Bestaetigung).
         n = 60
         features = _constant_features(n, adx=22.0, plus_di=25.0, minus_di=10.0, slope=5.0)
+        ohlc = _flat_ohlc(n)
+        result = classify_structural_phase(features, ohlc)
+        assert (result["regime"] == REGIME_TREND_FORMING_BULLISH).all()
+        assert (result["phase"] == PHASE_SIDEWAYS).all()
+
+    def test_unresolved_neutral_low_adx_not_squeezed_with_weak_up_lean_maps_to_sideways(self):
+        # Der verbleibende UNRESOLVED_NEUTRAL-Sonderfall nach dem 21.09.2026-
+        # Fix: ADX < 20 (nicht in der 20-25-Zone) UND Bollinger-Bandbreite zu
+        # weit fuer VOLA_SQUEEZE_RANGING, aber Slope/DI trotzdem gerichtet --
+        # bekommt weiterhin ueber den Lean-Sonderfall (nicht ueber ein eigenes
+        # Regime-Label) einen schwachen Aufwaerts-Lean, der ohne Struktur-
+        # Bestaetigung ebenfalls auf Seitwaerts faellt.
+        n = 60
+        features = _constant_features(n, adx=12.0, bandwidth=0.20, plus_di=25.0, minus_di=10.0, slope=5.0)
         ohlc = _flat_ohlc(n)
         result = classify_structural_phase(features, ohlc)
         assert (result["regime"] == REGIME_UNRESOLVED_NEUTRAL).all()

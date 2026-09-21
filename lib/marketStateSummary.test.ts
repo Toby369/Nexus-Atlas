@@ -230,6 +230,13 @@ describe("computeEngineDivergence", () => {
     expect(computeEngineDivergence("BEARISH", "TREND_EXPANSION_BULLISH")).toBe("DIVERGENCE");
   });
 
+  it("behandelt TREND_FORMING_BULLISH/BEARISH (21.09.2026) genauso gerichtet wie die volle Trendausweitung", () => {
+    expect(computeEngineDivergence("BULLISH", "TREND_FORMING_BULLISH")).toBe("AGREEMENT");
+    expect(computeEngineDivergence("BEARISH", "TREND_FORMING_BEARISH")).toBe("AGREEMENT");
+    expect(computeEngineDivergence("BULLISH", "TREND_FORMING_BEARISH")).toBe("DIVERGENCE");
+    expect(computeEngineDivergence("BEARISH", "TREND_FORMING_BULLISH")).toBe("DIVERGENCE");
+  });
+
   it("meldet NOT_COMPARABLE, wenn Market State keine gerichtete Aussage liefert", () => {
     const nonDirectional: MarketState["overall_state"][] = ["NEUTRAL", "MIXED", "INSUFFICIENT_DATA"];
     for (const state of nonDirectional) {

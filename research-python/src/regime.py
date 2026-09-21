@@ -14,7 +14,7 @@ trivially free of look-ahead bias as well -- verified in
 matrix and confirming identical historical labels (same technique as
 ``tests/lookahead_utils.py``, applied one layer up).
 
-Regime taxonomy (5 labels, priority order = list order, first match wins):
+Regime taxonomy (7 labels, priority order = list order, first match wins):
 
 1. HIGH_VOLA_REVERSION
    Volatility has spiked (`atr_ratio` well above its own recent average)
@@ -30,12 +30,26 @@ Regime taxonomy (5 labels, priority order = list order, first match wins):
    (`plus_di`/`minus_di` vs `slope`) -- two independent Säule-1 signals
    confirming the same direction.
 
-3. VOLA_SQUEEZE_RANGING
+3. TREND_FORMING_BULLISH / TREND_FORMING_BEARISH (added 21.09.2026, Toby-
+   Feedback: a real, hours-long, directionally-consistent BTC rally left the
+   live regime stuck on UNRESOLVED_NEUTRAL the whole time because ADX never
+   crossed the trend threshold)
+   Same directional agreement as TREND_EXPANSION_* (`plus_di`/`minus_di` vs
+   `slope`), but `adx` sits in the `[adx_range_threshold, adx_trend_
+   threshold)` band -- the deliberate "undecided" gap described under
+   `RegimeThresholds.adx_range_threshold` below. That gap still absorbs a
+   single noisy ADX print (an isolated bar here still just gets this weaker
+   label, not a flip back to UNRESOLVED_NEUTRAL and back), but it no longer
+   erases a genuinely sustained, multi-bar directional agreement down to
+   "no regime at all" -- it gets an honest, weaker-confidence directional
+   label instead of a false "nothing is happening".
+
+4. VOLA_SQUEEZE_RANGING
    Trend strength is below the range threshold *and* Bollinger Bandwidth has
    compressed below its own squeeze threshold -- low-ADX, tight-bands
    "coiling" conditions that often precede a breakout in either direction.
 
-4. UNRESOLVED_NEUTRAL
+5. UNRESOLVED_NEUTRAL
    None of the above -- the default/fallback regime. Deliberately named
    "unresolved" rather than e.g. "neutral" alone, to make clear this is not
    a positive "the market is calm" signal but "the available signals do not
@@ -58,6 +72,8 @@ import pandas as pd
 REGIME_HIGH_VOLA_REVERSION = "HIGH_VOLA_REVERSION"
 REGIME_TREND_EXPANSION_BULLISH = "TREND_EXPANSION_BULLISH"
 REGIME_TREND_EXPANSION_BEARISH = "TREND_EXPANSION_BEARISH"
+REGIME_TREND_FORMING_BULLISH = "TREND_FORMING_BULLISH"
+REGIME_TREND_FORMING_BEARISH = "TREND_FORMING_BEARISH"
 REGIME_VOLA_SQUEEZE_RANGING = "VOLA_SQUEEZE_RANGING"
 REGIME_UNRESOLVED_NEUTRAL = "UNRESOLVED_NEUTRAL"
 
@@ -65,6 +81,8 @@ ALL_REGIMES = (
     REGIME_HIGH_VOLA_REVERSION,
     REGIME_TREND_EXPANSION_BULLISH,
     REGIME_TREND_EXPANSION_BEARISH,
+    REGIME_TREND_FORMING_BULLISH,
+    REGIME_TREND_FORMING_BEARISH,
     REGIME_VOLA_SQUEEZE_RANGING,
     REGIME_UNRESOLVED_NEUTRAL,
 )
@@ -90,9 +108,13 @@ class RegimeThresholds:
     """ADX < this counts as "non-trending" (a precondition for
     VOLA_SQUEEZE_RANGING). Intentionally lower than adx_trend_threshold
     (not simply its complement): the 20-25 band is a deliberate "undecided"
-    gap where neither a trend nor a squeeze regime is asserted -- avoids a
-    single noisy ADX print flipping the regime back and forth across one
-    threshold."""
+    gap where neither a squeeze nor a full trend-expansion regime is
+    asserted -- avoids a single noisy ADX print flipping the regime back and
+    forth across one threshold. Since 21.09.2026 this band is no longer a
+    dead zone, though: a row inside it with the same directional agreement
+    TREND_EXPANSION_* requires (`plus_di`/`minus_di` vs `slope`) now gets the
+    weaker TREND_FORMING_BULLISH/BEARISH label instead of falling all the
+    way to UNRESOLVED_NEUTRAL -- see `classify_market_regime`."""
 
     atr_ratio_reversion_threshold: float = 1.5
     """atr_ratio (current ATR / 20-bar ATR average) above this counts as a
@@ -160,6 +182,14 @@ def classify_market_regime(
     is_trend_bullish = is_trend & (plus_di > minus_di) & (slope > 0) & ~is_high_vola_reversion
     is_trend_bearish = is_trend & (minus_di > plus_di) & (slope < 0) & ~is_high_vola_reversion
 
+    # TREND_FORMING_* (added 21.09.2026, see module docstring point 3): same
+    # directional agreement as TREND_EXPANSION_*, but adx sits in the
+    # [adx_range_threshold, adx_trend_threshold) "undecided" band instead of
+    # at/above the trend threshold.
+    is_forming = complete & (adx >= t.adx_range_threshold) & (adx < t.adx_trend_threshold)
+    is_forming_bullish = is_forming & (plus_di > minus_di) & (slope > 0) & ~is_high_vola_reversion
+    is_forming_bearish = is_forming & (minus_di > plus_di) & (slope < 0) & ~is_high_vola_reversion
+
     is_squeeze = (
         complete
         & (adx < t.adx_range_threshold)
@@ -171,8 +201,12 @@ def classify_market_regime(
     # Assigned in priority order -- later assignments would overwrite earlier
     # ones if a row matched more than one branch, so the *_high_vola_reversion
     # mask is subtracted (via ~is_high_vola_reversion above) from the lower-
-    # priority branches instead of relying on assignment order alone.
+    # priority branches instead of relying on assignment order alone. is_trend
+    # and is_forming are mutually exclusive by construction (disjoint adx
+    # bands), so their relative assignment order doesn't matter either.
     regime[is_squeeze] = REGIME_VOLA_SQUEEZE_RANGING
+    regime[is_forming_bearish] = REGIME_TREND_FORMING_BEARISH
+    regime[is_forming_bullish] = REGIME_TREND_FORMING_BULLISH
     regime[is_trend_bearish] = REGIME_TREND_EXPANSION_BEARISH
     regime[is_trend_bullish] = REGIME_TREND_EXPANSION_BULLISH
     regime[is_high_vola_reversion] = REGIME_HIGH_VOLA_REVERSION

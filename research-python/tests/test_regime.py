@@ -9,6 +9,8 @@ from src.regime import (
     REGIME_HIGH_VOLA_REVERSION,
     REGIME_TREND_EXPANSION_BEARISH,
     REGIME_TREND_EXPANSION_BULLISH,
+    REGIME_TREND_FORMING_BEARISH,
+    REGIME_TREND_FORMING_BULLISH,
     REGIME_UNRESOLVED_NEUTRAL,
     REGIME_VOLA_SQUEEZE_RANGING,
     RegimeThresholds,
@@ -60,6 +62,47 @@ class TestClassifyMarketRegime:
         features = _features([_row(adx=30.0, plus_di=10.0, minus_di=25.0, slope=-5.0)])
         regime = classify_market_regime(features)
         assert regime.iloc[0] == REGIME_TREND_EXPANSION_BEARISH
+
+    def test_trend_forming_bullish(self):
+        # ADX in der 20-25-Luecke (regime.py, 21.09.2026-Fix), aber +DI/-DI
+        # und Steigung stimmen bereits ueberein -- schwaecheres Label statt
+        # UNRESOLVED_NEUTRAL.
+        features = _features([_row(adx=22.0, plus_di=25.0, minus_di=10.0, slope=5.0)])
+        regime = classify_market_regime(features)
+        assert regime.iloc[0] == REGIME_TREND_FORMING_BULLISH
+
+    def test_trend_forming_bearish(self):
+        features = _features([_row(adx=22.0, plus_di=10.0, minus_di=25.0, slope=-5.0)])
+        regime = classify_market_regime(features)
+        assert regime.iloc[0] == REGIME_TREND_FORMING_BEARISH
+
+    def test_trend_forming_di_slope_disagree_is_neutral(self):
+        # Gleiche Logik wie test_adx_trending_but_di_slope_disagree_is_neutral,
+        # nur in der Forming-Zone: ohne Uebereinstimmung bleibt es
+        # UNRESOLVED_NEUTRAL, wird nicht automatisch "forming".
+        features = _features([_row(adx=22.0, plus_di=25.0, minus_di=10.0, slope=-5.0)])
+        regime = classify_market_regime(features)
+        assert regime.iloc[0] == REGIME_UNRESOLVED_NEUTRAL
+
+    def test_adx_exactly_at_range_threshold_with_direction_is_forming_not_squeeze(self):
+        # adx == adx_range_threshold (20.0): per Doku ">=" fuer die Forming-
+        # Untergrenze -- zaehlt schon zur Forming-Zone, nicht mehr zur
+        # Squeeze-Zone (die "<" 20 verlangt).
+        t = RegimeThresholds()
+        features = _features(
+            [_row(adx=t.adx_range_threshold, plus_di=25.0, minus_di=10.0, slope=5.0, bandwidth=0.02)]
+        )
+        regime = classify_market_regime(features)
+        assert regime.iloc[0] == REGIME_TREND_FORMING_BULLISH
+
+    def test_adx_just_below_trend_threshold_with_direction_is_forming_not_expansion(self):
+        # adx knapp unter 25 -- noch Forming, nicht Expansion.
+        t = RegimeThresholds()
+        features = _features(
+            [_row(adx=t.adx_trend_threshold - 0.01, plus_di=25.0, minus_di=10.0, slope=5.0)]
+        )
+        regime = classify_market_regime(features)
+        assert regime.iloc[0] == REGIME_TREND_FORMING_BULLISH
 
     def test_adx_trending_but_di_slope_disagree_is_neutral(self):
         # ADX is high enough to trend, but +DI/-DI direction disagrees with

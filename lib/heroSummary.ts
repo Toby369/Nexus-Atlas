@@ -17,13 +17,15 @@ export interface ConfirmationSignal {
   direction: SignalDirection;
 }
 
-// Regime Matrix -> Richtung. Nur die beiden gerichteten Trendausweitungs-
-// Regimes zaehlen als Richtungsaussage -- dieselbe Konvention wie
-// lib/marketRegime.ts::computeEngineDivergence (Squeeze/Reversion/
-// Unresolved sind nicht gerichtet, also nicht vergleichbar).
+// Regime Matrix -> Richtung. Die vier gerichteten Trend-Regimes (volle
+// Trendausweitung UND die seit 21.09.2026 schwaechere Trendbildung, ADX
+// 20-25 mit uebereinstimmender Richtung) zaehlen als Richtungsaussage --
+// dieselbe Konvention wie lib/marketRegime.ts::computeEngineDivergence
+// (Squeeze/Reversion/Unresolved sind nicht gerichtet, also nicht
+// vergleichbar).
 export function regimeDirection(regime: MarketRegime | null): SignalDirection {
-  if (regime === "TREND_EXPANSION_BULLISH") return "bullish";
-  if (regime === "TREND_EXPANSION_BEARISH") return "bearish";
+  if (regime === "TREND_EXPANSION_BULLISH" || regime === "TREND_FORMING_BULLISH") return "bullish";
+  if (regime === "TREND_EXPANSION_BEARISH" || regime === "TREND_FORMING_BEARISH") return "bearish";
   return "not_comparable";
 }
 
@@ -103,8 +105,8 @@ export function regimeArrowDirection(
   suppressed: boolean
 ): ArrowDirection {
   if (suppressed || regime === null || regime === "UNRESOLVED_NEUTRAL") return "not_available";
-  if (regime === "TREND_EXPANSION_BULLISH") return "up";
-  if (regime === "TREND_EXPANSION_BEARISH") return "down";
+  if (regime === "TREND_EXPANSION_BULLISH" || regime === "TREND_FORMING_BULLISH") return "up";
+  if (regime === "TREND_EXPANSION_BEARISH" || regime === "TREND_FORMING_BEARISH") return "down";
   return "neutral"; // VOLA_SQUEEZE_RANGING, HIGH_VOLA_REVERSION
 }
 
