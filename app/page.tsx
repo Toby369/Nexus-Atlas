@@ -44,7 +44,6 @@ import LivePriceDataProvider from "@/components/LivePriceDataProvider";
 import BtcPriceCard from "@/components/BtcPriceCard";
 import OiChangeCard from "@/components/OiChangeCard";
 import FundingRateCard from "@/components/FundingRateCard";
-import PositioningPanel from "@/components/PositioningPanel";
 import NewsRiskPanel from "@/components/NewsRiskPanel";
 import LiquidationPanel from "@/components/LiquidationPanel";
 import EtfFlowPanel from "@/components/EtfFlowPanel";
@@ -657,10 +656,11 @@ const DASHBOARD_BUNDLE_MAX_POINTS = 500;
 
 // Serverseitig dieselbe RPC wie der Client-Poll (DashboardPollProvider,
 // Phase 2 Punkt 3) -- liefert die initialen Werte fuer MarketContextCard/
-// SpotPressurePanel/PositioningPanel in einem Aufruf statt fuenf
-// Einzelabfragen (vorher: getOiReferenceSnapshot/getSpotPressureSummary/
-// getSpotPressureSeries/getLatestPositioningSnapshot x4/
-// getLatestPositioningSignal).
+// SpotPressurePanel und den "Positionierung"-Faktor in HeroHeader (seit
+// 21.09.2026 keine eigene Kachel mehr, siehe lib/dashboardTiles.ts) in
+// einem Aufruf statt fuenf Einzelabfragen (vorher: getOiReferenceSnapshot/
+// getSpotPressureSummary/getSpotPressureSeries/getLatestPositioningSnapshot
+// x4/getLatestPositioningSignal).
 async function getDashboardPollBundle(
   sinceIso: string
 ): Promise<DashboardPollBundle | null> {
@@ -793,10 +793,10 @@ export default async function Home({
   ]);
 
   // Fallback, falls das Bundle-RPC fehlschlaegt (z.B. kurzzeitiger DB-
-  // Aussetzer) -- MarketContextCard/SpotPressurePanel/PositioningPanel
-  // zeigen dann ihre jeweiligen "keine Daten"-Zustaende, statt dass die
-  // ganze Seite abstuerzt. Der naechste 30s-Poll im DashboardPollProvider
-  // versucht es erneut.
+  // Aussetzer) -- MarketContextCard/SpotPressurePanel und der
+  // "Positionierung"-Faktor in HeroHeader zeigen dann ihre jeweiligen
+  // "keine Daten"-Zustaende, statt dass die ganze Seite abstuerzt. Der
+  // naechste 30s-Poll im DashboardPollProvider versucht es erneut.
   const initialDashboardBundle: DashboardPollBundle = dashboardBundle ?? {
     oi_series: [],
     oi_reference: null,
@@ -939,7 +939,6 @@ export default async function Home({
                     "funding-rate": <FundingRateCard />,
                     "orderbook-walls": <OrderbookWallCard walls={latestOrderbookWalls} />,
                     "divergence-radar": <DivergenceRadarCard radar={divergenceRadar} />,
-                    positioning: <PositioningPanel />,
                     liquidations: (
                       <LiquidationPanel
                         initialEvents={recentLiquidations}

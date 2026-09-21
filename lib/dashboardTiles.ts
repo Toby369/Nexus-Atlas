@@ -63,7 +63,6 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   // da der Fliesstext aus vielen fusionierten Quellen in einer 1/3-Spalte
   // zu eng waere.
   { id: "system-briefing", title: "System-Briefing: Regelwerk & Nexus-Faktoren (KI)", fullWidth: true },
-  { id: "positioning", title: "Positionierung" },
   { id: "liquidations", title: "Liquidationen" },
   { id: "etf-flow", title: "ETF-Flows & Makro" },
   { id: "news-risk", title: "News & Risiko" },
@@ -71,6 +70,13 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   // Modul im "Wissen"-Tab der "lernen"-Kachel (neben Welz/Salomon/Mein
   // System) -- reines statisches Nachschlagewerk ohne Live-Daten, passt
   // inhaltlich besser zur Lernen-Kachel als zu den KI-Einschaetzungen.
+  //
+  // "Positionierung" (vormals eigene Kachel, PositioningPanel.tsx) ist seit
+  // 21.09.2026 entfernt (Nutzer-Wunsch) -- der zugrundeliegende
+  // "Positionierung"-Faktor bleibt unveraendert Teil der 14-Faktoren-Engine
+  // und wird weiterhin in HeroHeader angezeigt, nur die eigenstaendige
+  // Detail-Kachel (Retail-/Top-Trader-Ratios je Boerse, Taker-Flow,
+  // regelbasierte Einschaetzung) faellt weg.
 ];
 
 export const DASHBOARD_TILE_IDS = DASHBOARD_TILES.map((t) => t.id);

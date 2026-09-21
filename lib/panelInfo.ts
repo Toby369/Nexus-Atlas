@@ -50,17 +50,10 @@ export function spotPressureInfo(tfLabel: string): string {
 So entsteht der Wert: Datenbasis ist ausschliesslich Binance Spot BTC/USDT im 5-Minuten-Takt über ${tfLabel} – die einzige öffentliche Route mit echtem Taker-Buy/Sell-Split, keine Schätzung. Berechnet wird (Taker-Kaufvolumen − Taker-Verkaufsvolumen) / Gesamtvolumen über alle Kerzen im Fenster; ab ±5 % gilt BUYING bzw. SELLING PRESSURE, sonst NEUTRAL.`;
 }
 
-export const positioningRatiosInfo = `So liest du das: Die „Retail“-Balken zeigen den Anteil der Accounts, nicht deren eingesetztes Kapital – „70 % long“ heisst also 70 % der Accounts, nicht 70 % des Kapitals. „Top Trader (Positionen)“ ist dagegen nach Positionsgrösse gewichtet und damit aussagekräftiger für grosse Marktteilnehmer. Vier unabhängige Börsen reduzieren das Risiko, dass eine einzelne Börse die Positionierungs-Einschätzung verzerrt.
-
-So entsteht der Wert: „Retail“ zeigt standardmässig den ungewichteten Durchschnitt long vs. short positionierter Accounts über alle Börsen mit verfügbaren Daten (nicht nach Handelsvolumen gewichtet) – antippen zeigt die einzelnen Börsen darunter auf. Bei Binance zusätzlich die Top-Trader-Positionierung getrennt nach Accounts und tatsächlicher Positionsgrösse. Quelle sind die offiziellen Positioning-Endpunkte der jeweiligen Börse: Binance liefert Retail- und Top-Trader-Ratio direkt, Bybit/OKX/Bitget nur eine globale Account-Ratio (bei OKX aus einem Long/Short-Verhältnis zurückgerechnet). Bybit, OKX und Bitget liefern öffentlich keine Top-Trader-Aufschlüsselung, dort ist nur die Retail-Account-Ratio verfügbar.`;
-
-export const takerFlowInfo = `So liest du das: Ein Wert über 1 bedeutet mehr aggressive Käufe als Verkäufe, ein Wert unter 1 das Gegenteil. Das bezieht sich ausschliesslich auf den Futures-Markt, nicht auf den Spot-Markt (dafür siehe „Spot Pressure“), und ist allein kein eigenständiges Handelssignal, sondern fliesst zusammen mit der Retail-/Top-Trader-Positionierung in die Einschätzung unten ein.
-
-So entsteht der Wert: Zeigt das Verhältnis von aggressivem Kauf- zu Verkaufsvolumen (Taker Buy/Sell Ratio) im BTC-Futures-Markt auf Binance, im 5-Minuten-Fenster. Der Wert kommt direkt vom Binance-Futures-Endpoint und wird nicht selbst nachberechnet.`;
-
-export const positioningAssessmentInfo = `So liest du das: Der „Score“ (−100 bis +100) beschreibt die Positionierungs-Tendenz, nicht eine Kursprognose; „Confidence“ steigt, wenn mehrere Kennzahlen (z. B. Taker-Flow und Retail-Richtung) übereinstimmen, und sinkt bei Divergenz zwischen Retail und Top Trader. Das Ergebnis ist eine datenbasierte Einordnung möglicher Crowding-/Squeeze-Risiken (z. B. Long-Crowding- oder Short-Squeeze-Risiko), keine Kauf-/Verkaufsempfehlung und keine Vorhersage. Fehlt eine der nötigen Binance-Kennzahlen, wird kein Signal erzeugt, statt eine unvollständige Einschätzung anzuzeigen.
-
-So entsteht der Wert: Kombiniert Retail- vs. Top-Trader-Positionierung, Taker-Flow, OI-Trend und Preistrend zu einer regelbasierten Positionierungs-Einordnung. Basis ist ausschliesslich Binance als vollständigster öffentlicher Datensatz, betrachtet über ein rollierendes Fenster von rund 2 Stunden.`;
+// positioningRatiosInfo/takerFlowInfo/positioningAssessmentInfo (PanelInfo-
+// Texte der ehemaligen "Positionierung"-Kachel) entfernt 21.09.2026 mit
+// components/PositioningPanel.tsx -- der zugrundeliegende Faktor bleibt Teil
+// der 14-Faktoren-Engine und wird weiterhin in HeroHeader gezeigt.
 
 export const liquidationsInfo = `So liest du das: Ein Hinweis auf eine mögliche Cascade erscheint, wenn mindestens 3 Liquidationen innerhalb von 2 Minuten auftreten. Wegen der Stichprobenerfassung ist die Zahl eine Annäherung, kein vollständiges Bild aller tatsächlichen Liquidationen, und kein eigenständiges Handelssignal. Zusätzlich, unabhängig vom 6-Stunden-Fenster oben: ist ein Event-Anker gesetzt, erscheint hier die kumulierte Long-/Short-Liquidationssumme seit diesem frei wählbaren Zeitpunkt (Phase 1 „Anchored Analytics“).
 
