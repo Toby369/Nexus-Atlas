@@ -29,6 +29,14 @@ export interface DashboardTileMeta {
   // eigenes Modul neben Welz/Salomon/Mein System, siehe
   // components/LernenDashboard.tsx), keine eigene Kachel mehr.
   fullWidth?: boolean;
+  // Dashboard-Aufraeumung (22.09.2026, Nutzer-Feedback "zu viele Kacheln
+  // unterschiedlicher Groessen"/Mockup-Vorschlag): "compact" markiert reine
+  // Kennzahl-Kacheln (ein-zwei Zeilen, keine Listen/Charts), die
+  // DashboardLayout.tsx in einer eigenen, einheitlich behandelten Reihe VOR
+  // den Inhalts-Kacheln zeigt -- ohne Breiten-Regler, ohne freies Hoehen-
+  // Resize (siehe dortiger Kommentar). Default "content" (unveraendertes
+  // Verhalten), keine Kachel wird entfernt oder inhaltlich veraendert.
+  size?: "compact" | "content";
 }
 
 export const DASHBOARD_TILES: DashboardTileMeta[] = [
@@ -42,11 +50,12 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   // Vormals eine einzige fullWidth-Kachel "live-price" -- seit 05.09.2026
   // in 5 eigenstaendige, individuell verschieb-/groessenbare Kacheln
   // aufgeteilt (siehe fullWidth-Kommentar oben + LivePriceDataProvider.tsx
-  // fuer den weiterhin gemeinsamen State/Polling).
-  { id: "btc-price", title: "BTC Preis" },
-  { id: "oi-change", title: "OI Change" },
-  { id: "funding-rate", title: "Funding Rate" },
-  { id: "orderbook-walls", title: "Orderbuch-Wände" },
+  // fuer den weiterhin gemeinsamen State/Polling). Die vier reinen
+  // Kennzahl-Kacheln davon sind seit 22.09.2026 "compact" (siehe Feld oben).
+  { id: "btc-price", title: "BTC Preis", size: "compact" },
+  { id: "oi-change", title: "OI Change", size: "compact" },
+  { id: "funding-rate", title: "Funding Rate", size: "compact" },
+  { id: "orderbook-walls", title: "Orderbuch-Wände", size: "compact" },
   { id: "divergence-radar", title: "Divergenz-Radar" },
   // "News-Einordnung (KI)" (vormals eigene Kachel) ist seit 20.09.2026 ein
   // aufklappbarer Abschnitt in "news-risk" (NewsRiskPanel.tsx) -- deckte

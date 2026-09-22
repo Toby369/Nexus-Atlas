@@ -91,6 +91,23 @@ const titleById = Object.fromEntries(DASHBOARD_TILES.map((t) => [t.id, t.title])
 const defaultWidthById = Object.fromEntries(
   DASHBOARD_TILES.map((t) => [t.id, t.fullWidth ? MAX_WIDTH : MIN_WIDTH]),
 );
+const sizeById = Object.fromEntries(DASHBOARD_TILES.map((t) => [t.id, t.size ?? "content"]));
+
+// Dashboard-Aufraeumung (22.09.2026, Nutzer-Feedback "zu viele Kacheln
+// unterschiedlicher Groessen" + gebilligtes Mockup): statt EINES 3-spaltigen
+// CSS-Grids fuer alle Kacheln (das bei stark unterschiedlichen Hoehen grosse
+// Luecken unter kuerzeren Nachbarn liess) jetzt drei getrennte Bereiche:
+// "compact" (reine Kennzahl-Kacheln, siehe lib/dashboardTiles.ts) zuerst in
+// einer flexiblen Reihe, "wide" (Inhalts-Kacheln mit Breite > 1) darunter
+// je in eigener voller Zeile, "narrow" (Inhalts-Kacheln mit Breite 1, der
+// Normalfall) in einem echten Masonry (CSS `columns`) -- dort fliessen
+// Kacheln nach Hoehe gepackt in die naechste Spalte statt in einer starren
+// Grid-Zeile stehenzubleiben. Der Breiten-Regler (1-3) bleibt intern
+// unveraendert (Persistenz-Format kompatibel), bestimmt fuer Inhalts-
+// Kacheln nur noch ob "wide" (>1) oder "narrow" (=1) gerendert wird --
+// eine dritte, echte Zwischenbreite ergibt in einem Spalten-Masonry keinen
+// sinnvollen zusaetzlichen Zustand.
+type Category = "compact" | "wide" | "narrow";
 
 export default function DashboardLayout({
   tiles,
@@ -151,14 +168,33 @@ export default function DashboardLayout({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
+  function categoryOf(id: string): Category {
+    if (sizeById[id] === "compact") return "compact";
+    const width = widths[id] ?? defaultWidthById[id] ?? MIN_WIDTH;
+    return width > MIN_WIDTH ? "wide" : "narrow";
+  }
+
+  function categoryTileIds(category: Category): string[] {
+    return tileIds.filter((id) => categoryOf(id) === category);
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    setOrder((prev) => reorderWithinSubset(prev, tileIds, String(active.id), String(over.id)));
+    const activeId = String(active.id);
+    const overId = String(over.id);
+    // Verschieben nur innerhalb derselben Kategorie (compact/wide/narrow) --
+    // die drei Bereiche liegen in getrennten Containern, ein Ziel aus einem
+    // anderen Bereich ist nie ein gueltiges Drop-Ziel.
+    const category = categoryOf(activeId);
+    if (categoryOf(overId) !== category) return;
+    const ids = categoryTileIds(category);
+    setOrder((prev) => reorderWithinSubset(prev, ids, activeId, overId));
   }
 
   function moveTile(id: string, direction: -1 | 1) {
-    setOrder((prev) => swapWithinSubset(prev, tileIds, id, direction));
+    const ids = categoryTileIds(categoryOf(id));
+    setOrder((prev) => swapWithinSubset(prev, ids, id, direction));
   }
 
   function toggleMinimized(id: string) {
@@ -187,38 +223,76 @@ export default function DashboardLayout({
   // die volle Reihenfolge (order) bleibt intern trotzdem das globale Array
   // ueber ALLE Kacheln (siehe lib/dashboardTabReorder.ts).
   const visible = visibleOrder(order, tileIds);
+  const compactIds = visible.filter((id) => categoryOf(id) === "compact");
+  const wideIds = visible.filter((id) => categoryOf(id) === "wide");
+  const narrowIds = visible.filter((id) => categoryOf(id) === "narrow");
+
+  function tileProps(id: string, idx: number, ids: string[], compact: boolean) {
+    return {
+      id,
+      title: titleById[id] ?? id,
+      compact,
+      width: widths[id] ?? defaultWidthById[id] ?? MIN_WIDTH,
+      height: heights[id],
+      isMinimized: minimized.has(id),
+      onToggleMinimize: () => toggleMinimized(id),
+      onMoveUp: () => moveTile(id, -1),
+      onMoveDown: () => moveTile(id, 1),
+      canMoveUp: idx > 0,
+      canMoveDown: idx < ids.length - 1,
+      onNarrower: () => changeWidth(id, -1),
+      onWider: () => changeWidth(id, 1),
+      onHeightChange: handleHeightChange,
+    };
+  }
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      {/* rectSortingStrategy statt verticalListSortingStrategy: die Kacheln
-          stehen ab lg: in einem 3-spaltigen CSS-Grid nebeneinander statt nur
-          gestapelt -- die vertikale Strategie geht von genau einer Spalte
-          aus und wuerde beim Ziehen ueber Spalten hinweg falsch positionieren
-          (siehe dnd-kit-Doku: rectSortingStrategy fuer Grid-Layouts). */}
-      <SortableContext items={visible} strategy={rectSortingStrategy}>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-          {visible.map((id, idx) => (
-            <SortableTile
-              key={id}
-              id={id}
-              title={titleById[id] ?? id}
-              width={widths[id] ?? defaultWidthById[id] ?? MIN_WIDTH}
-              height={heights[id]}
-              isMinimized={minimized.has(id)}
-              onToggleMinimize={() => toggleMinimized(id)}
-              onMoveUp={() => moveTile(id, -1)}
-              onMoveDown={() => moveTile(id, 1)}
-              canMoveUp={idx > 0}
-              canMoveDown={idx < visible.length - 1}
-              onNarrower={() => changeWidth(id, -1)}
-              onWider={() => changeWidth(id, 1)}
-              onHeightChange={handleHeightChange}
-            >
-              {tiles[id]}
-            </SortableTile>
-          ))}
-        </div>
-      </SortableContext>
+      <div className="flex flex-col gap-4">
+        {/* Kompakt-Reihe: reine Kennzahl-Kacheln, natuerliche Hoehe,
+            nebeneinander umbrechend statt im selben Grid wie die grossen
+            Inhalts-Kacheln. */}
+        {compactIds.length > 0 && (
+          <SortableContext items={compactIds} strategy={rectSortingStrategy}>
+            <div className="flex flex-wrap items-start gap-4">
+              {compactIds.map((id, idx) => (
+                <div key={id} style={{ flex: "1 1 220px" }}>
+                  <SortableTile {...tileProps(id, idx, compactIds, true)}>{tiles[id]}</SortableTile>
+                </div>
+              ))}
+            </div>
+          </SortableContext>
+        )}
+
+        {/* Breite Inhalts-Kacheln (Breite > 1): je eigene volle Zeile. */}
+        {wideIds.length > 0 && (
+          <SortableContext items={wideIds} strategy={rectSortingStrategy}>
+            <div className="flex flex-col gap-4">
+              {wideIds.map((id, idx) => (
+                <SortableTile key={id} {...tileProps(id, idx, wideIds, false)}>
+                  {tiles[id]}
+                </SortableTile>
+              ))}
+            </div>
+          </SortableContext>
+        )}
+
+        {/* Schmale Inhalts-Kacheln (Breite 1, der Normalfall): echtes
+            Masonry via CSS `columns` -- Kacheln fliessen nach Hoehe gepackt
+            in die naechste Spalte statt in einer starren Grid-Zeile
+            steckenzubleiben (siehe Kommentar bei Category oben). */}
+        {narrowIds.length > 0 && (
+          <SortableContext items={narrowIds} strategy={rectSortingStrategy}>
+            <div className="columns-1 lg:columns-3 gap-4">
+              {narrowIds.map((id, idx) => (
+                <div key={id} className="break-inside-avoid mb-4">
+                  <SortableTile {...tileProps(id, idx, narrowIds, false)}>{tiles[id]}</SortableTile>
+                </div>
+              ))}
+            </div>
+          </SortableContext>
+        )}
+      </div>
     </DndContext>
   );
 }
@@ -226,6 +300,7 @@ export default function DashboardLayout({
 function SortableTile({
   id,
   title,
+  compact,
   width,
   height,
   isMinimized,
@@ -241,6 +316,9 @@ function SortableTile({
 }: {
   id: string;
   title: string;
+  // Kompakt-Kacheln (siehe DashboardLayout oben): kein Breiten-Regler, kein
+  // freies Hoehen-Resize -- einheitliche, natuerliche Groesse.
+  compact: boolean;
   width: number;
   height: number | undefined;
   isMinimized: boolean;
@@ -255,11 +333,6 @@ function SortableTile({
   children: ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-  // col-span-Klassen als volle, statische Literale (nicht per Template-
-  // String zusammengesetzt) -- Tailwinds Compiler erkennt Klassennamen nur,
-  // wenn sie so im Quelltext stehen, siehe Vorgabe "kein new dependency" +
-  // hier: keine per-Wert generierten, vom Scanner uebersehenen Klassen.
-  const widthClass = width >= 3 ? "lg:col-span-3" : width === 2 ? "lg:col-span-2" : "lg:col-span-1";
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -267,7 +340,7 @@ function SortableTile({
   };
 
   return (
-    <div ref={setNodeRef} style={style} className={widthClass}>
+    <div ref={setNodeRef} style={style}>
       <div className="flex items-center gap-1 max-sm:gap-0.5 mb-1.5">
         <button
           type="button"
@@ -304,29 +377,30 @@ function SortableTile({
         <span className="flex-1 truncate text-[10px] uppercase tracking-[0.12em] text-text-faint">
           {title}
         </span>
-        {/* Breite nur ab lg: sichtbar/relevant -- darunter ist das Grid
-            ohnehin einspaltig (grid-cols-1), Breitenaenderung haette keinen
-            sichtbaren Effekt. */}
-        <div className="hidden lg:flex items-center gap-0.5">
-          <button
-            type="button"
-            onClick={onNarrower}
-            disabled={width <= MIN_WIDTH}
-            aria-label={`${title} schmaler machen`}
-            className="flex items-center justify-center px-1 text-[10px] text-text-faint hover:text-text-muted disabled:opacity-20"
-          >
-            ◀
-          </button>
-          <button
-            type="button"
-            onClick={onWider}
-            disabled={width >= MAX_WIDTH}
-            aria-label={`${title} breiter machen`}
-            className="flex items-center justify-center px-1 text-[10px] text-text-faint hover:text-text-muted disabled:opacity-20"
-          >
-            ▶
-          </button>
-        </div>
+        {/* Breite nur ab lg: sichtbar/relevant, und nur fuer Inhalts-Kacheln
+            -- Kompakt-Kacheln haben keinen Breiten-Regler (siehe compact-Prop). */}
+        {!compact && (
+          <div className="hidden lg:flex items-center gap-0.5">
+            <button
+              type="button"
+              onClick={onNarrower}
+              disabled={width <= MIN_WIDTH}
+              aria-label={`${title} schmaler machen`}
+              className="flex items-center justify-center px-1 text-[10px] text-text-faint hover:text-text-muted disabled:opacity-20"
+            >
+              ◀
+            </button>
+            <button
+              type="button"
+              onClick={onWider}
+              disabled={width >= MAX_WIDTH}
+              aria-label={`${title} breiter machen`}
+              className="flex items-center justify-center px-1 text-[10px] text-text-faint hover:text-text-muted disabled:opacity-20"
+            >
+              ▶
+            </button>
+          </div>
+        )}
         <button
           type="button"
           onClick={onToggleMinimize}
@@ -336,11 +410,14 @@ function SortableTile({
           {isMinimized ? "+" : "−"}
         </button>
       </div>
-      {!isMinimized && (
-        <ResizableTileBody id={id} height={height} onResize={onHeightChange}>
-          {children}
-        </ResizableTileBody>
-      )}
+      {!isMinimized &&
+        (compact ? (
+          <div className="overflow-auto">{children}</div>
+        ) : (
+          <ResizableTileBody id={id} height={height} onResize={onHeightChange}>
+            {children}
+          </ResizableTileBody>
+        ))}
     </div>
   );
 }
