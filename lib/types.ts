@@ -399,6 +399,17 @@ export interface MarketStateMatrix {
   created_at: string;
 }
 
+// MTF-Ampel (22.09.2026, siehe lib/mtfSignal.ts) -- minimaler market_features-
+// Ausschnitt, nur die Spalten, die die Ampel braucht. Kein vollstaendiges
+// Interface fuer die ganze Tabelle: die Pipeline-Seite (collect-candles)
+// braucht die uebrigen Spalten im Frontend nicht.
+export interface MarketFeaturesMtfRow {
+  interval: string;
+  candle_open_time: string;
+  structure_trend: "bullish" | "bearish" | "ranging" | null;
+  adx_14: number | null;
+}
+
 // Kurzfristiger Seitwaerts-Check (20.09.2026, siehe get_short_term_range_check()
 // RPC) -- die 1h-Regime-Engine oben kann nach einem abgeschlossenen
 // Trendimpuls mehrere Stunden "nachlaufen" (ADX/Regressionssteigung bleiben

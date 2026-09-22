@@ -40,6 +40,7 @@ import {
   TRADINGVIEW_SIGNAL_INFO,
 } from "@/lib/tradingViewSignal";
 import { RelativeTime } from "@/components/ClientTimestamp";
+import { MTF_TIMEFRAMES, buildMtfDots, MTF_DOT_COLOR_CLASSES, type MtfTimeframeDot } from "@/lib/mtfSignal";
 
 // Regime-Daten aendern sich hoechstens stuendlich (1H-Kerzen-Raster, siehe
 // compute_market_state_matrix_series) -- kein 30s-Live-Takt noetig wie bei
@@ -90,6 +91,29 @@ async function fetchLatestMatrix(): Promise<{ data: MarketStateMatrix | null; ok
   return { data, ok: true };
 }
 
+// MTF-Ampel (22.09.2026, siehe lib/mtfSignal.ts): eine Query je Zeitrahmen,
+// analoges Fetch-Muster wie getLatestMtfDots() in app/page.tsx.
+async function fetchMtfDots(): Promise<MtfTimeframeDot[]> {
+  const rows = await Promise.all(
+    MTF_TIMEFRAMES.map(async ({ interval }) => {
+      const { data, error } = await supabase
+        .from("market_features")
+        .select("interval, candle_open_time, structure_trend, adx_14")
+        .eq("symbol", "BTCUSDT")
+        .eq("interval", interval)
+        .order("candle_open_time", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) {
+        console.error(`Fehler beim Laden der MTF-Ampel (${interval}):`, error.message);
+        return [interval, null] as const;
+      }
+      return [interval, data] as const;
+    })
+  );
+  return buildMtfDots(Object.fromEntries(rows));
+}
+
 // 20.09.2026: kurzfristiger Seitwaerts-Check (siehe lib/types.ts::
 // ShortTermRangeCheck) -- eigener RPC-Read, unabhaengig von der 1h-Matrix
 // oben, daher eigene Fetch-Funktion statt Wiederverwendung.
@@ -125,8 +149,28 @@ async function fetchLatestTradingViewSignal(): Promise<TradingViewSignal | null>
   return data;
 }
 
+// MTF-Ampel (22.09.2026): kompakte Badge-Zeile neben dem Kachel-Titel --
+// Mischung aus zwei mit Toby abgestimmten Mockup-Varianten ("A": Zeitrahmen-
+// Labels direkt sichtbar statt nur Hover-Tooltip, "C": kein neuer Kachel-
+// Platz, Badge sitzt im bestehenden Header). Jeder Punkt traegt zusaetzlich
+// ein natives title-Attribut mit der vollen Begruendung (ADX-Wert etc.),
+// gleiches Muster wie der Anker-Badge oben im Header.
+function MtfDotsRow({ dots }: { dots: MtfTimeframeDot[] }) {
+  return (
+    <div className="flex items-center gap-[7px]">
+      {dots.map((dot) => (
+        <div key={dot.timeframe} className="flex flex-col items-center gap-0.5" title={dot.detail}>
+          <span className={`w-2 h-2 rounded-full ${MTF_DOT_COLOR_CLASSES[dot.status]}`} />
+          <span className="tabular text-[8px] leading-none text-text-faint">{dot.timeframe}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function RegimeMatrixCard({
   initialMatrix,
+  initialMtfDots,
   initialShortTermRangeCheck,
   marketState,
   initialTradingViewSignal,
@@ -135,6 +179,10 @@ export default function RegimeMatrixCard({
   initialAnchoredSummary,
 }: {
   initialMatrix: MarketStateMatrix | null;
+  // MTF-Ampel (22.09.2026, siehe lib/mtfSignal.ts) -- unabhaengig von
+  // initialMatrix (das ist ausschliesslich die 1H-Regime-Engine), deckt
+  // 15M/1H/4H/1D ab (1W immer "keine Daten", siehe buildMtfDots()).
+  initialMtfDots: MtfTimeframeDot[];
   // Kurzfristiger Seitwaerts-Check (20.09.2026, siehe fetchShortTermRangeCheck
   // oben) -- unabhaengig von initialMatrix, kann null sein (z.B. zu wenig
   // 15m-Historie fuer die letzten 16 Bars).
@@ -157,6 +205,7 @@ export default function RegimeMatrixCard({
   initialAnchoredSummary: AnchoredSummary | null;
 }) {
   const [matrix, setMatrix] = useState(initialMatrix);
+  const [mtfDots, setMtfDots] = useState(initialMtfDots);
   const [lastSyncOk, setLastSyncOk] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [tradingViewSignal, setTradingViewSignal] = useState(initialTradingViewSignal);
@@ -165,15 +214,17 @@ export default function RegimeMatrixCard({
 
   useEffect(() => {
     const load = async () => {
-      const [{ data, ok }, signal, rangeCheck] = await Promise.all([
+      const [{ data, ok }, signal, rangeCheck, dots] = await Promise.all([
         fetchLatestMatrix(),
         fetchLatestTradingViewSignal(),
         fetchShortTermRangeCheck(),
+        fetchMtfDots(),
       ]);
       setLastSyncOk(ok);
       if (ok && data) setMatrix(data);
       setTradingViewSignal(signal);
       setShortTermRangeCheck(rangeCheck);
+      setMtfDots(dots);
     };
     const interval = setInterval(load, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
@@ -213,7 +264,10 @@ export default function RegimeMatrixCard({
           <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
             Marktphase
           </h2>
-          <PanelInfo title="Marktphase" content={marketStateMatrixInfo} />
+          <div className="flex items-center gap-2">
+            <MtfDotsRow dots={mtfDots} />
+            <PanelInfo title="Marktphase" content={marketStateMatrixInfo} />
+          </div>
         </div>
         <p className="text-sm text-text-faint mt-3">Noch keine Regime-Daten vorhanden.</p>
       </section>
@@ -304,7 +358,10 @@ export default function RegimeMatrixCard({
             </span>
           )}
         </div>
-        <PanelInfo title="Marktphase" content={marketStateMatrixInfo} />
+        <div className="flex items-center gap-2">
+          <MtfDotsRow dots={mtfDots} />
+          <PanelInfo title="Marktphase" content={marketStateMatrixInfo} />
+        </div>
       </div>
 
       {!lastSyncOk && (

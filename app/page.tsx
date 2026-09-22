@@ -40,6 +40,7 @@ import { detectEscalationTriggers } from "@/lib/escalationContext";
 import { parseAnchorParam, parseAnchorEndParam } from "@/lib/anchor";
 import { TRADINGVIEW_SIGNAL_FRESHNESS_HOURS } from "@/lib/tradingViewSignal";
 import { DEFAULT_SERIES_EXCHANGE } from "@/lib/exchanges";
+import { MTF_TIMEFRAMES, buildMtfDots, type MtfTimeframeDot } from "@/lib/mtfSignal";
 import LivePriceDataProvider from "@/components/LivePriceDataProvider";
 import BtcPriceCard from "@/components/BtcPriceCard";
 import OiChangeCard from "@/components/OiChangeCard";
@@ -158,6 +159,31 @@ async function getLatestMarketStateMatrix(): Promise<MarketStateMatrix | null> {
     return null;
   }
   return data;
+}
+
+// MTF-Ampel (22.09.2026, siehe lib/mtfSignal.ts fuer die Klassifikations-
+// logik) -- eine Query je Zeitrahmen (wie mtf_alignment in compute-market-
+// state), damit die selteneren 4H/1D-Zeilen nicht von den viel haeufigeren
+// 15M-Zeilen bei einem gemeinsamen Limit verdraengt werden.
+async function getLatestMtfDots(): Promise<MtfTimeframeDot[]> {
+  const rows = await Promise.all(
+    MTF_TIMEFRAMES.map(async ({ interval }) => {
+      const { data, error } = await supabase
+        .from("market_features")
+        .select("interval, candle_open_time, structure_trend, adx_14")
+        .eq("symbol", "BTCUSDT")
+        .eq("interval", interval)
+        .order("candle_open_time", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) {
+        console.error(`Fehler beim Laden der MTF-Ampel (${interval}):`, error.message);
+        return [interval, null] as const;
+      }
+      return [interval, data] as const;
+    })
+  );
+  return buildMtfDots(Object.fromEntries(rows));
 }
 
 // 20.09.2026: kurzfristiger Seitwaerts-Check (siehe lib/types.ts::
@@ -720,6 +746,7 @@ export default async function Home({
     snapshots,
     marketState,
     marketStateMatrix,
+    mtfDots,
     shortTermRangeCheck,
     highImpactNews,
     recentLiquidations,
@@ -757,6 +784,7 @@ export default async function Home({
     getSnapshotHistory(),
     getLatestMarketState(),
     getLatestMarketStateMatrix(),
+    getLatestMtfDots(),
     getShortTermRangeCheck(),
     getHighImpactNews(),
     getRecentLiquidations(),
@@ -919,6 +947,7 @@ export default async function Home({
                     "regime-matrix": (
                       <RegimeMatrixCard
                         initialMatrix={marketStateMatrix}
+                        initialMtfDots={mtfDots}
                         initialShortTermRangeCheck={shortTermRangeCheck}
                         marketState={marketState}
                         initialTradingViewSignal={latestTradingViewSignal}
