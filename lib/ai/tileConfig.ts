@@ -48,20 +48,22 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     promptProfile: "market-structure",
     fallbackProviders: ["google"],
   },
-  // Fallback-Kette 16.09.2026 um Groq ergaenzt (Live-Vorfall: Perplexity ist
-  // nicht konfiguriert -- kein PERPLEXITY_API_KEY gesetzt, faellt also als
-  // Primaerprovider immer sofort durch -- und als Google zusaetzlich mit
-  // HTTP 503 ausfiel, hatte die Kachel dadurch de facto GAR KEINEN
-  // funktionierenden Fallback, nur einen toten). buildNewsAnalysisContext()
-  // liefert ausschliesslich bereits von Nexus gesammelte Schlagzeilen aus
-  // news_events (keine Live-Web-Suche) -- ein reiner Text-Provider wie Groq
-  // kann dieselbe Einordnungsaufgabe genauso leisten wie Perplexity, verliert
-  // hier also keine echte Faehigkeit.
+  // Primaerprovider 22.09.2026 von "auto" (-> perplexity, "research"-
+  // Kategorie) auf explizit Google umgestellt: Perplexity ist nie
+  // konfiguriert -- kein PERPLEXITY_API_KEY gesetzt, faellt also als
+  // Primaerprovider immer sofort durch (kein Netzwerk-Call, keine Kosten,
+  // aber irrefuehrende Konfiguration -- sah kostenpflichtig aus, obwohl nie
+  // aufgerufen). buildNewsAnalysisContext() liefert ausschliesslich bereits
+  // von Nexus gesammelte Schlagzeilen aus news_events (keine Live-Web-
+  // Suche), Google leistet dieselbe Einordnungsaufgabe direkt, keine echte
+  // Faehigkeit geht verloren. Fallback-Kette 16.09.2026 um Groq ergaenzt
+  // (Live-Vorfall: Google fiel zusaetzlich mit HTTP 503 aus, die Kachel
+  // hatte dadurch de facto GAR KEINEN funktionierenden Fallback).
   news: {
     tileId: "news",
-    aiProvider: "auto", // -> perplexity (research)
+    aiProvider: "google",
     promptProfile: "news-analysis",
-    fallbackProviders: ["google", "groq"],
+    fallbackProviders: ["groq"],
   },
   macro: {
     tileId: "macro",

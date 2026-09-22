@@ -6,9 +6,10 @@ import { FullDateTime, StaleBadge } from "@/components/ClientTimestamp";
 import PanelInfo from "@/components/PanelInfo";
 
 // Signal-Engine-Kachel, Thema KI, Punkt 2/2 (05.09.2026) -- zweite Kachel
-// mit Anthropic als primaerem Provider (siehe lib/ai/tileConfig.ts
-// "signal-engine" -> "auto" -> "signal-logic"-Kategorie -> Anthropic,
-// Fallback DeepSeek). Kein eigener Bias: prueft die bestehende regelbasierte
+// mit Google als primaerem Provider (siehe lib/ai/tileConfig.ts
+// "signal-engine" -> "auto" -> "signal-logic"-Kategorie -> Google,
+// Fallback OpenRouter/DeepSeek -- Anthropic ist seit 15.09.2026 aus JEDER
+// Kette entfernt, siehe dortiger Kommentar). Kein eigener Bias: prueft die bestehende regelbasierte
 // Gesamteinschaetzung (14-Faktoren-Engine, market_states) auf innere
 // Konsistenz -- ein zweites Paar Augen auf deren eigene Ausgabe, kein
 // Ersatz dafuer. Zeigt ausschliesslich den zwischengespeicherten letzten
@@ -17,7 +18,7 @@ import PanelInfo from "@/components/PanelInfo";
 
 const INFO_TEXT = [
   "Was das ist: eine KI-Konsistenzpruefung der bestehenden regelbasierten Gesamteinschaetzung (14-Faktoren-Engine, siehe MarketStateCard) -- kein eigener Bias und keine zweite Marktmeinung, sondern ein zweites Paar Augen auf deren eigene Ausgabe (passt overall_state zur Mehrheit der Faktoren, widerspricht ein gemeldetes Muster der Richtung, ist eine hohe confidence bei niedrigem Konsens erklaerbar).",
-  "Primaerer Provider ist Google (Gemini) -- faellt er aus, springt zuerst OpenRouter ein, dann DeepSeek, zuletzt Anthropic.",
+  "Primaerer Provider ist Google (Gemini) -- faellt er aus, springt zuerst OpenRouter ein, dann DeepSeek. Alle drei kostenlos, kein bezahlter Fallback.",
   "Wird NICHT automatisch aktualisiert -- jeder neue Stand kostet einen bezahlten AI-Aufruf und entsteht nur per Klick auf \"Neu generieren\". Ohne vorhandene Gesamteinschaetzung gibt es nichts zu pruefen (kein AI-Aufruf, kein Snapshot).",
   "Kein Handelssignal -- ein 'isConsistent: false' heisst nur, dass die Engine-Ausgabe sich selbst widerspricht, nicht, dass der Markt in eine bestimmte Richtung geht.",
 ].join("\n\n");

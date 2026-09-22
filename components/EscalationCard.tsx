@@ -15,9 +15,9 @@ import PanelInfo from "@/components/PanelInfo";
 
 const INFO_TEXT = [
   "Was das ist: statt einer dauerhaften Kachel mit 2-4 parallelen KI-Meinungen (verworfen -- Modell-Uneinigkeit auf denselben Rohdaten spiegelt meist Modellrauschen statt echter Markt-Ambiguitaet) holt Nexus mehrere unabhaengige Meinungen NUR ein, wenn eines der bestehenden Pruefmechanismen bereits eine Divergenz/einen Widerspruch meldet: Signal-Engine (Konsistenz der Gesamteinschaetzung), Divergenz-Radar (unabhaengige Datenquellen) oder Report-Master (widerspruechliche Einzelreports).",
-  "Die drei Provider (Anthropic, Google, Mistral) bekommen dieselbe rohe Gesamteinschaetzung und bilden unabhaengig voneinander bias/confidence/summary -- keine Web-Suche (bewusst ohne Perplexity), damit keine externen Informationen die Vergleichbarkeit verzerren.",
+  "Die vier Provider (Groq, Google, Mistral, OpenRouter -- alle kostenlos) bekommen dieselbe rohe Gesamteinschaetzung und bilden unabhaengig voneinander bias/confidence/summary -- keine Web-Suche (bewusst ohne Perplexity), damit keine externen Informationen die Vergleichbarkeit verzerren.",
   "Konsens/Divergenz zwischen den Providern wird rein regelbasiert ausgewertet (gleicher bias bei allen = Konsens), nicht durch ein weiteres Modell.",
-  "Wird NICHT automatisch aktualisiert -- jeder Lauf kostet bis zu 3 bezahlte AI-Aufrufe und entsteht nur per Klick, und nur wenn oben mindestens ein aktiver Trigger angezeigt wird.",
+  "Wird NICHT automatisch aktualisiert -- jeder Lauf loest bis zu 4 AI-Aufrufe aus und entsteht nur per Klick, und nur wenn oben mindestens ein aktiver Trigger angezeigt wird.",
   "Kein Handelssignal -- eine Konsens-Divergenz zwischen drei KIs heisst nur, dass die Lage aus KI-Sicht uneindeutig ist, keine Handlungsempfehlung.",
 ].join("\n\n");
 

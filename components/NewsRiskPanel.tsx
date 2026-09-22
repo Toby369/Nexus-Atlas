@@ -19,7 +19,7 @@ const NEWS_LOOKBACK_HOURS = 72;
 // unveraendert.
 const NEWS_ANALYSIS_INFO_TEXT = [
   "Was das ist: eine KI-Einordnung derselben Schlagzeilen oben -- keine zweite, unabhaengige Nachrichtenquelle und kein Ersatz fuer die regelbasierte Liste.",
-  "Primaerer Provider ist Perplexity (einziger der bei Nexus angebundenen Anbieter mit echter Web-Suche) -- kann dadurch Kontext zu einer Schlagzeile ergaenzen, den die reine Klassifikation nicht zeigt. Faellt Perplexity aus, springt Google Gemini ein (ohne Live-Suche); das Modell darf dabei ausdruecklich keine Nachrichten erfinden, die nicht in der Liste stehen.",
+  "Primaerer Provider ist Google Gemini, Fallback Groq -- beide ordnen ausschliesslich die bereits gesammelten Schlagzeilen oben ein (keine Live-Web-Suche), das Modell darf dabei ausdruecklich keine Nachrichten erfinden, die nicht in der Liste stehen.",
   "Wird NICHT automatisch aktualisiert -- jeder neue Stand kostet einen bezahlten AI-Aufruf und entsteht nur per Klick auf \"Neu generieren\". Ohne markbewegende News der letzten 72h gibt es nichts zu analysieren (kein AI-Aufruf, kein Snapshot).",
   "Kein Handelssignal -- Einordnung/Kontext zu bereits bekannten Schlagzeilen, keine Vorhersage.",
 ].join("\n\n");
