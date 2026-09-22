@@ -14,7 +14,6 @@ import type {
   MarketSnapshot,
   MarketState,
   MarketStateMatrix,
-  MarketStateNarrativeSnapshot,
   SystemBriefingSnapshot,
   NewsAnalysisSnapshot,
   NewsEvent,
@@ -558,27 +557,12 @@ async function getLatestHandelslage(): Promise<HandelslageSnapshot | null> {
   return data;
 }
 
-// Gesamteinschaetzung-Zusammenfassung (Nutzer-Wunsch 15.09.2026) -- reines
-// Lesen, kein AI-Aufruf (der passiert nur ueber POST
-// /api/market-state-narrative/generate, siehe MarketStateNarrativeCard.tsx).
-async function getLatestMarketStateNarrative(): Promise<MarketStateNarrativeSnapshot | null> {
-  const { data, error } = await supabase
-    .from("market_state_narratives")
-    .select("*")
-    .order("generated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error("Fehler beim Laden der Gesamteinschätzung-Zusammenfassung:", error.message);
-    return null;
-  }
-  return data;
-}
-
-// System-Briefing (Umsetzungsplan Phase 4, 18.09.2026) -- reines Lesen, kein
-// AI-Aufruf (der passiert nur ueber POST /api/system-briefing/generate,
-// siehe SystemBriefingCard.tsx).
+// System-Briefing (Umsetzungsplan Phase 4, 18.09.2026; erweitert 22.09.2026)
+// -- reines Lesen, kein AI-Aufruf (der passiert nur ueber POST
+// /api/system-briefing/generate, siehe SystemBriefingCard.tsx). Wird seit
+// 22.09.2026 auch von HeroHeader fuer die "Kurze Einordnung" wiederverwendet
+// (ersetzt die entfernte, separate "Zusammenfassung"-Kachel/Route/Tabelle --
+// siehe HeroHeader.tsx).
 async function getLatestSystemBriefing(): Promise<SystemBriefingSnapshot | null> {
   const { data, error } = await supabase
     .from("system_briefings")
@@ -753,7 +737,6 @@ export default async function Home({
     recentEtfFlows,
     upcomingEconomicEvents,
     latestHandelslage,
-    latestMarketStateNarrative,
     latestLeverageMap,
     cycleIndicators,
     latestOrderbookWalls,
@@ -791,7 +774,6 @@ export default async function Home({
     getRecentEtfFlows(),
     getUpcomingEconomicEvents(),
     getLatestHandelslage(),
-    getLatestMarketStateNarrative(),
     buildLiveLeverageMap(),
     buildCycleIndicators(),
     getLatestOrderbookWalls(),
@@ -921,7 +903,7 @@ export default async function Home({
               timeframe={timeframe}
               recentEtfFlows={recentEtfFlows}
               recentLiquidations={recentLiquidations}
-              initialNarrative={latestMarketStateNarrative}
+              initialSystemBriefing={latestSystemBriefing}
               highImpactNews={highImpactNews}
               upcomingEconomicEvents={upcomingEconomicEvents}
               initialMtfDots={mtfDots}

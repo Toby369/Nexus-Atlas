@@ -107,18 +107,11 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     promptProfile: "handelslage",
     fallbackProviders: [],
   },
-  // Gesamteinschaetzung-Zusammenfassung (Nutzer-Wunsch 15.09.2026) -- siehe
-  // app/api/market-state-narrative/generate/route.ts. Gleiche Provider-Kette
-  // wie handelslage/signal-engine (signal-logic-Kategorie, google primaer).
-  "market-state-narrative": {
-    tileId: "market-state-narrative",
-    aiProvider: "auto",
-    promptProfile: "market-state-narrative",
-    fallbackProviders: [],
-  },
-  // System-Briefing (Umsetzungsplan Phase 4, 18.09.2026) -- gleiche Provider-
-  // Kette wie market-state-narrative/handelslage (signal-logic-Kategorie,
-  // google primaer, kein bezahlter Fallback).
+  // System-Briefing (Umsetzungsplan Phase 4, 18.09.2026; erweitert
+  // 22.09.2026 -- deckt seither auch den Umfang des entfernten
+  // "market-state-narrative"-Profils mit ab, siehe promptProfiles.ts) --
+  // gleiche Provider-Kette wie handelslage (signal-logic-Kategorie, google
+  // primaer, kein bezahlter Fallback).
   "system-briefing": {
     tileId: "system-briefing",
     aiProvider: "auto",

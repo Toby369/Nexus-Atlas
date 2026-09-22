@@ -463,27 +463,14 @@ export interface HandelslageSnapshot {
   error: string | null;
 }
 
-// Gesamteinschaetzung-Zusammenfassung (Nutzer-Wunsch 15.09.2026), gleiches
-// Muster wie HandelslageResult/-Snapshot.
-export interface MarketStateNarrativeResult {
-  narrative: string;
-}
-
-export interface MarketStateNarrativeSnapshot {
-  id: number;
-  generated_at: string;
-  provider: string | null;
-  model: string | null;
-  result: MarketStateNarrativeResult | null;
-  status: "ok" | "error";
-  error: string | null;
-}
-
-// System-Briefing (Umsetzungsplan Phase 4, 18.09.2026): fusioniert Tobys
-// eigenes Regelwerk (knowledge_base) + Salomon-Phase + Nexus' berechnete
-// Faktoren (14-Faktoren-Engine, Regime Matrix, GUSS/VWAP-Vector/CVD,
-// Liquidations-Cluster) + Chart-Vision-Read zu EINER Synthese -- gleiches
-// Muster wie MarketStateNarrativeResult/-Snapshot.
+// System-Briefing (Umsetzungsplan Phase 4, 18.09.2026; erweitert 22.09.2026
+// um Marktkontext/ETF-Flows/Positionierung/News -- ersetzt seither das
+// entfernte "market-state-narrative"-Profil, siehe lib/ai/promptProfiles.ts):
+// fusioniert Tobys eigenes Regelwerk (knowledge_base) + Salomon-Phase +
+// Nexus' berechnete Faktoren (14-Faktoren-Engine, Regime Matrix, GUSS/VWAP-
+// Vector/CVD, Liquidations-Cluster, Marktkontext, ETF-Flows, Positionierung,
+// News) + Chart-Vision-Read zu EINER Synthese -- gleiches Muster wie
+// HandelslageResult/-Snapshot.
 export interface SystemBriefingResult {
   narrative: string;
 }

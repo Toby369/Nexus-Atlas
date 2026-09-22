@@ -9,10 +9,9 @@ import type { SystemBriefingResult } from "@/lib/types";
 //
 // Umsetzungsplan Phase 4 (18.09.2026): erzeugt einen neuen System-Briefing-
 // Snapshot (lib/systemBriefingContext.ts -> runTileAnalysis() -> Speichern in
-// system_briefings). 1:1 dasselbe Prinzip wie /api/market-state-narrative/
-// generate -- nur ein expliziter Klick loest einen bezahlten AI-Aufruf aus,
-// das Lesen der Kachel liest ausschliesslich den zwischengespeicherten
-// letzten Stand.
+// system_briefings). 1:1 dasselbe Prinzip wie /api/handelslage/generate --
+// nur ein expliziter Klick loest einen bezahlten AI-Aufruf aus, das Lesen
+// der Kachel liest ausschliesslich den zwischengespeicherten letzten Stand.
 //
 // Auth: proxy.ts sperrt diese Route wie jede andere /api/*-Route hinter eine
 // Login-Session -- keine eigene Pruefung noetig.

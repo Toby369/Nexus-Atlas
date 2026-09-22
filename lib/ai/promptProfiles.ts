@@ -651,66 +651,25 @@ export const promptProfiles: Record<string, PromptProfile> = {
     },
   },
 
-  // --- Gesamteinschaetzung-Zusammenfassung (Nutzer-Wunsch 15.09.2026) ------
-  // Erklaert NICHT die 14-Faktoren-Engine an sich (die ist regelbasiert,
-  // siehe compute-market-state) und wiederholt KEINE bereits im HeroHeader
-  // angezeigten Einzelwerte -- explizit dagegen abgesichert (Nutzer-
-  // Rueckfrage "kein Widerspruch um zu viel doppelt anzuzeigen?"). Einziger
-  // Zweck: Widersprueche/Zusammenhaenge zwischen den Sparten benennen und
-  // begruenden, warum die Verlaesslichkeits-Zahl so ist wie sie ist --
-  // Salomon-Phase dabei als Pruefraster (stuetzt der Rest der Signale die
-  // Salomon-Phase, oder widerspricht er ihr), nicht als eigene, nochmals
-  // ausgesprochene Feststellung.
-  "market-state-narrative": {
-    id: "market-state-narrative",
-    category: "signal-logic",
-    description:
-      "5-8 Saetze zu Widerspruechen/Zusammenhaengen zwischen den Sparten der Gesamteinschaetzung -- keine Wiederholung bereits angezeigter Einzelwerte.",
-    systemPrompt:
-      "Du bekommst den aktuellen Stand mehrerer unabhaengiger Nexus-Sparten (Gesamteinschaetzung/" +
-      "14-Faktoren-Engine, Regime Matrix, Marktkontext/Spot-Pressure, ETF-Flows, Positionierung, " +
-      "Liquidationen, News) sowie eine Salomon-Phasen-Einordnung (salomon, falls nicht null). " +
-      "ALLE diese Werte werden dem Nutzer bereits einzeln im Dashboard angezeigt -- deine Aufgabe " +
-      "ist AUSDRUECKLICH NICHT, sie nochmals aufzuzaehlen oder in eigenen Worten zu wiederholen " +
-      "(z.B. NICHT 'die Verlaesslichkeit liegt bei 29/100'). Stattdessen: (1) benenne konkrete " +
-      "Widersprueche oder Bestaetigungen ZWISCHEN den Sparten (z.B. Marktkontext bullisch, aber " +
-      "Regime Matrix und ETF-Flows dagegen -- oder mehrere Sparten bestaetigen sich gegenseitig); " +
-      "(2) erklaere, WARUM die Verlaesslichkeits-Zahl (confidence_breakdown: coveragePct/" +
-      "consensusPct/signalStrengthPct) so ausfaellt -- liegt es an fehlender Datenabdeckung, an " +
-      "vielen neutralen Faktoren, oder an echtem Widerspruch zwischen den Faktoren, die eine " +
-      "Richtung zeigen; (3) falls salomon nicht null ist: nutze die genannte Salomon-Phase als " +
-      "PRUEFRASTER -- stuetzt der Rest der Signale (Marktkontext, ETF, Positionierung, engine_" +
-      "divergence) diese Phase, oder steht er im Spannungsverhaeltnis dazu? Nenne die Phase dabei " +
-      "hoechstens einmal beim Einordnen, wiederhole sie nicht als eigene Aussage. engine_divergence " +
-      "(AGREEMENT/DIVERGENCE/NOT_COMPARABLE) ist ein Vergleich zwischen Gesamteinschaetzung und " +
-      "Regime Matrix -- bei DIVERGENCE ist das selbst ein nennenswerter Widerspruch. Erfinde keine " +
-      "zusaetzlichen Daten ausserhalb des Kontexts, keine Kursziele, keine Handelsempfehlung. Ist " +
-      "market_state null, sag das explizit statt eine Einschaetzung ohne Grundlage zu konstruieren. " +
-      NUMBER_FORMAT_INSTRUCTION +
-      " Antworte als JSON mit: narrative (string, deutsch, 5-8 Saetze, Fliesstext).",
-    validate: (data) => {
-      const errors: string[] = [];
-      if (!isNonEmptyString(field(data, "narrative"))) {
-        errors.push(`"narrative" muss ein nicht-leerer String sein.`);
-      }
-      return errors;
-    },
-  },
-
-  // --- System-Briefing (Umsetzungsplan Phase 4, 18.09.2026) ----------------
+  // --- System-Briefing (Umsetzungsplan Phase 4, 18.09.2026; erweitert
+  // 22.09.2026 um Marktkontext/ETF-Flows/Positionierung/News) -------------
   // "kombinierte Entscheidungsunterstuetzungs-Kachel": fusioniert Tobys
   // eigenes Regelwerk (knowledge_base) + Salomon-Phase + Nexus' bereits
   // berechnete Faktoren (14-Faktoren-Engine, Regime Matrix, GUSS/VWAP-Vector/
-  // CVD, Liquidations-Cluster) + Chart-Vision-Read. Anders als
-  // "market-state-narrative" (das NUR Widersprueche zwischen bereits
-  // angezeigten Sparten benennt) ist die Kernaufgabe hier, das Regelwerk AUF
-  // die Live-Werte anzuwenden -- nicht nur Widersprueche zwischen Sparten
-  // finden, sondern beurteilen, was sie laut Tobys eigenen Regeln bedeuten.
+  // CVD, Liquidations-Cluster) + Chart-Vision-Read + Marktkontext/ETF-Flows/
+  // Positionierung/News zu EINER Synthese. Die letzten vier Quellen kamen
+  // urspruenglich aus dem separaten "market-state-narrative"-Profil (HeroHeader-
+  // Zusammenfassung) -- dieses Profil wurde 22.09.2026 entfernt, System-
+  // Briefing deckt seinen Umfang jetzt vollstaendig mit ab (HeroHeader zeigt
+  // seither nur noch einen kurzen Auszug dieser breiteren Analyse, siehe
+  // HeroHeader.tsx). Kernaufgabe bleibt: das Regelwerk AUF die Live-Werte
+  // anzuwenden -- nicht nur Widersprueche zwischen Sparten finden, sondern
+  // beurteilen, was sie laut Tobys eigenen Regeln bedeuten.
   "system-briefing": {
     id: "system-briefing",
     category: "signal-logic",
     description:
-      "6-10 Saetze: wendet Tobys eigenes Regelwerk (Welz/Salomon/Mein System) auf den aktuellen Stand von GUSS/VWAP-Vector/CVD, Regime, Salomon-Phase, Liquidationen und Chart-Vision an.",
+      "7-11 Saetze: wendet Tobys eigenes Regelwerk (Welz/Salomon/Mein System) auf den aktuellen Stand von GUSS/VWAP-Vector/CVD, Regime, Salomon-Phase, Liquidationen, Chart-Vision, Marktkontext, ETF-Flows, Positionierung und News an.",
     systemPrompt:
       "Du bekommst zwei Arten von Daten: regelwerk (Tobys eigenes, in knowledge_base hinterlegtes " +
       "Welz-/Salomon-/'Mein Trading System'-Regelwerk -- ein Array aus module/section/title/content) " +
@@ -719,25 +678,32 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "market_state: 14-Faktoren-Gesamteinschaetzung; regime_matrix: 5-Saeulen-Regime; salomon: " +
       "Salomon-Phaseneinordnung, falls nicht null; liquidations: Preis-Cluster nahe am aktuellen " +
       "Kurs; chart_vision: qualitative LSOB-/Trendlinien-Lesung eines TradingView-Screenshots, falls " +
-      "vorhanden und aktuell). ALLE Live-Werte werden dem Nutzer bereits einzeln in eigenen Kacheln " +
-      "angezeigt -- deine Aufgabe ist NICHT, sie nachzuerzaehlen. Stattdessen: WENDE das Regelwerk " +
-      "AUF die Live-Werte an. Konkret: (1) erfuellt mein_system_checklist gerade die im Regelwerk " +
-      "beschriebenen Einstiegs-Gates (Funding unter Schwelle, OI-Richtung, EMA13/50/200-Trendlage)? " +
-      "(2) bestaetigen GUSS, VWAP-Vector und CVD dieselbe Richtung, oder widersprechen sie sich? " +
-      "(3) falls salomon nicht null ist: nutze die genannte Phase als PRUEFRASTER wie im Regelwerk " +
-      "beschrieben -- stuetzen mein_system_checklist/trading_indicators/regime_matrix diese Phase, " +
-      "oder stehen sie im Spannungsverhaeltnis dazu? Nenne die Phase dabei hoechstens einmal; " +
-      "(4) ist chart_vision vorhanden: ordne die LSOB-Lage/Trendlinien qualitativ als zusaetzlichen " +
-      "bestaetigenden oder widersprechenden Hinweis ein, ohne die dortige summary/Confidence woertlich " +
-      "zu wiederholen. Ist chart_vision null, erwaehne explizit, dass kein aktueller Screenshot " +
-      "vorliegt, statt das einfach zu ignorieren. (5) liegen liquidations-Preis-Cluster nahe am " +
-      "aktuellen Kurs (siehe closePrice in mein_system_checklist), ordne sie als Risiko- oder " +
-      "Magnet-Hinweis ein, falls relevant -- sonst nicht erzwingen. Nutze regelwerk NUR als Referenz " +
-      "fuer bestehende Regeln, erfinde KEINE neuen Regeln, die dort nicht stehen. Keine Kursziele, " +
-      "keine Handelsempfehlung, keine erfundenen Daten ausserhalb des Kontexts. Ist market_state " +
-      "null, sag das explizit statt eine Einschaetzung ohne Grundlage zu konstruieren. " +
+      "vorhanden und aktuell; market_context: regelbasierte Kombination aus Preis-/OI-Richtung und " +
+      "Spot-Bestaetigung; etf_flows: kumulierter Netto-ETF-Flow der letzten Handelstage; " +
+      "positioning: Retail-/Top-Trader-Divergenz-Confidence; news: Anzahl markbewegender " +
+      "Nachrichten der letzten 72h). ALLE Live-Werte werden dem Nutzer bereits einzeln in eigenen " +
+      "Kacheln angezeigt -- deine Aufgabe ist NICHT, sie nachzuerzaehlen. Stattdessen: WENDE das " +
+      "Regelwerk AUF die Live-Werte an. Konkret: (1) erfuellt mein_system_checklist gerade die im " +
+      "Regelwerk beschriebenen Einstiegs-Gates (Funding unter Schwelle, OI-Richtung, EMA13/50/200-" +
+      "Trendlage)? (2) bestaetigen GUSS, VWAP-Vector und CVD dieselbe Richtung, oder widersprechen " +
+      "sie sich? (3) falls salomon nicht null ist: nutze die genannte Phase als PRUEFRASTER wie im " +
+      "Regelwerk beschrieben -- stuetzen mein_system_checklist/trading_indicators/regime_matrix " +
+      "diese Phase, oder stehen sie im Spannungsverhaeltnis dazu? Nenne die Phase dabei hoechstens " +
+      "einmal; (4) ist chart_vision vorhanden: ordne die LSOB-Lage/Trendlinien qualitativ als " +
+      "zusaetzlichen bestaetigenden oder widersprechenden Hinweis ein, ohne die dortige summary/" +
+      "Confidence woertlich zu wiederholen. Ist chart_vision null, erwaehne explizit, dass kein " +
+      "aktueller Screenshot vorliegt, statt das einfach zu ignorieren. (5) liegen liquidations-" +
+      "Preis-Cluster nahe am aktuellen Kurs (siehe closePrice in mein_system_checklist), ordne sie " +
+      "als Risiko- oder Magnet-Hinweis ein, falls relevant -- sonst nicht erzwingen. (6) beziehe " +
+      "zusaetzlich market_context, etf_flows, positioning und news ein -- bestaetigen diese das " +
+      "Bild aus (1)-(5), oder stehen sie dazu im Widerspruch (z.B. Regelwerk-Gates erfuellt, aber " +
+      "ETF-Flows/Marktkontext dagegen)? Ist market_context null, erwaehne das kurz statt es zu " +
+      "ignorieren. Nutze regelwerk NUR als Referenz fuer bestehende Regeln, erfinde KEINE neuen " +
+      "Regeln, die dort nicht stehen. Keine Kursziele, keine Handelsempfehlung, keine erfundenen " +
+      "Daten ausserhalb des Kontexts. Ist market_state null, sag das explizit statt eine " +
+      "Einschaetzung ohne Grundlage zu konstruieren. " +
       NUMBER_FORMAT_INSTRUCTION +
-      " Antworte als JSON mit: narrative (string, deutsch, 6-10 Saetze, Fliesstext).",
+      " Antworte als JSON mit: narrative (string, deutsch, 7-11 Saetze, Fliesstext).",
     validate: (data) => {
       const errors: string[] = [];
       if (!isNonEmptyString(field(data, "narrative"))) {

@@ -8,8 +8,8 @@ import type {
   LiquidationEvent,
   MarketRegime,
   MarketState,
-  MarketStateNarrativeSnapshot,
   NewsEvent,
+  SystemBriefingSnapshot,
 } from "@/lib/types";
 import type { TimeframeId } from "@/lib/timeframes";
 import { deriveMarketContext } from "@/lib/marketContext";
@@ -40,7 +40,6 @@ import { useDashboardPoll } from "@/components/DashboardPollProvider";
 import { RelativeTime } from "@/components/ClientTimestamp";
 import StatusLineSummary, { type StatusLineItem } from "@/components/StatusLineSummary";
 import TradingHoursBadge from "@/components/TradingHoursBadge";
-import MarketStateNarrativeCard from "@/components/MarketStateNarrativeCard";
 import PanelInfo from "@/components/PanelInfo";
 import { marketStateInfo, MARKET_STATE_FACTOR_INFO, momentumDivergenceInfo } from "@/lib/panelInfo";
 import { fetchMtfDots, type MtfTimeframeDot } from "@/lib/mtfSignal";
@@ -54,6 +53,20 @@ function formatSignedPct(value: number | null) {
   if (value === null || Number.isNaN(value)) return "—";
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
+
+// Kurze Einordnung (22.09.2026): zeigt nur die ersten Saetze des System-
+// Briefing-Fliesstexts als Auszug -- keine eigene, kuerzere Zusammenfassung
+// durch die KI generieren lassen (zusaetzlicher Aufruf), reine Client-
+// seitige Kuerzung desselben Textes.
+function firstSentences(text: string, count: number): string {
+  const parts = text.split(/(?<=[.!?])\s+/).filter(Boolean);
+  return parts.slice(0, count).join(" ");
+}
+
+const SHORT_NARRATIVE_INFO_TEXT = [
+  "Was das ist: die ersten Sätze der System-Briefing-Einordnung (Regelwerk + Nexus-Faktoren) als schneller Überblick direkt hier oben -- dieselbe Analyse wie unten in der System-Briefing-Kachel, nicht extra generiert.",
+  "Wird NICHT hier ausgelöst -- ein neuer Stand entsteht nur über \"Neu generieren\" auf der System-Briefing-Kachel (Tab \"KI-Einschätzungen\"). Diese Zeile zeigt den zuletzt generierten Stand, aktualisiert sich erst beim nächsten Seitenaufruf.",
+].join("\n\n");
 
 function formatUsdM(value: number) {
   const abs = Math.abs(value);
@@ -303,7 +316,7 @@ export default function HeroHeader({
   recentLiquidations,
   highImpactNews,
   upcomingEconomicEvents,
-  initialNarrative,
+  initialSystemBriefing,
   initialMtfDots,
 }: {
   initialState: MarketState | null;
@@ -325,9 +338,11 @@ export default function HeroHeader({
   // rechnet rein clientseitig gegen die Systemzeit weiter, braucht also
   // keinen eigenen Live-Poll dieser sich ohnehin selten aendernden Termine.
   upcomingEconomicEvents: EconomicCalendarEvent[];
-  // Statisch pro Seitenaufruf, click-triggered (kein eigener Poll) -- siehe
-  // MarketStateNarrativeCard.tsx.
-  initialNarrative: MarketStateNarrativeSnapshot | null;
+  // Kurze Einordnung (22.09.2026, vormals eigene "Zusammenfassung"-Kachel
+  // mit eigenem AI-Aufruf/Route -- siehe Kommentar bei der Render-Stelle
+  // unten): zeigt nur noch einen Auszug des ohnehin schon vorhandenen
+  // System-Briefing-Snapshots, kein eigener Fetch/Poll/Button hier.
+  initialSystemBriefing: SystemBriefingSnapshot | null;
   // MTF-Ampel (22.09.2026, siehe lib/mtfSignal.ts) -- unabhaengig vom
   // gewichteten mtf_alignment-Feld in state (das deckt nur 1H/4H/1D ohne
   // ADX-Nuance ab); die Ampel ergaenzt 15M/1H/4H/1D/1W mit Trend-vs-
@@ -691,7 +706,35 @@ export default function HeroHeader({
           Einordnung, kein Handelssignal.
         </p>
 
-        <MarketStateNarrativeCard initialSnapshot={initialNarrative} />
+        {/* Kurze Einordnung (22.09.2026): ersetzt die vormals eigenstaendige
+            "Zusammenfassung"-Kachel (eigener AI-Aufruf/eigene Route/eigene
+            Snapshot-Tabelle) -- die deckte sich inhaltlich stark mit dem
+            inzwischen breiteren System-Briefing (siehe lib/systemBriefing-
+            Context.ts, seit 22.09.2026 auch Marktkontext/ETF/Positionierung/
+            News). Statt zwei parallelen KI-Analysen fuer aehnliche Fragen
+            zeigt HeroHeader jetzt nur einen kurzen, rein clientseitig
+            gekuerzten Auszug desselben System-Briefing-Snapshots -- kein
+            eigener AI-Aufruf, kein eigener Button hier. */}
+        <div className="pt-2 border-t border-border/60 space-y-1.5">
+          <span className="flex items-center gap-1.5">
+            <p className="text-xs uppercase tracking-[0.15em] text-text-muted">Kurze Einordnung</p>
+            <PanelInfo title="Kurze Einordnung" content={SHORT_NARRATIVE_INFO_TEXT} />
+          </span>
+          {initialSystemBriefing?.result?.narrative ? (
+            <>
+              <p className="text-sm text-text-muted leading-relaxed">
+                {firstSentences(initialSystemBriefing.result.narrative, 2)}
+              </p>
+              <p className="text-xs text-text-faint">
+                Vollständige Einordnung im System-Briefing (Tab &quot;KI-Einschätzungen&quot;).
+              </p>
+            </>
+          ) : (
+            <p className="text-xs text-text-faint">
+              Noch keine Einordnung generiert — siehe System-Briefing (Tab &quot;KI-Einschätzungen&quot;).
+            </p>
+          )}
+        </div>
       </div>
     </section>
   );

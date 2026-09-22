@@ -177,7 +177,7 @@ async function fetchBaseData(): Promise<TradingIndicatorsBaseData> {
     // vs-Seitwaerts-Klassifikation (VOLA_SQUEEZE_RANGING = "Seitwaerts") --
     // genau das, was Toby mit "Nexus' Regime-Engine" meint (Umsetzungsplan-
     // Korrektur: NICHT der interne trend_strength-Teilfaktor). Gleiches
-    // Abfragemuster wie getLatestRegime() in lib/marketStateNarrativeContext.ts.
+    // Abfragemuster wie getLatestRegime() in lib/systemBriefingContext.ts.
     supabase
       .from("market_state_matrix")
       .select("regime, data_coverage_pct")

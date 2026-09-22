@@ -13,10 +13,18 @@ import PanelInfo from "@/components/PanelInfo";
 // EINER Synthese, siehe lib/systemBriefingContext.ts + Prompt-Profil
 // "system-briefing". Gleiches click-triggered Muster wie HandelslageCard.tsx
 // -- kein Auto-Refresh, jeder neue Stand kostet einen bezahlten AI-Aufruf.
+//
+// Erweitert 22.09.2026 um Marktkontext/ETF-Flows/Positionierung/News --
+// ersetzt seither die vormals separate "Zusammenfassung"-Kachel in
+// HeroHeader (eigener AI-Aufruf/eigene Route fuer eine inhaltlich stark
+// ueberlappende Frage). HeroHeader zeigt seither nur noch einen kurzen,
+// rein clientseitig gekuerzten Auszug DIESES Snapshots (siehe HeroHeader.tsx,
+// "Kurze Einordnung") statt eine eigene KI-Analyse auszuloesen.
 
 const INFO_TEXT = [
-  "Was das ist: eine KI-Synthese, die dein eigenes Regelwerk (Welz/Salomon-Methodik + \"Mein Trading System\"-Checkliste) auf den aktuellen Stand von Nexus' berechneten Faktoren anwendet -- 14-Faktoren-Engine, Regime Matrix, GUSS/VWAP-Vector/CVD, Liquidations-Cluster, Salomon-Phase und (falls aktuell vorhanden) den letzten Chart-Vision-Screenshot-Read.",
+  "Was das ist: eine KI-Synthese, die dein eigenes Regelwerk (Welz/Salomon-Methodik + \"Mein Trading System\"-Checkliste) auf den aktuellen Stand von Nexus' berechneten Faktoren anwendet -- 14-Faktoren-Engine, Regime Matrix, GUSS/VWAP-Vector/CVD, Liquidations-Cluster, Salomon-Phase, Marktkontext, ETF-Flows, Positionierung, News und (falls aktuell vorhanden) den letzten Chart-Vision-Screenshot-Read.",
   "Wiederholt bewusst KEINE der einzeln angezeigten Werte — sagt stattdessen, ob dein eigenes Regelwerk aktuell erfüllt ist und ob sich die Quellen gegenseitig bestätigen oder widersprechen.",
+  "Die \"Kurze Einordnung\" oben in der Gesamteinschätzung (HeroHeader) zeigt die ersten Sätze genau dieser Analyse als Auszug — kein zweiter, eigener AI-Aufruf dort.",
   "Wird NICHT automatisch aktualisiert — jeder neue Stand kostet einen bezahlten AI-Aufruf und entsteht nur per Klick auf \"Neu generieren\".",
   "Keine Handelsempfehlung, keine Kursziele — reine Entscheidungsunterstützung anhand deiner eigenen Regeln.",
 ].join("\n\n");
