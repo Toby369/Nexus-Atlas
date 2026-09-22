@@ -157,11 +157,11 @@ async function fetchLatestTradingViewSignal(): Promise<TradingViewSignal | null>
 // gleiches Muster wie der Anker-Badge oben im Header.
 function MtfDotsRow({ dots }: { dots: MtfTimeframeDot[] }) {
   return (
-    <div className="flex items-center gap-[7px]">
+    <div className="flex items-center gap-2">
       {dots.map((dot) => (
-        <div key={dot.timeframe} className="flex flex-col items-center gap-0.5" title={dot.detail}>
+        <div key={dot.timeframe} className="flex flex-col items-center gap-1" title={dot.detail}>
           <span className={`w-2 h-2 rounded-full ${MTF_DOT_COLOR_CLASSES[dot.status]}`} />
-          <span className="tabular text-[8px] leading-none text-text-faint">{dot.timeframe}</span>
+          <span className="tabular text-[11px] leading-none font-medium text-text">{dot.timeframe}</span>
         </div>
       ))}
     </div>
