@@ -43,6 +43,13 @@ export default function PanelInfo({
   const [desktopPosition, setDesktopPosition] = useState<{ top: number; left: number } | null>(
     null
   );
+  // Bugfix 22.09.2026 (Nutzer-Meldung: Infokachel-Text nicht vollstaendig
+  // lesbar): das Popover hatte keine Hoehenbegrenzung/Scroll -- bei Content,
+  // der laenger ist als der verbleibende Platz unter dem Button (bzw. unter
+  // dem Viewport auf Mobile), lief der Text einfach ueber den Bildschirmrand
+  // hinaus, ohne Moeglichkeit zu scrollen. maxHeight wird jetzt aus dem
+  // tatsaechlich verfuegbaren Platz berechnet, der Rest per Scroll erreichbar.
+  const [maxHeight, setMaxHeight] = useState<number | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -52,6 +59,7 @@ export default function PanelInfo({
     function computePosition() {
       if (!buttonRef.current || !window.matchMedia(DESKTOP_QUERY).matches) {
         setDesktopPosition(null);
+        setMaxHeight(window.innerHeight - VIEWPORT_MARGIN * 2);
         return;
       }
       // Popover oeffnet unterhalb, linksbuendig mit dem Button -- geklemmt
@@ -67,7 +75,9 @@ export default function PanelInfo({
       const rect = buttonRef.current.getBoundingClientRect();
       const maxLeft = Math.max(VIEWPORT_MARGIN, window.innerWidth - POPOVER_WIDTH - VIEWPORT_MARGIN);
       const left = Math.min(Math.max(rect.left, VIEWPORT_MARGIN), maxLeft);
-      setDesktopPosition({ top: rect.bottom + 8, left });
+      const top = rect.bottom + 8;
+      setDesktopPosition({ top, left });
+      setMaxHeight(window.innerHeight - top - VIEWPORT_MARGIN);
     }
 
     computePosition();
@@ -117,12 +127,11 @@ export default function PanelInfo({
             ref={popoverRef}
             role="dialog"
             aria-label={title}
-            style={
-              desktopPosition
-                ? { top: desktopPosition.top, left: desktopPosition.left }
-                : undefined
-            }
-            className="fixed left-4 right-4 top-1/2 z-50 -translate-y-1/2 rounded-lg border border-accent/25 bg-surface-raised p-4 shadow-lg sm:right-auto sm:w-72 sm:translate-y-0"
+            style={{
+              ...(desktopPosition ? { top: desktopPosition.top, left: desktopPosition.left } : {}),
+              ...(maxHeight !== null ? { maxHeight } : {}),
+            }}
+            className="fixed left-4 right-4 top-1/2 z-50 -translate-y-1/2 overflow-y-auto rounded-lg border border-accent/25 bg-surface-raised p-4 shadow-lg sm:right-auto sm:w-72 sm:translate-y-0"
           >
             <p className="text-xs font-semibold text-text mb-1.5">{title}</p>
             <div className="space-y-2">
