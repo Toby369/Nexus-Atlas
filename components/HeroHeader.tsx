@@ -43,6 +43,8 @@ import TradingHoursBadge from "@/components/TradingHoursBadge";
 import MarketStateNarrativeCard from "@/components/MarketStateNarrativeCard";
 import PanelInfo from "@/components/PanelInfo";
 import { marketStateInfo, MARKET_STATE_FACTOR_INFO, momentumDivergenceInfo } from "@/lib/panelInfo";
+import { fetchMtfDots, type MtfTimeframeDot } from "@/lib/mtfSignal";
+import MtfDotsRow from "@/components/MtfDotsRow";
 
 const CUMULATIVE_ETF_DAYS = 5;
 const LIQUIDATION_LOOKBACK_HOURS = 6;
@@ -302,6 +304,7 @@ export default function HeroHeader({
   highImpactNews,
   upcomingEconomicEvents,
   initialNarrative,
+  initialMtfDots,
 }: {
   initialState: MarketState | null;
   initialRegime: MarketRegime | null;
@@ -325,10 +328,16 @@ export default function HeroHeader({
   // Statisch pro Seitenaufruf, click-triggered (kein eigener Poll) -- siehe
   // MarketStateNarrativeCard.tsx.
   initialNarrative: MarketStateNarrativeSnapshot | null;
+  // MTF-Ampel (22.09.2026, siehe lib/mtfSignal.ts) -- unabhaengig vom
+  // gewichteten mtf_alignment-Feld in state (das deckt nur 1H/4H/1D ohne
+  // ADX-Nuance ab); die Ampel ergaenzt 15M/1H/4H/1D/1W mit Trend-vs-
+  // Trendbildung-Unterscheidung.
+  initialMtfDots: MtfTimeframeDot[];
 }) {
   const [state, setState] = useState(initialState);
   const [lastSyncOk, setLastSyncOk] = useState(true);
   const [regime, setRegime] = useState(initialRegime);
+  const [mtfDots, setMtfDots] = useState(initialMtfDots);
   const [expanded, setExpanded] = useState(false);
   const [expandedRiskFactor, setExpandedRiskFactor] = useState<string | null>(null);
   const { bundle, fetchedSinceIso, fetchedAtMs } = useDashboardPoll();
@@ -348,6 +357,13 @@ export default function HeroHeader({
       const data = await fetchLatestRegime();
       setRegime(data);
     }, REGIME_REFRESH_MS);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      setMtfDots(await fetchMtfDots());
+    }, MARKET_STATE_REFRESH_MS);
     return () => clearInterval(interval);
   }, []);
 
@@ -576,6 +592,11 @@ export default function HeroHeader({
               )
             </span>
           )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-text-faint">MTF-Ampel:</span>
+          <MtfDotsRow dots={mtfDots} />
         </div>
 
         {patterns.length > 0 && (

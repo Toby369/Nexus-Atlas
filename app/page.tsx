@@ -924,6 +924,7 @@ export default async function Home({
               initialNarrative={latestMarketStateNarrative}
               highImpactNews={highImpactNews}
               upcomingEconomicEvents={upcomingEconomicEvents}
+              initialMtfDots={mtfDots}
             />
 
             <ConfluenceScoreCard score={confluenceScore} signalDetail={confluenceSignalDetail} />
@@ -987,7 +988,9 @@ export default async function Home({
                     escalation: (
                       <EscalationCard initialTriggers={escalationTriggers} initialSnapshot={latestEscalation} />
                     ),
-                    "trade-debate": <TradeDebateCard initialSnapshot={latestTradeDebate} />,
+                    "trade-debate": (
+                      <TradeDebateCard initialSnapshot={latestTradeDebate} initialMtfDots={mtfDots} />
+                    ),
                     "custom-query": <CustomQueryCard initialRuns={latestCustomQueries} />,
                     "chart-vision": <ChartVisionCard initialAnalyses={latestChartVisionAnalyses} />,
                     "system-briefing": <SystemBriefingCard initialSnapshot={latestSystemBriefing} />,

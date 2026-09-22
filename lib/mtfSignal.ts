@@ -1,3 +1,4 @@
+import { supabase } from "./supabase";
 import type { MarketFeaturesMtfRow } from "./types";
 
 // MTF-Ampel (Multi-Timeframe-Signalzeile), Nutzer-Wunsch 22.09.2026:
@@ -120,3 +121,32 @@ export const MTF_DOT_COLOR_CLASSES: Record<MtfDotStatus, string> = {
   neutral: "bg-text-faint",
   no_data: "bg-surface-raised border border-border",
 };
+
+// Client-seitiger Fetch, gemeinsam genutzt von jeder Kachel mit eigenem
+// Live-Poll (RegimeMatrixCard, HeroHeader, TradeDebateCard, Nutzer-Wunsch
+// 22.09.2026: "auf alle Kacheln anwenden") -- eine Query je Zeitrahmen,
+// analoges Muster wie mtf_alignment in der compute-market-state Edge
+// Function. An EINER Stelle statt pro Kachel dupliziert, weil ab drei
+// Konsumenten derselben Query die Kopie mehr Pflegeaufwand als Nutzen
+// gebracht haette (anders als sonst im Projekt ueblich, wo jede Kachel
+// ihren eigenen kleinen Fetch haelt).
+export async function fetchMtfDots(): Promise<MtfTimeframeDot[]> {
+  const rows = await Promise.all(
+    MTF_TIMEFRAMES.map(async ({ interval }) => {
+      const { data, error } = await supabase
+        .from("market_features")
+        .select("interval, candle_open_time, structure_trend, adx_14")
+        .eq("symbol", "BTCUSDT")
+        .eq("interval", interval)
+        .order("candle_open_time", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) {
+        console.error(`Fehler beim Laden der MTF-Ampel (${interval}):`, error.message);
+        return [interval, null] as const;
+      }
+      return [interval, data] as const;
+    })
+  );
+  return buildMtfDots(Object.fromEntries(rows));
+}

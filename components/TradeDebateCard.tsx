@@ -1,9 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { TradeDebateSnapshot } from "@/lib/types";
 import { FullDateTime, StaleBadge } from "@/components/ClientTimestamp";
 import PanelInfo from "@/components/PanelInfo";
+import { fetchMtfDots, type MtfTimeframeDot } from "@/lib/mtfSignal";
+import MtfDotsRow from "@/components/MtfDotsRow";
+
+// MTF-Ampel-Refresh (22.09.2026): dieselbe 5-Minuten-Kadenz wie
+// RegimeMatrixCard/HeroHeader (siehe lib/mtfSignal.ts), unabhaengig von der
+// eigentlichen Bull/Bear-Analyse unten (die bleibt bewusst click-triggered,
+// kein Auto-Refresh -- siehe INFO_TEXT) -- die Ampel ist reiner Live-
+// Kontext neben dem zuletzt generierten Snapshot, kein Teil davon.
+const MTF_REFRESH_MS = 5 * 60_000;
 
 // Trade-Debate-Kachel (Nutzer-Idee 07.09.2026, TradingAgents-Architektur
 // [arXiv:2412.20138] recherchiert und fuer Einzelnutzer verkleinert): ein
@@ -19,6 +28,7 @@ const INFO_TEXT = [
   "EMA800 ist eine in der Krypto-Szene gebraeuchliche, aber KEINE etablierte institutionelle Kennzahl wie EMA50/200 -- wird trotzdem mitgegeben, aber von den Analysten niedriger gewichtet.",
   "Wird NICHT automatisch aktualisiert -- jeder Lauf macht 3 KI-Aufrufe (Bull, Bear, Referee), alle ueber kostenlose Gratis-Tiers (Google, OpenRouter, Groq), und entsteht nur per Klick.",
   "Kein Handelssignal, keine Anlageberatung -- eine strukturierte Analysehilfe, die eigene Entscheidung bleibt bei dir.",
+  "Die MTF-Ampel oben neben dem Titel (22.09.2026) ist reiner Live-Kontext, unabhaengig vom letzten Analyse-Lauf -- je ein Punkt fuer 15M/1H/4H/1D/1W (gruen/rot = bestaetigter Trend, gold = Trendbildung, grau = neutral, ausgegraut = keine Daten). Wird alle 5 Minuten aktualisiert, auch ohne neue Analyse.",
 ].join("\n\n");
 
 const VERDICT_STYLES: Record<string, string> = {
@@ -44,12 +54,24 @@ function formatUsd(value: number): string {
 
 export default function TradeDebateCard({
   initialSnapshot,
+  initialMtfDots,
 }: {
   initialSnapshot: TradeDebateSnapshot | null;
+  // MTF-Ampel (22.09.2026, siehe lib/mtfSignal.ts) -- reiner Live-Kontext
+  // neben der Analyse, siehe MTF_REFRESH_MS oben.
+  initialMtfDots: MtfTimeframeDot[];
 }) {
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mtfDots, setMtfDots] = useState(initialMtfDots);
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      setMtfDots(await fetchMtfDots());
+    }, MTF_REFRESH_MS);
+    return () => clearInterval(interval);
+  }, []);
 
   async function handleGenerate() {
     setLoading(true);
@@ -74,6 +96,7 @@ export default function TradeDebateCard({
         <span className="flex items-center gap-1.5">
           <p className="text-sm font-medium text-text">Trade-Debate (KI)</p>
           <PanelInfo title="Trade-Debate (KI)" content={INFO_TEXT} />
+          <MtfDotsRow dots={mtfDots} />
         </span>
         <button
           type="button"

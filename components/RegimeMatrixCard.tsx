@@ -40,7 +40,8 @@ import {
   TRADINGVIEW_SIGNAL_INFO,
 } from "@/lib/tradingViewSignal";
 import { RelativeTime } from "@/components/ClientTimestamp";
-import { MTF_TIMEFRAMES, buildMtfDots, MTF_DOT_COLOR_CLASSES, type MtfTimeframeDot } from "@/lib/mtfSignal";
+import { fetchMtfDots, type MtfTimeframeDot } from "@/lib/mtfSignal";
+import MtfDotsRow from "@/components/MtfDotsRow";
 
 // Regime-Daten aendern sich hoechstens stuendlich (1H-Kerzen-Raster, siehe
 // compute_market_state_matrix_series) -- kein 30s-Live-Takt noetig wie bei
@@ -91,29 +92,6 @@ async function fetchLatestMatrix(): Promise<{ data: MarketStateMatrix | null; ok
   return { data, ok: true };
 }
 
-// MTF-Ampel (22.09.2026, siehe lib/mtfSignal.ts): eine Query je Zeitrahmen,
-// analoges Fetch-Muster wie getLatestMtfDots() in app/page.tsx.
-async function fetchMtfDots(): Promise<MtfTimeframeDot[]> {
-  const rows = await Promise.all(
-    MTF_TIMEFRAMES.map(async ({ interval }) => {
-      const { data, error } = await supabase
-        .from("market_features")
-        .select("interval, candle_open_time, structure_trend, adx_14")
-        .eq("symbol", "BTCUSDT")
-        .eq("interval", interval)
-        .order("candle_open_time", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) {
-        console.error(`Fehler beim Laden der MTF-Ampel (${interval}):`, error.message);
-        return [interval, null] as const;
-      }
-      return [interval, data] as const;
-    })
-  );
-  return buildMtfDots(Object.fromEntries(rows));
-}
-
 // 20.09.2026: kurzfristiger Seitwaerts-Check (siehe lib/types.ts::
 // ShortTermRangeCheck) -- eigener RPC-Read, unabhaengig von der 1h-Matrix
 // oben, daher eigene Fetch-Funktion statt Wiederverwendung.
@@ -147,25 +125,6 @@ async function fetchLatestTradingViewSignal(): Promise<TradingViewSignal | null>
     return null;
   }
   return data;
-}
-
-// MTF-Ampel (22.09.2026): kompakte Badge-Zeile neben dem Kachel-Titel --
-// Mischung aus zwei mit Toby abgestimmten Mockup-Varianten ("A": Zeitrahmen-
-// Labels direkt sichtbar statt nur Hover-Tooltip, "C": kein neuer Kachel-
-// Platz, Badge sitzt im bestehenden Header). Jeder Punkt traegt zusaetzlich
-// ein natives title-Attribut mit der vollen Begruendung (ADX-Wert etc.),
-// gleiches Muster wie der Anker-Badge oben im Header.
-function MtfDotsRow({ dots }: { dots: MtfTimeframeDot[] }) {
-  return (
-    <div className="flex items-center gap-2">
-      {dots.map((dot) => (
-        <div key={dot.timeframe} className="flex flex-col items-center gap-1" title={dot.detail}>
-          <span className={`w-2 h-2 rounded-full ${MTF_DOT_COLOR_CLASSES[dot.status]}`} />
-          <span className="tabular text-[11px] leading-none font-medium text-text">{dot.timeframe}</span>
-        </div>
-      ))}
-    </div>
-  );
 }
 
 export default function RegimeMatrixCard({
