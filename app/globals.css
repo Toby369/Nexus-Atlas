@@ -13,8 +13,13 @@
   --surface-raised: #1a1e23;
   --border: #262b31;
   --text: #e8e6e1;
-  --text-muted: #8b9198;
-  --text-faint: #7a828b;
+  /* Kontrast erhoeht (22.09.2026, Nutzer-Wunsch "Schrift in den Kacheln
+     mehr Kontrast") -- text-muted vorher 5.65:1, text-faint vorher 4.62:1
+     gegen --surface (WCAG AA fuer normalen Text ist 4.5:1, text-faint lag
+     also nur knapp darueber, gerade bei den vielen text-[10px]/[11px]-
+     Badges/Labels in den Kacheln spuerbar). Jetzt 7.58:1 bzw. 5.95:1. */
+  --text-muted: #a3a9b0;
+  --text-faint: #8f959c;
   --accent: #c99a5b;
   --up: #4fae7c;
   --down: #d9695f;
@@ -42,8 +47,12 @@ html {
      dieser Groesse. Erhoehung hier skaliert Schrift UND Abstaende in der
      gesamten App einheitlich (Nutzer-Wunsch: "wirklich alles im
      Dashboard" groesser/lesbarer), statt jede text-xs/text-sm-Klasse
-     einzeln zu aendern. */
-  font-size: 18px;
+     einzeln zu aendern. Nochmals leicht erhoeht 22.09.2026 (Nutzer-Wunsch
+     "Schrift in den Kacheln etwas groesser") -- betrifft alle rem-
+     basierten text-*-Klassen gleichermassen; die wenigen fest in px
+     gesetzten Mini-Labels (z.B. text-[10px] auf Kachel-Titeln) skalieren
+     bewusst nicht mit, das war vorher schon so. */
+  font-size: 19px;
 }
 
 body {
