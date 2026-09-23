@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type {
   EconomicCalendarEvent,
@@ -39,7 +39,6 @@ import {
   RelativeTime,
   FullDateTime,
   hoursSince,
-  STALE_HOURS_THRESHOLD,
   RELATIVE_REFRESH_MS,
 } from "@/components/ClientTimestamp";
 import StatusLineSummary, { type StatusLineItem } from "@/components/StatusLineSummary";
@@ -50,6 +49,14 @@ import { fetchMtfDots, type MtfTimeframeDot } from "@/lib/mtfSignal";
 import MtfDotsRow from "@/components/MtfDotsRow";
 
 const CUMULATIVE_ETF_DAYS = 5;
+
+// Nutzer-Vorgabe (23.09.2026): die "Kurze Einordnung" soll nach 6 Std. nicht
+// nur ausgeblendet, sondern automatisch neu generiert werden (ein einziger
+// AI-Aufruf pro veraltet erkanntem Snapshot, siehe Effect weiter unten) --
+// bewusst enger als der allgemeine STALE_HOURS_THRESHOLD (12h,
+// ClientTimestamp.tsx), der nur fuer reine Anzeige-Badges ohne eigene
+// Aktion gilt.
+const NARRATIVE_AUTO_REFRESH_HOURS = 6;
 
 function formatSignedPct(value: number | null) {
   if (value === null || Number.isNaN(value)) return "—";
@@ -67,8 +74,8 @@ function firstSentences(text: string, count: number): string {
 
 const SHORT_NARRATIVE_INFO_TEXT = [
   "Was das ist: die ersten Sätze der System-Briefing-Einordnung (Regelwerk + Nexus-Faktoren) als schneller Überblick direkt hier oben -- dieselbe Analyse wie unten in der System-Briefing-Kachel, nicht extra generiert.",
-  "Wird NICHT hier ausgelöst -- ein neuer Stand entsteht nur über \"Neu generieren\" auf der System-Briefing-Kachel (Tab \"KI-Einschätzungen\"). Diese Zeile zeigt den zuletzt generierten Stand, aktualisiert sich erst beim nächsten Seitenaufruf.",
-  "Wichtig: Preis-/EMA-/sonstige Zahlen IM TEXT sind der Stand zum Generierungszeitpunkt (siehe Zeitstempel darunter), keine Live-Werte -- bei einer älteren, gelb markierten Einordnung kann der dort genannte Preis spürbar vom aktuellen BTC-Preis oben abweichen. Für den Live-Preis immer die BTC-Preis-Kachel nutzen.",
+  `Automatische Aktualisierung: ist der zuletzt generierte Stand älter als ${NARRATIVE_AUTO_REFRESH_HOURS} Std., löst diese Kachel automatisch EINEN neuen System-Briefing-Aufruf aus (kostenloses Gratis-Tier, wie jede andere KI-Kachel) -- bis dahin wird kein veralteter Text angezeigt. Ein manueller Klick auf "Neu generieren" auf der System-Briefing-Kachel (Tab "KI-Einschätzungen") funktioniert weiterhin unabhängig davon.`,
+  "Wichtig: Preis-/EMA-/sonstige Zahlen IM TEXT sind der Stand zum Generierungszeitpunkt (siehe Zeitstempel darunter), keine Live-Werte. Für den Live-Preis immer die BTC-Preis-Kachel nutzen.",
 ].join("\n\n");
 
 function formatUsdM(value: number) {
@@ -376,27 +383,54 @@ export default function HeroHeader({
   // Nutzer-Feedback (23.09.2026): eine veraltete "Kurze Einordnung" darf
   // hier nie als aktueller Zustand lesbar sein (siehe bereits einmal
   // aufgetretener Bug mit einem laengst ueberholten Preis im Fliesstext).
-  // Bisher gab es nur ein leicht zu uebersehendes StaleBadge daneben --
-  // jetzt wird der veraltete Text komplett durch einen Hinweis ersetzt.
-  // Start bewusst bei "unknown" (kein Text, kein Hinweis) statt sofort den
-  // Narrativ-Text zu zeigen: vermeidet jedes -- und sei es nur kurze --
-  // Anzeigen eines potenziell veralteten Snapshots vor der ersten,
-  // Date.now()-abhaengigen Berechnung im Effect (gleiche Hydration-
-  // Begruendung wie bei FullDateTime/StaleBadge in ClientTimestamp.tsx).
+  // Ab NARRATIVE_AUTO_REFRESH_HOURS wird der veraltete Text nicht nur
+  // ausgeblendet, sondern automatisch EIN neuer System-Briefing-Snapshot
+  // angefordert (dieselbe Route wie der "Neu generieren"-Button in
+  // SystemBriefingCard.tsx, inkl. deren serverseitigem Rate-Limit) --
+  // narrativeAutoRefreshAttemptedRef sorgt dafuer, dass pro Mount hoechstens
+  // ein Versuch ausgeloest wird (kein Nachhaemmern des Endpoints, falls die
+  // Anfrage fehlschlaegt). Start bewusst bei "unknown" (kein Text, kein
+  // Hinweis) statt sofort den Narrativ-Text zu zeigen: vermeidet jedes --
+  // und sei es nur kurze -- Anzeigen eines potenziell veralteten Snapshots
+  // vor der ersten, Date.now()-abhaengigen Berechnung im Effect (gleiche
+  // Hydration-Begruendung wie bei FullDateTime/StaleBadge in
+  // ClientTimestamp.tsx).
+  const [narrativeSnapshot, setNarrativeSnapshot] = useState(initialSystemBriefing);
   const [narrativeFreshness, setNarrativeFreshness] = useState<"unknown" | "fresh" | "stale">("unknown");
   const [narrativeHoursOld, setNarrativeHoursOld] = useState<number | null>(null);
+  const [narrativeRefreshing, setNarrativeRefreshing] = useState(false);
+  const [narrativeRefreshError, setNarrativeRefreshError] = useState<string | null>(null);
+  const narrativeAutoRefreshAttemptedRef = useRef(false);
 
   useEffect(() => {
-    if (!initialSystemBriefing?.result?.narrative) return;
-    const update = () => {
-      const hours = hoursSince(initialSystemBriefing.generated_at, Date.now());
+    if (!narrativeSnapshot?.result?.narrative) return;
+    const update = async () => {
+      const hours = hoursSince(narrativeSnapshot.generated_at, Date.now());
       setNarrativeHoursOld(hours);
-      setNarrativeFreshness(hours >= STALE_HOURS_THRESHOLD ? "stale" : "fresh");
+      if (hours < NARRATIVE_AUTO_REFRESH_HOURS) {
+        setNarrativeFreshness("fresh");
+        return;
+      }
+      setNarrativeFreshness("stale");
+      if (narrativeAutoRefreshAttemptedRef.current) return;
+      narrativeAutoRefreshAttemptedRef.current = true;
+      setNarrativeRefreshing(true);
+      setNarrativeRefreshError(null);
+      try {
+        const res = await fetch("/api/system-briefing/generate", { method: "POST" });
+        const json = await res.json();
+        if (!res.ok || !json.success) throw new Error(json.error ?? `HTTP ${res.status}`);
+        setNarrativeSnapshot(json.snapshot as SystemBriefingSnapshot);
+      } catch (err) {
+        setNarrativeRefreshError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setNarrativeRefreshing(false);
+      }
     };
     update();
     const interval = setInterval(update, RELATIVE_REFRESH_MS);
     return () => clearInterval(interval);
-  }, [initialSystemBriefing]);
+  }, [narrativeSnapshot]);
 
   if (!state) {
     return (
@@ -693,30 +727,40 @@ export default function HeroHeader({
             Snapshot-Tabelle) -- die deckte sich inhaltlich stark mit dem
             inzwischen breiteren System-Briefing (siehe lib/systemBriefing-
             Context.ts, seit 22.09.2026 auch Marktkontext/ETF/Positionierung/
-            News). Statt zwei parallelen KI-Analysen fuer aehnliche Fragen
-            zeigt HeroHeader jetzt nur einen kurzen, rein clientseitig
-            gekuerzten Auszug desselben System-Briefing-Snapshots -- kein
-            eigener AI-Aufruf, kein eigener Button hier. */}
+            News). Zeigt einen kurzen, rein clientseitig gekuerzten Auszug
+            desselben System-Briefing-Snapshots. Ab NARRATIVE_AUTO_REFRESH_
+            HOURS (23.09.2026) loest die Kachel automatisch EINEN neuen
+            System-Briefing-Snapshot aus (siehe Effect oben) statt weiter
+            veralteten Text zu zeigen oder auf einen manuellen Klick im
+            System-Briefing-Tab zu warten. */}
         <div className="pt-2 border-t border-border/60 space-y-1.5">
           <span className="flex items-center gap-1.5">
             <p className="text-xs uppercase tracking-[0.15em] text-text-muted">Kurze Einordnung</p>
             <PanelInfo title="Kurze Einordnung" content={SHORT_NARRATIVE_INFO_TEXT} />
           </span>
-          {!initialSystemBriefing?.result?.narrative ? (
+          {!narrativeSnapshot?.result?.narrative ? (
             <p className="text-xs text-text-faint">
               Noch keine Einordnung generiert — siehe System-Briefing (Tab &quot;KI-Einschätzungen&quot;).
             </p>
           ) : narrativeFreshness === "stale" ? (
-            <p className="text-xs text-down">
-              Letzte Einordnung ist veraltet (Stand vor {narrativeHoursOld} Std.) und wird deshalb
-              nicht angezeigt — im System-Briefing (Tab &quot;KI-Einschätzungen&quot;) neu generieren.
-            </p>
+            narrativeRefreshError ? (
+              <p className="text-xs text-down">
+                Einordnung ist veraltet (Stand vor {narrativeHoursOld} Std.), automatische
+                Aktualisierung fehlgeschlagen ({narrativeRefreshError}) — im System-Briefing (Tab
+                &quot;KI-Einschätzungen&quot;) manuell neu generieren.
+              </p>
+            ) : (
+              <p className="text-xs text-text-faint">
+                Einordnung ist veraltet (Stand vor {narrativeHoursOld} Std.) —{" "}
+                {narrativeRefreshing ? "wird automatisch aktualisiert…" : "Aktualisierung wird angefordert…"}
+              </p>
+            )
           ) : narrativeFreshness === "fresh" ? (
             <>
               <p className="text-sm text-text-muted leading-relaxed">
-                {firstSentences(initialSystemBriefing.result.narrative, 2)}
+                {firstSentences(narrativeSnapshot.result.narrative, 2)}
               </p>
-              <FullDateTime iso={initialSystemBriefing.generated_at} className="text-xs text-text-faint" />
+              <FullDateTime iso={narrativeSnapshot.generated_at} className="text-xs text-text-faint" />
               <p className="text-xs text-text-faint">
                 Vollständige Einordnung im System-Briefing (Tab &quot;KI-Einschätzungen&quot;).
               </p>

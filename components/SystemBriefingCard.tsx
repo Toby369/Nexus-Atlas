@@ -12,20 +12,26 @@ import PanelInfo from "@/components/PanelInfo";
 // CVD, Liquidations-Cluster) + den Chart-Vision-Screenshot-Read (Phase 3) zu
 // EINER Synthese, siehe lib/systemBriefingContext.ts + Prompt-Profil
 // "system-briefing". Gleiches click-triggered Muster wie HandelslageCard.tsx
-// -- kein Auto-Refresh, jeder neue Stand kostet einen bezahlten AI-Aufruf.
+// -- jeder neue Stand kostet einen AI-Aufruf (kostenloses Gratis-Tier).
 //
 // Erweitert 22.09.2026 um Marktkontext/ETF-Flows/Positionierung/News --
 // ersetzt seither die vormals separate "Zusammenfassung"-Kachel in
 // HeroHeader (eigener AI-Aufruf/eigene Route fuer eine inhaltlich stark
 // ueberlappende Frage). HeroHeader zeigt seither nur noch einen kurzen,
 // rein clientseitig gekuerzten Auszug DIESES Snapshots (siehe HeroHeader.tsx,
-// "Kurze Einordnung") statt eine eigene KI-Analyse auszuloesen.
+// "Kurze Einordnung").
+//
+// Auto-Refresh (23.09.2026): HeroHeader loest ab NARRATIVE_AUTO_REFRESH_HOURS
+// (dort definiert) selbststaendig einen neuen Stand aus, wenn der zuletzt
+// angezeigte zu alt ist -- diese Kachel liest denselben system_briefings-
+// Snapshot und zeigt den dadurch aktualisierten Stand automatisch mit,
+// zusaetzlich zum weiterhin verfuegbaren manuellen "Neu generieren".
 
 const INFO_TEXT = [
   "Was das ist: eine KI-Synthese, die dein eigenes Regelwerk (Welz/Salomon-Methodik + \"Mein Trading System\"-Checkliste) auf den aktuellen Stand von Nexus' berechneten Faktoren anwendet -- 14-Faktoren-Engine, Regime Matrix, GUSS/VWAP-Vector/CVD, Liquidations-Cluster, Salomon-Phase, Marktkontext, ETF-Flows, Positionierung, News und (falls aktuell vorhanden) den letzten Chart-Vision-Screenshot-Read.",
   "Wiederholt bewusst KEINE der einzeln angezeigten Werte — sagt stattdessen, ob dein eigenes Regelwerk aktuell erfüllt ist und ob sich die Quellen gegenseitig bestätigen oder widersprechen.",
-  "Die \"Kurze Einordnung\" oben in der Gesamteinschätzung (HeroHeader) zeigt die ersten Sätze genau dieser Analyse als Auszug — kein zweiter, eigener AI-Aufruf dort.",
-  "Wird NICHT automatisch aktualisiert — jeder neue Stand kostet einen bezahlten AI-Aufruf und entsteht nur per Klick auf \"Neu generieren\".",
+  "Die \"Kurze Einordnung\" oben in der Gesamteinschätzung (HeroHeader) zeigt die ersten Sätze genau dieser Analyse als Auszug.",
+  "Aktualisiert sich automatisch, sobald der zuletzt generierte Stand zu alt wird (ausgelöst über die \"Kurze Einordnung\" oben) — zusätzlich weiterhin per Klick auf \"Neu generieren\" hier möglich.",
   "Keine Handelsempfehlung, keine Kursziele — reine Entscheidungsunterstützung anhand deiner eigenen Regeln.",
 ].join("\n\n");
 
