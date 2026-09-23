@@ -33,7 +33,7 @@ export function formatRelative(iso: string, nowMs: number): string {
   return `vor ${days} Tg`;
 }
 
-const RELATIVE_REFRESH_MS = 15_000;
+export const RELATIVE_REFRESH_MS = 15_000;
 
 export function RelativeTime({ iso, className }: { iso: string; className?: string }) {
   const [text, setText] = useState<string | null>(null);
@@ -130,12 +130,16 @@ export function FullDateTime({ iso, className }: { iso: string; className?: stri
 // das ist auf beiden Seiten identisch und daher kein Hydration-Risiko.
 export const STALE_HOURS_THRESHOLD = 12;
 
+export function hoursSince(iso: string, nowMs: number): number {
+  return Math.floor((nowMs - new Date(iso).getTime()) / (60 * 60 * 1000));
+}
+
 export function StaleBadge({ iso, className }: { iso: string; className?: string }) {
   const [staleHours, setStaleHours] = useState<number | null>(null);
 
   useEffect(() => {
     const update = () => {
-      const hours = Math.floor((Date.now() - new Date(iso).getTime()) / (60 * 60 * 1000));
+      const hours = hoursSince(iso, Date.now());
       setStaleHours(hours >= STALE_HOURS_THRESHOLD ? hours : null);
     };
     update();

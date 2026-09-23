@@ -35,7 +35,13 @@ import {
   type ConfirmationSignal,
 } from "@/lib/heroSummary";
 import { useDashboardPoll } from "@/components/DashboardPollProvider";
-import { RelativeTime, FullDateTime, StaleBadge } from "@/components/ClientTimestamp";
+import {
+  RelativeTime,
+  FullDateTime,
+  hoursSince,
+  STALE_HOURS_THRESHOLD,
+  RELATIVE_REFRESH_MS,
+} from "@/components/ClientTimestamp";
 import StatusLineSummary, { type StatusLineItem } from "@/components/StatusLineSummary";
 import TradingHoursBadge from "@/components/TradingHoursBadge";
 import PanelInfo from "@/components/PanelInfo";
@@ -367,6 +373,31 @@ export default function HeroHeader({
     return () => clearInterval(interval);
   }, []);
 
+  // Nutzer-Feedback (23.09.2026): eine veraltete "Kurze Einordnung" darf
+  // hier nie als aktueller Zustand lesbar sein (siehe bereits einmal
+  // aufgetretener Bug mit einem laengst ueberholten Preis im Fliesstext).
+  // Bisher gab es nur ein leicht zu uebersehendes StaleBadge daneben --
+  // jetzt wird der veraltete Text komplett durch einen Hinweis ersetzt.
+  // Start bewusst bei "unknown" (kein Text, kein Hinweis) statt sofort den
+  // Narrativ-Text zu zeigen: vermeidet jedes -- und sei es nur kurze --
+  // Anzeigen eines potenziell veralteten Snapshots vor der ersten,
+  // Date.now()-abhaengigen Berechnung im Effect (gleiche Hydration-
+  // Begruendung wie bei FullDateTime/StaleBadge in ClientTimestamp.tsx).
+  const [narrativeFreshness, setNarrativeFreshness] = useState<"unknown" | "fresh" | "stale">("unknown");
+  const [narrativeHoursOld, setNarrativeHoursOld] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!initialSystemBriefing?.result?.narrative) return;
+    const update = () => {
+      const hours = hoursSince(initialSystemBriefing.generated_at, Date.now());
+      setNarrativeHoursOld(hours);
+      setNarrativeFreshness(hours >= STALE_HOURS_THRESHOLD ? "stale" : "fresh");
+    };
+    update();
+    const interval = setInterval(update, RELATIVE_REFRESH_MS);
+    return () => clearInterval(interval);
+  }, [initialSystemBriefing]);
+
   if (!state) {
     return (
       <section className="rounded-lg border border-accent/40 bg-surface-raised p-6">
@@ -671,24 +702,26 @@ export default function HeroHeader({
             <p className="text-xs uppercase tracking-[0.15em] text-text-muted">Kurze Einordnung</p>
             <PanelInfo title="Kurze Einordnung" content={SHORT_NARRATIVE_INFO_TEXT} />
           </span>
-          {initialSystemBriefing?.result?.narrative ? (
+          {!initialSystemBriefing?.result?.narrative ? (
+            <p className="text-xs text-text-faint">
+              Noch keine Einordnung generiert — siehe System-Briefing (Tab &quot;KI-Einschätzungen&quot;).
+            </p>
+          ) : narrativeFreshness === "stale" ? (
+            <p className="text-xs text-down">
+              Letzte Einordnung ist veraltet (Stand vor {narrativeHoursOld} Std.) und wird deshalb
+              nicht angezeigt — im System-Briefing (Tab &quot;KI-Einschätzungen&quot;) neu generieren.
+            </p>
+          ) : narrativeFreshness === "fresh" ? (
             <>
               <p className="text-sm text-text-muted leading-relaxed">
                 {firstSentences(initialSystemBriefing.result.narrative, 2)}
               </p>
-              <div className="flex items-center gap-2 text-xs">
-                <FullDateTime iso={initialSystemBriefing.generated_at} className="text-text-faint" />
-                <StaleBadge iso={initialSystemBriefing.generated_at} />
-              </div>
+              <FullDateTime iso={initialSystemBriefing.generated_at} className="text-xs text-text-faint" />
               <p className="text-xs text-text-faint">
                 Vollständige Einordnung im System-Briefing (Tab &quot;KI-Einschätzungen&quot;).
               </p>
             </>
-          ) : (
-            <p className="text-xs text-text-faint">
-              Noch keine Einordnung generiert — siehe System-Briefing (Tab &quot;KI-Einschätzungen&quot;).
-            </p>
-          )}
+          ) : null}
         </div>
       </div>
     </section>
