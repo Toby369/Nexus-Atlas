@@ -37,7 +37,7 @@ import {
   type ConfirmationSignal,
 } from "@/lib/heroSummary";
 import { useDashboardPoll } from "@/components/DashboardPollProvider";
-import { RelativeTime } from "@/components/ClientTimestamp";
+import { RelativeTime, FullDateTime, StaleBadge } from "@/components/ClientTimestamp";
 import StatusLineSummary, { type StatusLineItem } from "@/components/StatusLineSummary";
 import TradingHoursBadge from "@/components/TradingHoursBadge";
 import PanelInfo from "@/components/PanelInfo";
@@ -66,6 +66,7 @@ function firstSentences(text: string, count: number): string {
 const SHORT_NARRATIVE_INFO_TEXT = [
   "Was das ist: die ersten Sätze der System-Briefing-Einordnung (Regelwerk + Nexus-Faktoren) als schneller Überblick direkt hier oben -- dieselbe Analyse wie unten in der System-Briefing-Kachel, nicht extra generiert.",
   "Wird NICHT hier ausgelöst -- ein neuer Stand entsteht nur über \"Neu generieren\" auf der System-Briefing-Kachel (Tab \"KI-Einschätzungen\"). Diese Zeile zeigt den zuletzt generierten Stand, aktualisiert sich erst beim nächsten Seitenaufruf.",
+  "Wichtig: Preis-/EMA-/sonstige Zahlen IM TEXT sind der Stand zum Generierungszeitpunkt (siehe Zeitstempel darunter), keine Live-Werte -- bei einer älteren, gelb markierten Einordnung kann der dort genannte Preis spürbar vom aktuellen BTC-Preis oben abweichen. Für den Live-Preis immer die BTC-Preis-Kachel nutzen.",
 ].join("\n\n");
 
 function formatUsdM(value: number) {
@@ -725,6 +726,10 @@ export default function HeroHeader({
               <p className="text-sm text-text-muted leading-relaxed">
                 {firstSentences(initialSystemBriefing.result.narrative, 2)}
               </p>
+              <div className="flex items-center gap-2 text-xs">
+                <FullDateTime iso={initialSystemBriefing.generated_at} className="text-text-faint" />
+                <StaleBadge iso={initialSystemBriefing.generated_at} />
+              </div>
               <p className="text-xs text-text-faint">
                 Vollständige Einordnung im System-Briefing (Tab &quot;KI-Einschätzungen&quot;).
               </p>
