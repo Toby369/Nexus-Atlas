@@ -5,10 +5,8 @@ import { supabase } from "@/lib/supabase";
 import type {
   EconomicCalendarEvent,
   EtfFlowDay,
-  LiquidationEvent,
   MarketRegime,
   MarketState,
-  NewsEvent,
   SystemBriefingSnapshot,
 } from "@/lib/types";
 import type { TimeframeId } from "@/lib/timeframes";
@@ -46,8 +44,6 @@ import { fetchMtfDots, type MtfTimeframeDot } from "@/lib/mtfSignal";
 import MtfDotsRow from "@/components/MtfDotsRow";
 
 const CUMULATIVE_ETF_DAYS = 5;
-const LIQUIDATION_LOOKBACK_HOURS = 6;
-const NEWS_LOOKBACK_HOURS = 72;
 
 function formatSignedPct(value: number | null) {
   if (value === null || Number.isNaN(value)) return "—";
@@ -73,12 +69,6 @@ function formatUsdM(value: number) {
   const abs = Math.abs(value);
   const sign = value >= 0 ? "+" : "-";
   return `${sign}$${abs.toFixed(1)}M`;
-}
-
-function formatUsd(value: number) {
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
-  return `$${value.toFixed(0)}`;
 }
 
 // Ebene 0/1 der Dashboard-Hierarchie (Nutzer-Feedback vom 31.08.2026,
@@ -314,8 +304,6 @@ export default function HeroHeader({
   initialRegime,
   timeframe,
   recentEtfFlows,
-  recentLiquidations,
-  highImpactNews,
   upcomingEconomicEvents,
   initialSystemBriefing,
   initialMtfDots,
@@ -323,17 +311,13 @@ export default function HeroHeader({
   initialState: MarketState | null;
   initialRegime: MarketRegime | null;
   timeframe: TimeframeId;
-  // Statisch pro Seitenaufruf (SSR-Props aus app/page.tsx, dieselben
-  // Rohdaten wie EtfFlowPanel/LiquidationPanel/NewsRiskPanel) -- die
-  // Statuszeile aktualisiert diese drei bewusst nicht per eigenem Live-Poll
-  // (ETF/Liquidationen/News aendern sich langsamer als Preis/OI/Regime und
-  // bekommen ohnehin nur den "nicht anzeigbar"-Pfeil, siehe unten), um
-  // nicht drei zusaetzliche Polling-Schleifen fuer die Zusammenfassung
-  // einzufuehren. Die jeweilige Detail-Kachel unten bleibt die live
-  // aktualisierte Quelle.
+  // Statisch pro Seitenaufruf (SSR-Prop aus app/page.tsx, dieselben
+  // Rohdaten wie EtfFlowPanel) -- die Statuszeile aktualisiert dies bewusst
+  // nicht per eigenem Live-Poll (ETF-Flows aendern sich langsamer als
+  // Preis/OI/Regime), um keine zusaetzliche Polling-Schleife fuer die
+  // Zusammenfassung einzufuehren. Die EtfFlowPanel-Kachel unten bleibt die
+  // live aktualisierte Quelle.
   recentEtfFlows: EtfFlowDay[];
-  recentLiquidations: LiquidationEvent[];
-  highImpactNews: NewsEvent[];
   // Statisch pro Seitenaufruf, dieselbe SSR-Quelle wie EconomicCalendarPanel
   // (getUpcomingEconomicEvents() in app/page.tsx) -- die Handelszeiten-Kachel
   // rechnet rein clientseitig gegen die Systemzeit weiter, braucht also
@@ -420,12 +404,15 @@ export default function HeroHeader({
 
   // Ebene-0-Statuszeilen: eine Zeile je Sparte mit ihrem eigenen, bereits
   // vorhandenen Wert + Pfeil (siehe lib/heroSummary.ts fuer die 4-Zustands-
-  // Logik). Nur die 5 Sparten mit einer echten, dokumentierten
-  // Richtungsaussage bekommen einen gerichteten Pfeil (Marktkontext,
-  // Marktphase, Spot Pressure, Preis & OI, ETF-Flows) -- Positionierung,
-  // Liquidationen und News haben laut ihrer eigenen Panel-Texte
-  // ausdruecklich KEINE Kursprognose/Richtungsaussage und zeigen deshalb
-  // immer "nicht anzeigbar", nie einen erfundenen neutralen Pfeil.
+  // Logik). Beschraenkt auf die 5 Sparten mit einer echten, dokumentierten
+  // Richtungsaussage (Marktkontext, Marktphase, Spot Pressure, Preis & OI,
+  // ETF-Flows) -- Positionierung, Liquidationen und News wurden entfernt
+  // (Nutzer-Feedback 23.09.2026): sie hatten laut ihrer eigenen Panel-Texte
+  // ausdruecklich keine Kursprognose/Richtungsaussage, zeigten hier immer
+  // nur "nicht anzeigbar" und flossen auch nicht in die "X von Y bestaetigen"-
+  // Konfirmationslogik ein -- bleiben als Rohdaten weiterhin in ihren
+  // eigenen Detail-Kacheln (LiquidationPanel/PositioningPanel/NewsRiskPanel)
+  // sichtbar.
   const regimeSuppressed = regime !== null && shouldSuppressRegimeDirectionalLabel(regime, state.confidence);
   const regimeLabelText = regime === null
     ? "—"
@@ -433,20 +420,10 @@ export default function HeroHeader({
       ? UNCLEAR_STATE_LABEL
       : regimeLabel(regime);
 
-  const positioningSignal = bundle.positioning_signal;
-
   const etfCumulative = recentEtfFlows.length > 0
     ? recentEtfFlows.slice(0, CUMULATIVE_ETF_DAYS).reduce((sum, f) => sum + (f.total_flow_usd_m ?? 0), 0)
     : null;
   const etfDays = Math.min(recentEtfFlows.length, CUMULATIVE_ETF_DAYS);
-
-  // recentLiquidations/highImpactNews sind bereits serverseitig mit exakt
-  // diesem Cutoff gefiltert (siehe getRecentLiquidations/getHighImpactNews
-  // in app/page.tsx) -- kein zweites, clientseitiges Date.now()-Filtern
-  // hier noetig (waere ausserdem ein unreiner Aufruf waehrend des Renders).
-  const relevantLiquidations = recentLiquidations;
-  const liqTotalNotional = relevantLiquidations.reduce((sum, e) => sum + (e.notional_usd ?? 0), 0);
-  const relevantNews = highImpactNews;
 
   const statusLines: StatusLineItem[] = [
     {
@@ -481,33 +458,6 @@ export default function HeroHeader({
           ? `${formatUsdM(etfCumulative)} (${etfDays}T)`
           : "Keine Daten",
       arrow: signArrowDirection(etfCumulative),
-    },
-    {
-      key: "positioning",
-      label: "Positionierung",
-      valueText:
-        positioningSignal?.confidence !== null && positioningSignal?.confidence !== undefined
-          ? `Confidence ${Math.round(positioningSignal.confidence)}/100`
-          : "Keine Daten",
-      arrow: "not_available",
-    },
-    {
-      key: "liquidations",
-      label: "Liquidationen",
-      valueText:
-        relevantLiquidations.length > 0
-          ? `${formatUsd(liqTotalNotional)} · ${relevantLiquidations.length} Events (${LIQUIDATION_LOOKBACK_HOURS}h)`
-          : `Keine (${LIQUIDATION_LOOKBACK_HOURS}h)`,
-      arrow: "not_available",
-    },
-    {
-      key: "news-risk",
-      label: "News & Risiko",
-      valueText:
-        relevantNews.length > 0
-          ? `${relevantNews.length} Ereignisse (${NEWS_LOOKBACK_HOURS}h)`
-          : `Keine (${NEWS_LOOKBACK_HOURS}h)`,
-      arrow: "not_available",
     },
   ];
 

@@ -902,9 +902,7 @@ export default async function Home({
               initialRegime={marketStateMatrix?.regime ?? null}
               timeframe={timeframe}
               recentEtfFlows={recentEtfFlows}
-              recentLiquidations={recentLiquidations}
               initialSystemBriefing={latestSystemBriefing}
-              highImpactNews={highImpactNews}
               upcomingEconomicEvents={upcomingEconomicEvents}
               initialMtfDots={mtfDots}
             />
