@@ -94,7 +94,7 @@ export function GussSignalCard({ data }: { data: GussSignalData }) {
         </p>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-start">
         {data.variants.map((variant) => (
           <GussVariantRow key={variant.emaPeriod} variant={variant} />
         ))}

@@ -265,7 +265,7 @@ export default function ConfluenceScoreCard({
         Vorab-Score bei Entry · Break-even ab {BREAKEVEN_PCT}% Trefferquote
       </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-start">
         <ScoreRow row={score.long} label="LONG" tone="up" />
         <ScoreRow row={score.short} label="SHORT" tone="down" />
       </div>
@@ -275,7 +275,7 @@ export default function ConfluenceScoreCard({
           <summary className="text-[11px] text-text-faint cursor-pointer select-none">
             Signale im Detail ({validatedCount} validiert, {unvalidatedCount} unbestätigt)
           </summary>
-          <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
             <div>
               <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint mb-1">LONG</p>
               <SignalDetailList signals={signalDetail} direction="LONG" />

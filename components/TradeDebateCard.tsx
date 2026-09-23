@@ -153,7 +153,7 @@ export default function TradeDebateCard({
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-start">
             {snapshot.bull_read && (
               <div className="rounded-md border border-border/60 p-2.5 space-y-1">
                 <div className="flex items-center justify-between gap-2">
