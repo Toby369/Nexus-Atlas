@@ -6,6 +6,7 @@ import LogoutButton from "@/components/LogoutButton";
 import { getKnowledgeBase } from "@/lib/knowledgeBaseContext";
 import { getMeinSystemChecklistData } from "@/lib/meinSystemContext";
 import { getTradingIndicatorsData } from "@/lib/tradingIndicatorsContext";
+import { getChartStructureData } from "@/lib/chartStructureContext";
 
 export const revalidate = 0;
 
@@ -45,14 +46,16 @@ async function getChecklistHistory(): Promise<ChecklistRun[]> {
 }
 
 export default async function LernenPage() {
-  const [cards, progress, knowledgeBase, meinSystemData, checklistHistory, tradingIndicators] = await Promise.all([
-    getCards(),
-    getProgress(),
-    getKnowledgeBase(),
-    getMeinSystemChecklistData(),
-    getChecklistHistory(),
-    getTradingIndicatorsData(),
-  ]);
+  const [cards, progress, knowledgeBase, meinSystemData, checklistHistory, tradingIndicators, chartStructure] =
+    await Promise.all([
+      getCards(),
+      getProgress(),
+      getKnowledgeBase(),
+      getMeinSystemChecklistData(),
+      getChecklistHistory(),
+      getTradingIndicatorsData(),
+      getChartStructureData(),
+    ]);
 
   return (
     <main className="flex-1 flex flex-col">
@@ -88,6 +91,7 @@ export default async function LernenPage() {
           gussData={tradingIndicators.guss}
           vwapVectorData={tradingIndicators.vwapVector}
           cvdData={tradingIndicators.cvd}
+          chartStructureData={chartStructure}
         />
       </section>
 

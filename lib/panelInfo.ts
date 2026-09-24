@@ -256,3 +256,19 @@ So entsteht der Wert: Alle 1-Minuten-Kerzen innerhalb der letzten 48 Stunden wer
 export const momentumDivergenceInfo = `So liest du das: Erscheint, wenn die Gesamteinschätzung (Bullisch/Bärisch) von einem bereits etablierten Trend (ADX ≥ 25) getragen wird, das Momentum (MACD-Histogramm) diesem Trend aber inzwischen widerspricht – ein klassisches Warnzeichen für nachlassenden Schwung VOR einer möglichen Trendwende. Eine erste Rückblick-Auswertung (19.09.2026, Stand ~3,5 Wochen Historie) zeigte für Bullisch-Aufrufe: mit bestätigendem Momentum 58,8% Trefferquote (n=17) über 24h, bei widersprechendem Momentum dagegen 0 von 8 Treffern (Ø −2,8%). Das Muster ist durchgängig und mechanistisch plausibel, aber die Stichprobe ist noch klein – deshalb ausdrücklich nur ein Hinweis, keine bewiesene Regel und kein Handelssignal. Ändert nichts an der gespeicherten Gesamteinschätzung selbst.
 
 So entsteht der Wert: Rein clientseitig aus den ohnehin bereits geladenen 14-Faktoren-Rohwerten abgeleitet (ADX aus "Trend-Stärke", MACD-Histogramm aus "Momentum") – keine zusätzliche Datenbankabfrage, keine neue Berechnung in compute-market-state.`;
+
+// Struktur: Key Levels, AVWAP, Trendlinien, Muster (Nutzer-Idee 24.09.2026,
+// siehe lib/chartStructureContext.ts) -- reine Berechnung, kein KI-Aufruf.
+export const chartStructureInfo = `So liest du das: Vier eigenständige, rein rechnerisch (keine KI) ermittelte Struktur-Bausteine auf den letzten 300 1H-Kerzen.
+
+Kerzenmuster: klassische Umkehrformationen (Doji, Hammer/Hanging Man, Engulfing, Morning/Evening Star) nach Stefan Salomons Definitionen – ein Rückblick-Backtest fand dafür KEINE statistisch signifikante Edge (nach BH-FDR-Korrektur), rein informativ.
+
+AVWAP-Pivot: an jedem bestätigten Pivot-Hoch/-Tief (Schlusskurs, kurze Pivot-Länge) startet eine volumengewichtete Durchschnittspreis-Linie, die aktiv bleibt, bis ein Schlusskurs sie eindeutig durchbricht – mehrere Linien gleichzeitig als Konfluenzzonen. Ebenfalls ohne nachgewiesene Backtest-Edge.
+
+Trendlinien: verbindet die zwei jüngsten Swing-Tiefs (Aufwärtslinie) bzw. Swing-Hochs (Abwärtslinie) – "bestätigt" ab mindestens 3 Berührungspunkten (Stefan Salomon: "Eine Linie ist erst dann ein statistisch relevanter Trend, wenn sie mindestens drei Berührungspunkte hat"), sonst als unbestätigt markiert, aber trotzdem gezeigt.
+
+Key Levels: die stärksten Liquidations-Cluster der letzten 6 Stunden (dasselbe Modell wie die Liquidations-Kachel) – bewusst ohne Fibonacci/Orderbook-Wände, die stehen bereits in eigenen Kacheln auf dieser Seite.
+
+Reine Entscheidungsunterstützung, kein automatisches Handelssignal und keine Anlageberatung.
+
+So entsteht der Wert: Bei jedem Seitenaufruf neu berechnet, keine gespeicherten Snapshots.`;

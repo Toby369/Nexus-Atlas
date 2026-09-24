@@ -14,8 +14,10 @@ import {
 import { learningStreak, overview, perCategory, type QuizEntry } from "@/lib/quizStatistik";
 import type { MeinSystemChecklistData } from "@/lib/meinSystemContext";
 import type { CvdFootprintData, GussSignalData, VwapVectorData } from "@/lib/tradingIndicatorsContext";
+import type { ChartStructureData } from "@/lib/chartStructureContext";
 import PanelInfo from "@/components/PanelInfo";
 import { CvdFootprintCard, GussSignalCard, VwapVectorCard } from "@/components/TradingIndicatorsCards";
+import ChartStructureCard from "@/components/ChartStructureCard";
 import { CandlestickPatternIllustration } from "@/components/CandlestickPatternIllustration";
 import { institutionalPlaybookInfo } from "@/lib/panelInfo";
 
@@ -70,6 +72,7 @@ export default function LernenDashboard({
   gussData,
   vwapVectorData,
   cvdData,
+  chartStructureData,
 }: {
   initialCards: QuizCard[];
   initialProgress: QuizProgressRow[];
@@ -79,6 +82,7 @@ export default function LernenDashboard({
   gussData: GussSignalData;
   vwapVectorData: VwapVectorData;
   cvdData: CvdFootprintData;
+  chartStructureData: ChartStructureData;
 }) {
   const [cards, setCards] = useState(initialCards);
   const [progressRows, setProgressRows] = useState(initialProgress);
@@ -151,6 +155,7 @@ export default function LernenDashboard({
           gussData={gussData}
           vwapVectorData={vwapVectorData}
           cvdData={cvdData}
+          chartStructureData={chartStructureData}
         />
       )}
     </div>
@@ -953,6 +958,7 @@ function WissenPanel({
   gussData,
   vwapVectorData,
   cvdData,
+  chartStructureData,
 }: {
   knowledgeBase: KnowledgeBaseEntry[];
   meinSystemData: MeinSystemChecklistData;
@@ -960,6 +966,7 @@ function WissenPanel({
   gussData: GussSignalData;
   vwapVectorData: VwapVectorData;
   cvdData: CvdFootprintData;
+  chartStructureData: ChartStructureData;
 }) {
   const [module, setModule] = useState<WissenModule>("welz");
   const [checklistHistory, setChecklistHistory] = useState(initialChecklistHistory);
@@ -1028,6 +1035,7 @@ function WissenPanel({
           <GussSignalCard data={gussData} />
           <VwapVectorCard data={vwapVectorData} />
           <CvdFootprintCard data={cvdData} />
+          <ChartStructureCard data={chartStructureData} />
           <ChecklistBlock
             title="Entry-Regelwerk"
             items={MEIN_SYSTEM_MANUAL_CHECKLIST}
