@@ -70,11 +70,29 @@ export interface ChartVisionResult {
   summary: string;
 }
 
+// Bug 24.09.2026 (von Toby per Screenshot gemeldet): die Anweisung
+// "antworte AUSSCHLIESSLICH mit JSON" im Prompt reichte nicht -- die Antwort
+// enthielt zusaetzlich sichtbaren Reasoning-Flusstext vor dem eigentlichen
+// JSON-Objekt (z.B. "5. Final Polish: Let's double-check values..."), was
+// den reinen Anker-Regex (nur Codefence exakt am Stringanfang/-ende) zum
+// Scheitern brachte. Fix zweigleisig: (1) generationConfig.responseMimeType
+// unten erzwingt bei Gemini reines JSON serverseitig (behebt die Ursache),
+// (2) hier zusaetzlich als Fallback die erste {...}-Klammer im Rohtext
+// herausschneiden, falls trotzdem noch Text drumherum steht.
 function extractJson(raw: string): unknown {
   const cleaned = raw.replace(/^```json\s*|```$/g, "").trim();
   try {
     return JSON.parse(cleaned);
   } catch {
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    if (start !== -1 && end > start) {
+      try {
+        return JSON.parse(cleaned.slice(start, end + 1));
+      } catch {
+        // faellt durch zum Fehler unten
+      }
+    }
     throw new Error(
       `chartVisionAnalysis: Antwort war kein valides JSON. Rohtext (gekuerzt): ${cleaned.slice(0, 200)}`
     );
@@ -198,7 +216,7 @@ export async function analyzeChartVision(
         },
       ],
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-      generationConfig: { temperature: 0.3, maxOutputTokens: 1536 },
+      generationConfig: { temperature: 0.3, maxOutputTokens: 1536, responseMimeType: "application/json" },
     }),
   });
 
