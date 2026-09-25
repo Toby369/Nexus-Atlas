@@ -1,5 +1,4 @@
 import type { ExchangeFirstSeen } from "@/lib/exchangeConsistency";
-import type { ChartVisionResult, ChartVisionTrendline } from "@/lib/ai/chartVisionAnalysis";
 
 export interface MarketSnapshot {
   id: number;
@@ -757,25 +756,3 @@ export interface CustomQueryRun {
   error: string | null;
 }
 
-// Chart-Vision (Umsetzungsplan "Chart-Vision: Trendlinien lesen", Phase 3)
-// -- ChartVisionResult wird NICHT mehr hier dupliziert (bis 25.09.2026 gab
-// es zwei unabhaengig gepflegte Kopien dieses Typs, siehe
-// lib/ai/chartVisionAnalysis.ts fuer die vollstaendige Historie), sondern
-// von dort importiert/re-exportiert (siehe Import oben).
-export type { ChartVisionResult, ChartVisionTrendline };
-
-export interface ChartVisionAnalysis {
-  id: number;
-  generated_at: string;
-  storage_path: string;
-  image_mime_type: string;
-  note: string | null;
-  provider: string | null;
-  model: string | null;
-  result: ChartVisionResult | null;
-  status: "ok" | "error";
-  error: string | null;
-  // Nur serverseitig ergaenzt (app/page.tsx), keine DB-Spalte -- 1h-gueltige
-  // Signed URL fuer den privaten Storage-Bucket.
-  signedUrl?: string;
-}

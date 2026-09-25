@@ -669,7 +669,7 @@ export const promptProfiles: Record<string, PromptProfile> = {
     id: "system-briefing",
     category: "signal-logic",
     description:
-      "7-11 Saetze: wendet Tobys eigenes Regelwerk (Welz/Salomon/Mein System) auf den aktuellen Stand von GUSS/VWAP-Vector/CVD, Regime, Salomon-Phase, Liquidationen, Chart-Vision, Marktkontext, ETF-Flows, Positionierung und News an.",
+      "7-11 Saetze: wendet Tobys eigenes Regelwerk (Welz/Salomon/Mein System) auf den aktuellen Stand von GUSS/VWAP-Vector/CVD, Regime, Salomon-Phase, Liquidationen, Marktkontext, ETF-Flows, Positionierung und News an.",
     systemPrompt:
       "Du bekommst zwei Arten von Daten: regelwerk (Tobys eigenes, in knowledge_base hinterlegtes " +
       "Welz-/Salomon-/'Mein Trading System'-Regelwerk -- ein Array aus module/section/title/content) " +
@@ -677,8 +677,7 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "Trendregime-Gates; trading_indicators: GUSS-Pullback-Signal, VWAP-Vector, CVD-Footprint; " +
       "market_state: 14-Faktoren-Gesamteinschaetzung; regime_matrix: 5-Saeulen-Regime; salomon: " +
       "Salomon-Phaseneinordnung, falls nicht null; liquidations: Preis-Cluster nahe am aktuellen " +
-      "Kurs; chart_vision: qualitative Trendlinien-Lesung eines TradingView-Screenshots, falls " +
-      "vorhanden und aktuell; market_context: regelbasierte Kombination aus Preis-/OI-Richtung und " +
+      "Kurs; market_context: regelbasierte Kombination aus Preis-/OI-Richtung und " +
       "Spot-Bestaetigung; etf_flows: kumulierter Netto-ETF-Flow der letzten Handelstage; " +
       "positioning: Retail-/Top-Trader-Divergenz-Confidence; news: Anzahl markbewegender " +
       "Nachrichten der letzten 72h). ALLE Live-Werte werden dem Nutzer bereits einzeln in eigenen " +
@@ -689,16 +688,13 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "sie sich? (3) falls salomon nicht null ist: nutze die genannte Phase als PRUEFRASTER wie im " +
       "Regelwerk beschrieben -- stuetzen mein_system_checklist/trading_indicators/regime_matrix " +
       "diese Phase, oder stehen sie im Spannungsverhaeltnis dazu? Nenne die Phase dabei hoechstens " +
-      "einmal; (4) ist chart_vision vorhanden: ordne die Trendlinien-Lage qualitativ als " +
-      "zusaetzlichen bestaetigenden oder widersprechenden Hinweis ein, ohne die dortige summary/" +
-      "Confidence woertlich zu wiederholen. Ist chart_vision null, erwaehne explizit, dass kein " +
-      "aktueller Screenshot vorliegt, statt das einfach zu ignorieren. (5) liegen liquidations-" +
-      "Preis-Cluster nahe am aktuellen Kurs (siehe closePrice in mein_system_checklist), ordne sie " +
-      "als Risiko- oder Magnet-Hinweis ein, falls relevant -- sonst nicht erzwingen. (6) beziehe " +
-      "zusaetzlich market_context, etf_flows, positioning und news ein -- bestaetigen diese das " +
-      "Bild aus (1)-(5), oder stehen sie dazu im Widerspruch (z.B. Regelwerk-Gates erfuellt, aber " +
-      "ETF-Flows/Marktkontext dagegen)? Ist market_context null, erwaehne das kurz statt es zu " +
-      "ignorieren. Nutze regelwerk NUR als Referenz fuer bestehende Regeln, erfinde KEINE neuen " +
+      "einmal; (4) liegen liquidations-Preis-Cluster nahe am aktuellen Kurs (siehe closePrice in " +
+      "mein_system_checklist), ordne sie als Risiko- oder Magnet-Hinweis ein, falls relevant -- " +
+      "sonst nicht erzwingen. (5) beziehe zusaetzlich market_context, etf_flows, positioning und " +
+      "news ein -- bestaetigen diese das Bild aus (1)-(4), oder stehen sie dazu im Widerspruch " +
+      "(z.B. Regelwerk-Gates erfuellt, aber ETF-Flows/Marktkontext dagegen)? Ist market_context " +
+      "null, erwaehne das kurz statt es zu ignorieren. Nutze regelwerk NUR als Referenz fuer " +
+      "bestehende Regeln, erfinde KEINE neuen " +
       "Regeln, die dort nicht stehen. Keine Kursziele, keine Handelsempfehlung, keine erfundenen " +
       "Daten ausserhalb des Kontexts. Ist market_state null, sag das explizit statt eine " +
       "Einschaetzung ohne Grundlage zu konstruieren. " +

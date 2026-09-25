@@ -78,7 +78,7 @@ export const DASHBOARD_TABS: DashboardTabMeta[] = [
   {
     id: "tools-lernen",
     label: "Tools & Lernen",
-    tileIds: ["custom-query", "youtube-monitor", "chart-vision", "lernen"],
+    tileIds: ["custom-query", "youtube-monitor", "lernen"],
   },
 ];
 

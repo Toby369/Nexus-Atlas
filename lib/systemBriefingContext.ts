@@ -1,5 +1,4 @@
 import { supabase } from "./supabase";
-import { getSupabaseAdmin } from "./supabaseAdmin";
 import { computeConfidenceBreakdown, computeEngineDivergence } from "./marketStateSummary";
 import { getSalomonInterpretation } from "./salomonInterpretation";
 import { getMeinSystemChecklistData, type MeinSystemChecklistData } from "./meinSystemContext";
@@ -7,7 +6,6 @@ import { getTradingIndicatorsData, type TradingIndicatorsData } from "./tradingI
 import { getKnowledgeBase } from "./knowledgeBaseContext";
 import { DEFAULT_TIMEFRAME, getTimeframe } from "./timeframes";
 import { deriveMarketContext } from "./marketContext";
-import type { ChartVisionResult } from "./ai/chartVisionAnalysis";
 import type {
   MarketState,
   MarketRegime,
@@ -25,9 +23,12 @@ import type {
 // Tobys eigenes Regelwerk (knowledge_base) + Salomon-Phase + Nexus' bereits
 // berechnete Faktoren (14-Faktoren-Engine, Regime Matrix, GUSS/VWAP-Vector/
 // CVD, Liquidations-Cluster, Marktkontext, ETF-Flows, Positionierung, News)
-// + den Chart-Vision-Screenshot-Read (Phase 3) zu EINEM Kontext -- mehrere
-// kleine getX()-Funktionen, EIN Promise.all. KEIN zweiter Rechenweg: jede
-// Quelle hier ist bereits bestehender Code.
+// zu EINEM Kontext -- mehrere kleine getX()-Funktionen, EIN Promise.all.
+// KEIN zweiter Rechenweg: jede Quelle hier ist bereits bestehender Code.
+// Chart-Vision (Phase 3) wurde 25.09.2026 als eigenstaendige Kachel
+// entfernt (Nutzer-Entscheidung: durch die neue, algorithmische
+// "Struktur"-Kachel weitgehend ueberholt) -- damit auch hier als Quelle
+// entfernt.
 //
 // Server-only (nutzt Supabase direkt) -- niemals aus einer "use client"
 // Komponente importieren.
@@ -47,12 +48,6 @@ const ETF_FLOW_LIMIT = 10;
 const NEWS_LOOKBACK_HOURS = 72;
 const NEWS_LIMIT = 5;
 const DASHBOARD_BUNDLE_MAX_POINTS = 500;
-
-// Ein Chart-Vision-Screenshot ist eine Momentaufnahme -- aelter als dieses
-// Fenster wird er NICHT als aktueller Zustand behandelt (deutlich enger als
-// der 6h-Liquidations-Lookback, der auf Event-HISTORIE statt einem
-// Chart-Snapshot zielt).
-const CHART_VISION_MAX_AGE_HOURS = 3;
 
 async function getLatestMarketState(): Promise<MarketState | null> {
   const { data } = await supabase
@@ -132,30 +127,6 @@ async function getLiquidationIntelligence(): Promise<LiquidationIntelligence | n
   return (data as LiquidationIntelligence | null) ?? null;
 }
 
-interface ChartVisionRow {
-  generated_at: string;
-  note: string | null;
-  result: ChartVisionResult | null;
-}
-
-async function getRecentChartVision(): Promise<{ generated_at: string; note: string | null; result: ChartVisionResult } | null> {
-  const admin = getSupabaseAdmin();
-  const { data, error } = await admin
-    .from("chart_vision_analyses")
-    .select("generated_at, note, result")
-    .eq("status", "ok")
-    .order("generated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle<ChartVisionRow>();
-
-  if (error || !data || !data.result) return null;
-
-  const ageMs = Date.now() - new Date(data.generated_at).getTime();
-  if (ageMs > CHART_VISION_MAX_AGE_HOURS * 60 * 60 * 1000) return null;
-
-  return { generated_at: data.generated_at, note: data.note, result: data.result };
-}
-
 interface RegelwerkEntry {
   module: "welz" | "salomon" | "mein_system";
   section: string;
@@ -195,7 +166,6 @@ export interface SystemBriefingContext {
     total_oi_usd: number | null;
     lookback_hours: number;
   } | null;
-  chart_vision: { generated_at: string; note: string | null; result: ChartVisionResult } | null;
   regelwerk: RegelwerkEntry[];
   // Marktkontext/ETF-Flows/Positionierung/News (22.09.2026, ergaenzt aus dem
   // entfernten "market-state-narrative"-Kontext, siehe Kommentar oben).
@@ -223,7 +193,6 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
     meinSystemChecklist,
     tradingIndicators,
     liquidationIntelligence,
-    chartVision,
     regelwerk,
     bundle,
     recentEtfFlows,
@@ -234,7 +203,6 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
     getMeinSystemChecklistData(),
     getTradingIndicatorsData(),
     getLiquidationIntelligence(),
-    getRecentChartVision(),
     getRegelwerk(),
     getDashboardPollBundle(sinceIso),
     getRecentEtfFlows(),
@@ -277,7 +245,6 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
           lookback_hours: LIQUIDATION_LOOKBACK_HOURS,
         }
       : null,
-    chart_vision: chartVision,
     regelwerk,
     market_context: marketContextDerived
       ? {

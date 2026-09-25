@@ -66,11 +66,10 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "trade-debate", title: "Trade-Debate (KI)" },
   { id: "custom-query", title: "Freie Anfrage (KI)" },
   { id: "youtube-monitor", title: "Krypto-YouTube-Monitor (KI)" },
-  { id: "chart-vision", title: "Chart-Vision: Trendlinien (KI)" },
   // Umsetzungsplan Phase 4 (18.09.2026): fusioniert Regelwerk+Salomon+alle
-  // berechneten Nexus-Faktoren+Chart-Vision zu einer Synthese -- fullWidth,
-  // da der Fliesstext aus vielen fusionierten Quellen in einer 1/3-Spalte
-  // zu eng waere.
+  // berechneten Nexus-Faktoren zu einer Synthese -- fullWidth, da der
+  // Fliesstext aus vielen fusionierten Quellen in einer 1/3-Spalte zu eng
+  // waere.
   { id: "system-briefing", title: "System-Briefing: Regelwerk & Nexus-Faktoren (KI)", fullWidth: true },
   { id: "liquidations", title: "Liquidationen" },
   { id: "etf-flow", title: "ETF-Flows & Makro" },
