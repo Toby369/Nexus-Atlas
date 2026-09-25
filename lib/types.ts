@@ -1,4 +1,5 @@
 import type { ExchangeFirstSeen } from "@/lib/exchangeConsistency";
+import type { ChartVisionResult, ChartVisionTrendline } from "@/lib/ai/chartVisionAnalysis";
 
 export interface MarketSnapshot {
   id: number;
@@ -756,27 +757,12 @@ export interface CustomQueryRun {
   error: string | null;
 }
 
-// Chart-Vision (Umsetzungsplan "Chart-Vision: LSOB & Trendlinien lesen",
-// Phase 3) -- siehe lib/ai/chartVisionAnalysis.ts (Analyse) + ChartVisionCard.tsx.
-export interface ChartVisionResult {
-  overallReadability: "clear" | "partial" | "illegible";
-  lsob: {
-    visible: boolean;
-    zoneCount: number | null;
-    description: string;
-    relationToPrice: "above" | "below" | "at" | "mixed" | "unclear";
-  };
-  trendlines: {
-    visible: boolean;
-    count: number | null;
-    description: string;
-    relationToPrice: string;
-  };
-  visiblePriceLabel: string | null;
-  confidence: number;
-  caveats: string[];
-  summary: string;
-}
+// Chart-Vision (Umsetzungsplan "Chart-Vision: Trendlinien lesen", Phase 3)
+// -- ChartVisionResult wird NICHT mehr hier dupliziert (bis 25.09.2026 gab
+// es zwei unabhaengig gepflegte Kopien dieses Typs, siehe
+// lib/ai/chartVisionAnalysis.ts fuer die vollstaendige Historie), sondern
+// von dort importiert/re-exportiert (siehe Import oben).
+export type { ChartVisionResult, ChartVisionTrendline };
 
 export interface ChartVisionAnalysis {
   id: number;

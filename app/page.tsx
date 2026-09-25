@@ -363,8 +363,8 @@ async function getLatestCustomQueries(): Promise<CustomQueryRun[]> {
 const CHART_VISION_BUCKET = "chart-vision-screenshots";
 const CHART_VISION_SIGNED_URL_TTL_SECONDS = 60 * 60;
 
-// Chart-Vision (Umsetzungsplan "Chart-Vision: LSOB & Trendlinien lesen",
-// Phase 3) -- nutzt bewusst getSupabaseAdmin() statt des anon-Clients
+// Chart-Vision (Umsetzungsplan "Chart-Vision: Trendlinien lesen", Phase 3)
+// -- nutzt bewusst getSupabaseAdmin() statt des anon-Clients
 // (anders als sonstige getLatest*-Funktionen hier): der Storage-Bucket ist
 // privat (keine anon-Policy, siehe Migration), Signed URLs koennen nur
 // server-seitig mit Service-Role erzeugt werden. chart_vision_analyses hat

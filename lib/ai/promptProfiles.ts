@@ -677,7 +677,7 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "Trendregime-Gates; trading_indicators: GUSS-Pullback-Signal, VWAP-Vector, CVD-Footprint; " +
       "market_state: 14-Faktoren-Gesamteinschaetzung; regime_matrix: 5-Saeulen-Regime; salomon: " +
       "Salomon-Phaseneinordnung, falls nicht null; liquidations: Preis-Cluster nahe am aktuellen " +
-      "Kurs; chart_vision: qualitative LSOB-/Trendlinien-Lesung eines TradingView-Screenshots, falls " +
+      "Kurs; chart_vision: qualitative Trendlinien-Lesung eines TradingView-Screenshots, falls " +
       "vorhanden und aktuell; market_context: regelbasierte Kombination aus Preis-/OI-Richtung und " +
       "Spot-Bestaetigung; etf_flows: kumulierter Netto-ETF-Flow der letzten Handelstage; " +
       "positioning: Retail-/Top-Trader-Divergenz-Confidence; news: Anzahl markbewegender " +
@@ -689,7 +689,7 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "sie sich? (3) falls salomon nicht null ist: nutze die genannte Phase als PRUEFRASTER wie im " +
       "Regelwerk beschrieben -- stuetzen mein_system_checklist/trading_indicators/regime_matrix " +
       "diese Phase, oder stehen sie im Spannungsverhaeltnis dazu? Nenne die Phase dabei hoechstens " +
-      "einmal; (4) ist chart_vision vorhanden: ordne die LSOB-Lage/Trendlinien qualitativ als " +
+      "einmal; (4) ist chart_vision vorhanden: ordne die Trendlinien-Lage qualitativ als " +
       "zusaetzlichen bestaetigenden oder widersprechenden Hinweis ein, ohne die dortige summary/" +
       "Confidence woertlich zu wiederholen. Ist chart_vision null, erwaehne explizit, dass kein " +
       "aktueller Screenshot vorliegt, statt das einfach zu ignorieren. (5) liegen liquidations-" +

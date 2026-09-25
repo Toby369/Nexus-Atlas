@@ -1,29 +1,30 @@
 import { fetchWithRetry } from "./fetchWithRetry";
 
-// Chart-Vision (Umsetzungsplan "Chart-Vision: LSOB & Trendlinien lesen",
-// Phase 3 des Trading-Entscheidungsunterstuetzungs-Fahrplans) -- bewusst
-// NICHT ueber den generischen AI-Router (lib/ai/router.ts/AIProvider-
-// Interface): dessen generateStructured() nimmt nur einen reinen Text-
-// Prompt entgegen, hier wird aber ein hochgeladenes Bild per inline_data
-// direkt an Gemini uebergeben (multimodaler Content-Block). Gleiches
-// Grundmuster wie lib/ai/youtubeVideoAnalysis.ts (dort file_data/file_uri
-// fuer eine Video-URL) -- hier inline_data/base64 fuer ein tatsaechlich
-// hochgeladenes Bild statt einer oeffentlichen URL.
+// Chart-Vision (Umsetzungsplan "Chart-Vision: Trendlinien lesen", Phase 3
+// des Trading-Entscheidungsunterstuetzungs-Fahrplans) -- bewusst NICHT
+// ueber den generischen AI-Router (lib/ai/router.ts/AIProvider-Interface):
+// dessen generateStructured() nimmt nur einen reinen Text-Prompt entgegen,
+// hier wird aber ein hochgeladenes Bild per inline_data direkt an Gemini
+// uebergeben (multimodaler Content-Block). Gleiches Grundmuster wie
+// lib/ai/youtubeVideoAnalysis.ts (dort file_data/file_uri fuer eine Video-
+// URL) -- hier inline_data/base64 fuer ein tatsaechlich hochgeladenes Bild
+// statt einer oeffentlichen URL.
 //
-// Hintergrund: LSOB ("Liquidity Sweep Order Block", Claudius Vertesi) ist
-// ein closed-source TradingView-Indikator -- anders als GUSS (dessen Regel
-// vollstaendig bekannt und in lib/tradingIndicatorsContext.ts als reine
-// Berechnung nachgebaut ist) kann LSOB nicht reverse-engineered werden, nur
-// sein bereits korrektes visuelles Ergebnis gelesen werden. Gleiches gilt
-// fuer Tobys frei Hand gezeichnete Trendlinien -- die existieren
-// ausschliesslich als Pixel in seiner TradingView-Ansicht.
+// Hintergrund: Tobys frei Hand eingezeichnete Trendlinien existieren
+// ausschliesslich als Pixel in seiner TradingView-Ansicht -- anders als
+// GUSS/VWAP-Vector/CVD (deren Regeln vollstaendig bekannt und in
+// lib/tradingIndicatorsContext.ts als reine Berechnung nachgebaut sind)
+// gibt es dafuer keine zugrunde liegende Formel, die Nexus selbst
+// nachrechnen koennte -- nur das bereits gezeichnete Ergebnis kann gelesen
+// werden.
 //
-// WICHTIG (Namens-Kollision): Nexus hat bereits ein UNVERWANDTES, selbst
-// gebautes TradingView-Alert-Feature namens "Liquidity Sweep"
-// (docs/tradingview/nexus-liquidity-sweep.pine, lib/webhookTradingView.ts,
-// lib/tradingViewSignal.ts, Divergence Radar) -- dieses Modul heisst
-// bewusst "chartVision"/"lsob", nicht "liquiditySweep", um Verwechslung zu
-// vermeiden.
+// Umbau 25.09.2026 (Nutzer-Vorgabe "systematisch, strukturiert", LSOB
+// raus): frueher analysierte diese Kachel zusaetzlich LSOB ("Liquidity
+// Sweep Order Block")-Zonen eines geschlossenen Drittanbieter-Indikators
+// (Claudius Vertesi) -- LSOB wurde ersatzlos entfernt (Nutzer-Entscheidung,
+// keine fachliche Begruendung noetig). Gleichzeitig von "ein Zaehler + ein
+// Freitext" auf eine strukturierte Liste (ein Objekt je erkannter Linie)
+// umgestellt, siehe ChartVisionTrendline unten.
 //
 // Env-Vars: GOOGLE_API_KEY (bereits fuer andere Kacheln konfiguriert),
 // GOOGLE_VISION_MODEL optional (Flash-Modell mit Bild-Unterstuetzung --
@@ -47,20 +48,20 @@ export class ChartVisionAnalysisError extends Error {
   }
 }
 
+// Eine erkannte Trendlinie -- ein Objekt je sichtbarer Linie statt (wie vor
+// dem 25.09.2026-Umbau) ein einzelner Zaehler + ein Freitext fuer alle
+// Linien zusammen.
+export interface ChartVisionTrendline {
+  direction: "up" | "down" | "horizontal";
+  priceRelation: "above" | "below" | "touching" | "broken_through";
+}
+
 export interface ChartVisionResult {
   overallReadability: "clear" | "partial" | "illegible";
-  lsob: {
-    visible: boolean;
-    zoneCount: number | null;
-    description: string;
-    relationToPrice: "above" | "below" | "at" | "mixed" | "unclear";
-  };
-  trendlines: {
-    visible: boolean;
-    count: number | null;
-    description: string;
-    relationToPrice: string;
-  };
+  // Leeres Array = keine Trendlinie erkannt (nicht null/undefined -- ein
+  // eindeutiger, immer vorhandener Zustand statt eines dritten "visible"-
+  // Flags).
+  trendlines: ChartVisionTrendline[];
   // Nur gesetzt, wenn im Bild eindeutig als Achsen-/Preis-Label lesbar --
   // NIE aus der Pixel-Position eines Elements geschaetzt (keine erfundene
   // Praezision).
@@ -100,7 +101,8 @@ function extractJson(raw: string): unknown {
 }
 
 const READABILITY_VALUES = ["clear", "partial", "illegible"];
-const PRICE_RELATION_VALUES = ["above", "below", "at", "mixed", "unclear"];
+const TRENDLINE_DIRECTION_VALUES = ["up", "down", "horizontal"];
+const TRENDLINE_PRICE_RELATION_VALUES = ["above", "below", "touching", "broken_through"];
 
 function validate(data: unknown): string[] {
   const errors: string[] = [];
@@ -110,32 +112,20 @@ function validate(data: unknown): string[] {
     errors.push(`"overallReadability" muss einer von ${READABILITY_VALUES.join(", ")} sein.`);
   }
 
-  const lsob = d?.lsob as Record<string, unknown> | undefined;
-  if (typeof lsob?.visible !== "boolean") {
-    errors.push(`"lsob.visible" muss ein Boolean sein.`);
-  }
-  if (lsob?.zoneCount !== null && typeof lsob?.zoneCount !== "number") {
-    errors.push(`"lsob.zoneCount" muss eine Zahl oder null sein.`);
-  }
-  if (typeof lsob?.description !== "string") {
-    errors.push(`"lsob.description" muss ein String sein.`);
-  }
-  if (!PRICE_RELATION_VALUES.includes(lsob?.relationToPrice as string)) {
-    errors.push(`"lsob.relationToPrice" muss einer von ${PRICE_RELATION_VALUES.join(", ")} sein.`);
-  }
-
-  const trendlines = d?.trendlines as Record<string, unknown> | undefined;
-  if (typeof trendlines?.visible !== "boolean") {
-    errors.push(`"trendlines.visible" muss ein Boolean sein.`);
-  }
-  if (trendlines?.count !== null && typeof trendlines?.count !== "number") {
-    errors.push(`"trendlines.count" muss eine Zahl oder null sein.`);
-  }
-  if (typeof trendlines?.description !== "string") {
-    errors.push(`"trendlines.description" muss ein String sein.`);
-  }
-  if (typeof trendlines?.relationToPrice !== "string") {
-    errors.push(`"trendlines.relationToPrice" muss ein String sein.`);
+  if (!Array.isArray(d?.trendlines)) {
+    errors.push(`"trendlines" muss ein Array sein.`);
+  } else {
+    d.trendlines.forEach((entry, i) => {
+      const t = entry as Record<string, unknown>;
+      if (!TRENDLINE_DIRECTION_VALUES.includes(t?.direction as string)) {
+        errors.push(`"trendlines[${i}].direction" muss einer von ${TRENDLINE_DIRECTION_VALUES.join(", ")} sein.`);
+      }
+      if (!TRENDLINE_PRICE_RELATION_VALUES.includes(t?.priceRelation as string)) {
+        errors.push(
+          `"trendlines[${i}].priceRelation" muss einer von ${TRENDLINE_PRICE_RELATION_VALUES.join(", ")} sein.`
+        );
+      }
+    });
   }
 
   if (d?.visiblePriceLabel !== null && typeof d?.visiblePriceLabel !== "string") {
@@ -156,30 +146,30 @@ function validate(data: unknown): string[] {
 
 const SYSTEM_PROMPT =
   "Du analysierst einen Chart-Screenshot aus TradingView fuer Nexus, ein persoenliches BTC-" +
-  "Marktueberwachungs-Tool. Der Screenshot zeigt zwei Elemente, die NICHT strukturiert berechnet " +
-  "werden koennen, weil ihre Logik nicht offenliegt bzw. nur als Handzeichnung existiert: " +
-  "(1) LSOB (\"Liquidity Sweep Order Block\")-Zonen, eingezeichnet von einem geschlossenen " +
-  "Drittanbieter-Indikator, und (2) vom Nutzer selbst per Hand eingezeichnete Trendlinien. Du " +
-  "siehst NUR das Pixelbild, keine Rohdaten.\n\n" +
-  "Beschreibe was du siehst: Sind LSOB-Zonen sichtbar, wie viele, liegen sie ueber/unter/" +
-  "unmittelbar am aktuellen Kurs? Wie viele Trendlinien sind erkennbar, in welche Richtung " +
-  "verlaufen sie, naehert sich der Kurs einer Linie an oder hat er sie durchbrochen? Beschreibe " +
-  "Lage/Charakter qualitativ -- erfinde KEINE exakten Preiswerte, wenn du sie nicht eindeutig aus " +
-  "beschrifteten Achsen/Labels im Bild ablesen kannst. Falls ein aktueller Kurs/Preis-Label im " +
-  "Bild lesbar ist, gib ihn wieder (als Kontext, nicht als praezise Marktdatenquelle -- Nexus hat " +
-  "dafuer eigene Live-Daten).\n\n" +
-  "Sei ehrlich ueber Unsicherheit: ist der Screenshot unscharf, ein Element nicht erkennbar oder " +
-  "mehrdeutig, sag das explizit (overallReadability + caveats) statt zu raten oder Praezision " +
+  "Marktueberwachungs-Tool. Der Screenshot zeigt vom Nutzer selbst per Hand eingezeichnete " +
+  "Trendlinien -- diese existieren ausschliesslich als Pixel in seiner TradingView-Ansicht, nicht " +
+  "strukturiert zugaenglich. Du siehst NUR das Pixelbild, keine Rohdaten.\n\n" +
+  "Gehe systematisch in dieser Reihenfolge vor:\n" +
+  "1. Schaetze zuerst die Gesamt-Lesbarkeit des Screenshots ein.\n" +
+  "2. Identifiziere JEDE einzelne sichtbar eingezeichnete Trendlinie einzeln (nicht als eine " +
+  "zusammengefasste Beschreibung). Bestimme fuer jede: Richtung (steigend/fallend/horizontal) und " +
+  "Verhaeltnis zum aktuellen Kurs (Kurs liegt darueber, liegt darunter, beruehrt die Linie gerade, " +
+  "oder hat sie bereits durchbrochen). Ist keine Trendlinie sichtbar, liefere eine leere Liste, " +
+  "erfinde keine.\n" +
+  "3. Falls ein aktueller Kurs/Preis-Label eindeutig als Achsen-/Preis-Beschriftung im Bild " +
+  "lesbar ist, gib ihn wieder (als Kontext, nicht als praezise Marktdatenquelle -- Nexus hat " +
+  "dafuer eigene Live-Daten). Erfinde KEINEN Preiswert aus der Pixel-Position einer Linie.\n" +
+  "4. Sei ehrlich ueber Unsicherheit: ist der Screenshot unscharf oder eine Linie nicht eindeutig " +
+  "zuordenbar, spiegle das in overallReadability und caveats wider, statt zu raten oder Praezision " +
   "vorzutaeuschen, die du nicht hast.\n\n" +
   "WICHTIG: Das hier ist reine Entscheidungsunterstuetzung, KEIN Handelssignal und keine " +
-  "Anlageberatung. Du bewertest nicht, ob ein Trade sinnvoll ist -- du beschreibst nur, was LSOB " +
-  "und die Trendlinien aktuell zeigen.\n\n" +
+  "Anlageberatung. Du bewertest nicht, ob ein Trade sinnvoll ist -- du beschreibst nur, was die " +
+  "Trendlinien aktuell zeigen.\n\n" +
   "Antworte AUSSCHLIESSLICH mit einem JSON-Objekt: overallReadability (\"clear\"|\"partial\"|" +
-  "\"illegible\"), lsob (Objekt: visible [boolean], zoneCount [Zahl oder null], description " +
-  "[string], relationToPrice [\"above\"|\"below\"|\"at\"|\"mixed\"|\"unclear\"]), trendlines " +
-  "(Objekt: visible [boolean], count [Zahl oder null], description [string], relationToPrice " +
-  "[string]), visiblePriceLabel (string oder null), confidence (0-100), caveats (string[]), " +
-  "summary (string, deutsch, 2-4 Saetze).";
+  "\"illegible\"), trendlines (Array, ein Objekt je sichtbarer Linie: direction " +
+  "[\"up\"|\"down\"|\"horizontal\"], priceRelation [\"above\"|\"below\"|\"touching\"|" +
+  "\"broken_through\"]), visiblePriceLabel (string oder null), confidence (0-100), caveats " +
+  "(string[]), summary (string, deutsch, 2-4 Saetze).";
 
 export async function analyzeChartVision(
   imageBase64: string,

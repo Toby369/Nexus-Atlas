@@ -6,32 +6,41 @@ import { FullDateTime, StaleBadge } from "@/components/ClientTimestamp";
 import PanelInfo from "@/components/PanelInfo";
 import { resizeImageForUpload, blobToBase64 } from "@/lib/imageResize";
 
-// Chart-Vision (Umsetzungsplan "Chart-Vision: LSOB & Trendlinien lesen",
-// Phase 3) -- Toby laedt einen TradingView-Screenshot hoch (LSOB-Zonen +
-// eigene Trendlinien, beides nur als Pixel vorhanden, weder aus
-// geschlossenem Drittanbieter-Indikator noch aus Handzeichnungen
-// strukturiert zugaenglich). Gemini liest qualitativ, was zu sehen ist --
-// reine Entscheidungsunterstuetzung, kein Handelssignal.
+// Chart-Vision (Umsetzungsplan "Chart-Vision: Trendlinien lesen", Phase 3)
+// -- Toby laedt einen TradingView-Screenshot mit seinen eigenen, per Hand
+// eingezeichneten Trendlinien hoch (nur als Pixel vorhanden, nicht
+// strukturiert zugaenglich). Gemini liest systematisch jede einzelne Linie
+// aus -- reine Entscheidungsunterstuetzung, kein Handelssignal.
+//
+// Umbau 25.09.2026 (Nutzer-Vorgabe "systematisch, strukturiert", LSOB
+// raus): frueher analysierte diese Kachel zusaetzlich LSOB-Zonen eines
+// geschlossenen Drittanbieter-Indikators -- ersatzlos entfernt. Gleichzeitig
+// von "ein Zaehler + ein Freitext fuer alle Linien" auf eine Liste (ein
+// Eintrag je erkannter Linie) umgestellt, siehe lib/ai/chartVisionAnalysis.ts.
 
 const INFO_TEXT = [
-  "Was das ist: du laedst einen Screenshot deines TradingView-Charts hoch (mit sichtbaren LSOB-Zonen und/oder deinen Trendlinien), eine kostenlose Vision-KI (Gemini) beschreibt qualitativ, was sie sieht -- Lage relativ zum aktuellen Kurs, Anzahl, Richtung.",
-  "Bewusst qualitativ, keine erfundenen Preiswerte: die KI liest keine Pixel-Positionen als exakte Preise, ausser ein Preis-Label ist im Bild eindeutig beschriftet. Ist der Screenshot unscharf oder ein Element nicht erkennbar, wird das offen als 'partial'/'illegible' gekennzeichnet statt geraten.",
+  "Was das ist: du laedst einen Screenshot deines TradingView-Charts mit deinen eigenen Trendlinien hoch, eine kostenlose Vision-KI (Gemini) liest jede einzelne Linie systematisch aus -- Richtung und Verhältnis zum aktuellen Kurs, je Linie einzeln statt einer Sammelbeschreibung.",
+  "Bewusst qualitativ, keine erfundenen Preiswerte: die KI liest keine Pixel-Positionen als exakte Preise, ausser ein Preis-Label ist im Bild eindeutig beschriftet. Ist der Screenshot unscharf oder eine Linie nicht eindeutig zuordenbar, wird das offen als 'partial'/'illegible' gekennzeichnet statt geraten.",
   "Screenshots werden gespeichert (privater Speicher, nur du siehst sie) -- Verlauf unten zeigt vergangene Analysen samt Vorschaubild.",
   "Kostenlos, nur per Klick auf 'Analysieren' -- kein Handelssignal, keine Anlageberatung.",
 ].join("\n\n");
 
+const DIRECTION_LABEL: Record<string, string> = {
+  up: "steigend",
+  down: "fallend",
+  horizontal: "horizontal",
+};
+
 function formatRelation(relation: string): string {
   switch (relation) {
     case "above":
-      return "über dem Kurs";
+      return "Kurs darüber";
     case "below":
-      return "unter dem Kurs";
-    case "at":
-      return "am Kurs";
-    case "mixed":
-      return "gemischt";
-    case "unclear":
-      return "unklar";
+      return "Kurs darunter";
+    case "touching":
+      return "wird gerade berührt";
+    case "broken_through":
+      return "bereits durchbrochen";
     default:
       return relation;
   }
@@ -106,8 +115,8 @@ export default function ChartVisionCard({
     <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <span className="flex items-center gap-1.5">
-          <p className="text-sm font-medium text-text">Chart-Vision: LSOB &amp; Trendlinien (KI)</p>
-          <PanelInfo title="Chart-Vision: LSOB & Trendlinien" content={INFO_TEXT} />
+          <p className="text-sm font-medium text-text">Chart-Vision: Trendlinien (KI)</p>
+          <PanelInfo title="Chart-Vision: Trendlinien" content={INFO_TEXT} />
         </span>
       </div>
 
@@ -127,7 +136,7 @@ export default function ChartVisionCard({
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={2}
-          placeholder="Optionale Notiz (z.B. 'nur die untere LSOB-Zone interessiert mich')…"
+          placeholder="Optionale Notiz (z.B. 'nur die obere Trendlinie interessiert mich')…"
           className="w-full text-xs rounded-md border border-border bg-surface-raised text-text px-2 py-1.5 focus:outline-none focus:border-accent/40"
         />
         <button
@@ -166,23 +175,15 @@ export default function ChartVisionCard({
                     <span className="text-text-muted">{READABILITY_LABEL[a.result.overallReadability]}</span>
                   </p>
                   <p className="text-text-faint">
-                    LSOB:{" "}
-                    {a.result.lsob.visible ? (
-                      <span className="text-text-muted">
-                        {a.result.lsob.description} ({formatRelation(a.result.lsob.relationToPrice)})
-                      </span>
-                    ) : (
-                      <span className="text-text-muted">nicht sichtbar</span>
-                    )}
-                  </p>
-                  <p className="text-text-faint">
                     Trendlinien:{" "}
-                    {a.result.trendlines.visible ? (
+                    {a.result.trendlines.length > 0 ? (
                       <span className="text-text-muted">
-                        {a.result.trendlines.description} ({formatRelation(a.result.trendlines.relationToPrice)})
+                        {a.result.trendlines
+                          .map((t) => `${DIRECTION_LABEL[t.direction] ?? t.direction} (${formatRelation(t.priceRelation)})`)
+                          .join(", ")}
                       </span>
                     ) : (
-                      <span className="text-text-muted">nicht sichtbar</span>
+                      <span className="text-text-muted">keine sichtbar</span>
                     )}
                   </p>
                   {a.result.visiblePriceLabel && (

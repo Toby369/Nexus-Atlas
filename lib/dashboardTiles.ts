@@ -66,7 +66,7 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "trade-debate", title: "Trade-Debate (KI)" },
   { id: "custom-query", title: "Freie Anfrage (KI)" },
   { id: "youtube-monitor", title: "Krypto-YouTube-Monitor (KI)" },
-  { id: "chart-vision", title: "Chart-Vision: LSOB & Trendlinien (KI)" },
+  { id: "chart-vision", title: "Chart-Vision: Trendlinien (KI)" },
   // Umsetzungsplan Phase 4 (18.09.2026): fusioniert Regelwerk+Salomon+alle
   // berechneten Nexus-Faktoren+Chart-Vision zu einer Synthese -- fullWidth,
   // da der Fliesstext aus vielen fusionierten Quellen in einer 1/3-Spalte

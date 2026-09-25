@@ -1,5 +1,5 @@
 // Client-seitige Bildverkleinerung vor dem Chart-Vision-Upload (Umsetzungsplan
-// "Chart-Vision: LSOB & Trendlinien lesen", Phase 3). Nur aus "use client"-
+// "Chart-Vision: Trendlinien lesen", Phase 3). Nur aus "use client"-
 // Code importiert (nutzt Image/Canvas/FileReader), daher KEIN "server-only"
 // noetig -- ein versehentlicher Server-Import wuerde ohnehin sofort laut
 // zur Laufzeit scheitern (die Browser-APIs existieren dort nicht), kein

@@ -5,9 +5,9 @@ import { checkAndRecordRateLimit } from "@/lib/rateLimit";
 
 // POST /api/chart-vision/generate
 //
-// Chart-Vision (Umsetzungsplan "Chart-Vision: LSOB & Trendlinien lesen",
-// Phase 3) -- Toby laedt einen TradingView-Screenshot hoch (LSOB-Zonen +
-// eigene Trendlinien, beides nur als Pixel vorhanden, nicht strukturiert
+// Chart-Vision (Umsetzungsplan "Chart-Vision: Trendlinien lesen", Phase 3)
+// -- Toby laedt einen TradingView-Screenshot mit seinen eigenen
+// Trendlinien hoch (nur als Pixel vorhanden, nicht strukturiert
 // zugaenglich), Gemini liefert eine qualitative Lesung zurueck. Bewusst nur
 // EIN Bild pro Aufruf, kein Loop wie beim YouTube-Monitor -- daher kein
 // maxDuration-Override noetig (gleiche Einschaetzung wie custom-query).
