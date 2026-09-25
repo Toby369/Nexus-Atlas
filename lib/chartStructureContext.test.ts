@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   computeAvwapPivotLevels,
+  computeSwingFormations,
   computeTrendlines,
   detectCandlestickPatterns,
+  detectTriangle,
   fitTrendline,
   type OhlcvCandle,
+  type TrendlineLevel,
 } from "./chartStructureContext";
 
 function flatCandle(openTime: string, price: number, volume = 1): OhlcvCandle {
@@ -125,5 +128,106 @@ describe("computeTrendlines", () => {
     // Extrempunkte im ausgewerteten Bereich [20, 41)).
     const candles = Array.from({ length: 61 }, (_, i) => flatCandle(`v${i}`, 130 - Math.abs(i - 30)));
     expect(computeTrendlines(candles)).toEqual([]);
+  });
+});
+
+describe("computeSwingFormations", () => {
+  const highPoints = [
+    { index: 5, value: 100 },
+    { index: 20, value: 101 },
+  ];
+  const lowPointBetween = [{ index: 12, value: 90 }];
+
+  function candlesWithTailClose(tailClose: number): OhlcvCandle[] {
+    return Array.from({ length: 25 }, (_, i) =>
+      i >= 21 ? { ...flatCandle(`c${i}`, 100), close: tailClose } : flatCandle(`c${i}`, 100)
+    );
+  }
+
+  it("erkennt ein bestaetigtes Double Top bei Nackenlinien-Bruch", () => {
+    const candles = candlesWithTailClose(85); // unter der Nackenlinie (90)
+    const formations = computeSwingFormations(candles, { lowPoints: lowPointBetween, highPoints });
+    const doubleTop = formations.find((f) => f.type === "double_top");
+    expect(doubleTop).toBeDefined();
+    expect(doubleTop!.direction).toBe("BEARISH");
+    expect(doubleTop!.necklineValue).toBe(90);
+    expect(doubleTop!.confirmed).toBe(true);
+  });
+
+  it("markiert ein Double Top als unbestaetigt ohne Nackenlinien-Bruch", () => {
+    const candles = candlesWithTailClose(95); // ueber der Nackenlinie
+    const formations = computeSwingFormations(candles, { lowPoints: lowPointBetween, highPoints });
+    const doubleTop = formations.find((f) => f.type === "double_top");
+    expect(doubleTop).toBeDefined();
+    expect(doubleTop!.confirmed).toBe(false);
+  });
+
+  it("erkennt kein Double Top, wenn die zwei Hochs zu unterschiedlich sind", () => {
+    const candles = candlesWithTailClose(100);
+    const farApartHighs = [
+      { index: 5, value: 100 },
+      { index: 20, value: 130 }, // 30% auseinander, ueber FORMATION_PEAK_TOLERANCE_PCT
+    ];
+    const formations = computeSwingFormations(candles, { lowPoints: lowPointBetween, highPoints: farApartHighs });
+    expect(formations.find((f) => f.type === "double_top")).toBeUndefined();
+  });
+
+  it("erkennt ein bestaetigtes Kopf-Schulter-Muster bei Nackenlinien-Bruch", () => {
+    const shoulderHighs = [
+      { index: 5, value: 100 }, // linke Schulter
+      { index: 15, value: 110 }, // Kopf, hoeher als beide Schultern
+      { index: 25, value: 101 }, // rechte Schulter, aehnliche Hoehe wie links
+    ];
+    const necklines = [
+      { index: 10, value: 95 }, // zwischen linker Schulter und Kopf
+      { index: 20, value: 96 }, // zwischen Kopf und rechter Schulter
+    ];
+    const candles = Array.from({ length: 30 }, (_, i) =>
+      i >= 26 ? { ...flatCandle(`h${i}`, 100), close: 90 } : flatCandle(`h${i}`, 100)
+    );
+    const formations = computeSwingFormations(candles, { lowPoints: necklines, highPoints: shoulderHighs });
+    const hns = formations.find((f) => f.type === "head_and_shoulders");
+    expect(hns).toBeDefined();
+    expect(hns!.direction).toBe("BEARISH");
+    expect(hns!.necklineValue).toBeCloseTo(95.5, 6);
+    expect(hns!.confirmed).toBe(true);
+  });
+});
+
+describe("detectTriangle", () => {
+  const candles = Array.from({ length: 10 }, (_, i) => flatCandle(`t${i}`, 100));
+
+  function line(direction: TrendlineLevel["direction"], v1: number, v2: number): TrendlineLevel {
+    return {
+      direction,
+      touchCount: 2,
+      confirmed: false,
+      currentValue: 100,
+      points: [
+        { openTime: "t1", value: v1 },
+        { openTime: "t5", value: v2 },
+      ],
+    };
+  }
+
+  it("erkennt ein symmetrisches Dreieck bei konvergierenden Linien", () => {
+    const up = line("up", 90, 98); // steigt klar
+    const down = line("down", 110, 102); // faellt klar
+    const triangle = detectTriangle([up, down], candles);
+    expect(triangle).not.toBeNull();
+    expect(triangle!.type).toBe("symmetric");
+  });
+
+  it("erkennt ein steigendes Dreieck bei flacher Widerstandslinie", () => {
+    const up = line("up", 90, 98); // steigt klar
+    const down = line("down", 100, 100); // flach
+    const triangle = detectTriangle([up, down], candles);
+    expect(triangle).not.toBeNull();
+    expect(triangle!.type).toBe("ascending");
+  });
+
+  it("liefert null ohne beide Linien", () => {
+    expect(detectTriangle([line("up", 90, 98)], candles)).toBeNull();
+    expect(detectTriangle([], candles)).toBeNull();
   });
 });

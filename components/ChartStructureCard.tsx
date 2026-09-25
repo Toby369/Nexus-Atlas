@@ -55,6 +55,38 @@ function TrendlineRow({ line }: { line: ChartStructureData["trendlines"][number]
   );
 }
 
+const SWING_FORMATION_LABELS: Record<ChartStructureData["swingFormations"][number]["type"], string> = {
+  double_top: "Doppel-Top (M)",
+  double_bottom: "Doppel-Boden (W)",
+  head_and_shoulders: "Kopf-Schulter",
+  inverse_head_and_shoulders: "Inverse Kopf-Schulter",
+};
+
+const TRIANGLE_LABELS: Record<NonNullable<ChartStructureData["triangle"]>["type"], string> = {
+  ascending: "Aufsteigendes Dreieck",
+  descending: "Absteigendes Dreieck",
+  symmetric: "Symmetrisches Dreieck",
+};
+
+function SwingFormationRow({ formation }: { formation: ChartStructureData["swingFormations"][number] }) {
+  return (
+    <div className="rounded-md border border-border/60 p-2 space-y-1">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-text-faint">{SWING_FORMATION_LABELS[formation.type]}</span>
+        <span className={formation.direction === "BULLISH" ? "text-up" : "text-down"}>
+          {formation.direction === "BULLISH" ? "Bullisch" : "Bärisch"}
+        </span>
+      </div>
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-text-faint">Nackenlinie {formatPrice(formation.necklineValue)}</span>
+        <span className={formation.confirmed ? "text-text" : "text-text-faint"}>
+          {formation.confirmed ? "Bestätigt" : "Unbestätigt"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function KeyLevelRow({ level }: { level: ChartStructureData["keyLevels"][number] }) {
   return (
     <div className="flex items-center justify-between text-xs">
@@ -105,6 +137,27 @@ export default function ChartStructureCard({ data }: { data: ChartStructureData 
           </div>
         ) : (
           <p className="text-xs text-text-faint">Keine ausreichenden Schwenkpunkte für eine Trendlinie.</p>
+        )}
+      </div>
+
+      <div className="space-y-1.5 pt-1 border-t border-border/60">
+        <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Chart-Formationen</p>
+        {data.swingFormations.length === 0 && !data.triangle ? (
+          <p className="text-xs text-text-faint">Keine erkannten Formationen.</p>
+        ) : (
+          <div className="space-y-1.5">
+            {data.swingFormations.map((formation) => (
+              <SwingFormationRow key={formation.type} formation={formation} />
+            ))}
+            {data.triangle && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-text-faint">{TRIANGLE_LABELS[data.triangle.type]}</span>
+                <span className="text-text">
+                  {formatPrice(data.triangle.lowerValue)} – {formatPrice(data.triangle.upperValue)}
+                </span>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
