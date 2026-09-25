@@ -87,6 +87,25 @@ function SwingFormationRow({ formation }: { formation: ChartStructureData["swing
   );
 }
 
+const CONTINUATION_FORMATION_LABELS: Record<NonNullable<ChartStructureData["continuationFormation"]>["type"], string> = {
+  flag: "Flagge",
+  pennant: "Wimpel",
+  wedge: "Keil",
+};
+
+function ContinuationFormationRow({ formation }: { formation: NonNullable<ChartStructureData["continuationFormation"]> }) {
+  return (
+    <div className="flex items-center justify-between text-xs">
+      <span className="text-text-faint">
+        {CONTINUATION_FORMATION_LABELS[formation.type]} (nach Mast {formation.poleDirection === "up" ? "↑" : "↓"})
+      </span>
+      <span className="text-text">
+        {formatPrice(formation.lowerValue)} – {formatPrice(formation.upperValue)}
+      </span>
+    </div>
+  );
+}
+
 function KeyLevelRow({ level }: { level: ChartStructureData["keyLevels"][number] }) {
   return (
     <div className="flex items-center justify-between text-xs">
@@ -142,7 +161,7 @@ export default function ChartStructureCard({ data }: { data: ChartStructureData 
 
       <div className="space-y-1.5 pt-1 border-t border-border/60">
         <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Chart-Formationen</p>
-        {data.swingFormations.length === 0 && !data.triangle ? (
+        {data.swingFormations.length === 0 && !data.triangle && !data.continuationFormation ? (
           <p className="text-xs text-text-faint">Keine erkannten Formationen.</p>
         ) : (
           <div className="space-y-1.5">
@@ -157,6 +176,7 @@ export default function ChartStructureCard({ data }: { data: ChartStructureData 
                 </span>
               </div>
             )}
+            {data.continuationFormation && <ContinuationFormationRow formation={data.continuationFormation} />}
           </div>
         )}
       </div>

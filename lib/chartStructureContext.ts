@@ -55,6 +55,23 @@ const FORMATION_PEAK_TOLERANCE_PCT = 0.02;
 // Schwelle fuer die Dreiecks-Klassifikation (steigend/fallend/symmetrisch).
 const TRIANGLE_FLAT_SLOPE_PCT_PER_BAR = 0.0003;
 
+// Flaggen/Wimpel/Keile (neu, 25.09.2026, Nutzer-Nachfrage): anders als
+// Trendlinien/Dreiecke (ganzes 300-Kerzen-Fenster) sind das LOKALE,
+// kurzlebige Muster direkt NACH einem scharfen vorangehenden Kursimpuls
+// (dem "Flaggenmast") -- eigene, kleinraeumigere Erkennung.
+const POLE_WINDOW = 10; // Kerzen fuer den moeglichen Flaggenmast
+const CONSOLIDATION_WINDOW = 15; // Kerzen fuer die moegliche Konsolidierung danach
+const CONSOLIDATION_SWING_LOOKBACK = 2; // kleines Fenster -> kleiner Pivot-Lookback
+const POLE_REFERENCE_CANDLES = 50; // Referenzfenster fuer die durchschnittliche Kerzenspanne
+// Mindestbewegung des Mastes als Vielfaches der durchschnittlichen
+// Kerzenspanne (grobes ATR-Analogon) -- eigene, dokumentierte Schwelle.
+const POLE_MIN_MOVE_RANGE_MULT = 3;
+// Kanalbreite am Ende ggue. am Anfang der Konsolidierung: "parallel" (Flagge)
+// wenn sich die Breite um hoechstens diesen Anteil aendert, "konvergierend"
+// (Wimpel/Keil) wenn sie um mindestens diesen Anteil schrumpft.
+const CHANNEL_PARALLEL_TOLERANCE_PCT = 0.15;
+const CHANNEL_CONVERGENCE_MIN_SHRINK_PCT = 0.15;
+
 export interface OhlcvCandle {
   openTime: string;
   open: number;
@@ -543,6 +560,94 @@ export function detectTriangle(trendlines: TrendlineLevel[], candles: OhlcvCandl
   return { type, upperValue: down.currentValue, lowerValue: up.currentValue };
 }
 
+// --- Flaggen/Wimpel/Keile (neu, 25.09.2026) ---------------------------------
+// Anders als Trendlinien/Dreiecke ein LOKALES Muster: ein scharfer
+// vorangehender Kursimpuls (Flaggenmast, POLE_WINDOW Kerzen), gefolgt von
+// einer kurzen Konsolidierung (CONSOLIDATION_WINDOW Kerzen) mit einer
+// eigenen, kleinraeumigen Schwenkpunkt-Erkennung (CONSOLIDATION_SWING_
+// LOOKBACK statt TRENDLINE_SWING_LOOKBACK). Klassifikation ueber die
+// Kanalbreite am Anfang vs. Ende der Konsolidierung: bleibt sie etwa gleich
+// -> Flagge (paralleler Kanal), schrumpft sie -> Wimpel (gegenlaeufige
+// Linien) oder Keil (beide Linien in dieselbe Richtung geneigt).
+//
+// BEWUSST OHNE Richtungs-Prognose (kein "direction: BULLISH/BEARISH" wie
+// bei Double Top/Kopf-Schulter): ob ein Keil in diesem Kontext eher
+// Fortsetzung oder Umkehr bedeutet, ist in der TA-Literatur selbst
+// uneinheitlich -- reine strukturelle Beschreibung, wie beim Dreieck oben.
+
+export type ContinuationFormationType = "flag" | "pennant" | "wedge";
+
+export interface ContinuationFormation {
+  type: ContinuationFormationType;
+  poleDirection: "up" | "down";
+  upperValue: number;
+  lowerValue: number;
+}
+
+function lineValueAtIndex(line: TrendlineLevel, segment: OhlcvCandle[], targetIdx: number): number {
+  const i1 = segment.findIndex((c) => c.openTime === line.points[0].openTime);
+  const i2 = segment.findIndex((c) => c.openTime === line.points[1].openTime);
+  if (i1 === -1 || i2 === -1 || i2 === i1) return line.currentValue;
+  const slope = (line.points[1].value - line.points[0].value) / (i2 - i1);
+  return line.points[0].value + slope * (targetIdx - i1);
+}
+
+// Reine Klassifikation zweier bereits gefitteter Kanal-Linien -- getrennt
+// von der Schwenkpunkt-/Flaggenmast-Erkennung, damit die eigentliche
+// Unterscheidungslogik (Flagge/Wimpel/Keil) isoliert mit handgebauten
+// Linien testbar ist (gleiches Prinzip wie detectTriangle()).
+export function classifyChannel(
+  upper: TrendlineLevel,
+  lower: TrendlineLevel,
+  segment: OhlcvCandle[]
+): ContinuationFormationType | null {
+  const widthStart = lineValueAtIndex(upper, segment, 0) - lineValueAtIndex(lower, segment, 0);
+  const widthEnd = upper.currentValue - lower.currentValue;
+  if (widthStart <= 0 || widthEnd <= 0) return null;
+
+  const upperSlope = lineSlopePctPerBar(upper, segment);
+  const lowerSlope = lineSlopePctPerBar(lower, segment);
+  const sameDirection = (upperSlope > 0 && lowerSlope > 0) || (upperSlope < 0 && lowerSlope < 0);
+
+  const widthChangePct = (widthEnd - widthStart) / widthStart;
+  if (Math.abs(widthChangePct) <= CHANNEL_PARALLEL_TOLERANCE_PCT) return "flag";
+  if (widthChangePct <= -CHANNEL_CONVERGENCE_MIN_SHRINK_PCT) return sameDirection ? "wedge" : "pennant";
+  return null;
+}
+
+export function detectContinuationFormation(candles: OhlcvCandle[]): ContinuationFormation | null {
+  const n = candles.length;
+  const poleStart = n - CONSOLIDATION_WINDOW - POLE_WINDOW;
+  if (poleStart - POLE_REFERENCE_CANDLES < 0) return null;
+  const poleEndExclusive = n - CONSOLIDATION_WINDOW;
+
+  const poleMove = candles[poleEndExclusive - 1].close - candles[poleStart].close;
+  const referenceCandles = candles.slice(poleStart - POLE_REFERENCE_CANDLES, poleStart);
+  const avgRange = referenceCandles.reduce((sum, c) => sum + (c.high - c.low), 0) / referenceCandles.length;
+  if (avgRange <= 0 || Math.abs(poleMove) < POLE_MIN_MOVE_RANGE_MULT * avgRange) return null;
+  const poleDirection: "up" | "down" = poleMove > 0 ? "up" : "down";
+
+  const segment = candles.slice(n - CONSOLIDATION_WINDOW);
+  const highs = segment.map((c) => c.high);
+  const lows = segment.map((c) => c.low);
+  const swings = detectFractalSwings(highs, lows, CONSOLIDATION_SWING_LOOKBACK);
+  const lowPoints: SwingPoint[] = [];
+  const highPoints: SwingPoint[] = [];
+  for (let i = 0; i < segment.length; i++) {
+    if (swings.isSwingLow[i]) lowPoints.push({ index: i, value: lows[i] });
+    if (swings.isSwingHigh[i]) highPoints.push({ index: i, value: highs[i] });
+  }
+
+  const upper = fitTrendline(highPoints, "down", segment);
+  const lower = fitTrendline(lowPoints, "up", segment);
+  if (!upper || !lower) return null;
+
+  const type = classifyChannel(upper, lower, segment);
+  if (!type) return null;
+  // classifyChannel() verlangt widthEnd > 0 -> upper.currentValue > lower.currentValue.
+  return { type, poleDirection, upperValue: upper.currentValue, lowerValue: lower.currentValue };
+}
+
 // --- Key Levels (Liquidations-Cluster) -------------------------------------
 // Bewusst NUR Liquidations-Cluster -- Fibonacci-Retracement steht bereits in
 // VwapVectorCard direkt oberhalb auf derselben Seite (keine Dopplung).
@@ -592,6 +697,7 @@ export interface ChartStructureData {
   trendlines: TrendlineLevel[];
   swingFormations: ChartFormation[];
   triangle: TriangleFormation | null;
+  continuationFormation: ContinuationFormation | null;
   keyLevels: KeyLevel[];
   currentPrice: number | null;
   dataAsOf: string | null;
@@ -610,6 +716,7 @@ export async function getChartStructureData(): Promise<ChartStructureData> {
     trendlines,
     swingFormations: computeSwingFormations(candles, swingPoints),
     triangle: detectTriangle(trendlines, candles),
+    continuationFormation: detectContinuationFormation(candles),
     keyLevels,
     currentPrice: lastCandle?.close ?? null,
     dataAsOf: lastCandle?.openTime ?? null,

@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  classifyChannel,
   computeAvwapPivotLevels,
   computeSwingFormations,
   computeTrendlines,
   detectCandlestickPatterns,
+  detectContinuationFormation,
   detectTriangle,
   fitTrendline,
   type OhlcvCandle,
@@ -229,5 +231,69 @@ describe("detectTriangle", () => {
   it("liefert null ohne beide Linien", () => {
     expect(detectTriangle([line("up", 90, 98)], candles)).toBeNull();
     expect(detectTriangle([], candles)).toBeNull();
+  });
+});
+
+describe("classifyChannel", () => {
+  // 15 Kerzen (Index 0-14), Linien werden ueber Punkte bei Index 0 und 14
+  // definiert -- currentValue entspricht dem Wert bei Index 14.
+  const segment = Array.from({ length: 15 }, (_, i) => flatCandle(`s${i}`, 100));
+
+  function channelLine(direction: TrendlineLevel["direction"], v0: number, v14: number): TrendlineLevel {
+    return {
+      direction,
+      touchCount: 2,
+      confirmed: false,
+      currentValue: v14,
+      points: [
+        { openTime: "s0", value: v0 },
+        { openTime: "s14", value: v14 },
+      ],
+    };
+  }
+
+  it("erkennt eine Flagge bei etwa gleichbleibender Kanalbreite", () => {
+    const upper = channelLine("down", 132, 129);
+    const lower = channelLine("up", 128, 125);
+    expect(classifyChannel(upper, lower, segment)).toBe("flag");
+  });
+
+  it("erkennt einen Keil, wenn beide Linien gleichgerichtet konvergieren", () => {
+    const upper = channelLine("down", 120, 135); // steigt
+    const lower = channelLine("up", 100, 130); // steigt staerker -> Konvergenz
+    expect(classifyChannel(upper, lower, segment)).toBe("wedge");
+  });
+
+  it("erkennt einen Wimpel, wenn die Linien gegenlaeufig konvergieren", () => {
+    const upper = channelLine("down", 140, 128); // faellt
+    const lower = channelLine("up", 110, 122); // steigt
+    expect(classifyChannel(upper, lower, segment)).toBe("pennant");
+  });
+
+  it("liefert null bei einem sich weitenden (divergierenden) Kanal", () => {
+    const upper = channelLine("down", 120, 140);
+    const lower = channelLine("up", 110, 100);
+    expect(classifyChannel(upper, lower, segment)).toBeNull();
+  });
+});
+
+describe("detectContinuationFormation", () => {
+  it("liefert null ohne einen ausreichend scharfen Flaggenmast", () => {
+    // 75 Kerzen, durchgehend flach (kein Kursimpuls) -- Mindestbewegung des
+    // Mastes (POLE_MIN_MOVE_RANGE_MULT * Durchschnittsspanne) wird nie erreicht.
+    const candles = Array.from({ length: 75 }, (_, i) => ({
+      openTime: `f${i}`,
+      open: 100,
+      high: 100.5,
+      low: 99.5,
+      close: 100,
+      volume: 1,
+    }));
+    expect(detectContinuationFormation(candles)).toBeNull();
+  });
+
+  it("liefert null bei zu kurzer Kerzenserie", () => {
+    const candles = Array.from({ length: 10 }, (_, i) => flatCandle(`k${i}`, 100));
+    expect(detectContinuationFormation(candles)).toBeNull();
   });
 });

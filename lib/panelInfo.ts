@@ -259,7 +259,7 @@ So entsteht der Wert: Rein clientseitig aus den ohnehin bereits geladenen 14-Fak
 
 // Struktur: Key Levels, AVWAP, Trendlinien, Muster (Nutzer-Idee 24.09.2026,
 // siehe lib/chartStructureContext.ts) -- reine Berechnung, kein KI-Aufruf.
-export const chartStructureInfo = `So liest du das: Fünf eigenständige, rein rechnerisch (keine KI) ermittelte Struktur-Bausteine auf den letzten 300 1H-Kerzen.
+export const chartStructureInfo = `So liest du das: Sechs eigenständige, rein rechnerisch (keine KI) ermittelte Struktur-Bausteine auf den letzten 300 1H-Kerzen.
 
 Kerzenmuster: klassische Umkehrformationen (Doji, Hammer/Hanging Man, Engulfing, Morning/Evening Star) nach Stefan Salomons Definitionen – ein Rückblick-Backtest fand dafür KEINE statistisch signifikante Edge (nach BH-FDR-Korrektur), rein informativ.
 
@@ -267,7 +267,9 @@ AVWAP-Pivot: an jedem bestätigten Pivot-Hoch/-Tief (Schlusskurs, kurze Pivot-L�
 
 Trendlinien: verbindet die zwei jüngsten Swing-Tiefs (Aufwärtslinie) bzw. Swing-Hochs (Abwärtslinie) – "bestätigt" ab mindestens 3 Berührungspunkten (Stefan Salomon: "Eine Linie ist erst dann ein statistisch relevanter Trend, wenn sie mindestens drei Berührungspunkte hat"), sonst als unbestätigt markiert, aber trotzdem gezeigt.
 
-Chart-Formationen: Doppel-Top/-Boden (zwei ähnlich hohe Hochs/Tiefs mit einem Gegenpunkt dazwischen als Nackenlinie), Kopf-Schulter/inverse Kopf-Schulter (drei Hochs/Tiefs, die mittlere am extremsten, die äußeren ähnlich hoch), sowie Dreiecke (steigend/fallend/symmetrisch, aus denselben zwei Trendlinien oben). "Bestätigt" heißt: der Schlusskurs hat die Nackenlinie nach dem zweiten Top/Bottom bzw. der zweiten Schulter bereits durchbrochen – sonst als unbestätigt markiert, aber trotzdem gezeigt (Dreiecke haben keine Nackenlinie, sind rein beschreibend). Bewusst NICHT umgesetzt: Flaggen/Wimpel/Keile – die brauchen eine andere Erkennungsbasis (ein scharfer vorangehender Trendimpuls + ein sich verengender Parallelkanal), keine Wiederverwendung der Schwenkpunkt-Logik.
+Chart-Formationen: Doppel-Top/-Boden (zwei ähnlich hohe Hochs/Tiefs mit einem Gegenpunkt dazwischen als Nackenlinie), Kopf-Schulter/inverse Kopf-Schulter (drei Hochs/Tiefs, die mittlere am extremsten, die äußeren ähnlich hoch), sowie Dreiecke (steigend/fallend/symmetrisch, aus denselben zwei Trendlinien oben). "Bestätigt" heißt: der Schlusskurs hat die Nackenlinie nach dem zweiten Top/Bottom bzw. der zweiten Schulter bereits durchbrochen – sonst als unbestätigt markiert, aber trotzdem gezeigt (Dreiecke haben keine Nackenlinie, sind rein beschreibend).
+
+Flaggen/Wimpel/Keile: ein eigenständiger, lokaler Baustein – erst wird ein scharfer vorangehender Kursimpuls gesucht (der "Flaggenmast", mind. das 3-fache der durchschnittlichen Kerzenspanne), danach eine kurze Konsolidierung direkt danach klassifiziert: bleibt der Kanal etwa gleich breit → Flagge, verengt er sich mit gegenläufigen Linien → Wimpel, mit gleichgerichteten Linien → Keil. Bewusst OHNE Richtungs-Prognose (kein "bullisch/bärisch" wie bei Doppel-Top) – ob ein Keil in diesem Kontext eher Fortsetzung oder Umkehr bedeutet, ist in der Chartanalyse-Literatur selbst uneinheitlich, rein strukturelle Beschreibung.
 
 Key Levels: die stärksten Liquidations-Cluster der letzten 6 Stunden (dasselbe Modell wie die Liquidations-Kachel) – bewusst ohne Fibonacci/Orderbook-Wände, die stehen bereits in eigenen Kacheln auf dieser Seite.
 
