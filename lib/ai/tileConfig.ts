@@ -97,26 +97,32 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   // OpenAI-Fallback am 16.09.2026 entfernt (Nutzer-Bedingung "kostenlos" --
   // OpenAI ist ebenfalls kostenpflichtig, kein Gratis-Tier, und war zudem
   // ohnehin nie konfiguriert/kein OPENAI_API_KEY gesetzt, also bisher nur
-  // ein toter Fallback ohne echte Wirkung). Kein Ersatzprovider ergaenzt --
-  // Google primaer deckt signal-logic bereits ab, und bei einem Totalausfall
-  // beider Kacheln greift bewusst die "schlaegt fehl statt bezahltem
-  // Fallback"-Linie von Anthropic oben.
+  // ein toter Fallback ohne echte Wirkung). Damals kein Ersatzprovider
+  // ergaenzt ("Google primaer deckt signal-logic bereits ab") -- am
+  // 25.09.2026 korrigiert: ein echter Google-503-Ausfall (Live-Vorfall,
+  // von Toby per Screenshot gemeldet) liess die Kachel komplett fehlschlagen,
+  // obwohl die Schwester-Kachel "signal-engine" (identische Kategorie/
+  // Primaerprovider) laengst denselben kostenlosen Fallback nutzt -- hier
+  // jetzt uebernommen. Faellt auch dieser komplett aus, greift weiterhin
+  // bewusst die "schlaegt fehl statt bezahltem Fallback"-Linie von
+  // Anthropic oben, kein dritter (erst recht kein bezahlter) Provider.
   handelslage: {
     tileId: "handelslage",
     aiProvider: "auto", // -> google (signal-logic)
     promptProfile: "handelslage",
-    fallbackProviders: [],
+    fallbackProviders: ["openrouter", "deepseek"],
   },
   // System-Briefing (Umsetzungsplan Phase 4, 18.09.2026; erweitert
   // 22.09.2026 -- deckt seither auch den Umfang des entfernten
   // "market-state-narrative"-Profils mit ab, siehe promptProfiles.ts) --
   // gleiche Provider-Kette wie handelslage (signal-logic-Kategorie, google
-  // primaer, kein bezahlter Fallback).
+  // primaer, seit 25.09.2026 derselbe kostenlose Fallback wie oben, siehe
+  // dortiger Kommentar zum Live-Vorfall).
   "system-briefing": {
     tileId: "system-briefing",
     aiProvider: "auto",
     promptProfile: "system-briefing",
-    fallbackProviders: [],
+    fallbackProviders: ["openrouter", "deepseek"],
   },
   // Eskalations-Kachel ("gezielte Eskalation", 05.09.2026): aiProvider hier
   // ist nur ein Platzhalter -- app/api/escalation/generate/route.ts ruft
