@@ -1,4 +1,4 @@
-import type { LeverageMapResult } from "@/lib/leverageMap";
+import { bundleLiquidationZones, type LeverageMapResult, type LiquidationZone } from "@/lib/leverageMap";
 import PanelInfo from "@/components/PanelInfo";
 
 // Umsetzungsplan Phase 4 (05.09.2026): Liquidations-/Hebelkarte, Konzept +
@@ -10,6 +10,7 @@ import PanelInfo from "@/components/PanelInfo";
 const INFO_TEXT = [
   "Was das ist: ein MODELL, keine Messung -- schaetzt aus der Open-Interest-Historie der letzten 48h, wo gehebelte Positionen liquidiert wuerden. Steigt das offene Interesse, wurden dort Positionen eroeffnet; die Kerze sagt zu welchem Preis, das Taker-Volumen (angenaehert) in welche Richtung.",
   "Long-Cluster (unterhalb des Preises): hier wuerden LONG-Positionen liquidiert -- erzwungene Verkaeufe. Short-Cluster (oberhalb): hier wuerden SHORT-Positionen liquidiert -- erzwungene Kaeufe.",
+  "Benachbarte Cluster (innerhalb von 1% vom aktuellen Preis) werden zu einer Zone gebuendelt angezeigt -- antippen/aufklappen zeigt die einzelnen Hebelstufen-Level dahinter.",
   "Bekannte Grenzen: ΔOI ist ein Saldo (Umschlag innerhalb einer Stunde bleibt unsichtbar), jeder Kontrakt hat zwei Seiten (das Modell unterstellt je Periode nur eine gehebelte Seite), der Einstiegspreis innerhalb einer Kerze ist unbekannt, die tatsaechliche Hebelverteilung ist unbekannt (10x/25x/50x/100x sind ein Was-waere-wenn), Cross Margin/Nachschuss sind nicht abgebildet.",
   "Kein Handelssignal -- eine Orientierungshilfe fuer wo sich Liquidations-Kaskaden HAEUFEN KOENNTEN, keine Vorhersage eines konkreten Preisziels.",
 ].join("\n\n");
@@ -38,6 +39,49 @@ function ClusterRow({ price, mid, massUsd, tiers }: { price: number; mid: number
   );
 }
 
+// Buendelte Zone (30.09.2026) -- Standardansicht zeigt nur die Zone
+// (Preisspanne + Summe), <details> klappt beim Antippen die urspruenglichen
+// Einzel-Level (members) auf. Bei genau einem Member ist die Spanne ein
+// einzelner Preis -- kein Sonderfall noetig, priceLow === priceHigh zeigt
+// sich einfach als ein einzelner Wert statt einer Spanne.
+function ZoneRow({ zone, mid }: { zone: LiquidationZone; mid: number }) {
+  const distLowPct = ((zone.priceLow - mid) / mid) * 100;
+  const distHighPct = ((zone.priceHigh - mid) / mid) * 100;
+  const rangeLabel =
+    zone.priceLow === zone.priceHigh
+      ? `$${zone.priceLow.toLocaleString("de-CH", { maximumFractionDigits: 0 })}`
+      : `$${zone.priceLow.toLocaleString("de-CH", { maximumFractionDigits: 0 })} – $${zone.priceHigh.toLocaleString("de-CH", { maximumFractionDigits: 0 })}`;
+
+  return (
+    <details className="group">
+      <summary className="flex items-center justify-between gap-2 text-xs cursor-pointer select-none list-none marker:content-none">
+        <span className="text-text">
+          {rangeLabel}
+          <span className="text-text-faint ml-1">
+            ({distLowPct >= 0 ? "+" : ""}
+            {distLowPct.toFixed(1)}% – {distHighPct >= 0 ? "+" : ""}
+            {distHighPct.toFixed(1)}%)
+          </span>
+        </span>
+        <span className="text-text-faint">{zone.tiers.map((t) => `${t}x`).join(", ")}</span>
+        <span className="font-medium text-text">
+          {formatUsd(zone.massUsd)}
+          {zone.members.length > 1 && (
+            <span className="text-text-faint font-normal ml-1">({zone.members.length})</span>
+          )}
+        </span>
+      </summary>
+      {zone.members.length > 1 && (
+        <div className="mt-1.5 pl-3 space-y-1 border-l border-border/60">
+          {zone.members.map((m, i) => (
+            <ClusterRow key={i} price={m.price} mid={mid} massUsd={m.massCoins * mid} tiers={m.tiers} />
+          ))}
+        </div>
+      )}
+    </details>
+  );
+}
+
 export default function LeverageMapCard({ map }: { map: LeverageMapResult | null }) {
   if (!map || map.clusters.length === 0) {
     return (
@@ -50,8 +94,9 @@ export default function LeverageMapCard({ map }: { map: LeverageMapResult | null
     );
   }
 
-  const longClusters = map.clusters.filter((c) => c.side === "long").sort((a, b) => b.price - a.price);
-  const shortClusters = map.clusters.filter((c) => c.side === "short").sort((a, b) => a.price - b.price);
+  const zones = bundleLiquidationZones(map.clusters, map.mid);
+  const shortZones = zones.filter((z) => z.side === "short").sort((a, b) => a.priceLow - b.priceLow);
+  const longZones = zones.filter((z) => z.side === "long").sort((a, b) => b.priceHigh - a.priceHigh);
 
   return (
     <div className="rounded-lg border border-border bg-surface p-5 space-y-4">
@@ -69,12 +114,10 @@ export default function LeverageMapCard({ map }: { map: LeverageMapResult | null
         <p className="text-xs uppercase tracking-[0.12em] text-text-faint">
           Short-Liquidationen oberhalb
         </p>
-        {shortClusters.length === 0 ? (
+        {shortZones.length === 0 ? (
           <p className="text-xs text-text-faint">Keine relevanten Cluster erkannt.</p>
         ) : (
-          shortClusters.map((c, i) => (
-            <ClusterRow key={i} price={c.price} mid={map.mid} massUsd={c.massCoins * map.mid} tiers={c.tiers} />
-          ))
+          shortZones.map((z, i) => <ZoneRow key={i} zone={z} mid={map.mid} />)
         )}
       </div>
 
@@ -82,12 +125,10 @@ export default function LeverageMapCard({ map }: { map: LeverageMapResult | null
         <p className="text-xs uppercase tracking-[0.12em] text-text-faint">
           Long-Liquidationen unterhalb
         </p>
-        {longClusters.length === 0 ? (
+        {longZones.length === 0 ? (
           <p className="text-xs text-text-faint">Keine relevanten Cluster erkannt.</p>
         ) : (
-          longClusters.map((c, i) => (
-            <ClusterRow key={i} price={c.price} mid={map.mid} massUsd={c.massCoins * map.mid} tiers={c.tiers} />
-          ))
+          longZones.map((z, i) => <ZoneRow key={i} zone={z} mid={map.mid} />)
         )}
       </div>
 

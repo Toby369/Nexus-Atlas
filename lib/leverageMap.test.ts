@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   buildLeverageClusters,
+  bundleLiquidationZones,
   leverageSustainable,
   liqPriceLong,
   liqPriceShort,
   longSharePct,
+  type LiquidationCluster,
   type OiCandlePoint,
 } from "./leverageMap";
 
@@ -106,5 +108,55 @@ describe("buildLeverageClusters", () => {
     const result = buildLeverageClusters(singlePoint, { mid: 100, bucketSize: 0.25 });
     expect(result.attributedCoins).toBe(0);
     expect(result.clusters).toHaveLength(0);
+  });
+});
+
+describe("bundleLiquidationZones", () => {
+  const mid = 1000;
+
+  it("buendelt benachbarte Cluster derselben Seite (innerhalb 1% vom Mid) zu einer Zone", () => {
+    const clusters: LiquidationCluster[] = [
+      { price: 1005, side: "short", massCoins: 1, tiers: [50] },
+      { price: 1008, side: "short", massCoins: 2, tiers: [25] }, // 0,3% von 1005 entfernt -> bundled
+    ];
+    const zones = bundleLiquidationZones(clusters, mid);
+    expect(zones).toHaveLength(1);
+    expect(zones[0]).toMatchObject({ side: "short", priceLow: 1005, priceHigh: 1008, massUsd: 3000 });
+    expect(zones[0].tiers).toEqual([25, 50]);
+    expect(zones[0].members).toHaveLength(2);
+  });
+
+  it("buendelt NICHT, wenn der Abstand ueber der Toleranz liegt", () => {
+    const clusters: LiquidationCluster[] = [
+      { price: 1008, side: "short", massCoins: 1, tiers: [25] },
+      { price: 1050, side: "short", massCoins: 1, tiers: [10] }, // 4,2% entfernt -> eigene Zone
+    ];
+    const zones = bundleLiquidationZones(clusters, mid);
+    expect(zones).toHaveLength(2);
+  });
+
+  it("buendelt long und short unabhaengig voneinander", () => {
+    const clusters: LiquidationCluster[] = [
+      { price: 1005, side: "short", massCoins: 1, tiers: [50] },
+      { price: 1008, side: "short", massCoins: 2, tiers: [25] },
+      { price: 950, side: "long", massCoins: 1, tiers: [10] },
+      { price: 948, side: "long", massCoins: 1, tiers: [10] },
+    ];
+    const zones = bundleLiquidationZones(clusters, mid);
+    expect(zones.filter((z) => z.side === "short")).toHaveLength(1);
+    expect(zones.filter((z) => z.side === "long")).toHaveLength(1);
+    const longZone = zones.find((z) => z.side === "long")!;
+    expect(longZone.priceLow).toBe(948);
+    expect(longZone.priceHigh).toBe(950);
+    expect(longZone.massUsd).toBe(2000);
+  });
+
+  it("bildet bei einem einzelnen Cluster eine Zone mit priceLow === priceHigh", () => {
+    const clusters: LiquidationCluster[] = [{ price: 1005, side: "short", massCoins: 1, tiers: [50] }];
+    const zones = bundleLiquidationZones(clusters, mid);
+    expect(zones).toHaveLength(1);
+    expect(zones[0].priceLow).toBe(1005);
+    expect(zones[0].priceHigh).toBe(1005);
+    expect(zones[0].members).toHaveLength(1);
   });
 });

@@ -327,3 +327,67 @@ export function buildLeverageClusters(
     clusters,
   };
 }
+
+// --- Zonen-Buendelung (30.09.2026, Nutzer-Feedback "geschaetzte Liquidation
+// sollen gebuendelt angezeigt und ausgesprochen werden, bei antippen
+// aufgliederung") -- bisher zeigte die Kachel bis zu 8 Einzel-Level je Seite
+// (je eine nominale Hebelstufe), was bei eng beieinanderliegenden Stufen
+// unuebersichtlich wirkt. Bundled hier rein UI-seitig benachbarte Cluster
+// derselben Seite zu einer Zone (Kette: jeder Cluster wird gegen den
+// UNMITTELBAR vorherigen verglichen, nicht gegen den Zonen-Mittelwert --
+// bewusst einfacher als die Pivot-Konfluenz in chartStructureContext.ts,
+// da hier nur EINE Quelle gebuendelt wird, kein Abgleich mehrerer Quellen).
+// Die urspruenglichen Einzel-Cluster bleiben in `members` erhalten, fuer die
+// Aufgliederung beim Antippen in der UI.
+
+const ZONE_BUNDLE_TOLERANCE_PCT = 1; // % vom Mid -- Startwert, wie bei der Pivot-Konfluenz zunaechst zum Anpassen.
+
+export interface LiquidationZone {
+  side: "long" | "short";
+  priceLow: number;
+  priceHigh: number;
+  massUsd: number;
+  tiers: number[];
+  members: LiquidationCluster[];
+}
+
+export function bundleLiquidationZones(
+  clusters: LiquidationCluster[],
+  mid: number,
+  tolerancePct: number = ZONE_BUNDLE_TOLERANCE_PCT
+): LiquidationZone[] {
+  function bundleSide(side: "long" | "short"): LiquidationZone[] {
+    const sideClusters = clusters
+      .filter((c) => c.side === side)
+      .slice()
+      .sort((a, b) => a.price - b.price);
+
+    const zones: LiquidationZone[] = [];
+    let members: LiquidationCluster[] = [];
+
+    const flush = () => {
+      if (members.length === 0) return;
+      const prices = members.map((m) => m.price);
+      zones.push({
+        side,
+        priceLow: Math.min(...prices),
+        priceHigh: Math.max(...prices),
+        massUsd: members.reduce((sum, m) => sum + m.massCoins * mid, 0),
+        tiers: Array.from(new Set(members.flatMap((m) => m.tiers))).sort((a, b) => a - b),
+        members,
+      });
+      members = [];
+    };
+
+    for (const c of sideClusters) {
+      const last = members[members.length - 1];
+      const gapPct = last && mid > 0 ? (Math.abs(c.price - last.price) / mid) * 100 : Infinity;
+      if (gapPct > tolerancePct) flush();
+      members.push(c);
+    }
+    flush();
+    return zones;
+  }
+
+  return [...bundleSide("short"), ...bundleSide("long")];
+}
