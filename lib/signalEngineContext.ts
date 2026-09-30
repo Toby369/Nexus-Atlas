@@ -12,9 +12,9 @@
 // ist (das macht die 14-Faktoren-Engine bereits), sondern ob deren eigene
 // Ausgabe (overall_state/score/confidence/risk_level/patterns) in sich
 // logisch konsistent mit den einzelnen Faktor-Werten ist. Eigenstaendig von
-// Handelslage (kurze Stunden-Einschaetzung) und Divergenz-Radar
-// (paarweise regelbasierte Vergleiche) -- diese Kachel liest ausschliesslich
-// die 14 Faktoren selbst.
+// System-Briefing (Regelwerk-Anwendung inkl. kurzer Stunden-Einschaetzung)
+// und Divergenz-Radar (paarweise regelbasierte Vergleiche) -- diese Kachel
+// liest ausschliesslich die 14 Faktoren selbst.
 //
 // Server-only (nutzt Supabase direkt) -- niemals aus einer "use client"
 // Komponente importieren.

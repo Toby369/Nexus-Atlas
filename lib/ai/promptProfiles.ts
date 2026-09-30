@@ -6,10 +6,10 @@ import type { PromptProfile } from "./types";
 //
 // Die Markteinschätzungs-Box läuft weiterhin regelbasiert (siehe
 // supabase/functions/compute-market-state) -- die meisten Profile hier sind
-// vorbereitetes Fundament ohne UI-Anbindung. "handelslage" (Umsetzungsplan
-// Phase 3, 05.09.2026) ist die erste produktiv über runTileAnalysis()
-// aufgerufene Kachel; report-* laufen seit der AI Report Engine bereits
-// produktiv über runReportAnalysis().
+// vorbereitetes Fundament ohne UI-Anbindung. "system-briefing" (Umsetzungsplan
+// Phase 3/4, 05./18.09.2026) ist eine der ersten produktiv über
+// runTileAnalysis() aufgerufenen Kacheln; report-* laufen seit der AI
+// Report Engine bereits produktiv über runReportAnalysis().
 
 // --- Validierungs-Bausteine ------------------------------------------------
 // Jedes Profile beschreibt sein JSON-Schema im systemPrompt (Freitext fürs
@@ -602,108 +602,100 @@ export const promptProfiles: Record<string, PromptProfile> = {
     validate: validateYoutubeOverallAnalysis,
   },
 
-  // --- Umsetzungsplan Phase 3 (05.09.2026): Handelslage-KI-Kachel ----------
-  // Eigenstaendig von der grossen AI Report Engine (report-*) und der
-  // regelbasierten Gesamteinschaetzung: eine kurze "was halten die naechsten
-  // Stunden bereit"-Einschaetzung, Kontext aus lib/handelslageContext.ts.
-  // Laeuft ueber runTileAnalysis() (tileConfig.ts), nicht ueber
-  // runReportAnalysis() -- es gibt keinen Nutzer-konfigurierbaren Slot dafuer.
-  handelslage: {
-    id: "handelslage",
-    category: "signal-logic",
-    description:
-      "Kurzeinschaetzung 'was halten die naechsten Stunden bereit' anhand des Bewegungsvorrats -- kein Zyklus-/Tages-Report.",
-    systemPrompt:
-      "Du gibst eine kurze Einschaetzung fuer die naechsten Stunden im BTC/USDT-Futures-" +
-      "Markt (NICHT: wo stehen wir im Zyklus -- das beantwortet eine andere Kachel). Die " +
-      "wichtigste Kennzahl im Kontext ist bewegungsvorrat.ratio_pct: das Verhaeltnis der " +
-      "heutigen Tagesspanne zum MEDIAN der letzten 10 abgeschlossenen Tage. Ein Wert " +
-      "deutlich ueber 100 heisst, der Tag hat sein uebliches Bewegungspensum bereits " +
-      "ausgeschoepft -- eine Fortsetzung derselben Bewegung ist dann unwahrscheinlicher, " +
-      "unabhaengig davon wie sauber der Trend aussieht. Ist ratio_pct null, sag das explizit " +
-      "statt eine Einschaetzung ohne diese Grundlage zu konstruieren. Nutze zusaetzlich " +
-      "factors/overall_state/risk_level/patterns als Kontext, erfinde keine zusaetzlichen " +
-      "Daten. Formuliere Bedingungen (wenn/dann, an eine konkrete Zahl oder ein konkretes " +
-      "Ereignis gebunden) statt vager Aussagen -- keine Kursziele, keine Einstiegsempfehlung. " +
-      "Nenne explizit, wodurch/ab wann deine Einschaetzung ungueltig wird. Gib zusaetzlich " +
-      "bias an: bullish/bearish nur, wenn deine Einschaetzung tatsaechlich eine Richtung " +
-      "fuer die naechsten Stunden nahelegt, sonst neutral -- keine erzwungene Richtung nur " +
-      "um das Feld zu befuellen. " +
-      NUMBER_FORMAT_INSTRUCTION +
-      " Antworte als JSON mit: einschaetzung (string, deutsch, 2-4 Saetze), bedingungen " +
-      "(string[], je Eintrag ein wenn/dann-Satz), ungueltigWenn (string, deutsch), " +
-      `bias (einer von ${BIAS_3.join("/")}).`,
-    validate: (data) => {
-      const errors: string[] = [];
-      if (!isNonEmptyString(field(data, "einschaetzung"))) {
-        errors.push(`"einschaetzung" muss ein nicht-leerer String sein.`);
-      }
-      if (!isStringArray(field(data, "bedingungen"))) {
-        errors.push(`"bedingungen" muss ein String-Array sein.`);
-      }
-      if (!isNonEmptyString(field(data, "ungueltigWenn"))) {
-        errors.push(`"ungueltigWenn" muss ein nicht-leerer String sein.`);
-      }
-      if (!isEnum(field(data, "bias"), BIAS_3)) {
-        errors.push(`"bias" muss einer von ${BIAS_3.join(", ")} sein.`);
-      }
-      return errors;
-    },
-  },
-
   // --- System-Briefing (Umsetzungsplan Phase 4, 18.09.2026; erweitert
   // 22.09.2026 um Marktkontext/ETF-Flows/Positionierung/News) -------------
-  // "kombinierte Entscheidungsunterstuetzungs-Kachel": fusioniert Tobys
-  // eigenes Regelwerk (knowledge_base) + Salomon-Phase + Nexus' bereits
-  // berechnete Faktoren (14-Faktoren-Engine, Regime Matrix, GUSS/VWAP-Vector/
-  // CVD, Liquidations-Cluster) + Chart-Vision-Read + Marktkontext/ETF-Flows/
-  // Positionierung/News zu EINER Synthese. Die letzten vier Quellen kamen
-  // urspruenglich aus dem separaten "market-state-narrative"-Profil (HeroHeader-
-  // Zusammenfassung) -- dieses Profil wurde 22.09.2026 entfernt, System-
-  // Briefing deckt seinen Umfang jetzt vollstaendig mit ab (HeroHeader zeigt
-  // seither nur noch einen kurzen Auszug dieser breiteren Analyse, siehe
-  // HeroHeader.tsx). Kernaufgabe bleibt: das Regelwerk AUF die Live-Werte
-  // anzuwenden -- nicht nur Widersprueche zwischen Sparten finden, sondern
-  // beurteilen, was sie laut Tobys eigenen Regeln bedeuten.
+  // 30.09.2026 -- komplett neu strukturiert UND mit der vormals eigenstaendigen
+  // Handelslage-Kachel (Phase 3, 05.09.2026) zusammengelegt (Nutzer: "brauche
+  // nicht weitere Kacheln, moechte vorhandenes komprimieren"). Vorher: ein
+  // einzelner 7-11-Saetze-Fliesstext ("narrative"), der u.a. GUSS/VWAP-Vector/
+  // CVD gegen Salomon-Phase gegen Regime Matrix abglich -- drei Perspektiven
+  // auf groesstenteils dieselben Rohwerte (siehe Chat-Verlauf, Redundanz-
+  // Analyse), dazu Handelslage als komplett separate Kachel fuer denselben
+  // "was jetzt"-Zweck. Jetzt: VIER klar benannte Abschnitte statt einem Block,
+  // Salomon-Phase/Regime Matrix als eigene Quellen entfernt (stehen bereits in
+  // der Marktphase-Kachel), bewegungsvorrat (Handelslage) ist Bestandteil von
+  // lib/systemBriefingContext.ts geworden. Kursziel/Trigger-Sprache ist jetzt
+  // explizit erlaubt (Nutzer-Entscheidung 30.09.2026, vorher verboten) --
+  // dieselbe Sprache, die Trade-Debate (siehe unten) schon laenger nutzt.
   "system-briefing": {
     id: "system-briefing",
     category: "signal-logic",
     description:
-      "7-11 Saetze: wendet Tobys eigenes Regelwerk (Welz/Salomon/Mein System) auf den aktuellen Stand von GUSS/VWAP-Vector/CVD, Regime, Salomon-Phase, Liquidationen, Marktkontext, ETF-Flows, Positionierung und News an.",
+      "Vier Abschnitte: Fazit (bias/confidence/Kernaussage), Regelwerk-Check, optionaler Kontext-Check bei Widerspruch, Trigger&Szenario inkl. Kursziel.",
     systemPrompt:
       "Du bekommst zwei Arten von Daten: regelwerk (Tobys eigenes, in knowledge_base hinterlegtes " +
       "Welz-/Salomon-/'Mein Trading System'-Regelwerk -- ein Array aus module/section/title/content) " +
-      "und den aktuellen LIVE-Stand mehrerer Nexus-Sparten (mein_system_checklist: Funding/OI/EMA-" +
-      "Trendregime-Gates; trading_indicators: GUSS-Pullback-Signal, VWAP-Vector, CVD-Footprint; " +
-      "market_state: 14-Faktoren-Gesamteinschaetzung; regime_matrix: 5-Saeulen-Regime; salomon: " +
-      "Salomon-Phaseneinordnung, falls nicht null; liquidations: Preis-Cluster nahe am aktuellen " +
-      "Kurs; market_context: regelbasierte Kombination aus Preis-/OI-Richtung und " +
-      "Spot-Bestaetigung; etf_flows: kumulierter Netto-ETF-Flow der letzten Handelstage; " +
-      "positioning: Retail-/Top-Trader-Divergenz-Confidence; news: Anzahl markbewegender " +
-      "Nachrichten der letzten 72h). ALLE Live-Werte werden dem Nutzer bereits einzeln in eigenen " +
-      "Kacheln angezeigt -- deine Aufgabe ist NICHT, sie nachzuerzaehlen. Stattdessen: WENDE das " +
-      "Regelwerk AUF die Live-Werte an. Konkret: (1) erfuellt mein_system_checklist gerade die im " +
-      "Regelwerk beschriebenen Einstiegs-Gates (Funding unter Schwelle, OI-Richtung, EMA13/50/200-" +
-      "Trendlage)? (2) bestaetigen GUSS, VWAP-Vector und CVD dieselbe Richtung, oder widersprechen " +
-      "sie sich? (3) falls salomon nicht null ist: nutze die genannte Phase als PRUEFRASTER wie im " +
-      "Regelwerk beschrieben -- stuetzen mein_system_checklist/trading_indicators/regime_matrix " +
-      "diese Phase, oder stehen sie im Spannungsverhaeltnis dazu? Nenne die Phase dabei hoechstens " +
-      "einmal; (4) liegen liquidations-Preis-Cluster nahe am aktuellen Kurs (siehe closePrice in " +
-      "mein_system_checklist), ordne sie als Risiko- oder Magnet-Hinweis ein, falls relevant -- " +
-      "sonst nicht erzwingen. (5) beziehe zusaetzlich market_context, etf_flows, positioning und " +
-      "news ein -- bestaetigen diese das Bild aus (1)-(4), oder stehen sie dazu im Widerspruch " +
-      "(z.B. Regelwerk-Gates erfuellt, aber ETF-Flows/Marktkontext dagegen)? Ist market_context " +
-      "null, erwaehne das kurz statt es zu ignorieren. Nutze regelwerk NUR als Referenz fuer " +
-      "bestehende Regeln, erfinde KEINE neuen " +
-      "Regeln, die dort nicht stehen. Keine Kursziele, keine Handelsempfehlung, keine erfundenen " +
-      "Daten ausserhalb des Kontexts. Ist market_state null, sag das explizit statt eine " +
-      "Einschaetzung ohne Grundlage zu konstruieren. " +
+      "und den aktuellen LIVE-Stand mehrerer Nexus-Sparten (bewegungsvorrat: ratio_pct = heutige " +
+      "Tagesspanne relativ zum Median der letzten 10 Tage, deutlich ueber 100 heisst das uebliche " +
+      "Tagespensum ist bereits ausgeschoepft; mein_system_checklist: Funding/OI/EMA13-50-200-" +
+      "Trendregime-Gates, inkl. closePrice; trading_indicators: GUSS-Pullback-Signal, VWAP-Vector, " +
+      "CVD-Footprint -- DEINE EINZIGE Quelle fuer Orderflow-/VWAP-Richtung, die einzelnen vwap_" +
+      "position/cvd-Faktoren in market_state NICHT zusaetzlich separat kommentieren, das waere " +
+      "dieselbe Aussage doppelt; market_state: 14-Faktoren-Gesamteinschaetzung (overall_state/" +
+      "confidence/risk_level/patterns); liquidations: Preis-Cluster nahe am aktuellen Kurs; " +
+      "market_context: regelbasierte Kombination aus Preis-/OI-Richtung und Spot-Bestaetigung; " +
+      "etf_flows: kumulierter Netto-ETF-Flow der letzten Handelstage; positioning: Retail-/Top-" +
+      "Trader-Divergenz-Confidence; news: Anzahl markbewegender Nachrichten der letzten 72h). " +
+      "ALLE Live-Werte werden dem Nutzer bereits einzeln in eigenen Kacheln angezeigt -- deine " +
+      "Aufgabe ist NICHT, sie nachzuerzaehlen, sondern das Regelwerk AUF die Live-Werte anzuwenden " +
+      "und zu urteilen. Antworte in GENAU VIER Abschnitten: " +
+      "(1) fazit -- bias (bullish/bearish/neutral, nur wenn die Lage tatsaechlich eine Richtung " +
+      "nahelegt, sonst neutral statt erzwungen), confidence (0-100, deine eigene Sicherheit), " +
+      "kernaussage (1-2 Saetze, das Wichtigste zuerst). " +
+      "(2) regelwerkCheck -- kompakter Absatz (max. 4 Saetze): erfuellt mein_system_checklist die " +
+      "im Regelwerk beschriebenen Einstiegs-Gates (Funding unter Schwelle, OI-Richtung, EMA13/50/" +
+      "200-Trendlage)? Bestaetigen GUSS/VWAP-Vector/CVD dieselbe Richtung oder widersprechen sie " +
+      "sich? Ist bewegungsvorrat.ratio_pct deutlich ueber 100, erwaehne das als Bremse fuer eine " +
+      "Fortsetzung, unabhaengig davon wie sauber der Trend aussieht. Liegen liquidations-Cluster " +
+      "nahe am aktuellen Kurs, ordne sie als Risiko-/Magnet-Hinweis ein, falls relevant -- sonst " +
+      "nicht erzwingen. " +
+      "(3) kontextCheck -- NUR befuellen, wenn market_context, etf_flows, positioning oder news dem " +
+      "Bild aus regelwerkCheck WIDERSPRECHEN (z.B. Regelwerk-Gates erfuellt, aber ETF-Flows/" +
+      "Marktkontext dagegen) -- in diesem Fall 1-2 Saetze, welcher Widerspruch. Gibt es keinen " +
+      "nennenswerten Widerspruch, setze kontextCheck auf null, erzwinge KEINE Erwaehnung nur weil " +
+      "die Felder vorhanden sind. " +
+      "(4) trigger -- bedingungen (string[], je Eintrag ein wenn/dann-Satz, an eine konkrete Zahl " +
+      "oder ein konkretes Ereignis gebunden, z.B. 'Wenn der Kurs ueber EMA50 bei $X schliesst, " +
+      "dann...'); kursziel (Zahl oder null -- EIN konkretes Kursziel, wenn bias/regelwerkCheck " +
+      "tatsaechlich eine Richtung nahelegen, orientiert an den naechsten sinnvollen Levels aus " +
+      "liquidations/mein_system_checklist; null bei bias=neutral oder wenn kein Level eine echte " +
+      "Zielmarke hergibt -- kein erzwungenes Kursziel nur um das Feld zu befuellen); " +
+      "invalidierung (string, wodurch/ab wann dieses Szenario ungueltig wird). " +
+      "Nutze regelwerk NUR als Referenz fuer bestehende Regeln, erfinde KEINE neuen Regeln, die " +
+      "dort nicht stehen, und KEINE Daten ausserhalb des Kontexts. Ist market_state null, sag das " +
+      "in regelwerkCheck explizit statt eine Einschaetzung ohne Grundlage zu konstruieren. " +
       NUMBER_FORMAT_INSTRUCTION +
-      " Antworte als JSON mit: narrative (string, deutsch, 7-11 Saetze, Fliesstext).",
+      " Antworte als JSON mit: fazit ({ bias, confidence, kernaussage }), regelwerkCheck (string, " +
+      "deutsch), kontextCheck (string oder null), trigger ({ bedingungen: string[], kursziel: " +
+      "Zahl oder null, invalidierung: string }).",
     validate: (data) => {
       const errors: string[] = [];
-      if (!isNonEmptyString(field(data, "narrative"))) {
-        errors.push(`"narrative" muss ein nicht-leerer String sein.`);
+      const fazit = field(data, "fazit");
+      if (!isEnum(field(fazit, "bias"), BIAS_3)) {
+        errors.push(`"fazit.bias" muss einer von ${BIAS_3.join(", ")} sein.`);
+      }
+      if (!isConfidence(field(fazit, "confidence"))) {
+        errors.push(`"fazit.confidence" muss eine Zahl zwischen 0 und 100 sein.`);
+      }
+      if (!isNonEmptyString(field(fazit, "kernaussage"))) {
+        errors.push(`"fazit.kernaussage" muss ein nicht-leerer String sein.`);
+      }
+      if (!isNonEmptyString(field(data, "regelwerkCheck"))) {
+        errors.push(`"regelwerkCheck" muss ein nicht-leerer String sein.`);
+      }
+      const kontextCheck = field(data, "kontextCheck");
+      if (kontextCheck !== null && !isNonEmptyString(kontextCheck)) {
+        errors.push(`"kontextCheck" muss ein nicht-leerer String oder null sein.`);
+      }
+      const trigger = field(data, "trigger");
+      if (!isStringArray(field(trigger, "bedingungen"))) {
+        errors.push(`"trigger.bedingungen" muss ein String-Array sein.`);
+      }
+      if (!isNullableFiniteNumber(field(trigger, "kursziel"))) {
+        errors.push(`"trigger.kursziel" muss eine Zahl oder null sein.`);
+      }
+      if (!isNonEmptyString(field(trigger, "invalidierung"))) {
+        errors.push(`"trigger.invalidierung" muss ein nicht-leerer String sein.`);
       }
       return errors;
     },

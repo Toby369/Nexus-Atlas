@@ -5,7 +5,7 @@ import {
   computeSpotPressureVsPriceDivergence,
   computeSpotPressureVsOrderbookDivergence,
   computeCycleVsMomentumDivergence,
-  computeHandelslageVsStateDivergence,
+  computeSystemBriefingVsStateDivergence,
   computeOnchainVsPriceDivergence,
   computeWallPersistence,
   findCorroboratingLiquidation,
@@ -167,17 +167,17 @@ describe("computeRsiDivergenceVsTrendRegime", () => {
   });
 });
 
-describe("computeHandelslageVsStateDivergence", () => {
+describe("computeSystemBriefingVsStateDivergence", () => {
   it("AGREEMENT bei gleicher Richtung", () => {
-    expect(computeHandelslageVsStateDivergence("bullish", "BULLISH")).toBe("AGREEMENT");
+    expect(computeSystemBriefingVsStateDivergence("bullish", "BULLISH")).toBe("AGREEMENT");
   });
   it("DIVERGENCE bei entgegengesetzter Richtung", () => {
-    expect(computeHandelslageVsStateDivergence("bearish", "BULLISH")).toBe("DIVERGENCE");
+    expect(computeSystemBriefingVsStateDivergence("bearish", "BULLISH")).toBe("DIVERGENCE");
   });
   it("NOT_COMPARABLE ohne bias (alte Snapshots) oder bei MIXED/neutral", () => {
-    expect(computeHandelslageVsStateDivergence(undefined, "BULLISH")).toBe("NOT_COMPARABLE");
-    expect(computeHandelslageVsStateDivergence("neutral", "BULLISH")).toBe("NOT_COMPARABLE");
-    expect(computeHandelslageVsStateDivergence("bullish", "MIXED")).toBe("NOT_COMPARABLE");
+    expect(computeSystemBriefingVsStateDivergence(undefined, "BULLISH")).toBe("NOT_COMPARABLE");
+    expect(computeSystemBriefingVsStateDivergence("neutral", "BULLISH")).toBe("NOT_COMPARABLE");
+    expect(computeSystemBriefingVsStateDivergence("bullish", "MIXED")).toBe("NOT_COMPARABLE");
   });
 });
 

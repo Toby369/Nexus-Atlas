@@ -9,9 +9,9 @@ import type { TileAIConfig } from "./types";
 // erzwingt einen bestimmten Anbieter.
 //
 // Die meisten Eintraege hier sind weiterhin vorbereitete Konfiguration ohne
-// UI-Anbindung (die jeweilige Kachel bleibt regelbasiert). "handelslage" ist
-// seit Umsetzungsplan Phase 3 (05.09.2026) die erste tatsaechlich produktiv
-// aufgerufene -- siehe app/api/handelslage/generate/route.ts.
+// UI-Anbindung (die jeweilige Kachel bleibt regelbasiert). "system-briefing"
+// ist seit Umsetzungsplan Phase 3/4 (05./18.09.2026) produktiv aufgerufen --
+// siehe app/api/system-briefing/generate/route.ts.
 //
 // Anthropic wurde am 15.09.2026 aus JEDER Kette hier entfernt (Nutzer-
 // Bedingung: die App soll durchgehend kostenlos bleiben -- Anthropic ist
@@ -89,35 +89,18 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     promptProfile: "signal-analysis",
     fallbackProviders: ["openrouter", "deepseek"],
   },
-  // Umsetzungsplan Phase 3 (05.09.2026): erste tatsaechlich aus der UI
-  // aufgerufene Kachel dieser Konfiguration (siehe app/api/handelslage/
-  // generate/route.ts) -- Provider-Aufloesung/Fallback-Kette waren zuvor
-  // nur ueber runReportAnalysis() (report_configs-Slots) im produktiven
-  // Einsatz, hier zum ersten Mal ueber runTileAnalysis()/"auto".
-  // OpenAI-Fallback am 16.09.2026 entfernt (Nutzer-Bedingung "kostenlos" --
-  // OpenAI ist ebenfalls kostenpflichtig, kein Gratis-Tier, und war zudem
-  // ohnehin nie konfiguriert/kein OPENAI_API_KEY gesetzt, also bisher nur
-  // ein toter Fallback ohne echte Wirkung). Damals kein Ersatzprovider
-  // ergaenzt ("Google primaer deckt signal-logic bereits ab") -- am
-  // 25.09.2026 korrigiert: ein echter Google-503-Ausfall (Live-Vorfall,
-  // von Toby per Screenshot gemeldet) liess die Kachel komplett fehlschlagen,
-  // obwohl die Schwester-Kachel "signal-engine" (identische Kategorie/
-  // Primaerprovider) laengst denselben kostenlosen Fallback nutzt -- hier
-  // jetzt uebernommen. Faellt auch dieser komplett aus, greift weiterhin
-  // bewusst die "schlaegt fehl statt bezahltem Fallback"-Linie von
-  // Anthropic oben, kein dritter (erst recht kein bezahlter) Provider.
-  handelslage: {
-    tileId: "handelslage",
-    aiProvider: "auto", // -> google (signal-logic)
-    promptProfile: "handelslage",
-    fallbackProviders: ["openrouter", "deepseek"],
-  },
   // System-Briefing (Umsetzungsplan Phase 4, 18.09.2026; erweitert
   // 22.09.2026 -- deckt seither auch den Umfang des entfernten
-  // "market-state-narrative"-Profils mit ab, siehe promptProfiles.ts) --
-  // gleiche Provider-Kette wie handelslage (signal-logic-Kategorie, google
-  // primaer, seit 25.09.2026 derselbe kostenlose Fallback wie oben, siehe
-  // dortiger Kommentar zum Live-Vorfall).
+  // "market-state-narrative"-Profils mit ab, 30.09.2026 zusaetzlich mit der
+  // ehemals eigenstaendigen Handelslage-Kachel zusammengelegt, siehe
+  // promptProfiles.ts/systemBriefingContext.ts) -- signal-logic-Kategorie,
+  // google primaer, seit 25.09.2026 derselbe kostenlose Fallback wie oben
+  // (Live-Vorfall: ein echter Google-503-Ausfall, von Toby per Screenshot
+  // gemeldet, liess die Kachel zuvor komplett fehlschlagen, obwohl die
+  // Schwester-Kachel "signal-engine" laengst denselben kostenlosen Fallback
+  // nutzte). Faellt auch dieser komplett aus, greift weiterhin bewusst die
+  // "schlaegt fehl statt bezahltem Fallback"-Linie von Anthropic oben, kein
+  // dritter (erst recht kein bezahlter) Provider.
   "system-briefing": {
     tileId: "system-briefing",
     aiProvider: "auto",

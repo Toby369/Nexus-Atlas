@@ -16,7 +16,7 @@ import {
   computeSpotPressureVsPriceDivergence,
   computeSpotPressureVsOrderbookDivergence,
   computeCycleVsMomentumDivergence,
-  computeHandelslageVsStateDivergence,
+  computeSystemBriefingVsStateDivergence,
   computeOnchainVsPriceDivergence,
   computeWallPersistence,
   findCorroboratingLiquidation,
@@ -30,7 +30,7 @@ import {
   type WallPersistence,
 } from "./divergenceRadar";
 import { inferSignalDirection, isSignalFresh, TRADINGVIEW_SIGNAL_FRESHNESS_HOURS } from "./tradingViewSignal";
-import type { MarketState, HandelslageSnapshot } from "./types";
+import type { MarketState, SystemBriefingSnapshot } from "./types";
 
 const SYMBOL = "BTCUSDT";
 const EXCHANGE = "binance";
@@ -59,7 +59,16 @@ export interface DivergenceRadarResult {
   spotPressureVsPrice: SpotPressureVsPriceDivergence;
   spotPressureVsOrderbook: SpotPressureVsOrderbookDivergence;
   cycleVsMomentum: DivergenceStatus;
-  handelslageVsState: DivergenceStatus;
+  // 30.09.2026: Handelslage (vormals eigene Kachel/Tabelle) wurde in
+  // System-Briefing aufgenommen -- das bias-Feld kommt seither aus
+  // system_briefings.result.fazit.bias statt handelslage_snapshots. Der
+  // Feldname blieb hier bewusst NICHT "handelslageVsState" stehen (das
+  // waere nach dem Merge irrefuehrend); nur die DB-Spalten in
+  // divergence_radar_snapshots (handelslage_vs_state/handelslage_bias)
+  // blieben unveraendert, um keine Migration fuer eine reine Umbenennung
+  // zu brauchen -- siehe Mapping-Kommentar in
+  // app/api/divergence-radar/snapshot/route.ts.
+  systemBriefingVsState: DivergenceStatus;
   tradingViewVsState: DivergenceStatus;
   rsiDivergenceVsTrend: RsiDivergenceVsTrendResult;
   onchainVsPrice: OnchainDivergence;
@@ -76,7 +85,7 @@ export interface DivergenceRadarResult {
   overallState: MarketState["overall_state"] | null;
   rsiMacdDivergenceDirection: "bullish" | "bearish" | null;
   tvDirection: "bullish" | "bearish" | null;
-  handelslageBias: "bullish" | "bearish" | "neutral" | undefined;
+  systemBriefingBias: "bullish" | "bearish" | "neutral" | undefined;
   cycleBandLabel: string | null;
 }
 
@@ -94,15 +103,18 @@ async function getLatestMarketState(): Promise<MarketState | null> {
   return data;
 }
 
-async function getLatestHandelslage(): Promise<HandelslageSnapshot | null> {
+// 30.09.2026: liest system_briefings statt der entfernten
+// handelslage_snapshots (siehe DivergenceRadarResult-Kommentar oben) --
+// dasselbe bias-Vergleichsziel, jetzt aus fazit.bias des System-Briefings.
+async function getLatestSystemBriefingSnapshot(): Promise<SystemBriefingSnapshot | null> {
   const { data, error } = await supabase
-    .from("handelslage_snapshots")
+    .from("system_briefings")
     .select("*")
     .order("generated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (error) {
-    console.error("divergenceRadarContext: Fehler bei handelslage_snapshots:", error.message);
+    console.error("divergenceRadarContext: Fehler bei system_briefings:", error.message);
     return null;
   }
   return data;
@@ -342,7 +354,7 @@ async function getLiquidationCorroborations(
 export async function buildDivergenceRadar(): Promise<DivergenceRadarResult> {
   const [
     marketState,
-    handelslage,
+    systemBriefing,
     spotPressure,
     avgOrderbookImbalance,
     cycleIndicators,
@@ -353,7 +365,7 @@ export async function buildDivergenceRadar(): Promise<DivergenceRadarResult> {
     rsiMacdDivergenceDirection,
   ] = await Promise.all([
     getLatestMarketState(),
-    getLatestHandelslage(),
+    getLatestSystemBriefingSnapshot(),
     getSpotVerdictAndPriceChange(),
     getAvgOrderbookImbalance(),
     buildCycleIndicators(),
@@ -382,8 +394,8 @@ export async function buildDivergenceRadar(): Promise<DivergenceRadarResult> {
       marketState && cycleIndicators.logPriceChannel
         ? computeCycleVsMomentumDivergence(cycleIndicators.logPriceChannel.currentBandLabel, marketState)
         : "NOT_COMPARABLE",
-    handelslageVsState: computeHandelslageVsStateDivergence(
-      handelslage?.status === "ok" ? handelslage.result?.bias : undefined,
+    systemBriefingVsState: computeSystemBriefingVsStateDivergence(
+      systemBriefing?.status === "ok" ? systemBriefing.result?.fazit?.bias : undefined,
       marketState?.overall_state ?? null
     ),
     tradingViewVsState: computeTradingViewVsStateDivergence(tvDirection, marketState?.overall_state ?? null),
@@ -402,7 +414,7 @@ export async function buildDivergenceRadar(): Promise<DivergenceRadarResult> {
     overallState: marketState?.overall_state ?? null,
     rsiMacdDivergenceDirection,
     tvDirection,
-    handelslageBias: handelslage?.status === "ok" ? handelslage.result?.bias : undefined,
+    systemBriefingBias: systemBriefing?.status === "ok" ? systemBriefing.result?.fazit?.bias : undefined,
     cycleBandLabel: cycleIndicators.logPriceChannel?.currentBandLabel ?? null,
   };
 }

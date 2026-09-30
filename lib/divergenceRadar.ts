@@ -91,11 +91,13 @@ export function computeTradingViewVsStateDivergence(
   return signalDirection === stateDirection ? "AGREEMENT" : "DIVERGENCE";
 }
 
-// --- 4. Handelslage-KI-Bias vs. Gesamteinschaetzung ------------------------
+// --- 4. System-Briefing-KI-Bias (fazit) vs. Gesamteinschaetzung ------------
 // Analog zu computeEngineDivergence (Market State vs. Regime Matrix), nur
 // mit der KI-Kurzeinschaetzung als zweiter "Engine". bias ist optional --
-// vor dem 05.09.2026 generierte Snapshots haben das Feld noch nicht.
-export function computeHandelslageVsStateDivergence(
+// vor dem 05.09.2026 generierte Snapshots (damals noch Handelslage) haben
+// das Feld noch nicht; 30.09.2026 umbenannt, nachdem Handelslage in
+// System-Briefing aufgegangen ist (siehe divergenceRadarContext.ts).
+export function computeSystemBriefingVsStateDivergence(
   bias: "bullish" | "bearish" | "neutral" | undefined,
   overallState: MarketState["overall_state"] | null
 ): EngineDivergenceStatus {

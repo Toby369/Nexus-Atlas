@@ -6,7 +6,6 @@ import type {
   EconomicCalendarEvent,
   EscalationSnapshot,
   EtfFlowDay,
-  HandelslageSnapshot,
   LiquidationEvent,
   MarketSeriesPoint,
   MarketSnapshot,
@@ -46,7 +45,6 @@ import EtfFlowPanel from "@/components/EtfFlowPanel";
 import EconomicCalendarPanel from "@/components/EconomicCalendarPanel";
 import MarketContextCard from "@/components/MarketContextCard";
 import RegimeMatrixCard from "@/components/RegimeMatrixCard";
-import HandelslageCard from "@/components/HandelslageCard";
 import QuizTile from "@/components/QuizTile";
 import OrderbookWallCard from "@/components/OrderbookWallCard";
 import DivergenceRadarCard from "@/components/DivergenceRadarCard";
@@ -465,25 +463,8 @@ async function getUpcomingEconomicEvents(): Promise<EconomicCalendarEvent[]> {
   return data ?? [];
 }
 
-// Umsetzungsplan Phase 3 (05.09.2026): letzter zwischengespeicherter
-// Handelslage-Stand -- reines Lesen, kein AI-Aufruf (der passiert nur ueber
-// POST /api/handelslage/generate, siehe HandelslageCard.tsx).
-async function getLatestHandelslage(): Promise<HandelslageSnapshot | null> {
-  const { data, error } = await supabase
-    .from("handelslage_snapshots")
-    .select("*")
-    .order("generated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error("Fehler beim Laden der Handelslage:", error.message);
-    return null;
-  }
-  return data;
-}
-
-// System-Briefing (Umsetzungsplan Phase 4, 18.09.2026; erweitert 22.09.2026)
+// System-Briefing (Umsetzungsplan Phase 4, 18.09.2026; erweitert 22.09.2026,
+// 30.09.2026 mit Handelslage zusammengelegt -- siehe lib/systemBriefingContext.ts)
 // -- reines Lesen, kein AI-Aufruf (der passiert nur ueber POST
 // /api/system-briefing/generate, siehe SystemBriefingCard.tsx). Wird seit
 // 22.09.2026 auch von HeroHeader fuer die "Kurze Einordnung" wiederverwendet
@@ -650,7 +631,6 @@ export default async function Home({
     recentLiquidations,
     recentEtfFlows,
     upcomingEconomicEvents,
-    latestHandelslage,
     latestLeverageMap,
     cycleIndicators,
     latestOrderbookWalls,
@@ -685,7 +665,6 @@ export default async function Home({
     getRecentLiquidations(),
     getRecentEtfFlows(),
     getUpcomingEconomicEvents(),
-    getLatestHandelslage(),
     buildLiveLeverageMap(),
     buildCycleIndicators(),
     getLatestOrderbookWalls(),
@@ -839,7 +818,6 @@ export default async function Home({
                     "economic-calendar": (
                       <EconomicCalendarPanel initialEvents={upcomingEconomicEvents} />
                     ),
-                    handelslage: <HandelslageCard initialSnapshot={latestHandelslage} />,
                     lernen: <QuizTile />,
                     "leverage-map": <LeverageMapCard map={latestLeverageMap} />,
                     "cycle-indicators": <CycleIndicatorsCard data={cycleIndicators} />,

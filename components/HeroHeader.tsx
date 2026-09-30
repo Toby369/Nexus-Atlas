@@ -63,17 +63,13 @@ function formatSignedPct(value: number | null) {
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
 
-// Kurze Einordnung (22.09.2026): zeigt nur die ersten Saetze des System-
-// Briefing-Fliesstexts als Auszug -- keine eigene, kuerzere Zusammenfassung
-// durch die KI generieren lassen (zusaetzlicher Aufruf), reine Client-
-// seitige Kuerzung desselben Textes.
-function firstSentences(text: string, count: number): string {
-  const parts = text.split(/(?<=[.!?])\s+/).filter(Boolean);
-  return parts.slice(0, count).join(" ");
-}
-
+// Kurze Einordnung (22.09.2026, 30.09.2026 angepasst): zeigt das FAZIT
+// (kernaussage) des System-Briefing-Snapshots -- seit der Umstrukturierung
+// auf vier Abschnitte (siehe lib/types.ts::SystemBriefingResult) ist das
+// bereits die kurze, 1-2-saetzige Zusammenfassung, keine clientseitige
+// Kuerzung eines langen Fliesstexts mehr noetig.
 const SHORT_NARRATIVE_INFO_TEXT = [
-  "Was das ist: die ersten Sätze der System-Briefing-Einordnung (Regelwerk + Nexus-Faktoren) als schneller Überblick direkt hier oben -- dieselbe Analyse wie unten in der System-Briefing-Kachel, nicht extra generiert.",
+  "Was das ist: das Fazit der System-Briefing-Einordnung (Regelwerk + Nexus-Faktoren) als schneller Überblick direkt hier oben -- dieselbe Analyse wie unten in der System-Briefing-Kachel, nicht extra generiert.",
   `Automatische Aktualisierung: ist der zuletzt generierte Stand älter als ${NARRATIVE_AUTO_REFRESH_HOURS} Std., löst diese Kachel automatisch EINEN neuen System-Briefing-Aufruf aus (kostenloses Gratis-Tier, wie jede andere KI-Kachel) -- bis dahin wird kein veralteter Text angezeigt. Ein manueller Klick auf "Neu generieren" auf der System-Briefing-Kachel (Tab "KI-Einschätzungen") funktioniert weiterhin unabhängig davon.`,
   "Wichtig: Preis-/EMA-/sonstige Zahlen IM TEXT sind der Stand zum Generierungszeitpunkt (siehe Zeitstempel darunter), keine Live-Werte. Für den Live-Preis immer die BTC-Preis-Kachel nutzen.",
 ].join("\n\n");
@@ -403,7 +399,7 @@ export default function HeroHeader({
   const narrativeAutoRefreshAttemptedRef = useRef(false);
 
   useEffect(() => {
-    if (!narrativeSnapshot?.result?.narrative) return;
+    if (!narrativeSnapshot?.result?.fazit?.kernaussage) return;
     const update = async () => {
       const hours = hoursSince(narrativeSnapshot.generated_at, Date.now());
       setNarrativeHoursOld(hours);
@@ -738,7 +734,7 @@ export default function HeroHeader({
             <p className="text-xs uppercase tracking-[0.15em] text-text-muted">Kurze Einordnung</p>
             <PanelInfo title="Kurze Einordnung" content={SHORT_NARRATIVE_INFO_TEXT} />
           </span>
-          {!narrativeSnapshot?.result?.narrative ? (
+          {!narrativeSnapshot?.result?.fazit?.kernaussage ? (
             <p className="text-xs text-text-faint">
               Noch keine Einordnung generiert — siehe System-Briefing (Tab &quot;KI-Einschätzungen&quot;).
             </p>
@@ -758,7 +754,22 @@ export default function HeroHeader({
           ) : narrativeFreshness === "fresh" ? (
             <>
               <p className="text-sm text-text-muted leading-relaxed">
-                {firstSentences(narrativeSnapshot.result.narrative, 2)}
+                <span
+                  className={
+                    narrativeSnapshot.result.fazit.bias === "bullish"
+                      ? "text-up font-semibold"
+                      : narrativeSnapshot.result.fazit.bias === "bearish"
+                      ? "text-down font-semibold"
+                      : "text-text font-semibold"
+                  }
+                >
+                  {narrativeSnapshot.result.fazit.bias === "bullish"
+                    ? "Bullisch"
+                    : narrativeSnapshot.result.fazit.bias === "bearish"
+                    ? "Bärisch"
+                    : "Neutral"}
+                </span>{" "}
+                — {narrativeSnapshot.result.fazit.kernaussage}
               </p>
               <FullDateTime iso={narrativeSnapshot.generated_at} className="text-xs text-text-faint" />
               <p className="text-xs text-text-faint">

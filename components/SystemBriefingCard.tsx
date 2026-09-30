@@ -7,19 +7,25 @@ import PanelInfo from "@/components/PanelInfo";
 
 // Umsetzungsplan Phase 4 (18.09.2026): "kombinierte Entscheidungsunter-
 // stuetzungs-Kachel" -- fusioniert Tobys eigenes Regelwerk (Welz/Salomon +
-// "Mein Trading System"-Checkliste) + Salomon-Phase + Nexus' eigene
-// berechnete Faktoren (14-Faktoren-Engine, Regime Matrix, GUSS/VWAP-Vector/
-// CVD, Liquidations-Cluster) + den Chart-Vision-Screenshot-Read (Phase 3) zu
-// EINER Synthese, siehe lib/systemBriefingContext.ts + Prompt-Profil
-// "system-briefing". Gleiches click-triggered Muster wie HandelslageCard.tsx
-// -- jeder neue Stand kostet einen AI-Aufruf (kostenloses Gratis-Tier).
+// "Mein Trading System"-Checkliste) + Nexus' eigene berechnete Faktoren
+// (14-Faktoren-Engine, GUSS/VWAP-Vector/CVD, Liquidations-Cluster) zu EINER
+// Synthese, siehe lib/systemBriefingContext.ts + Prompt-Profil
+// "system-briefing".
+//
+// 30.09.2026 -- komplett neu strukturiert UND mit der vormals eigenstaendigen
+// Handelslage-Kachel zusammengelegt (Nutzer: "brauche nicht weitere
+// Kacheln, moechte vorhandenes komprimieren"). Vier klar benannte
+// Abschnitte statt einem langen Fliesstext-Block: Fazit (bias/confidence/
+// Kernaussage), Regelwerk-Check, optionaler Kontext-Check (nur bei
+// Widerspruch) und Trigger&Szenario -- letzterer jetzt inkl. konkretem
+// Kursziel (Nutzer-Entscheidung 30.09.2026: "konkrete Kursziele erlauben",
+// vorher verboten -- dieselbe Sprache wie schon laenger bei Trade-Debate).
 //
 // Erweitert 22.09.2026 um Marktkontext/ETF-Flows/Positionierung/News --
 // ersetzt seither die vormals separate "Zusammenfassung"-Kachel in
 // HeroHeader (eigener AI-Aufruf/eigene Route fuer eine inhaltlich stark
-// ueberlappende Frage). HeroHeader zeigt seither nur noch einen kurzen,
-// rein clientseitig gekuerzten Auszug DIESES Snapshots (siehe HeroHeader.tsx,
-// "Kurze Einordnung").
+// ueberlappende Frage). HeroHeader zeigt seither nur noch das Fazit
+// DIESES Snapshots (siehe HeroHeader.tsx, "Kurze Einordnung").
 //
 // Auto-Refresh (23.09.2026): HeroHeader loest ab NARRATIVE_AUTO_REFRESH_HOURS
 // (dort definiert) selbststaendig einen neuen Stand aus, wenn der zuletzt
@@ -28,12 +34,22 @@ import PanelInfo from "@/components/PanelInfo";
 // zusaetzlich zum weiterhin verfuegbaren manuellen "Neu generieren".
 
 const INFO_TEXT = [
-  "Was das ist: eine KI-Synthese, die dein eigenes Regelwerk (Welz/Salomon-Methodik + \"Mein Trading System\"-Checkliste) auf den aktuellen Stand von Nexus' berechneten Faktoren anwendet -- 14-Faktoren-Engine, Regime Matrix, GUSS/VWAP-Vector/CVD, Liquidations-Cluster, Salomon-Phase, Marktkontext, ETF-Flows, Positionierung, News und (falls aktuell vorhanden) den letzten Chart-Vision-Screenshot-Read.",
-  "Wiederholt bewusst KEINE der einzeln angezeigten Werte — sagt stattdessen, ob dein eigenes Regelwerk aktuell erfüllt ist und ob sich die Quellen gegenseitig bestätigen oder widersprechen.",
-  "Die \"Kurze Einordnung\" oben in der Gesamteinschätzung (HeroHeader) zeigt die ersten Sätze genau dieser Analyse als Auszug.",
+  "Was das ist: eine KI-Synthese, die dein eigenes Regelwerk (Welz/Salomon-Methodik + \"Mein Trading System\"-Checkliste) auf den aktuellen Stand von Nexus' berechneten Faktoren anwendet -- Bewegungsvorrat, 14-Faktoren-Engine, GUSS/VWAP-Vector/CVD, Liquidations-Cluster, Marktkontext, ETF-Flows, Positionierung, News.",
+  "Wiederholt bewusst KEINE der einzeln angezeigten Werte — sagt stattdessen, ob dein eigenes Regelwerk aktuell erfüllt ist und ob sich die Quellen gegenseitig bestätigen oder widersprechen. Der Kontext-Check erscheint nur, wenn es einen echten Widerspruch gibt.",
+  "Trigger & Szenario enthält jetzt ein konkretes Kursziel (seit 30.09.2026 erlaubt) — trotzdem eine Entscheidungsunterstützung anhand deiner eigenen Regeln, keine automatisierte Anlageberatung.",
+  "Die \"Kurze Einordnung\" oben in der Gesamteinschätzung (HeroHeader) zeigt das Fazit dieser Analyse.",
   "Aktualisiert sich automatisch, sobald der zuletzt generierte Stand zu alt wird (ausgelöst über die \"Kurze Einordnung\" oben) — zusätzlich weiterhin per Klick auf \"Neu generieren\" hier möglich.",
-  "Keine Handelsempfehlung, keine Kursziele — reine Entscheidungsunterstützung anhand deiner eigenen Regeln.",
 ].join("\n\n");
+
+const BIAS_LABEL: Record<"bullish" | "bearish" | "neutral", string> = {
+  bullish: "Bullisch",
+  bearish: "Bärisch",
+  neutral: "Neutral",
+};
+
+function formatPrice(value: number): string {
+  return `$${value.toLocaleString("de-CH", { maximumFractionDigits: 0 })}`;
+}
 
 export default function SystemBriefingCard({
   initialSnapshot,
@@ -61,12 +77,14 @@ export default function SystemBriefingCard({
     }
   }
 
+  const result = snapshot?.status === "ok" ? snapshot.result : null;
+
   return (
     <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <span className="flex items-center gap-1.5">
-          <p className="text-sm font-medium text-text">System-Briefing: Regelwerk &amp; Nexus-Faktoren</p>
-          <PanelInfo title="System-Briefing: Regelwerk & Nexus-Faktoren" content={INFO_TEXT} />
+          <p className="text-sm font-medium text-text">System-Briefing</p>
+          <PanelInfo title="System-Briefing" content={INFO_TEXT} />
         </span>
         <button
           type="button"
@@ -88,18 +106,60 @@ export default function SystemBriefingCard({
         <p className="text-xs text-down">{snapshot.error ?? "Unbekannter Fehler."}</p>
       )}
 
-      {snapshot && snapshot.status === "ok" && snapshot.result && (
-        <div className="space-y-2">
-          <p className="text-sm text-text-muted leading-relaxed">{snapshot.result.narrative}</p>
-          <div className="flex items-center gap-2 text-xs">
+      {snapshot && result && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-xs flex-wrap">
+            <span
+              className={
+                result.fazit.bias === "bullish"
+                  ? "text-up font-semibold"
+                  : result.fazit.bias === "bearish"
+                  ? "text-down font-semibold"
+                  : "text-text-muted font-semibold"
+              }
+            >
+              {BIAS_LABEL[result.fazit.bias]}
+            </span>
+            <span className="text-text-faint">· Confidence {result.fazit.confidence}/100</span>
+            <span className="text-text-faint">·</span>
             <FullDateTime iso={snapshot.generated_at} className="text-text-faint" />
             <StaleBadge iso={snapshot.generated_at} />
+          </div>
+          <p className="text-sm text-text leading-relaxed">{result.fazit.kernaussage}</p>
+
+          <div className="pt-2 border-t border-border/60 space-y-1">
+            <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Regelwerk-Check</p>
+            <p className="text-sm text-text-muted leading-relaxed">{result.regelwerkCheck}</p>
+          </div>
+
+          {result.kontextCheck && (
+            <div className="pt-2 border-t border-border/60 space-y-1">
+              <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Kontext-Check</p>
+              <p className="text-sm text-text-muted leading-relaxed">{result.kontextCheck}</p>
+            </div>
+          )}
+
+          <div className="pt-2 border-t border-border/60 space-y-1.5">
+            <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Trigger &amp; Szenario</p>
+            {result.trigger.bedingungen.length > 0 && (
+              <ul className="space-y-1 text-xs text-text-muted list-disc list-inside">
+                {result.trigger.bedingungen.map((b, i) => (
+                  <li key={i}>{b}</li>
+                ))}
+              </ul>
+            )}
+            {result.trigger.kursziel !== null && (
+              <p className="text-xs text-text">
+                Kursziel: <span className="font-semibold">{formatPrice(result.trigger.kursziel)}</span>
+              </p>
+            )}
+            <p className="text-xs text-text-faint">Ungültig wenn: {result.trigger.invalidierung}</p>
           </div>
         </div>
       )}
 
       <p className="text-xs text-text-faint pt-1">
-        Entscheidungsunterstützung anhand deines eigenen Regelwerks, kein Handelssignal und keine Anlageberatung.
+        Entscheidungsunterstützung anhand deines eigenen Regelwerks, keine automatisierte Anlageberatung.
       </p>
     </div>
   );

@@ -16,7 +16,7 @@ import type { SignalEngineResult } from "@/lib/types";
 // eigener Bias. Bewusst nur ueber POST -- das Lesen der Kachel liest
 // ausschliesslich den zwischengespeicherten letzten Stand, nur ein
 // expliziter Klick loest einen bezahlten AI-Aufruf aus. Gleiches Prinzip
-// wie /api/handelslage/generate und /api/news-analysis/generate.
+// wie /api/system-briefing/generate und /api/news-analysis/generate.
 //
 // Auth: proxy.ts sperrt diese Route wie jede andere /api/*-Route hinter
 // eine Login-Session -- keine eigene Pruefung noetig.

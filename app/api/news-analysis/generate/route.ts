@@ -14,7 +14,7 @@ import type { NewsAnalysisResult } from "@/lib/types";
 // stehen zu lassen).
 // Bewusst nur ueber POST -- das Lesen der Kachel liest ausschliesslich den
 // zwischengespeicherten letzten Stand, nur ein expliziter Klick loest einen
-// bezahlten AI-Aufruf aus. Gleiches Prinzip wie /api/handelslage/generate.
+// bezahlten AI-Aufruf aus. Gleiches Prinzip wie /api/system-briefing/generate.
 //
 // Auth: proxy.ts sperrt diese Route wie jede andere /api/*-Route hinter
 // eine Login-Session -- keine eigene Pruefung noetig.

@@ -44,8 +44,11 @@ export async function POST() {
     spot_pressure_vs_orderbook: radar.spotPressureVsOrderbook,
     cycle_vs_momentum: radar.cycleVsMomentum,
     cycle_band_label: radar.cycleBandLabel,
-    handelslage_vs_state: radar.handelslageVsState,
-    handelslage_bias: radar.handelslageBias ?? null,
+    // Spaltennamen bewusst unveraendert gelassen (30.09.2026, Handelslage in
+    // System-Briefing aufgegangen, siehe divergenceRadarContext.ts) -- eine
+    // reine Umbenennung haette eine Migration gebraucht, ohne echten Nutzen.
+    handelslage_vs_state: radar.systemBriefingVsState,
+    handelslage_bias: radar.systemBriefingBias ?? null,
     tradingview_vs_state: radar.tradingViewVsState,
     tv_direction: radar.tvDirection,
     rsi_divergence_vs_trend: radar.rsiDivergenceVsTrend,

@@ -199,7 +199,7 @@ export default function DivergenceRadarCard({ radar }: { radar: DivergenceRadarR
         <SpotPressureVsPriceRow status={radar.spotPressureVsPrice} />
         <SpotPressureVsOrderbookRow status={radar.spotPressureVsOrderbook} />
         <PairRow label="Log-Preiskanal vs. Momentum" status={radar.cycleVsMomentum} />
-        <PairRow label="Handelslage-KI vs. Gesamteinschätzung" status={radar.handelslageVsState} />
+        <PairRow label="System-Briefing-KI vs. Gesamteinschätzung" status={radar.systemBriefingVsState} />
         <PairRow label="TradingView-Signal vs. Gesamteinschätzung" status={radar.tradingViewVsState} />
         <RsiDivergenceVsTrendRow status={radar.rsiDivergenceVsTrend} />
       </div>

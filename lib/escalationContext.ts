@@ -27,7 +27,7 @@ const DIVERGENCE_RADAR_LABELS: Partial<Record<keyof DivergenceRadarResult, strin
   optionsVsSentiment: "Options-Skew vs. Sentiment",
   spotVsFutures: "Spot-Pressure vs. Futures-CVD",
   cycleVsMomentum: "Zyklus-Band vs. kurzfristiges Momentum",
-  handelslageVsState: "Handelslage-KI-Bias vs. Gesamtzustand",
+  systemBriefingVsState: "System-Briefing-KI-Bias vs. Gesamtzustand",
   tradingViewVsState: "TradingView-Signal vs. Gesamtzustand",
 };
 

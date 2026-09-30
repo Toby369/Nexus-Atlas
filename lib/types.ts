@@ -401,40 +401,42 @@ export interface EconomicCalendarEvent {
   updated_at: string;
 }
 
-// Ergebnis der Handelslage-KI-Kachel (Umsetzungsplan Phase 3, 05.09.2026,
-// siehe lib/handelslageContext.ts + app/api/handelslage/generate/route.ts).
-// "result" ist die vom Modell gelieferte, gegen das handelslage-Prompt-
-// Profile validierte JSON-Antwort (einschaetzung/bedingungen/ungueltigWenn).
-export interface HandelslageResult {
-  einschaetzung: string;
-  bedingungen: string[];
-  ungueltigWenn: string;
-  // Optional, da vor Divergenz-Radar (05.09.2026) generierte Snapshots dieses
-  // Feld noch nicht haben -- kein rueckwirkend erfundener Wert fuer sie.
-  bias?: "bullish" | "bearish" | "neutral";
-}
-
-export interface HandelslageSnapshot {
-  id: number;
-  generated_at: string;
-  provider: string | null;
-  model: string | null;
-  bewegungsvorrat_pct: number | null;
-  result: HandelslageResult | null;
-  status: "ok" | "error";
-  error: string | null;
-}
-
 // System-Briefing (Umsetzungsplan Phase 4, 18.09.2026; erweitert 22.09.2026
 // um Marktkontext/ETF-Flows/Positionierung/News -- ersetzt seither das
 // entfernte "market-state-narrative"-Profil, siehe lib/ai/promptProfiles.ts):
-// fusioniert Tobys eigenes Regelwerk (knowledge_base) + Salomon-Phase +
-// Nexus' berechnete Faktoren (14-Faktoren-Engine, Regime Matrix, GUSS/VWAP-
-// Vector/CVD, Liquidations-Cluster, Marktkontext, ETF-Flows, Positionierung,
-// News) + Chart-Vision-Read zu EINER Synthese -- gleiches Muster wie
-// HandelslageResult/-Snapshot.
+// fusioniert Tobys eigenes Regelwerk (knowledge_base) + Nexus' berechnete
+// Faktoren (14-Faktoren-Engine, GUSS/VWAP-Vector/CVD, Liquidations-Cluster,
+// Marktkontext, ETF-Flows, Positionierung, News) zu EINER Synthese.
+//
+// 30.09.2026 -- komplett neu strukturiert (Nutzer-Feedback "zu lang,
+// unstrukturiert", siehe Chat-Verlauf): ersetzt sowohl das vorherige
+// "narrative" (ein langer Fliesstext-Absatz) als auch die eigenstaendige
+// Handelslage-Kachel (HandelslageResult/-Snapshot, jetzt entfernt) --
+// bewegungsvorrat ist seither Teil des System-Briefing-Kontexts
+// (lib/systemBriefingContext.ts). Vier klar getrennte Abschnitte statt
+// einem Block; Trigger enthaelt jetzt explizit ein Kursziel (Nutzer-
+// Entscheidung 30.09.2026: "konkrete Kursziele erlauben", vorher verboten --
+// dieselbe Sprache wie schon laenger bei Trade-Debate ueblich).
+export interface SystemBriefingFazit {
+  bias: "bullish" | "bearish" | "neutral";
+  confidence: number;
+  kernaussage: string;
+}
+
+export interface SystemBriefingTrigger {
+  bedingungen: string[];
+  kursziel: number | null;
+  invalidierung: string;
+}
+
 export interface SystemBriefingResult {
-  narrative: string;
+  fazit: SystemBriefingFazit;
+  regelwerkCheck: string;
+  // null, wenn Marktkontext/ETF/Positionierung/News dem Regelwerk-Check
+  // NICHT widersprechen -- bewusst weggelassen statt erzwungen erwaehnt
+  // (Hauptursache der frueheren Laenge).
+  kontextCheck: string | null;
+  trigger: SystemBriefingTrigger;
 }
 
 export interface SystemBriefingSnapshot {

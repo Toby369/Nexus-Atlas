@@ -9,7 +9,7 @@ import type { SystemBriefingResult } from "@/lib/types";
 //
 // Umsetzungsplan Phase 4 (18.09.2026): erzeugt einen neuen System-Briefing-
 // Snapshot (lib/systemBriefingContext.ts -> runTileAnalysis() -> Speichern in
-// system_briefings). 1:1 dasselbe Prinzip wie /api/handelslage/generate --
+// system_briefings). 1:1 dasselbe Prinzip wie /api/signal-engine/generate --
 // nur ein expliziter Klick loest einen bezahlten AI-Aufruf aus, das Lesen
 // der Kachel liest ausschliesslich den zwischengespeicherten letzten Stand.
 //

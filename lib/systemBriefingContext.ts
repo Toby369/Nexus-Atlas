@@ -1,6 +1,5 @@
 import { supabase } from "./supabase";
-import { computeConfidenceBreakdown, computeEngineDivergence } from "./marketStateSummary";
-import { getSalomonInterpretation } from "./salomonInterpretation";
+import { computeConfidenceBreakdown } from "./marketStateSummary";
 import { getMeinSystemChecklistData, type MeinSystemChecklistData } from "./meinSystemContext";
 import { getTradingIndicatorsData, type TradingIndicatorsData } from "./tradingIndicatorsContext";
 import { getKnowledgeBase } from "./knowledgeBaseContext";
@@ -8,7 +7,6 @@ import { DEFAULT_TIMEFRAME, getTimeframe } from "./timeframes";
 import { deriveMarketContext } from "./marketContext";
 import type {
   MarketState,
-  MarketRegime,
   LiquidationIntelligence,
   EtfFlowDay,
   NewsEvent,
@@ -17,9 +15,7 @@ import type {
 
 // Kontext-Builder fuer die System-Briefing-Kachel (Umsetzungsplan Phase 4,
 // 18.09.2026: "kombinierte Entscheidungsunterstuetzungs-Kachel"; erweitert
-// 22.09.2026 um Marktkontext/ETF-Flows/Positionierung/News -- vormals nur im
-// separaten "market-state-narrative"-Kontext-Builder, siehe Git-Historie
-// von lib/marketStateNarrativeContext.ts, mittlerweile entfernt). Fusioniert
+// 22.09.2026 um Marktkontext/ETF-Flows/Positionierung/News). Fusioniert
 // Tobys eigenes Regelwerk (knowledge_base) + Salomon-Phase + Nexus' bereits
 // berechnete Faktoren (14-Faktoren-Engine, Regime Matrix, GUSS/VWAP-Vector/
 // CVD, Liquidations-Cluster, Marktkontext, ETF-Flows, Positionierung, News)
@@ -29,6 +25,18 @@ import type {
 // entfernt (Nutzer-Entscheidung: durch die neue, algorithmische
 // "Struktur"-Kachel weitgehend ueberholt) -- damit auch hier als Quelle
 // entfernt.
+//
+// 30.09.2026 -- Toby: "brauche nicht weitere Kacheln, moechte vorhandenes
+// komprimieren". Handelslage (eigene Kachel) wurde in dieses Briefing
+// aufgenommen statt daneben zu bestehen -- deren Kernkennzahl
+// (bewegungsvorrat) ist jetzt Teil dieses Kontexts. Gleichzeitig wurden
+// Salomon-Phase (salomonInterpretation.ts) und Regime Matrix als eigene
+// Quellen HIER entfernt -- beide sind bereits in der Marktphase-Kachel
+// (RegimeMatrixCard) sichtbar bzw. werden von deren eigener Engine
+// abgeleitet, waren hier nur eine zweite Beschreibung derselben Faktoren
+// (siehe Chat-Verlauf, Redundanz-Analyse). market_state (14-Faktoren-
+// Engine) bleibt, da mein_system_checklist/Regelwerk-Gates direkt darauf
+// aufbauen.
 //
 // Server-only (nutzt Supabase direkt) -- niemals aus einer "use client"
 // Komponente importieren.
@@ -49,20 +57,20 @@ const NEWS_LOOKBACK_HOURS = 72;
 const NEWS_LIMIT = 5;
 const DASHBOARD_BUNDLE_MAX_POINTS = 500;
 
+// Bewegungsvorrat (30.09.2026, aus lib/handelslageContext.ts uebernommen):
+// die heutige Tagesspanne relativ zum MEDIAN (nicht Mittelwert, ein
+// einzelner Crash-Tag soll den Massstab nicht dauerhaft verzerren) der
+// letzten 10 abgeschlossenen Tage. Ein Markt, der bereits 200% seines
+// ueblichen Tagespensums bewegt hat, ist kein guter Fortsetzungskandidat,
+// wie sauber der Trend auch aussieht.
+const BEWEGUNGSVORRAT_SYMBOL = "BTCUSDT";
+const BEWEGUNGSVORRAT_EXCHANGE = "binance";
+const BEWEGUNGSVORRAT_LOOKBACK_DAYS = 10;
+
 async function getLatestMarketState(): Promise<MarketState | null> {
   const { data } = await supabase
     .from("market_states")
     .select("*")
-    .order("timestamp_utc", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return data ?? null;
-}
-
-async function getLatestRegime(): Promise<{ regime: MarketRegime; data_coverage_pct: number } | null> {
-  const { data } = await supabase
-    .from("market_state_matrix")
-    .select("regime, data_coverage_pct")
     .order("timestamp_utc", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -127,6 +135,42 @@ async function getLiquidationIntelligence(): Promise<LiquidationIntelligence | n
   return (data as LiquidationIntelligence | null) ?? null;
 }
 
+function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+interface BewegungsvorratRow {
+  today_range_usd: number | null;
+  median_range_10d_usd: number | null;
+  ratio_pct: number | null;
+}
+
+async function getBewegungsvorrat(): Promise<BewegungsvorratRow> {
+  const { data: candleRows } = await supabase
+    .from("candles")
+    .select("open_time, high, low")
+    .eq("exchange", BEWEGUNGSVORRAT_EXCHANGE)
+    .eq("symbol", BEWEGUNGSVORRAT_SYMBOL)
+    .eq("interval", "1d")
+    .order("open_time", { ascending: false })
+    .limit(BEWEGUNGSVORRAT_LOOKBACK_DAYS + 1);
+
+  const rows = (candleRows ?? []) as { open_time: string; high: number; low: number }[];
+  const [today, ...previousDays] = rows;
+  const todayRange = today ? today.high - today.low : null;
+  const priorRanges = previousDays.map((c) => c.high - c.low);
+  const medianRange = median(priorRanges);
+  const ratioPct =
+    todayRange !== null && medianRange !== null && medianRange > 0
+      ? Math.round((todayRange / medianRange) * 1000) / 10
+      : null;
+
+  return { today_range_usd: todayRange, median_range_10d_usd: medianRange, ratio_pct: ratioPct };
+}
+
 interface RegelwerkEntry {
   module: "welz" | "salomon" | "mein_system";
   section: string;
@@ -141,6 +185,7 @@ async function getRegelwerk(): Promise<RegelwerkEntry[]> {
 
 export interface SystemBriefingContext {
   generated_at: string;
+  bewegungsvorrat: BewegungsvorratRow;
   market_state: {
     overall_state: MarketState["overall_state"];
     confidence: number;
@@ -155,9 +200,6 @@ export interface SystemBriefingContext {
     consensusPct: number | null;
     signalStrengthPct: number;
   } | null;
-  regime_matrix: { regime: MarketRegime; data_coverage_pct: number } | null;
-  engine_divergence: "AGREEMENT" | "DIVERGENCE" | "NOT_COMPARABLE";
-  salomon: { phase: string; sentence: string } | null;
   mein_system_checklist: MeinSystemChecklistData;
   trading_indicators: TradingIndicatorsData;
   liquidations: {
@@ -189,7 +231,7 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
 
   const [
     state,
-    regimeRow,
+    bewegungsvorrat,
     meinSystemChecklist,
     tradingIndicators,
     liquidationIntelligence,
@@ -199,7 +241,7 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
     highImpactNews,
   ] = await Promise.all([
     getLatestMarketState(),
-    getLatestRegime(),
+    getBewegungsvorrat(),
     getMeinSystemChecklistData(),
     getTradingIndicatorsData(),
     getLiquidationIntelligence(),
@@ -220,6 +262,7 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
 
   return {
     generated_at: new Date().toISOString(),
+    bewegungsvorrat,
     market_state: state
       ? {
           overall_state: state.overall_state,
@@ -232,9 +275,6 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
         }
       : null,
     confidence_breakdown: state ? computeConfidenceBreakdown(state) : null,
-    regime_matrix: regimeRow,
-    engine_divergence: computeEngineDivergence(state?.overall_state ?? null, regimeRow?.regime ?? null),
-    salomon: state ? getSalomonInterpretation(state.patterns ?? [], state.mtf_alignment) : null,
     mein_system_checklist: meinSystemChecklist,
     trading_indicators: tradingIndicators,
     liquidations: liquidationIntelligence
