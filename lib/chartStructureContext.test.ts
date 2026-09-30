@@ -1,13 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
+  aggregateToWeekly,
+  buildKeyLevelZones,
   classifyChannel,
   computeAvwapPivotLevels,
   computeSwingFormations,
+  computeTimeframePivots,
   computeTrendlines,
   detectCandlestickPatterns,
   detectContinuationFormation,
   detectTriangle,
   fitTrendline,
+  withConfirmationLevels,
+  type ChartStructureData,
+  type KeyLevel,
   type OhlcvCandle,
   type TrendlineLevel,
 } from "./chartStructureContext";
@@ -295,5 +301,181 @@ describe("detectContinuationFormation", () => {
   it("liefert null bei zu kurzer Kerzenserie", () => {
     const candles = Array.from({ length: 10 }, (_, i) => flatCandle(`k${i}`, 100));
     expect(detectContinuationFormation(candles)).toBeNull();
+  });
+});
+
+describe("computeTimeframePivots", () => {
+  it("erkennt ein bestaetigtes Pivot-Hoch/-Tief und taggt den Zeitrahmen", () => {
+    const candles: OhlcvCandle[] = [
+      { openTime: "c0", open: 100, high: 100, low: 95, close: 100, volume: 1 },
+      { openTime: "c1", open: 100, high: 101, low: 96, close: 100, volume: 1 },
+      { openTime: "c2", open: 100, high: 102, low: 97, close: 100, volume: 1 },
+      { openTime: "c3", open: 100, high: 110, low: 90, close: 100, volume: 1 },
+      { openTime: "c4", open: 100, high: 103, low: 98, close: 100, volume: 1 },
+      { openTime: "c5", open: 100, high: 102, low: 97, close: 100, volume: 1 },
+      { openTime: "c6", open: 100, high: 101, low: 96, close: 100, volume: 1 },
+    ];
+    const points = computeTimeframePivots(candles, "4h");
+    expect(points).toHaveLength(2);
+    expect(points.find((p) => p.kind === "high")).toEqual({
+      timeframe: "4h",
+      kind: "high",
+      price: 110,
+      openTime: "c3",
+    });
+    expect(points.find((p) => p.kind === "low")).toEqual({
+      timeframe: "4h",
+      kind: "low",
+      price: 90,
+      openTime: "c3",
+    });
+  });
+
+  it("liefert leeres Array bei zu kurzer Kerzenserie", () => {
+    const candles = Array.from({ length: 5 }, (_, i) => flatCandle(`k${i}`, 100));
+    expect(computeTimeframePivots(candles, "1h")).toEqual([]);
+  });
+});
+
+describe("aggregateToWeekly", () => {
+  function dailyCandle(
+    date: string,
+    open: number,
+    high: number,
+    low: number,
+    close: number,
+    volume: number
+  ): OhlcvCandle {
+    return { openTime: `${date}T00:00:00.000Z`, open, high, low, close, volume };
+  }
+
+  it("gruppiert Tageskerzen zu Wochenkerzen (Montag als Wochenbeginn)", () => {
+    const daily = [
+      dailyCandle("2026-09-21", 100, 105, 95, 102, 10), // Montag Woche 1
+      dailyCandle("2026-09-22", 102, 106, 101, 103, 10),
+      dailyCandle("2026-09-23", 103, 108, 102, 107, 10),
+      dailyCandle("2026-09-27", 107, 112, 100, 110, 10), // Sonntag Woche 1
+      dailyCandle("2026-09-28", 110, 111, 108, 109, 10), // Montag Woche 2
+      dailyCandle("2026-09-29", 109, 115, 107, 113, 10),
+    ];
+    const weekly = aggregateToWeekly(daily);
+    expect(weekly).toHaveLength(2);
+
+    expect(weekly[0].openTime).toBe("2026-09-21T00:00:00.000Z");
+    expect(weekly[0].open).toBe(100);
+    expect(weekly[0].high).toBe(112);
+    expect(weekly[0].low).toBe(95);
+    expect(weekly[0].close).toBe(110);
+    expect(weekly[0].volume).toBe(40);
+
+    expect(weekly[1].openTime).toBe("2026-09-28T00:00:00.000Z");
+    expect(weekly[1].high).toBe(115);
+    expect(weekly[1].low).toBe(107);
+    expect(weekly[1].close).toBe(113);
+    expect(weekly[1].volume).toBe(20);
+  });
+});
+
+describe("buildKeyLevelZones", () => {
+  it("erzeugt eine Zone aus einem einzelnen Pivot ohne nahe Liquidation", () => {
+    const zones = buildKeyLevelZones(
+      [{ timeframe: "1d", kind: "high", price: 1050, openTime: "d1" }],
+      [],
+      1000
+    );
+    expect(zones).toEqual([
+      { price: 1050, side: "resistance", timeframes: ["1d"], confirmedBy: [], liquidationNotionalUsd: null },
+    ]);
+  });
+
+  it("buendelt Pivots aus unterschiedlichen Zeitrahmen innerhalb der Toleranz zu EINER Zone", () => {
+    const zones = buildKeyLevelZones(
+      [
+        { timeframe: "1d", kind: "high", price: 1050, openTime: "d1" },
+        { timeframe: "4h", kind: "high", price: 1052, openTime: "h1" }, // ~0.19% entfernt -> innerhalb 0.3%
+      ],
+      [],
+      1000
+    );
+    expect(zones).toHaveLength(1);
+    expect(zones[0].price).toBe(1051);
+    expect(zones[0].timeframes.sort()).toEqual(["1d", "4h"]);
+  });
+
+  it("bestaetigt eine Pivot-Zone zusaetzlich durch einen nahen Liquidations-Cluster", () => {
+    const zones = buildKeyLevelZones(
+      [{ timeframe: "1w", kind: "low", price: 950, openTime: "w1" }],
+      [{ price: 951, notionalUsd: 50_000, eventCount: 3 }], // ~0.1% entfernt
+      1000
+    );
+    expect(zones).toHaveLength(1);
+    expect(zones[0].side).toBe("support");
+    expect(zones[0].timeframes).toEqual(["1w"]);
+    expect(zones[0].confirmedBy).toEqual(["liquidation"]);
+    expect(zones[0].liquidationNotionalUsd).toBe(50_000);
+  });
+
+  it("erzeugt eine reine Liquidations-Zone ohne nahen Pivot", () => {
+    const zones = buildKeyLevelZones([], [{ price: 900, notionalUsd: 20_000, eventCount: 2 }], 1000);
+    expect(zones).toEqual([
+      { price: 900, side: "support", timeframes: [], confirmedBy: ["liquidation"], liquidationNotionalUsd: 20_000 },
+    ]);
+  });
+
+  it("buendelt NICHT, wenn zwei Pivots ausserhalb der Toleranz liegen", () => {
+    const zones = buildKeyLevelZones(
+      [
+        { timeframe: "1d", kind: "high", price: 1010, openTime: "d1" },
+        { timeframe: "4h", kind: "high", price: 1050, openTime: "h1" }, // ~3,96% entfernt
+      ],
+      [],
+      1000
+    );
+    expect(zones).toHaveLength(2);
+    expect(zones.map((z) => z.price).sort((a, b) => a - b)).toEqual([1010, 1050]);
+  });
+});
+
+describe("withConfirmationLevels", () => {
+  function baseStructureData(keyLevels: KeyLevel[]): ChartStructureData {
+    return {
+      interval: "1h",
+      candlestickPatterns: [],
+      avwapPivotLevels: [],
+      trendlines: [],
+      swingFormations: [],
+      triangle: null,
+      continuationFormation: null,
+      keyLevels,
+      currentPrice: 1000,
+      dataAsOf: null,
+    };
+  }
+
+  it("taggt eine Zone mit EMA/VWAP, wenn der Wert innerhalb der Toleranz liegt", () => {
+    const data = baseStructureData([
+      { price: 1000, side: "resistance", timeframes: ["1d"], confirmedBy: [], liquidationNotionalUsd: null },
+    ]);
+    const result = withConfirmationLevels(data, [
+      { label: "ema50", price: 1001 }, // ~0,1% entfernt -> innerhalb 0,3%
+      { label: "vwap_daily", price: 1100 }, // weit entfernt -> nicht getaggt
+    ]);
+    expect(result.keyLevels[0].confirmedBy).toEqual(["ema50"]);
+  });
+
+  it("dupliziert keinen bereits vorhandenen Tag", () => {
+    const data = baseStructureData([
+      { price: 1000, side: "resistance", timeframes: [], confirmedBy: ["ema50"], liquidationNotionalUsd: null },
+    ]);
+    const result = withConfirmationLevels(data, [{ label: "ema50", price: 1000 }]);
+    expect(result.keyLevels[0].confirmedBy).toEqual(["ema50"]);
+  });
+
+  it("ignoriert null-Werte", () => {
+    const data = baseStructureData([
+      { price: 1000, side: "resistance", timeframes: [], confirmedBy: [], liquidationNotionalUsd: null },
+    ]);
+    const result = withConfirmationLevels(data, [{ label: "vwap_weekly", price: null }]);
+    expect(result.keyLevels[0].confirmedBy).toEqual([]);
   });
 });

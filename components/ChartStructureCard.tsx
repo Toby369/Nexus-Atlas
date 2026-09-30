@@ -106,13 +106,44 @@ function ContinuationFormationRow({ formation }: { formation: NonNullable<ChartS
   );
 }
 
+function formatUsdCompact(value: number): string {
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
+  return `$${value.toFixed(0)}`;
+}
+
+const PIVOT_TIMEFRAME_LABELS: Record<ChartStructureData["keyLevels"][number]["timeframes"][number], string> = {
+  "1w": "1W",
+  "1d": "1D",
+  "4h": "4H",
+  "1h": "1H",
+};
+
+const KEY_LEVEL_CONFIRMATION_LABELS: Record<ChartStructureData["keyLevels"][number]["confirmedBy"][number], string> = {
+  liquidation: "Liquidation",
+  ema13: "EMA13",
+  ema50: "EMA50",
+  ema200: "EMA200",
+  vwap_daily: "VWAP Tag",
+  vwap_weekly: "VWAP Woche",
+  vwap_swing_high: "VWAP Swing-Hoch",
+  vwap_swing_low: "VWAP Swing-Tief",
+};
+
 function KeyLevelRow({ level }: { level: ChartStructureData["keyLevels"][number] }) {
+  const tags = [
+    ...level.timeframes.map((tf) => PIVOT_TIMEFRAME_LABELS[tf]),
+    ...level.confirmedBy.map((c) =>
+      c === "liquidation" && level.liquidationNotionalUsd !== null
+        ? `Liquidation ${formatUsdCompact(level.liquidationNotionalUsd)}`
+        : KEY_LEVEL_CONFIRMATION_LABELS[c]
+    ),
+  ];
   return (
-    <div className="flex items-center justify-between text-xs">
-      <span className="text-text-faint">{level.label}</span>
-      <span className="text-text">
-        {formatPrice(level.price)} · {level.eventCount} Events
-      </span>
+    <div className="flex items-center justify-between gap-2 text-xs">
+      <span className={level.side === "resistance" ? "text-down" : "text-up"}>{formatPrice(level.price)}</span>
+      <span className="text-text-faint text-right">{tags.join(" · ") || "—"}</span>
     </div>
   );
 }
@@ -182,11 +213,11 @@ export default function ChartStructureCard({ data }: { data: ChartStructureData 
       </div>
 
       <div className="space-y-1 pt-1 border-t border-border/60">
-        <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Key Levels (Liquidations-Cluster)</p>
+        <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Key Levels (Pivot-Konfluenz)</p>
         {data.keyLevels.length > 0 ? (
           data.keyLevels.map((level, i) => <KeyLevelRow key={`${level.price}-${i}`} level={level} />)
         ) : (
-          <p className="text-xs text-text-faint">Keine Liquidations-Cluster im Zeitfenster.</p>
+          <p className="text-xs text-text-faint">Keine Key Levels im aktuellen Fenster.</p>
         )}
       </div>
     </div>

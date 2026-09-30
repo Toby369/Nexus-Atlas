@@ -6,7 +6,7 @@ import LogoutButton from "@/components/LogoutButton";
 import { getKnowledgeBase } from "@/lib/knowledgeBaseContext";
 import { getMeinSystemChecklistData } from "@/lib/meinSystemContext";
 import { getTradingIndicatorsData } from "@/lib/tradingIndicatorsContext";
-import { getChartStructureData } from "@/lib/chartStructureContext";
+import { getChartStructureData, withConfirmationLevels } from "@/lib/chartStructureContext";
 
 export const revalidate = 0;
 
@@ -57,6 +57,20 @@ export default async function LernenPage() {
       getChartStructureData(),
     ]);
 
+  // Key-Levels-Konfluenz mit EMA13/50/200 (meinSystemData) und VWAP
+  // (tradingIndicators.vwapVector) anreichern -- beide oben ohnehin schon
+  // fuer andere Kacheln auf dieser Seite geladen, kein zweiter Fetch noetig
+  // (siehe withConfirmationLevels()-Kommentar in chartStructureContext.ts).
+  const chartStructureEnriched = withConfirmationLevels(chartStructure, [
+    { label: "ema13", price: meinSystemData.ema13 },
+    { label: "ema50", price: meinSystemData.ema50 },
+    { label: "ema200", price: meinSystemData.ema200 },
+    { label: "vwap_daily", price: tradingIndicators.vwapVector.dayVwap },
+    { label: "vwap_weekly", price: tradingIndicators.vwapVector.weeklyVwap },
+    { label: "vwap_swing_high", price: tradingIndicators.vwapVector.swingHighVwap },
+    { label: "vwap_swing_low", price: tradingIndicators.vwapVector.swingLowVwap },
+  ]);
+
   return (
     <main className="flex-1 flex flex-col">
       <header className="border-b border-border px-6 py-5 flex items-baseline justify-between">
@@ -91,7 +105,7 @@ export default async function LernenPage() {
           gussData={tradingIndicators.guss}
           vwapVectorData={tradingIndicators.vwapVector}
           cvdData={tradingIndicators.cvd}
-          chartStructureData={chartStructure}
+          chartStructureData={chartStructureEnriched}
         />
       </section>
 

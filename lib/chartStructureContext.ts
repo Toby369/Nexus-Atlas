@@ -15,10 +15,25 @@ import { detectFractalSwings, findPivots } from "./swingDetection";
 // research_detect_candlestick_patterns()) -- hier nach TypeScript
 // portiert/produktiv verdrahtet. Trendlinien-Erkennung existierte nirgends
 // und ist hier komplett neu gebaut (auf Basis der bereits vorhandenen
-// Swing-Erkennung aus lib/swingDetection.ts). Key Levels nutzen bewusst NUR
-// Liquidations-Cluster (nicht zusaetzlich Fibonacci/Orderbook-Waende --
-// beide stehen bereits in VwapVectorCard/OrderbookWallCard auf derselben
-// Seite, keine Dopplung).
+// Swing-Erkennung aus lib/swingDetection.ts).
+//
+// Key Levels (ueberarbeitet 30.09.2026, Nutzer-Feedback "muessen handfester
+// sein"): bewusst NICHT mehr nur Liquidations-Cluster, sondern Markt-uebliche
+// Pivot-Punkte (Web-Recherche 30.09.2026: Classic/Floor-Trader-Pivots sind
+// die verbreitetste Variante, Camarilla nur fuer <=1H geeignet -- siehe
+// Chat-Verlauf fuer Quellen) -- hier als fraktale Schwenkpunkte (gleicher
+// Lookback=3 wie AVWAP-Pivot oben) auf VIER Zeitrahmen top-down: 1W/1D/4H/1H
+// (Toby-Vorgabe). Liegen mehrere Zeitrahmen-Pivots nahe beieinander
+// (PIVOT_CONFLUENCE_TOLERANCE_PCT), werden sie zu EINER Zone gebuendelt --
+// je mehr Zeitrahmen, desto staerker die Zone. Zusaetzlich verstaerkt durch
+// Naehe zu einem Liquidations-Cluster, EMA13/50/200 oder VWAP (Daily/Weekly/
+// Swing) -- letztere zwei kommen NICHT aus einem neuen Fetch hier, sondern
+// werden nachtraeglich rein clientseitig/pure via withConfirmationLevels()
+// aus bereits an anderer Stelle auf derselben Seite geladenen Werten
+// (meinSystemContext/tradingIndicatorsContext) angereichert, um keinen
+// doppelten Rechenweg/Fetch zu erzeugen. Fibonacci-Retracement/Orderbuch-
+// Waende bleiben bewusst aussen vor (stehen bereits in VwapVectorCard/
+// OrderbookWallCard auf derselben Seite, keine Dopplung).
 
 const CANDLE_LOOKBACK = 300; // gleiche Fenstergroesse wie GUSS_CANDLE_LOOKBACK
 const CANDLESTICK_PRIOR_TREND_LOOKBACK = 6; // 1:1 wie research_detect_candlestick_patterns() (lag 6)
@@ -44,6 +59,29 @@ const TRENDLINE_TOUCH_TOLERANCE_PCT = 0.005;
 
 const KEY_LEVEL_LOOKBACK_HOURS = 6; // gleiches Fenster wie LiquidationPanel/LeverageMapCard
 const KEY_LEVEL_MAX_LIQUIDATION_CLUSTERS = 4;
+
+// Multi-Timeframe-Pivots fuer Key Levels (30.09.2026). Lookback identisch zu
+// AVWAP_PIVOT_LENGTH oben (Toby: "3 davor, 3 danach ergibt Pivot") --
+// derselbe fraktale Massstab, nur jetzt auf vier statt nur einem Zeitrahmen.
+const PIVOT_FRACTAL_LOOKBACK = 3;
+// Wie nah zwei Level (aus verschiedenen Zeitrahmen oder Quellen) beieinander
+// liegen muessen, um zu EINER Zone gebuendelt zu werden -- enger als die
+// Trendlinien-Beruehrungstoleranz (0,5%), da Pivot-Zonen praeziser gemeint
+// sind. Bewusster Startwert (Toby: "so mal starten, schauen ob das passt").
+const PIVOT_CONFLUENCE_TOLERANCE_PCT = 0.003;
+// Kerzen-Fenster je Zeitrahmen -- bewusst NICHT die komplette Historie,
+// sondern ein auf "aktuell relevant" begrenztes, aehnlich CANDLE_LOOKBACK
+// (300 1H-Kerzen = ~12,5 Tage) fuer die anderen Struktur-Bausteine.
+const PIVOT_4H_LOOKBACK_CANDLES = 90; // ~15 Tage
+const PIVOT_DAILY_LOOKBACK_CANDLES = 60; // ~2 Monate
+// Quell-Fenster fuer die Wochen-Aggregation (aus 1D-Kerzen) -- ergibt bei
+// vollstaendiger Abdeckung ~26 Wochen-Kerzen, genug fuer mehrere bestaetigte
+// Wochen-Schwenkpunkte bei PIVOT_FRACTAL_LOOKBACK=3.
+const PIVOT_WEEKLY_SOURCE_DAILY_CANDLES = 182;
+// Begrenzung der angezeigten Zonen je Seite (Widerstand/Unterstuetzung) --
+// gleiches Prinzip wie KEY_LEVEL_MAX_LIQUIDATION_CLUSTERS/
+// AVWAP_MAX_ACTIVE_LINES_PER_SIDE.
+const KEY_LEVEL_MAX_ZONES_PER_SIDE = 4;
 
 // Chart-Formationen (neu, 25.09.2026, Nutzer-Nachfrage "doubel top,
 // w-pattern"): wie nah die zwei Tops/Bottoms bzw. die zwei Schultern
@@ -81,18 +119,21 @@ export interface OhlcvCandle {
   volume: number;
 }
 
-async function fetchCandles(): Promise<OhlcvCandle[]> {
+// Generalisiert auf beliebige Intervalle (30.09.2026, fuer die Multi-
+// Timeframe-Pivots noetig) -- vorher fest auf "1h" verdrahtet, da Key Levels
+// bis dahin ausschliesslich Liquidations-Cluster waren.
+async function fetchCandlesForInterval(interval: "1h" | "4h" | "1d", limit: number): Promise<OhlcvCandle[]> {
   const { data, error } = await supabase
     .from("candles")
     .select("open_time, open, high, low, close, volume")
     .eq("exchange", "binance")
     .eq("symbol", "BTCUSDT")
-    .eq("interval", "1h")
+    .eq("interval", interval)
     .order("open_time", { ascending: false })
-    .limit(CANDLE_LOOKBACK);
+    .limit(limit);
 
   if (error) {
-    console.error("chartStructureContext: Fehler beim Laden der 1H-Kerzen:", error.message);
+    console.error(`chartStructureContext: Fehler beim Laden der ${interval}-Kerzen:`, error.message);
   }
 
   return (data ?? [])
@@ -105,6 +146,40 @@ async function fetchCandles(): Promise<OhlcvCandle[]> {
       low: Number(row.low),
       close: Number(row.close),
       volume: Number(row.volume),
+    }));
+}
+
+async function fetchCandles(): Promise<OhlcvCandle[]> {
+  return fetchCandlesForInterval("1h", CANDLE_LOOKBACK);
+}
+
+// Aggregiert 1D-Kerzen (chronologisch, wie von fetchCandlesForInterval
+// geliefert) zu Wochen-Kerzen -- Montag (UTC) als Wochenbeginn. Reine
+// Funktion, kein DB-Zugriff, damit isoliert mit handgebauten Tagesreihen
+// testbar (gleiches Prinzip wie die anderen pure Bausteine dieser Datei).
+export function aggregateToWeekly(dailyCandles: OhlcvCandle[]): OhlcvCandle[] {
+  const weeks = new Map<string, OhlcvCandle[]>();
+  for (const c of dailyCandles) {
+    const d = new Date(c.openTime);
+    const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    const dayOfWeek = monday.getUTCDay(); // 0=So..6=Sa
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    monday.setUTCDate(monday.getUTCDate() + diffToMonday);
+    const key = monday.toISOString();
+    const group = weeks.get(key) ?? [];
+    group.push(c);
+    weeks.set(key, group);
+  }
+
+  return Array.from(weeks.entries())
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .map(([weekStart, group]) => ({
+      openTime: weekStart,
+      open: group[0].open,
+      high: Math.max(...group.map((c) => c.high)),
+      low: Math.min(...group.map((c) => c.low)),
+      close: group[group.length - 1].close,
+      volume: group.reduce((sum, c) => sum + c.volume, 0),
     }));
 }
 
@@ -648,17 +723,72 @@ export function detectContinuationFormation(candles: OhlcvCandle[]): Continuatio
   return { type, poleDirection, upperValue: upper.currentValue, lowerValue: lower.currentValue };
 }
 
-// --- Key Levels (Liquidations-Cluster) -------------------------------------
-// Bewusst NUR Liquidations-Cluster -- Fibonacci-Retracement steht bereits in
-// VwapVectorCard direkt oberhalb auf derselben Seite (keine Dopplung).
+// --- Key Levels (Multi-Timeframe-Pivot-Konfluenz) ---------------------------
+// Siehe Datei-Kopfkommentar fuer die Herleitung. Fibonacci-Retracement/
+// Orderbuch-Waende bleiben bewusst aussen vor (stehen bereits in
+// VwapVectorCard/OrderbookWallCard auf derselben Seite, keine Dopplung).
+
+export type PivotTimeframe = "1w" | "1d" | "4h" | "1h";
+
+export interface TimeframePivotPoint {
+  timeframe: PivotTimeframe;
+  kind: "high" | "low";
+  price: number;
+  openTime: string;
+}
+
+// Fraktale Schwenkpunkt-Erkennung (PIVOT_FRACTAL_LOOKBACK=3, wie AVWAP-
+// Pivot) auf EINEM Zeitrahmen -- wird fuer 1W/1D/4H/1H separat aufgerufen.
+export function computeTimeframePivots(
+  candles: OhlcvCandle[],
+  timeframe: PivotTimeframe
+): TimeframePivotPoint[] {
+  if (candles.length < PIVOT_FRACTAL_LOOKBACK * 2 + 1) return [];
+
+  const highs = candles.map((c) => c.high);
+  const lows = candles.map((c) => c.low);
+  const swings = detectFractalSwings(highs, lows, PIVOT_FRACTAL_LOOKBACK);
+
+  const points: TimeframePivotPoint[] = [];
+  for (let i = 0; i < candles.length; i++) {
+    if (swings.isSwingHigh[i]) {
+      points.push({ timeframe, kind: "high", price: highs[i], openTime: candles[i].openTime });
+    }
+    if (swings.isSwingLow[i]) {
+      points.push({ timeframe, kind: "low", price: lows[i], openTime: candles[i].openTime });
+    }
+  }
+  return points;
+}
+
+export type KeyLevelConfirmation =
+  | "liquidation"
+  | "ema13"
+  | "ema50"
+  | "ema200"
+  | "vwap_daily"
+  | "vwap_weekly"
+  | "vwap_swing_high"
+  | "vwap_swing_low";
 
 export interface KeyLevel {
   price: number;
-  label: string;
+  side: "resistance" | "support";
+  // Zeitrahmen, deren Pivot-Punkte in diese Zone fallen -- je mehr, desto
+  // staerker die Konfluenz. Leer, wenn die Zone ausschliesslich aus einem
+  // Liquidations-Cluster ohne nahen Pivot besteht.
+  timeframes: PivotTimeframe[];
+  confirmedBy: KeyLevelConfirmation[];
+  liquidationNotionalUsd: number | null;
+}
+
+interface LiquidationCluster {
+  price: number;
+  notionalUsd: number;
   eventCount: number;
 }
 
-async function computeKeyLevels(): Promise<KeyLevel[]> {
+async function fetchLiquidationClusters(): Promise<LiquidationCluster[]> {
   const since = new Date(Date.now() - KEY_LEVEL_LOOKBACK_HOURS * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase.rpc("get_liquidation_intelligence", {
     p_since: since,
@@ -680,12 +810,119 @@ async function computeKeyLevels(): Promise<KeyLevel[]> {
     .slice()
     .sort((a, b) => b.notional_usd - a.notional_usd)
     .slice(0, KEY_LEVEL_MAX_LIQUIDATION_CLUSTERS)
-    .map((c) => ({
-      price: c.price_bucket,
-      label: `Liquidations-Cluster (${KEY_LEVEL_LOOKBACK_HOURS}h)`,
-      eventCount: c.event_count,
-    }))
-    .sort((a, b) => b.price - a.price);
+    .map((c) => ({ price: c.price_bucket, notionalUsd: c.notional_usd, eventCount: c.event_count }));
+}
+
+// Interne, vereinheitlichte Rohquelle vor der Zonen-Buendelung -- ein Pivot-
+// Punkt UND ein Liquidations-Cluster sind beides einfach "ein Preis mit
+// Herkunft", erst die Buendelung unterscheidet danach wieder.
+interface RawLevelSource {
+  price: number;
+  pivot?: { timeframe: PivotTimeframe };
+  liquidation?: { notionalUsd: number };
+}
+
+// Kernstueck der Key-Levels-Neuerung: buendelt Pivot-Punkte (aus allen vier
+// Zeitrahmen) UND Liquidations-Cluster zu Zonen, wenn sie innerhalb
+// tolerancePct beieinander liegen (single-linkage, sortiert nach Preis) --
+// EMA/VWAP werden NICHT hier eingerechnet (siehe withConfirmationLevels()),
+// damit diese Funktion komplett pure/testbar bleibt (kein Fetch, keine
+// externen Werte).
+export function buildKeyLevelZones(
+  pivotPoints: TimeframePivotPoint[],
+  liquidationClusters: LiquidationCluster[],
+  currentPrice: number,
+  tolerancePct: number = PIVOT_CONFLUENCE_TOLERANCE_PCT
+): KeyLevel[] {
+  const raw: RawLevelSource[] = [
+    ...pivotPoints.map((p) => ({ price: p.price, pivot: { timeframe: p.timeframe } })),
+    ...liquidationClusters.map((c) => ({ price: c.price, liquidation: { notionalUsd: c.notionalUsd } })),
+  ].sort((a, b) => a.price - b.price);
+
+  const zones: KeyLevel[] = [];
+  let clusterMembers: RawLevelSource[] = [];
+  let clusterMeanPrice = 0;
+
+  const flush = () => {
+    if (clusterMembers.length === 0) return;
+    const price = clusterMembers.reduce((sum, m) => sum + m.price, 0) / clusterMembers.length;
+    const timeframes = Array.from(
+      new Set(clusterMembers.filter((m) => m.pivot).map((m) => m.pivot!.timeframe))
+    );
+    const liquidationMembers = clusterMembers.filter((m) => m.liquidation);
+    const confirmedBy: KeyLevelConfirmation[] = liquidationMembers.length > 0 ? ["liquidation"] : [];
+    const liquidationNotionalUsd =
+      liquidationMembers.length > 0
+        ? liquidationMembers.reduce((sum, m) => sum + m.liquidation!.notionalUsd, 0)
+        : null;
+
+    zones.push({
+      price,
+      side: price >= currentPrice ? "resistance" : "support",
+      timeframes,
+      confirmedBy,
+      liquidationNotionalUsd,
+    });
+    clusterMembers = [];
+  };
+
+  for (const source of raw) {
+    if (clusterMembers.length === 0) {
+      clusterMembers.push(source);
+      clusterMeanPrice = source.price;
+      continue;
+    }
+    const withinTolerance =
+      clusterMeanPrice > 0 && Math.abs(source.price - clusterMeanPrice) / clusterMeanPrice <= tolerancePct;
+    if (withinTolerance) {
+      clusterMembers.push(source);
+      clusterMeanPrice = clusterMembers.reduce((sum, m) => sum + m.price, 0) / clusterMembers.length;
+    } else {
+      flush();
+      clusterMembers.push(source);
+      clusterMeanPrice = source.price;
+    }
+  }
+  flush();
+
+  // Naeher an currentPrice = relevanter -- je Seite auf die staerksten/
+  // naechstgelegenen KEY_LEVEL_MAX_ZONES_PER_SIDE begrenzen, sonst koennte
+  // die Liste bei vier Zeitrahmen + Liquidationen sehr lang werden.
+  const resistances = zones
+    .filter((z) => z.side === "resistance")
+    .sort((a, b) => a.price - b.price)
+    .slice(0, KEY_LEVEL_MAX_ZONES_PER_SIDE);
+  const supports = zones
+    .filter((z) => z.side === "support")
+    .sort((a, b) => b.price - a.price)
+    .slice(0, KEY_LEVEL_MAX_ZONES_PER_SIDE);
+
+  return [...resistances.reverse(), ...supports];
+}
+
+// Reichert bereits berechnete Key Levels NACHTRAEGLICH um EMA-/VWAP-
+// Konfluenz an -- bewusst NICHT Teil von getChartStructureData()/
+// buildKeyLevelZones(): EMA13/50/200 (meinSystemContext) und VWAP
+// (tradingIndicatorsContext) werden auf app/lernen/page.tsx ohnehin schon
+// fuer andere Kacheln geladen; ein zweiter Fetch/Rechenweg nur fuer diese
+// Konfluenz-Pruefung waere unnoetig. Pure Funktion, daher isoliert testbar.
+export function withConfirmationLevels(
+  data: ChartStructureData,
+  levels: { label: KeyLevelConfirmation; price: number | null }[],
+  tolerancePct: number = PIVOT_CONFLUENCE_TOLERANCE_PCT
+): ChartStructureData {
+  const keyLevels = data.keyLevels.map((zone) => {
+    const additions = levels.filter(
+      (lvl) =>
+        lvl.price !== null &&
+        zone.price > 0 &&
+        Math.abs(lvl.price - zone.price) / zone.price <= tolerancePct &&
+        !zone.confirmedBy.includes(lvl.label)
+    );
+    if (additions.length === 0) return zone;
+    return { ...zone, confirmedBy: [...zone.confirmedBy, ...additions.map((a) => a.label)] };
+  });
+  return { ...data, keyLevels };
 }
 
 // --- Kombinierter Einstiegspunkt -------------------------------------------
@@ -704,10 +941,28 @@ export interface ChartStructureData {
 }
 
 export async function getChartStructureData(): Promise<ChartStructureData> {
-  const [candles, keyLevels] = await Promise.all([fetchCandles(), computeKeyLevels()]);
+  const [candles, candles4h, candlesDailySource, liquidationClusters] = await Promise.all([
+    fetchCandles(),
+    fetchCandlesForInterval("4h", PIVOT_4H_LOOKBACK_CANDLES),
+    fetchCandlesForInterval("1d", PIVOT_WEEKLY_SOURCE_DAILY_CANDLES),
+    fetchLiquidationClusters(),
+  ]);
+
   const lastCandle = candles[candles.length - 1] ?? null;
+  const currentPrice = lastCandle?.close ?? null;
+
   const swingPoints = computeSwingPoints(candles);
   const trendlines = computeTrendlines(candles, swingPoints);
+
+  const candlesDaily = candlesDailySource.slice(-PIVOT_DAILY_LOOKBACK_CANDLES);
+  const candlesWeekly = aggregateToWeekly(candlesDailySource);
+  const pivotPoints = [
+    ...computeTimeframePivots(candlesWeekly, "1w"),
+    ...computeTimeframePivots(candlesDaily, "1d"),
+    ...computeTimeframePivots(candles4h, "4h"),
+    ...computeTimeframePivots(candles, "1h"),
+  ];
+  const keyLevels = currentPrice !== null ? buildKeyLevelZones(pivotPoints, liquidationClusters, currentPrice) : [];
 
   return {
     interval: "1h",
@@ -718,7 +973,7 @@ export async function getChartStructureData(): Promise<ChartStructureData> {
     triangle: detectTriangle(trendlines, candles),
     continuationFormation: detectContinuationFormation(candles),
     keyLevels,
-    currentPrice: lastCandle?.close ?? null,
+    currentPrice,
     dataAsOf: lastCandle?.openTime ?? null,
   };
 }

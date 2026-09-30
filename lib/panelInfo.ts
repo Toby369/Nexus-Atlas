@@ -259,7 +259,7 @@ So entsteht der Wert: Rein clientseitig aus den ohnehin bereits geladenen 14-Fak
 
 // Struktur: Key Levels, AVWAP, Trendlinien, Muster (Nutzer-Idee 24.09.2026,
 // siehe lib/chartStructureContext.ts) -- reine Berechnung, kein KI-Aufruf.
-export const chartStructureInfo = `So liest du das: Sechs eigenständige, rein rechnerisch (keine KI) ermittelte Struktur-Bausteine auf den letzten 300 1H-Kerzen.
+export const chartStructureInfo = `So liest du das: Sechs eigenständige, rein rechnerisch (keine KI) ermittelte Struktur-Bausteine, die meisten auf den letzten 300 1H-Kerzen – Key Levels bilden davon die Ausnahme (siehe unten, vier Zeitrahmen gleichzeitig).
 
 Kerzenmuster: klassische Umkehrformationen (Doji, Hammer/Hanging Man, Engulfing, Morning/Evening Star) nach Stefan Salomons Definitionen – ein Rückblick-Backtest fand dafür KEINE statistisch signifikante Edge (nach BH-FDR-Korrektur), rein informativ.
 
@@ -271,7 +271,7 @@ Chart-Formationen: Doppel-Top/-Boden (zwei ähnlich hohe Hochs/Tiefs mit einem G
 
 Flaggen/Wimpel/Keile: ein eigenständiger, lokaler Baustein – erst wird ein scharfer vorangehender Kursimpuls gesucht (der "Flaggenmast", mind. das 3-fache der durchschnittlichen Kerzenspanne), danach eine kurze Konsolidierung direkt danach klassifiziert: bleibt der Kanal etwa gleich breit → Flagge, verengt er sich mit gegenläufigen Linien → Wimpel, mit gleichgerichteten Linien → Keil. Bewusst OHNE Richtungs-Prognose (kein "bullisch/bärisch" wie bei Doppel-Top) – ob ein Keil in diesem Kontext eher Fortsetzung oder Umkehr bedeutet, ist in der Chartanalyse-Literatur selbst uneinheitlich, rein strukturelle Beschreibung.
 
-Key Levels: die stärksten Liquidations-Cluster der letzten 6 Stunden (dasselbe Modell wie die Liquidations-Kachel) – bewusst ohne Fibonacci/Orderbook-Wände, die stehen bereits in eigenen Kacheln auf dieser Seite.
+Key Levels: Pivot-Punkte (fraktale Schwenkpunkte, gleicher Massstab wie AVWAP-Pivot) auf vier Zeitrahmen gleichzeitig – Wochen/Tag/4H/1H. Liegen Pivots aus mehreren Zeitrahmen nahe beieinander (±0,3%), werden sie zu einer Zone gebündelt – je mehr Zeitrahmen, desto stärker die Zone. Zusätzlich verstärkt, wenn eine Zone mit einem Liquidations-Cluster der letzten 6 Stunden, einer EMA (13/50/200) oder einer VWAP-Linie (Tag/Woche/Swing) zusammenfällt – jeweils als eigenes Kürzel neben der Zone sichtbar. Bewusst ohne Fibonacci/Orderbook-Wände, die stehen bereits in eigenen Kacheln auf dieser Seite.
 
 Reine Entscheidungsunterstützung, kein automatisches Handelssignal und keine Anlageberatung.
 
