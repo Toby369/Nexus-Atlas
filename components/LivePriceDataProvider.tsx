@@ -10,7 +10,6 @@ import {
 } from "react";
 import { supabase } from "@/lib/supabase";
 import type {
-  AnchoredSummary,
   MarketSeriesPoint,
   MarketSnapshot,
   MarketState,
@@ -126,9 +125,6 @@ export interface LivePriceData {
   hasFullHistory: boolean;
 
   oiByExchange: OiChangeByExchange[];
-
-  anchorIso: string | null;
-  anchoredSummary: AnchoredSummary | null;
 }
 
 const LivePriceDataContext = createContext<LivePriceData | null>(null);
@@ -151,9 +147,6 @@ export default function LivePriceDataProvider({
   initialReferenceSnapshot,
   initialFetchedSinceIso,
   initialOiByExchange,
-  anchorIso,
-  anchorEndIso,
-  initialAnchoredSummary,
   children,
 }: {
   timeframe: TimeframeId;
@@ -165,12 +158,6 @@ export default function LivePriceDataProvider({
   initialReferenceSnapshot: ReferenceSnapshot | null;
   initialFetchedSinceIso: string;
   initialOiByExchange: OiChangeByExchange[];
-  // Phase 1 "Anchored Analytics": null, solange kein Event-Anker gesetzt ist.
-  anchorIso: string | null;
-  // Optionales Ende eines Anker-ZEITRAUMS (06.09.2026, Kerzenchart-Anker) --
-  // null beim bisherigen Einzel-Anker-Verhalten ("bis jetzt").
-  anchorEndIso: string | null;
-  initialAnchoredSummary: AnchoredSummary | null;
   children: ReactNode;
 }) {
   const [snapshots, setSnapshots] = useState(initialSnapshots);
@@ -185,7 +172,6 @@ export default function LivePriceDataProvider({
   // Render neu berechnet -- render muss pur bleiben).
   const [fetchedSinceIso, setFetchedSinceIso] = useState(initialFetchedSinceIso);
   const [oiByExchange, setOiByExchange] = useState(initialOiByExchange);
-  const [anchoredSummary, setAnchoredSummary] = useState(initialAnchoredSummary);
   const isFirstRun = useRef(true);
   const isFirstOiByExchangeRun = useRef(true);
 
@@ -212,32 +198,6 @@ export default function LivePriceDataProvider({
       clearInterval(interval);
     };
   }, [timeframe]);
-
-  // Phase 1 "Anchored Analytics": voellig unabhaengig vom timeframe-Effekt
-  // oben -- laedt/aktualisiert den Event-Driven-Kontext nur, wenn ein Anker
-  // gesetzt ist.
-  useEffect(() => {
-    if (!anchorIso) return;
-    let cancelled = false;
-    const load = async () => {
-      const { data, error } = await supabase.rpc("get_anchored_summary", {
-        p_anchor: anchorIso,
-        p_anchor_end: anchorEndIso,
-      });
-      if (cancelled) return;
-      if (error) {
-        console.error("Fehler beim Laden der Anchored Summary:", error.message);
-        return;
-      }
-      setAnchoredSummary(data ?? null);
-    };
-    load();
-    const interval = setInterval(load, REFRESH_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [anchorIso, anchorEndIso]);
 
   // Eigener Effekt pro Zeitraum+Boerse: aendert sich timeframe (von aussen
   // ueber die URL) oder seriesExchange (lokal), wird die alte Polling-
@@ -392,8 +352,6 @@ export default function LivePriceDataProvider({
     selectedExchange,
     hasFullHistory,
     oiByExchange,
-    anchorIso,
-    anchoredSummary,
   };
 
   return <LivePriceDataContext.Provider value={value}>{children}</LivePriceDataContext.Provider>;

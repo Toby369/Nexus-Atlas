@@ -47,8 +47,22 @@ Momentaufnahme (Richtung je Zeitrahmen), der Zeitraum/Anker beantwortet
 "wie stark hat sich X seit einem wählbaren Referenzpunkt verändert" — die
 Ampel ersetzt das nicht.
 
-**Falls später aufgegriffen:** nicht komplett entfernen, sondern nur aus der
-aktuell sehr prominenten Position ganz oben rausnehmen und auf die Kacheln
-beschränken, die es wirklich brauchen (Marktkontext, Live-Preis/OI, evtl.
-Liquidationen) — HeroHeader/Gesamteinschätzung müsste dafür erst geprüft
-werden, ob/wie stark sie tatsächlich vom gewählten Zeitraum abhängt.
+**Ergebnis (30.09.2026):** Im Rahmen einer Kachel-Bestandsaufnahme erneut
+aufgegriffen. Toby: "ich nutze es kaum, eher würde ich direkt fragen: mach
+mir ein report welcher von x bis y geht" — der eigentliche Bedarf ist ein
+Zeitraum-basierter Report (anderes Feature), nicht ein kumulatives "seit
+Anker"-Badge neben dem Live-Wert. Event-Anker deshalb, anders als am
+22.09.2026 empfohlen, KOMPLETT entfernt statt nur repositioniert: Picker-UI
+(AnchorPicker/AnchorChartPicker), lib/anchor.ts, alle "Seit Anker"-Anzeigen
+in BtcPriceCard/OiChangeCard/LiquidationPanel/RegimeMatrixCard, sowie der
+AnchoredSummary-Typ. Der Zeitraum-Selector (TimeframeSelector) bleibt
+unveraendert bestehen -- das war nie Teil des Entfernungswunschs. Die
+get_anchored_summary-RPC in der DB wurde bewusst NICHT gedroppt (gleiche
+Vorsicht wie bei anderen DB-Loeschungen: Code ist jederzeit rueckgaengig
+zu machen, ein DB-Objekt-Drop nicht ohne Weiteres) -- bei Bedarf spaeter
+separat aufraeumen.
+
+Ein zeitraum-basierter Report ("von X bis Y") ist damit als NEUE, separate
+Idee im Backlog offen, falls Toby das aufgreifen will -- vermutlich am
+ehesten eine Erweiterung der bestehenden Report Engine (`/reports`) um
+einen frei waehlbaren Start/Ende statt nur "timeframe" (4H/1D/...).

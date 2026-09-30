@@ -14,7 +14,7 @@ const FOCUS_STORAGE_KEY = "nexus-atlas-focus-mode-v1";
 // einem Klick zu verstecken, zeigt jeder Tab nur die Kacheln EINES Themas.
 //
 // Bewusst reiner Client-State + localStorage statt URL-Query-Param (anders
-// als TimeframeSelector/AnchorPicker): welcher Tab sichtbar ist, aendert
+// als TimeframeSelector): welcher Tab sichtbar ist, aendert
 // NICHTS an den zu ladenden Server-Daten (alle Kacheln sind bereits
 // server-seitig gerendert, siehe tiles-Prop) -- ein router.replace()-basierter
 // Ansatz wuerde hier nur einen unnoetigen Seiten-Roundtrip pro Klick

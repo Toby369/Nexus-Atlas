@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type {
-  AnchoredSummary,
   MarketState,
   MarketStateMatrix,
   ShortTermRangeCheck,
@@ -11,7 +10,6 @@ import type {
 } from "@/lib/types";
 import PanelInfo from "@/components/PanelInfo";
 import { marketStateMatrixInfo, REGIME_MATRIX_METRIC_INFO } from "@/lib/panelInfo";
-import { formatAnchorBadge, formatAnchorRangeBadge } from "@/lib/anchor";
 import {
   DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD,
   UNCLEAR_STATE_LABEL,
@@ -133,9 +131,6 @@ export default function RegimeMatrixCard({
   initialShortTermRangeCheck,
   marketState,
   initialTradingViewSignal,
-  anchorIso,
-  anchorEndIso,
-  initialAnchoredSummary,
 }: {
   initialMatrix: MarketStateMatrix | null;
   // MTF-Ampel (22.09.2026, siehe lib/mtfSignal.ts) -- unabhaengig von
@@ -153,22 +148,12 @@ export default function RegimeMatrixCard({
   // Render-Block unten. null, wenn kein frisches Signal vorliegt (haeufigster
   // Fall, solange noch kein TradingView-Alert konfiguriert ist).
   initialTradingViewSignal: TradingViewSignal | null;
-  // "Seit Anker"-Regime-Vergleich (Phase 1 "Anchored Analytics" auf die
-  // Regime Matrix erweitert): dieselbe get_anchored_summary-RPC wie
-  // LivePricePanel/LiquidationPanel, hier nur regime_at_anchor/
-  // confidence_at_anchor ausgewertet statt Preis/OI.
-  anchorIso: string | null;
-  // Optionales Ende eines Anker-ZEITRAUMS (06.09.2026, Kerzenchart-Anker) --
-  // null beim bisherigen Einzel-Anker-Verhalten ("bis jetzt").
-  anchorEndIso: string | null;
-  initialAnchoredSummary: AnchoredSummary | null;
 }) {
   const [matrix, setMatrix] = useState(initialMatrix);
   const [mtfDots, setMtfDots] = useState(initialMtfDots);
   const [lastSyncOk, setLastSyncOk] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [tradingViewSignal, setTradingViewSignal] = useState(initialTradingViewSignal);
-  const [anchoredSummary, setAnchoredSummary] = useState(initialAnchoredSummary);
   const [shortTermRangeCheck, setShortTermRangeCheck] = useState(initialShortTermRangeCheck);
 
   useEffect(() => {
@@ -188,33 +173,6 @@ export default function RegimeMatrixCard({
     const interval = setInterval(load, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
-
-  // Wie LivePricePanel.tsx: eigener Effekt, nur aktiv wenn ein Anker
-  // gesetzt ist. Kein synchrones setState bei fehlendem Anker (react-hooks/
-  // set-state-in-effect) -- die JSX-Stelle unten ist selbst an
-  // "anchorIso &&" gebunden, ein veralteter State wird also nie gerendert.
-  useEffect(() => {
-    if (!anchorIso) return;
-    let cancelled = false;
-    const load = async () => {
-      const { data, error } = await supabase.rpc("get_anchored_summary", {
-        p_anchor: anchorIso,
-        p_anchor_end: anchorEndIso,
-      });
-      if (cancelled) return;
-      if (error) {
-        console.error("Fehler beim Laden der Anchored Summary:", error.message);
-        return;
-      }
-      setAnchoredSummary(data ?? null);
-    };
-    load();
-    const interval = setInterval(load, REFRESH_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [anchorIso, anchorEndIso]);
 
   if (!matrix) {
     return (
@@ -273,19 +231,6 @@ export default function RegimeMatrixCard({
   const showStaleTrendHint =
     !suppressDirectional && isTrendingRegime(matrix.regime) && shortTermRangeCheck?.is_ranging === true;
 
-  // "Seit Anker"-Regime-Vergleich: dieselbe Confidence-Sperre wie oben,
-  // nur mit der Confidence zum Anker-Zeitpunkt statt der aktuellen --
-  // verhindert, dass hier eine Richtungsaussage auftaucht, die zu diesem
-  // historischen Zeitpunkt eigentlich als "Unklar / kein Zustand" gegolten
-  // haette.
-  const anchorRegime = anchoredSummary?.regime_at_anchor ?? null;
-  const anchorRegimeLabel = anchorRegime
-    ? shouldSuppressRegimeDirectionalLabel(anchorRegime, anchoredSummary?.confidence_at_anchor ?? null)
-      ? UNCLEAR_STATE_LABEL
-      : regimeLabel(anchorRegime)
-    : null;
-  const anchorRegimeChanged = anchorRegimeLabel !== null && anchorRegimeLabel !== displayLabel;
-
   // Richtungs-Badges fuer die Saeulen-Kennzahlen (siehe lib/marketRegime.ts
   // fuer die Herleitung je Kennzahl) -- einmal berechnet statt in der JSX
   // wiederholt.
@@ -308,14 +253,6 @@ export default function RegimeMatrixCard({
           <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
             Marktphase
           </h2>
-          {anchorIso && (
-            <span
-              className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border border-accent/30 text-accent"
-              title="Zeigt weiter unten zusätzlich das Regime seit dem gesetzten Event-Anker."
-            >
-              ⚓ Anker
-            </span>
-          )}
         </div>
         <div className="flex items-center gap-2">
           <MtfDotsRow dots={mtfDots} />
@@ -345,31 +282,6 @@ export default function RegimeMatrixCard({
         <p className="text-xs text-text-muted leading-relaxed">
           {regimeDescription(matrix.regime)}
         </p>
-      )}
-
-      {anchorIso && (
-        <div className="space-y-0.5">
-          <p className="text-xs text-text-faint">
-            {anchoredSummary?.anchor_end_timestamp_utc
-              ? formatAnchorRangeBadge(new Date(anchorIso), new Date(anchoredSummary.anchor_end_timestamp_utc))
-              : `Seit Anker (${formatAnchorBadge(new Date(anchorIso))}):`}
-          </p>
-          {anchorRegimeLabel ? (
-            <p className="text-xs text-text-muted">
-              Regime beim Anker: {anchorRegimeLabel} → jetzt: {displayLabel}
-              {anchorRegimeChanged && (
-                <span className="ml-1.5 text-[11px] uppercase tracking-wide text-accent">
-                  geändert
-                </span>
-              )}
-            </p>
-          ) : (
-            <p className="text-xs text-text-faint">
-              Keine Regime-Daten für diesen Zeitpunkt verfügbar (Anker liegt vor Beginn der
-              Marktphasen-Historie).
-            </p>
-          )}
-        </div>
       )}
 
       {/* 13.09.2026 -- DIVERGENCE faerbt bewusst accent (gold) statt down/rot:

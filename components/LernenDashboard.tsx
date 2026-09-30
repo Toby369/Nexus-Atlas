@@ -787,8 +787,8 @@ function PlaybookRoutineTab() {
       body: "Bestätigt der Netto-Taker-Flow (Spot Pressure) die Richtung, in die sich Open Interest bewegt, oder widerspricht er ihr? Siehe Signal-Matrix-Tab für die vier Grundkombinationen.",
     },
     {
-      title: "3. Liquidationen & Event-Anker prüfen",
-      body: "Deutet die Liquidationen-Kachel auf eine Cascade hin (≥3 Events in 2 Min)? Ist ein Event-Anker gesetzt, zeigt „Seit Anker“ zusätzlich, was sich seit einem frei wählbaren Zeitpunkt kumuliert verändert hat.",
+      title: "3. Liquidationen prüfen",
+      body: "Deutet die Liquidationen-Kachel auf eine Cascade hin (≥3 Events in 2 Min)?",
     },
   ];
 

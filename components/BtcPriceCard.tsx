@@ -13,8 +13,7 @@ import { formatUsd, clockTimeLabel } from "@/lib/livePriceFormat";
 // LivePriceDataProvider (siehe app/page.tsx).
 
 export default function BtcPriceCard() {
-  const { latest, priceChange, isUp, priceSeries, isStale, lastSyncOk, anchorIso } =
-    useLivePriceData();
+  const { latest, priceChange, isUp, priceSeries, isStale, lastSyncOk } = useLivePriceData();
 
   if (!latest) return <LivePriceEmptyState />;
 
@@ -49,14 +48,6 @@ export default function BtcPriceCard() {
             <span className="text-xs uppercase tracking-[0.15em] text-text-muted">
               {latest.symbol} · {latest.exchange} Perpetual
             </span>
-            {anchorIso && (
-              <span
-                className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border border-accent/30 text-accent"
-                title="Zeigt weiter unten zusätzlich Daten seit dem gesetzten Event-Anker."
-              >
-                ⚓ Anker
-              </span>
-            )}
           </div>
           <PanelInfo title="BTC Preis" content={btcPriceInfo} />
         </div>

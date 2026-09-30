@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import type { AnchoredSummary, LiquidationEvent, LiquidationIntelligence } from "@/lib/types";
+import type { LiquidationEvent, LiquidationIntelligence } from "@/lib/types";
 import PanelInfo from "@/components/PanelInfo";
 import { liquidationsInfo } from "@/lib/panelInfo";
-import { formatAnchorBadge, formatAnchorRangeBadge } from "@/lib/anchor";
 
 const REFRESH_INTERVAL_MS = 60_000;
 const LOOKBACK_HOURS = 6;
@@ -75,26 +74,6 @@ async function fetchRecentLiquidations(): Promise<{
   return { data: data ?? [], ok: true };
 }
 
-// Phase 1 "Anchored Analytics": laedt den kumulierten Event-Driven-Kontext
-// (Long-/Short-Liquidationen seit einem frei waehlbaren Ankerpunkt) --
-// unabhaengig vom festen LOOKBACK_HOURS-Fenster oben. Kein eigener
-// Lade-Loop bei fehlendem Anker (haeufigster Fall), Aufrufer prueft das.
-async function fetchAnchoredSummary(
-  anchorIso: string,
-  anchorEndIso: string | null
-): Promise<AnchoredSummary | null> {
-  const { data, error } = await supabase.rpc("get_anchored_summary", {
-    p_anchor: anchorIso,
-    p_anchor_end: anchorEndIso,
-  });
-
-  if (error) {
-    console.error("Fehler beim Laden der Anchored Summary:", error.message);
-    return null;
-  }
-  return data ?? null;
-}
-
 async function fetchIntelligence(): Promise<LiquidationIntelligence | null> {
   const cutoff = new Date(
     Date.now() - LOOKBACK_HOURS * 60 * 60 * 1000
@@ -134,39 +113,27 @@ function describeVelocityTrend(
 
 export default function LiquidationPanel({
   initialEvents,
-  anchorIso,
-  anchorEndIso,
-  initialAnchoredSummary,
 }: {
   initialEvents: LiquidationEvent[];
-  // Phase 1 "Anchored Analytics": null, solange kein Event-Anker gesetzt
-  // ist (haeufigster Fall) -- server-seitig aufgeloest in app/page.tsx,
-  // dasselbe Muster wie "timeframe".
-  anchorIso: string | null;
-  anchorEndIso: string | null;
-  initialAnchoredSummary: AnchoredSummary | null;
 }) {
   const [events, setEvents] = useState(initialEvents);
   const [lastSyncOk, setLastSyncOk] = useState(true);
   const [intelligence, setIntelligence] = useState<LiquidationIntelligence | null>(null);
-  const [anchoredSummary, setAnchoredSummary] = useState(initialAnchoredSummary);
 
   useEffect(() => {
     const load = async () => {
-      const [{ data, ok }, intel, anchored] = await Promise.all([
+      const [{ data, ok }, intel] = await Promise.all([
         fetchRecentLiquidations(),
         fetchIntelligence(),
-        anchorIso ? fetchAnchoredSummary(anchorIso, anchorEndIso) : Promise.resolve(null),
       ]);
       setLastSyncOk(ok);
       if (ok) setEvents(data);
       setIntelligence(intel);
-      setAnchoredSummary(anchored);
     };
     load();
     const interval = setInterval(load, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [anchorIso, anchorEndIso]);
+  }, []);
 
   const longNotional = events
     .filter((e) => e.side === "long")
@@ -198,14 +165,6 @@ export default function LiquidationPanel({
           <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
             Liquidationen
           </h2>
-          {anchorIso && (
-            <span
-              className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border border-accent/30 text-accent"
-              title="Zeigt weiter unten zusätzlich Daten seit dem gesetzten Event-Anker."
-            >
-              ⚓ Anker
-            </span>
-          )}
         </div>
         <PanelInfo title="Liquidationen" content={liquidationsInfo} />
       </div>
@@ -298,25 +257,6 @@ export default function LiquidationPanel({
             </div>
           )}
         </>
-      )}
-
-      {anchorIso && (
-        <div className="flex flex-col gap-1 text-xs pt-2 border-t border-border/60">
-          <span className="text-text-faint">
-            {anchoredSummary?.anchor_end_timestamp_utc
-              ? formatAnchorRangeBadge(new Date(anchorIso), new Date(anchoredSummary.anchor_end_timestamp_utc))
-              : `Seit Anker (${formatAnchorBadge(new Date(anchorIso))}):`}
-          </span>
-          {anchoredSummary ? (
-            <span className="tabular font-mono text-text-muted">
-              Long {formatUsd(anchoredSummary.long_liquidation_usd)} · Short{" "}
-              {formatUsd(anchoredSummary.short_liquidation_usd)} ·{" "}
-              {anchoredSummary.liquidation_event_count} Events
-            </span>
-          ) : (
-            <span className="text-text-faint">Lädt…</span>
-          )}
-        </div>
       )}
 
       <p className="text-xs text-text-faint pt-1">

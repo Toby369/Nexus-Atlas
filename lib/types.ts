@@ -129,44 +129,6 @@ export interface LiquidationIntelligence {
   total_oi_usd: number | null;
 }
 
-// Rueckgabeform der get_anchored_summary-RPC (Phase 1 "Anchored
-// Analytics" -- Event-Driven-Kontext ab einem frei waehlbaren Ankerpunkt,
-// siehe lib/anchor.ts). granularity_used dokumentiert, welche Zeitreihen-
-// Aufloesung fuer `series` gewaehlt wurde (abhaengig vom Anker-Alter).
-export interface AnchoredSummaryPoint {
-  timestamp_utc: string;
-  last_price: number | null;
-  open_interest: number | null;
-}
-
-export interface AnchoredSummary {
-  anchor_timestamp_utc: string;
-  // Nutzer-Wunsch (06.09.2026, Kerzenchart-Anker per Klick+Ziehen): Ende
-  // eines fest gewaehlten Anker-ZEITRAUMS -- null beim bisherigen
-  // Einzel-Anker-Verhalten ("seit Anker bis jetzt", unveraendert).
-  anchor_end_timestamp_utc: string | null;
-  granularity_used: "5m" | "1h" | "4h" | "1d";
-  price_at_anchor: number | null;
-  price_current: number | null;
-  price_change_pct: number | null;
-  oi_at_anchor: number | null;
-  oi_current: number | null;
-  oi_change_pct: number | null;
-  long_liquidation_usd: number;
-  short_liquidation_usd: number;
-  liquidation_event_count: number;
-  // Naechstgelegene market_state_matrix-Zeile vor/bei anchor_timestamp_utc
-  // (siehe RegimeMatrixCard.tsx "Seit Anker") -- null, wenn der Anker vor
-  // dem Beginn der Regime-Matrix-Historie liegt (kein erfundener Wert).
-  // confidence_at_anchor ist die market_states.confidence desselben
-  // Zeitpunkts, noetig fuer dieselbe Confidence-Sperre wie beim aktuellen
-  // Regime (shouldSuppressRegimeDirectionalLabel).
-  regime_at_anchor: MarketRegime | null;
-  regime_at_anchor_timestamp_utc: string | null;
-  confidence_at_anchor: number | null;
-  series: AnchoredSummaryPoint[];
-}
-
 // Rueckgabezeile aus tradingview_signals (Phase 2 TradingView-Integration,
 // Migration add_tradingview_signals_table). Rein informatives Kontext-
 // Badge im Dashboard (siehe RegimeMatrixCard.tsx) -- fliesst NICHT in

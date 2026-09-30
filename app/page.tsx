@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import type {
-  AnchoredSummary,
   DashboardPollBundle,
   EconomicCalendarEvent,
   EscalationSnapshot,
@@ -34,7 +33,6 @@ import { buildDivergenceRadar } from "@/lib/divergenceRadarContext";
 import { buildConfluenceScore, buildConfluenceSignalDetail } from "@/lib/confluenceScoreContext";
 import { buildRegimeScore, buildRegimeSignalDetail } from "@/lib/regimeScoreContext";
 import { detectEscalationTriggers } from "@/lib/escalationContext";
-import { parseAnchorParam, parseAnchorEndParam } from "@/lib/anchor";
 import { TRADINGVIEW_SIGNAL_FRESHNESS_HOURS } from "@/lib/tradingViewSignal";
 import { DEFAULT_SERIES_EXCHANGE } from "@/lib/exchanges";
 import { MTF_TIMEFRAMES, buildMtfDots, type MtfTimeframeDot } from "@/lib/mtfSignal";
@@ -65,7 +63,6 @@ import { getYoutubeMonitorConfig } from "@/lib/youtubeMonitorContext";
 import LeverageMapCard from "@/components/LeverageMapCard";
 import CycleIndicatorsCard from "@/components/CycleIndicatorsCard";
 import TimeframeSelector from "@/components/TimeframeSelector";
-import AnchorPicker from "@/components/AnchorPicker";
 import DashboardTabNav from "@/components/DashboardTabNav";
 import DashboardPollProvider from "@/components/DashboardPollProvider";
 import HeroHeader from "@/components/HeroHeader";
@@ -421,29 +418,6 @@ async function getRecentLiquidations(): Promise<LiquidationEvent[]> {
   return data ?? [];
 }
 
-// Phase 1 "Anchored Analytics" (Feasibility-Review vom 29.08.2026): laedt
-// den kumulierten Event-Driven-Kontext (Liquidationen/OI/Preis) ab einem
-// frei waehlbaren Ankerpunkt -- unabhaengig vom festen "tf"-Zeitraum.
-// Frueher Ausstieg ohne DB-Aufruf, wenn kein Anker gesetzt ist (haeufigster
-// Fall), statt die RPC unnoetig mit einem null-Parameter aufzurufen.
-async function getAnchoredSummary(
-  anchorIso: string | null,
-  anchorEndIso: string | null
-): Promise<AnchoredSummary | null> {
-  if (!anchorIso) return null;
-
-  const { data, error } = await supabase.rpc("get_anchored_summary", {
-    p_anchor: anchorIso,
-    p_anchor_end: anchorEndIso,
-  });
-
-  if (error) {
-    console.error("Fehler beim Laden der Anchored Summary:", error.message);
-    return null;
-  }
-  return data ?? null;
-}
-
 // Die Quelle wurde von Farside (Scraping) auf SoSoValue (offizielle API)
 // umgestellt. Aeltere Farside-Zeilen bleiben als Historie stehen, ein Datum
 // kann also kurzzeitig doppelt vorkommen -- pro Datum nur eine Zeile
@@ -653,7 +627,7 @@ async function getOiChangeByExchange(sinceIso: string): Promise<OiChangeByExchan
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ tf?: string; anchor?: string; anchorEnd?: string }>;
+  searchParams: Promise<{ tf?: string }>;
 }) {
   // Einzige Zeitraum-Quelle fuer die gesamte Seite: der "tf"-URL-Query-Param,
   // gesteuert vom TimeframeSelector unten. BTC-Change, OI-Change, Chart,
@@ -662,21 +636,9 @@ export default async function Home({
   // Zeitraeume mehr (vorher: LivePriceDataProvider, SpotPressurePanel und
   // MarketContextCard hatten je einen eigenen, nicht synchronisierten
   // Zeitraum-Zustand).
-  const { tf, anchor, anchorEnd } = await searchParams;
+  const { tf } = await searchParams;
   const timeframe = parseTimeframe(tf);
   const timeframeSinceIsoValue = timeframeSinceIso(timeframe);
-
-  // Event-Driven-Anker (Phase 1 "Anchored Analytics"), unabhaengig vom
-  // festen Zeitraum oben -- dieselbe server-seitige Aufloesungs-/
-  // Weiterreichungs-Logik wie bei "tf" (AnchorPicker schreibt den
-  // Roh-Query-Param, hier wird er einmal zentral geparst/validiert und als
-  // fertiger ISO-String an LiquidationPanel/LivePriceDataProvider gereicht).
-  const anchorDate = parseAnchorParam(anchor);
-  const anchorIso = anchorDate ? anchorDate.toISOString() : null;
-  // Optionales Ende eines Anker-ZEITRAUMS (06.09.2026, Kerzenchart-Anker
-  // per Klick+Ziehen) -- null beim bisherigen Einzel-Anker-Verhalten.
-  const anchorEndDate = parseAnchorEndParam(anchorEnd, anchorDate);
-  const anchorEndIso = anchorEndDate ? anchorEndDate.toISOString() : null;
 
   const [
     snapshots,
@@ -712,7 +674,6 @@ export default async function Home({
     oiReferenceSnapshot,
     dashboardBundle,
     oiByExchange,
-    anchoredSummary,
     latestTradingViewSignal,
   ] = await Promise.all([
     getSnapshotHistory(),
@@ -748,7 +709,6 @@ export default async function Home({
     getOiReferenceSnapshot(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getDashboardPollBundle(timeframeSinceIsoValue),
     getOiChangeByExchange(timeframeSinceIsoValue),
-    getAnchoredSummary(anchorIso, anchorEndIso),
     getLatestTradingViewSignal(),
   ]);
 
@@ -815,35 +775,30 @@ export default async function Home({
             initialBundle={initialDashboardBundle}
             initialFetchedSinceIso={timeframeSinceIsoValue}
           >
-            {/* Nutzer-Feedback vom 04.09.2026: Zeitraum/Event-Anker sind
-                globale Steuerungen (wirken auf mehrere Kacheln unten, siehe
-                timeframe/anchorIso-Props), sollten also vor der
-                Gesamteinschaetzung stehen statt danach -- vorher wirkten sie
-                wie ein Anhaengsel der Gesamteinschaetzung-Kachel. Nicht mehr
-                hinter dem "Alle Details anzeigen"-Toggle (entfernt
-                09.09.2026, siehe DashboardTabNav) -- Zeitraum/Event-Anker/
-                Gesamteinschaetzung sind zu grundlegend, um sie hinter einem
-                Klick zu verstecken; die Tab-Navigation darunter uebernimmt
-                jetzt die Aufgabe, die Ansicht kompakt zu halten.
+            {/* Nutzer-Feedback vom 04.09.2026: Zeitraum ist eine globale
+                Steuerung (wirkt auf mehrere Kacheln unten, siehe
+                timeframe-Prop), sollte also vor der Gesamteinschaetzung
+                stehen statt danach -- vorher wirkte er wie ein Anhaengsel
+                der Gesamteinschaetzung-Kachel. Nicht mehr hinter dem "Alle
+                Details anzeigen"-Toggle (entfernt 09.09.2026, siehe
+                DashboardTabNav) -- Zeitraum/Gesamteinschaetzung sind zu
+                grundlegend, um sie hinter einem Klick zu verstecken; die
+                Tab-Navigation darunter uebernimmt jetzt die Aufgabe, die
+                Ansicht kompakt zu halten.
                 13.09.2026: davor statt danach verschoben, seit HeroHeader
                 (unten) und die vormalige MarketStateCard zu einer Sektion
                 verschmolzen sind -- die Steuerungen stehen jetzt vor der
-                gesamten Sektion statt in ihrer Mitte. */}
+                gesamten Sektion statt in ihrer Mitte.
+                30.09.2026: Event-Anker (Phase 1 "Anchored Analytics",
+                29.08.2026) daneben entfernt -- Nutzer-Feedback: kaum
+                genutzt, der eigentliche Bedarf ("Report von X bis Y") ist
+                ein anderes Feature als ein cumulative "seit Anker"-Badge. */}
             <div className="flex items-center justify-between flex-wrap gap-2">
               <p className="text-xs uppercase tracking-[0.2em] text-text-faint">
                 Zeitraum
               </p>
               <Suspense fallback={<div className="h-6" />}>
                 <TimeframeSelector current={timeframe} />
-              </Suspense>
-            </div>
-
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <p className="text-xs uppercase tracking-[0.2em] text-text-faint">
-                Event-Anker
-              </p>
-              <Suspense fallback={<div className="h-6" />}>
-                <AnchorPicker />
               </Suspense>
             </div>
 
@@ -868,9 +823,6 @@ export default async function Home({
                 initialReferenceSnapshot={oiReferenceSnapshot}
                 initialFetchedSinceIso={timeframeSinceIsoValue}
                 initialOiByExchange={oiByExchange}
-                anchorIso={anchorIso}
-                anchorEndIso={anchorEndIso}
-                initialAnchoredSummary={anchoredSummary}
               >
                 <DashboardTabNav
                   tiles={{
@@ -882,9 +834,6 @@ export default async function Home({
                         initialShortTermRangeCheck={shortTermRangeCheck}
                         marketState={marketState}
                         initialTradingViewSignal={latestTradingViewSignal}
-                        anchorIso={anchorIso}
-                        anchorEndIso={anchorEndIso}
-                        initialAnchoredSummary={anchoredSummary}
                       />
                     ),
                     "economic-calendar": (
@@ -900,12 +849,7 @@ export default async function Home({
                     "orderbook-walls": <OrderbookWallCard walls={latestOrderbookWalls} />,
                     "divergence-radar": <DivergenceRadarCard radar={divergenceRadar} />,
                     liquidations: (
-                      <LiquidationPanel
-                        initialEvents={recentLiquidations}
-                        anchorIso={anchorIso}
-                        anchorEndIso={anchorEndIso}
-                        initialAnchoredSummary={anchoredSummary}
-                      />
+                      <LiquidationPanel initialEvents={recentLiquidations} />
                     ),
                     "etf-flow": (
                       <EtfFlowPanel initialFlows={recentEtfFlows} macroNews={highImpactNews} />

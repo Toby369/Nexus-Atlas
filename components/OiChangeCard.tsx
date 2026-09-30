@@ -6,14 +6,12 @@ import PanelInfo from "@/components/PanelInfo";
 import { ClockTime, ShortDate } from "@/components/ClientTimestamp";
 import { oiChangeInfo, btcOiChartInfo, exchangeDivergenceInfo } from "@/lib/panelInfo";
 import { formatSignedPct } from "@/lib/livePriceFormat";
-import { formatAnchorBadge, formatAnchorRangeBadge } from "@/lib/anchor";
 import { SERIES_EXCHANGES, type SeriesExchangeId } from "@/lib/exchanges";
 import type { OiChangeByExchange } from "@/lib/types";
 
 // Aus der ehemaligen LivePricePanel.tsx herausgeloest (Nutzer-Feedback
 // 05.09.2026, siehe LivePriceDataProvider.tsx) -- OI Change%/BTC Change%
-// samt Boersen-Auswahl, der Preis/OI-Vergleichschart, und die "seit
-// Anker"-Zusammenfassung (haengt an derselben Boersen-/Zeitraum-Auswahl).
+// samt Boersen-Auswahl und der Preis/OI-Vergleichschart.
 //
 // 13.09.2026 -- ehemals eigene "OI je Börse"-Kachel daneben: laut eigenem
 // Code-Kommentar dort explizit der Detail-Blick auf dieselbe OI-Change%-
@@ -49,8 +47,6 @@ export default function OiChangeCard() {
     selectedTf,
     selectedExchange,
     hasFullHistory,
-    anchorIso,
-    anchoredSummary,
     oiByExchange,
   } = useLivePriceData();
 
@@ -137,24 +133,6 @@ export default function OiChangeCard() {
             <PriceOiComparisonChart data={seriesData} />
           )}
         </div>
-
-        {anchorIso && (
-          <div className="flex flex-col gap-1 text-xs pt-3 mt-3 border-t border-border/60">
-            <span className="text-text-faint">
-              {anchoredSummary?.anchor_end_timestamp_utc
-                ? formatAnchorRangeBadge(new Date(anchorIso), new Date(anchoredSummary.anchor_end_timestamp_utc))
-                : `Seit Anker (${formatAnchorBadge(new Date(anchorIso))}):`}
-            </span>
-            {anchoredSummary ? (
-              <span className="tabular font-mono text-text-muted">
-                Preis {formatSignedPct(anchoredSummary.price_change_pct)} · OI{" "}
-                {formatSignedPct(anchoredSummary.oi_change_pct)}
-              </span>
-            ) : (
-              <span className="text-text-faint">Lädt…</span>
-            )}
-          </div>
-        )}
 
         <details className="mt-4 pt-3 border-t border-border/60">
           <summary className="flex items-center justify-between gap-2 cursor-pointer select-none">
