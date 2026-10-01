@@ -645,13 +645,24 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "bias NICHT widersprechen: bei bias=neutral nicht mit einem unqualifizierten 'bullisch'/" +
       "'baerisch' eroeffnen (z.B. NICHT 'Strukturbullisch, aber...'), sondern die Gemengelage selbst " +
       "benennen (z.B. 'Bullische Gates erfuellt, aber durch X neutralisiert'). " +
-      "(2) regelwerkCheck -- kompakter Absatz (max. 4 Saetze): erfuellt mein_system_checklist die " +
-      "im Regelwerk beschriebenen Einstiegs-Gates (Funding unter Schwelle, OI-Richtung, EMA13/50/" +
-      "200-Trendlage)? Bestaetigen GUSS/VWAP-Vector/CVD dieselbe Richtung oder widersprechen sie " +
-      "sich? Ist bewegungsvorrat.ratio_pct deutlich ueber 100, erwaehne das als Bremse fuer eine " +
-      "Fortsetzung, unabhaengig davon wie sauber der Trend aussieht. Liegen liquidations-Cluster " +
-      "nahe am aktuellen Kurs, ordne sie als Risiko-/Magnet-Hinweis ein, falls relevant -- sonst " +
-      "nicht erzwingen. " +
+      "(2) regelwerkCheck -- GENAU EIN kurzer Satz pro Zeile, Zeilen getrennt durch \\n (keine " +
+      "Aufzaehlungszeichen, kein Fliesstext-Block) -- maximal 4 Zeilen, nur mit Inhalt befuellte " +
+      "Zeilen ausgeben: " +
+      "Zeile 'Gates: ...' -- erfuellt mein_system_checklist die im Regelwerk beschriebenen " +
+      "Einstiegs-Gates (Funding unter Schwelle, OI-Richtung, EMA13/50/200-Trendlage)? Immer ausgeben. " +
+      "Zeile 'Orderflow: ...' -- bestaetigen VWAP-Vector/CVD dieselbe Richtung oder widersprechen " +
+      "sie sich? GUSS NUR in dieser Zeile erwaehnen, wenn trading_indicators.guss." +
+      "regimeAllowsGuss=true ist (Regime erkennt tatsaechlich einen Trend) -- dann als kurze " +
+      "Info/Erinnerung, ob gerade ein sauberer Pullback-Einstieg aktiv ist, NICHT als weiteres " +
+      "gleichwertiges Bestaetigungs-/Widerspruchssignal neben VWAP-Vector/CVD. Ist regimeAllowsGuss " +
+      "false oder null (Seitwaerts/Squeeze/unklar), GUSS in dieser Zeile komplett weglassen -- kein " +
+      "'GUSS nicht anwendbar'-Hinweis, das ist reines Rauschen bei jedem Seitwaerts-Regime. Immer " +
+      "ausgeben. " +
+      "Zeile 'Bewegungsvorrat: ...' -- NUR ausgeben, wenn bewegungsvorrat.ratio_pct deutlich ueber " +
+      "100 liegt (Bremse fuer eine Fortsetzung, unabhaengig davon wie sauber der Trend aussieht) -- " +
+      "sonst diese Zeile komplett weglassen, nicht erzwingen. " +
+      "Zeile 'Liquidation: ...' -- NUR ausgeben, wenn ein liquidations-Cluster nahe am aktuellen " +
+      "Kurs als Risiko-/Magnet-Hinweis relevant ist -- sonst weglassen. " +
       "(3) kontextCheck -- NUR befuellen, wenn market_context, etf_flows, positioning oder news dem " +
       "Bild aus regelwerkCheck WIDERSPRECHEN (z.B. Regelwerk-Gates erfuellt, aber ETF-Flows/" +
       "Marktkontext dagegen) -- in diesem Fall 1-2 Saetze, welcher Widerspruch. Gibt es keinen " +

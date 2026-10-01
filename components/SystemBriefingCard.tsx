@@ -32,10 +32,20 @@ import PanelInfo from "@/components/PanelInfo";
 // angezeigte zu alt ist -- diese Kachel liest denselben system_briefings-
 // Snapshot und zeigt den dadurch aktualisierten Stand automatisch mit,
 // zusaetzlich zum weiterhin verfuegbaren manuellen "Neu generieren".
+//
+// 01.10.2026 -- Nutzer-Feedback nach Review eines Live-Snapshots: Regelwerk-
+// Check als ein dichter Fliesstext-Satz war "ueberhaupt nicht verstaendlich".
+// Jetzt max. 4 gelabelte Zeilen (Gates/Orderflow/Bewegungsvorrat/Liquidation,
+// \n-getrennt im Prompt-Profil, siehe lib/ai/promptProfiles.ts) statt eines
+// Blocks -- parseRegelwerkLines() splittet dafuer. GUSS wird in der
+// Orderflow-Zeile nur noch erwaehnt, wenn Nexus' Regime-Engine tatsaechlich
+// einen Trend erkennt (sonst ist GUSS schlicht nicht anwendbar) -- vorher
+// stand dort oft nur Rauschen wie "GUSS aktiv=false (Regime ...)".
 
 const INFO_TEXT = [
-  "Was das ist: eine KI-Synthese, die dein eigenes Regelwerk (Welz/Salomon-Methodik + \"Mein Trading System\"-Checkliste) auf den aktuellen Stand von Nexus' berechneten Faktoren anwendet -- Bewegungsvorrat, 14-Faktoren-Engine, GUSS/VWAP-Vector/CVD, Liquidations-Cluster, Marktkontext, ETF-Flows, Positionierung, News.",
+  "Was das ist: eine KI-Synthese, die dein eigenes Regelwerk (Welz/Salomon-Methodik + \"Mein Trading System\"-Checkliste) auf den aktuellen Stand von Nexus' berechneten Faktoren anwendet -- Bewegungsvorrat, 14-Faktoren-Engine, VWAP-Vector/CVD, Liquidations-Cluster, Marktkontext, ETF-Flows, Positionierung, News.",
   "Wiederholt bewusst KEINE der einzeln angezeigten Werte — sagt stattdessen, ob dein eigenes Regelwerk aktuell erfüllt ist und ob sich die Quellen gegenseitig bestätigen oder widersprechen. Der Kontext-Check erscheint nur, wenn es einen echten Widerspruch gibt.",
+  "Regelwerk-Check steht seit 01.10.2026 als kurze Zeilen statt als ein Fliesstext-Block (Gates / Orderflow / Bewegungsvorrat / Liquidation) — nur befüllte Zeilen werden gezeigt. GUSS taucht in der Orderflow-Zeile nur auf, wenn Nexus' Regime-Engine gerade einen Trend erkennt (sonst ist GUSS gar nicht anwendbar) — dann als kurze Info/Erinnerung, nicht als eigenständiges Signal.",
   "Trigger & Szenario enthält jetzt ein konkretes Kursziel (seit 30.09.2026 erlaubt) — trotzdem eine Entscheidungsunterstützung anhand deiner eigenen Regeln, keine automatisierte Anlageberatung.",
   "Die \"Kurze Einordnung\" oben in der Gesamteinschätzung (HeroHeader) zeigt das Fazit dieser Analyse.",
   "Aktualisiert sich automatisch, sobald der zuletzt generierte Stand zu alt wird (ausgelöst über die \"Kurze Einordnung\" oben) — zusätzlich weiterhin per Klick auf \"Neu generieren\" hier möglich.",
@@ -49,6 +59,23 @@ const BIAS_LABEL: Record<"bullish" | "bearish" | "neutral", string> = {
 
 function formatPrice(value: number): string {
   return `$${value.toLocaleString("de-CH", { maximumFractionDigits: 0 })}`;
+}
+
+// regelwerkCheck kommt seit 01.10.2026 als max. 4 Zeilen ("Label: Befund"),
+// durch \n getrennt, statt als ein dichter Fliesstext-Block (Nutzer-
+// Feedback: "für mich ist der text ueberhaupt nicht verstaendlich") --
+// hier je Zeile in Label/Rest gesplittet, damit das Label fett vom Befund
+// abgesetzt werden kann statt in einem einzigen Satz unterzugehen.
+function parseRegelwerkLines(text: string): { label: string; detail: string }[] {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => {
+      const separatorIdx = line.indexOf(":");
+      if (separatorIdx === -1) return { label: "", detail: line };
+      return { label: line.slice(0, separatorIdx).trim(), detail: line.slice(separatorIdx + 1).trim() };
+    });
 }
 
 // Schutz gegen Alt-Format-Zeilen (vor der Fusion mit Handelslage am
@@ -153,9 +180,16 @@ export default function SystemBriefingCard({
           </div>
           <p className="text-sm text-text leading-relaxed">{result.fazit.kernaussage}</p>
 
-          <div className="pt-2 border-t border-border/60 space-y-1">
+          <div className="pt-2 border-t border-border/60 space-y-1.5">
             <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Regelwerk-Check</p>
-            <p className="text-sm text-text-muted leading-relaxed">{result.regelwerkCheck}</p>
+            <ul className="space-y-1">
+              {parseRegelwerkLines(result.regelwerkCheck).map(({ label, detail }, i) => (
+                <li key={i} className="text-sm text-text-muted leading-relaxed">
+                  {label && <span className="text-text font-medium">{label}: </span>}
+                  {detail}
+                </li>
+              ))}
+            </ul>
           </div>
 
           {result.kontextCheck && (
