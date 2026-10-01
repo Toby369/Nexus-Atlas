@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { SystemBriefingSnapshot } from "@/lib/types";
+import type { SystemBriefingResult, SystemBriefingSnapshot } from "@/lib/types";
 import { FullDateTime, StaleBadge } from "@/components/ClientTimestamp";
 import PanelInfo from "@/components/PanelInfo";
 
@@ -51,6 +51,24 @@ function formatPrice(value: number): string {
   return `$${value.toLocaleString("de-CH", { maximumFractionDigits: 0 })}`;
 }
 
+// Schutz gegen Alt-Format-Zeilen (vor der Fusion mit Handelslage am
+// 30.09.2026 hatten result-Spalten noch die Form { narrative: string }
+// ohne fazit/regelwerkCheck/trigger) -- ohne diesen Guard wirft der Render
+// unten (result.fazit.bias etc.) und reisst die ganze Seite mit runter.
+function isValidResult(result: unknown): result is SystemBriefingResult {
+  if (!result || typeof result !== "object") return false;
+  const r = result as Partial<SystemBriefingResult>;
+  return (
+    !!r.fazit &&
+    typeof r.fazit.bias === "string" &&
+    typeof r.fazit.kernaussage === "string" &&
+    typeof r.regelwerkCheck === "string" &&
+    !!r.trigger &&
+    Array.isArray(r.trigger.bedingungen) &&
+    typeof r.trigger.invalidierung === "string"
+  );
+}
+
 export default function SystemBriefingCard({
   initialSnapshot,
 }: {
@@ -77,7 +95,9 @@ export default function SystemBriefingCard({
     }
   }
 
-  const result = snapshot?.status === "ok" ? snapshot.result : null;
+  const rawResult = snapshot?.status === "ok" ? snapshot.result : null;
+  const result = rawResult && isValidResult(rawResult) ? rawResult : null;
+  const isStaleFormat = snapshot?.status === "ok" && !!rawResult && !result;
 
   return (
     <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
@@ -104,6 +124,12 @@ export default function SystemBriefingCard({
 
       {snapshot && snapshot.status === "error" && (
         <p className="text-xs text-down">{snapshot.error ?? "Unbekannter Fehler."}</p>
+      )}
+
+      {isStaleFormat && (
+        <p className="text-xs text-text-faint">
+          Dieser Stand ist im alten Format (vor der Fusion mit Handelslage) — bitte neu generieren.
+        </p>
       )}
 
       {snapshot && result && (
