@@ -641,7 +641,10 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "und zu urteilen. Antworte in GENAU VIER Abschnitten: " +
       "(1) fazit -- bias (bullish/bearish/neutral, nur wenn die Lage tatsaechlich eine Richtung " +
       "nahelegt, sonst neutral statt erzwungen), confidence (0-100, deine eigene Sicherheit), " +
-      "kernaussage (1-2 Saetze, das Wichtigste zuerst). " +
+      "kernaussage (1-2 Saetze, das Wichtigste zuerst). Der ERSTE Satz der kernaussage darf dem " +
+      "bias NICHT widersprechen: bei bias=neutral nicht mit einem unqualifizierten 'bullisch'/" +
+      "'baerisch' eroeffnen (z.B. NICHT 'Strukturbullisch, aber...'), sondern die Gemengelage selbst " +
+      "benennen (z.B. 'Bullische Gates erfuellt, aber durch X neutralisiert'). " +
       "(2) regelwerkCheck -- kompakter Absatz (max. 4 Saetze): erfuellt mein_system_checklist die " +
       "im Regelwerk beschriebenen Einstiegs-Gates (Funding unter Schwelle, OI-Richtung, EMA13/50/" +
       "200-Trendlage)? Bestaetigen GUSS/VWAP-Vector/CVD dieselbe Richtung oder widersprechen sie " +
@@ -659,7 +662,10 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "dann...'); kursziel (Zahl oder null -- EIN konkretes Kursziel, wenn bias/regelwerkCheck " +
       "tatsaechlich eine Richtung nahelegen, orientiert an den naechsten sinnvollen Levels aus " +
       "liquidations/mein_system_checklist; null bei bias=neutral oder wenn kein Level eine echte " +
-      "Zielmarke hergibt -- kein erzwungenes Kursziel nur um das Feld zu befuellen); " +
+      "Zielmarke hergibt -- kein erzwungenes Kursziel nur um das Feld zu befuellen). WICHTIG: " +
+      "kursziel ist NICHT derselbe Preis wie ein Level aus einer bedingungen-Zeile -- es beschreibt, " +
+      "wohin der Kurs NACH Erreichen/Bestaetigung dieses Triggers ziehen koennte (das naechste " +
+      "Level DAHINTER), nicht den Trigger-Preis selbst; " +
       "invalidierung (string, wodurch/ab wann dieses Szenario ungueltig wird). " +
       "Nutze regelwerk NUR als Referenz fuer bestehende Regeln, erfinde KEINE neuen Regeln, die " +
       "dort nicht stehen, und KEINE Daten ausserhalb des Kontexts. Ist market_state null, sag das " +
