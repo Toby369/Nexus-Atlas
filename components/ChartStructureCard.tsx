@@ -122,6 +122,7 @@ const PIVOT_TIMEFRAME_LABELS: Record<ChartStructureData["keyLevels"][number]["ti
 
 const KEY_LEVEL_CONFIRMATION_LABELS: Record<ChartStructureData["keyLevels"][number]["confirmedBy"][number], string> = {
   liquidation: "Liquidation",
+  spot_volume: "Spot-Volumen",
   ema13: "EMA13",
   ema50: "EMA50",
   ema200: "EMA200",
@@ -131,14 +132,31 @@ const KEY_LEVEL_CONFIRMATION_LABELS: Record<ChartStructureData["keyLevels"][numb
   vwap_swing_low: "VWAP Swing-Tief",
 };
 
+function formatBtcCompact(value: number): string {
+  return `${value.toFixed(value < 10 ? 2 : 1)} BTC`;
+}
+
+// Spot-Volume-Tag zeigt bewusst Kauf/Verkauf statt nur "Spot-Volumen" --
+// das ist die eigentliche Aussage (Kauf-Uebergewicht = Support-Hinweis,
+// Verkaufs-Uebergewicht = Widerstand-Hinweis, Toby-Idee 30.09.2026).
+function spotVolumeLabel(spotVolume: NonNullable<ChartStructureData["keyLevels"][number]["spotVolume"]>): string {
+  const dominant = spotVolume.buyVolumeBtc >= spotVolume.sellVolumeBtc ? "Kauf" : "Verkauf";
+  const dominantVolume = Math.max(spotVolume.buyVolumeBtc, spotVolume.sellVolumeBtc);
+  return `${dominant} ${formatBtcCompact(dominantVolume)}`;
+}
+
 function KeyLevelRow({ level }: { level: ChartStructureData["keyLevels"][number] }) {
   const tags = [
     ...level.timeframes.map((tf) => PIVOT_TIMEFRAME_LABELS[tf]),
-    ...level.confirmedBy.map((c) =>
-      c === "liquidation" && level.liquidationNotionalUsd !== null
-        ? `Liquidation ${formatUsdCompact(level.liquidationNotionalUsd)}`
-        : KEY_LEVEL_CONFIRMATION_LABELS[c]
-    ),
+    ...level.confirmedBy.map((c) => {
+      if (c === "liquidation" && level.liquidationNotionalUsd !== null) {
+        return `Liquidation ${formatUsdCompact(level.liquidationNotionalUsd)}`;
+      }
+      if (c === "spot_volume" && level.spotVolume !== null) {
+        return spotVolumeLabel(level.spotVolume);
+      }
+      return KEY_LEVEL_CONFIRMATION_LABELS[c];
+    }),
   ];
   return (
     <div className="flex items-center justify-between gap-2 text-xs">

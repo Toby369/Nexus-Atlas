@@ -381,10 +381,18 @@ describe("buildKeyLevelZones", () => {
     const zones = buildKeyLevelZones(
       [{ timeframe: "1d", kind: "high", price: 1050, openTime: "d1" }],
       [],
+      [],
       1000
     );
     expect(zones).toEqual([
-      { price: 1050, side: "resistance", timeframes: ["1d"], confirmedBy: [], liquidationNotionalUsd: null },
+      {
+        price: 1050,
+        side: "resistance",
+        timeframes: ["1d"],
+        confirmedBy: [],
+        liquidationNotionalUsd: null,
+        spotVolume: null,
+      },
     ]);
   });
 
@@ -394,6 +402,7 @@ describe("buildKeyLevelZones", () => {
         { timeframe: "1d", kind: "high", price: 1050, openTime: "d1" },
         { timeframe: "4h", kind: "high", price: 1052, openTime: "h1" }, // ~0.19% entfernt -> innerhalb 0.3%
       ],
+      [],
       [],
       1000
     );
@@ -406,6 +415,7 @@ describe("buildKeyLevelZones", () => {
     const zones = buildKeyLevelZones(
       [{ timeframe: "1w", kind: "low", price: 950, openTime: "w1" }],
       [{ price: 951, notionalUsd: 50_000, eventCount: 3 }], // ~0.1% entfernt
+      [],
       1000
     );
     expect(zones).toHaveLength(1);
@@ -416,9 +426,16 @@ describe("buildKeyLevelZones", () => {
   });
 
   it("erzeugt eine reine Liquidations-Zone ohne nahen Pivot", () => {
-    const zones = buildKeyLevelZones([], [{ price: 900, notionalUsd: 20_000, eventCount: 2 }], 1000);
+    const zones = buildKeyLevelZones([], [{ price: 900, notionalUsd: 20_000, eventCount: 2 }], [], 1000);
     expect(zones).toEqual([
-      { price: 900, side: "support", timeframes: [], confirmedBy: ["liquidation"], liquidationNotionalUsd: 20_000 },
+      {
+        price: 900,
+        side: "support",
+        timeframes: [],
+        confirmedBy: ["liquidation"],
+        liquidationNotionalUsd: 20_000,
+        spotVolume: null,
+      },
     ]);
   });
 
@@ -429,10 +446,37 @@ describe("buildKeyLevelZones", () => {
         { timeframe: "4h", kind: "high", price: 1050, openTime: "h1" }, // ~3,96% entfernt
       ],
       [],
+      [],
       1000
     );
     expect(zones).toHaveLength(2);
     expect(zones.map((z) => z.price).sort((a, b) => a - b)).toEqual([1010, 1050]);
+  });
+
+  it("bestaetigt eine Zone durch einen nahen Spot-Volume-Knoten (Kauf-Uebergewicht -> Support-Hinweis)", () => {
+    const zones = buildKeyLevelZones(
+      [{ timeframe: "1h", kind: "low", price: 950, openTime: "h1" }],
+      [],
+      [{ price: 951, buyVolumeBtc: 3.2, sellVolumeBtc: 0.9 }], // ~0.1% entfernt
+      1000
+    );
+    expect(zones).toHaveLength(1);
+    expect(zones[0].confirmedBy).toEqual(["spot_volume"]);
+    expect(zones[0].spotVolume).toEqual({ buyVolumeBtc: 3.2, sellVolumeBtc: 0.9 });
+  });
+
+  it("erzeugt eine reine Spot-Volume-Zone ohne nahen Pivot/Liquidation", () => {
+    const zones = buildKeyLevelZones([], [], [{ price: 1100, buyVolumeBtc: 0.4, sellVolumeBtc: 2.1 }], 1000);
+    expect(zones).toEqual([
+      {
+        price: 1100,
+        side: "resistance",
+        timeframes: [],
+        confirmedBy: ["spot_volume"],
+        liquidationNotionalUsd: null,
+        spotVolume: { buyVolumeBtc: 0.4, sellVolumeBtc: 2.1 },
+      },
+    ]);
   });
 });
 
@@ -454,7 +498,14 @@ describe("withConfirmationLevels", () => {
 
   it("taggt eine Zone mit EMA/VWAP, wenn der Wert innerhalb der Toleranz liegt", () => {
     const data = baseStructureData([
-      { price: 1000, side: "resistance", timeframes: ["1d"], confirmedBy: [], liquidationNotionalUsd: null },
+      {
+        price: 1000,
+        side: "resistance",
+        timeframes: ["1d"],
+        confirmedBy: [],
+        liquidationNotionalUsd: null,
+        spotVolume: null,
+      },
     ]);
     const result = withConfirmationLevels(data, [
       { label: "ema50", price: 1001 }, // ~0,1% entfernt -> innerhalb 0,3%
@@ -465,7 +516,14 @@ describe("withConfirmationLevels", () => {
 
   it("dupliziert keinen bereits vorhandenen Tag", () => {
     const data = baseStructureData([
-      { price: 1000, side: "resistance", timeframes: [], confirmedBy: ["ema50"], liquidationNotionalUsd: null },
+      {
+        price: 1000,
+        side: "resistance",
+        timeframes: [],
+        confirmedBy: ["ema50"],
+        liquidationNotionalUsd: null,
+        spotVolume: null,
+      },
     ]);
     const result = withConfirmationLevels(data, [{ label: "ema50", price: 1000 }]);
     expect(result.keyLevels[0].confirmedBy).toEqual(["ema50"]);
@@ -473,7 +531,14 @@ describe("withConfirmationLevels", () => {
 
   it("ignoriert null-Werte", () => {
     const data = baseStructureData([
-      { price: 1000, side: "resistance", timeframes: [], confirmedBy: [], liquidationNotionalUsd: null },
+      {
+        price: 1000,
+        side: "resistance",
+        timeframes: [],
+        confirmedBy: [],
+        liquidationNotionalUsd: null,
+        spotVolume: null,
+      },
     ]);
     const result = withConfirmationLevels(data, [{ label: "vwap_weekly", price: null }]);
     expect(result.keyLevels[0].confirmedBy).toEqual([]);

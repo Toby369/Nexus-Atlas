@@ -59,6 +59,15 @@ const TRENDLINE_TOUCH_TOLERANCE_PCT = 0.005;
 
 const KEY_LEVEL_LOOKBACK_HOURS = 6; // gleiches Fenster wie LiquidationPanel/LeverageMapCard
 const KEY_LEVEL_MAX_LIQUIDATION_CLUSTERS = 4;
+const KEY_LEVEL_PRICE_BUCKET_USD = 200;
+
+// Spot Volume Profile (30.09.2026, Nutzer-Idee "sieht nexus wo/bei welchem
+// preis spot gekauft wurde?") -- wo genau Kauf-/Verkaufsvolumen im Spot-
+// Markt konzentriert ist (collect-spot-volume-profile, alle 5 Min, siehe
+// supabase/-Edge-Function -- liegt nicht in diesem Repo, nur der Aufruf
+// hier). Gleiches Lookback-Fenster wie Liquidations-Cluster, damit alle
+// Key-Level-Quellen dieselbe Frage ("was ist gerade relevant") beantworten.
+const SPOT_VOLUME_MAX_NODES = 4;
 
 // Multi-Timeframe-Pivots fuer Key Levels (30.09.2026). Lookback identisch zu
 // AVWAP_PIVOT_LENGTH oben (Toby: "3 davor, 3 danach ergibt Pivot") --
@@ -763,6 +772,7 @@ export function computeTimeframePivots(
 
 export type KeyLevelConfirmation =
   | "liquidation"
+  | "spot_volume"
   | "ema13"
   | "ema50"
   | "ema200"
@@ -776,10 +786,16 @@ export interface KeyLevel {
   side: "resistance" | "support";
   // Zeitrahmen, deren Pivot-Punkte in diese Zone fallen -- je mehr, desto
   // staerker die Konfluenz. Leer, wenn die Zone ausschliesslich aus einem
-  // Liquidations-Cluster ohne nahen Pivot besteht.
+  // Liquidations-Cluster/Spot-Volume-Knoten ohne nahen Pivot besteht.
   timeframes: PivotTimeframe[];
   confirmedBy: KeyLevelConfirmation[];
   liquidationNotionalUsd: number | null;
+  // Spot Volume Profile (30.09.2026): tatsaechlich gehandeltes Kauf-/
+  // Verkaufsvolumen (BTC) in dieser Zone, letzte KEY_LEVEL_LOOKBACK_HOURS.
+  // Ueberwiegend Kauf = Support-Hinweis, ueberwiegend Verkauf =
+  // Widerstand-Hinweis (Toby-Idee 30.09.2026). null, wenn keine
+  // signifikante Konzentration in dieser Zone lag.
+  spotVolume: { buyVolumeBtc: number; sellVolumeBtc: number } | null;
 }
 
 interface LiquidationCluster {
@@ -793,7 +809,7 @@ async function fetchLiquidationClusters(): Promise<LiquidationCluster[]> {
   const { data, error } = await supabase.rpc("get_liquidation_intelligence", {
     p_since: since,
     p_bucket_minutes: 15,
-    p_price_bucket_usd: 200,
+    p_price_bucket_usd: KEY_LEVEL_PRICE_BUCKET_USD,
   });
 
   if (error) {
@@ -813,30 +829,70 @@ async function fetchLiquidationClusters(): Promise<LiquidationCluster[]> {
     .map((c) => ({ price: c.price_bucket, notionalUsd: c.notional_usd, eventCount: c.event_count }));
 }
 
+interface SpotVolumeNode {
+  price: number;
+  buyVolumeBtc: number;
+  sellVolumeBtc: number;
+}
+
+// Liest die vom collect-spot-volume-profile-Collector bereits vorverdichteten
+// Preis-Buckets (siehe RPC-Kommentar in der Migration) -- dieselbe "nur die
+// staerksten N zeigen"-Logik wie fetchLiquidationClusters oben.
+async function fetchSpotVolumeNodes(): Promise<SpotVolumeNode[]> {
+  const since = new Date(Date.now() - KEY_LEVEL_LOOKBACK_HOURS * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase.rpc("get_spot_volume_profile", {
+    p_since: since,
+    p_price_bucket_usd: KEY_LEVEL_PRICE_BUCKET_USD,
+  });
+
+  if (error) {
+    console.error("chartStructureContext: Fehler bei get_spot_volume_profile:", error.message);
+    return [];
+  }
+
+  const nodes =
+    ((data as Record<string, unknown> | null)?.price_buckets as
+      | { price_bucket: number; buy_volume: number; sell_volume: number; trade_count: number }[]
+      | undefined) ?? [];
+
+  return nodes
+    .slice()
+    .sort((a, b) => b.buy_volume + b.sell_volume - (a.buy_volume + a.sell_volume))
+    .slice(0, SPOT_VOLUME_MAX_NODES)
+    .map((n) => ({ price: n.price_bucket, buyVolumeBtc: n.buy_volume, sellVolumeBtc: n.sell_volume }));
+}
+
 // Interne, vereinheitlichte Rohquelle vor der Zonen-Buendelung -- ein Pivot-
-// Punkt UND ein Liquidations-Cluster sind beides einfach "ein Preis mit
-// Herkunft", erst die Buendelung unterscheidet danach wieder.
+// Punkt, ein Liquidations-Cluster und ein Spot-Volume-Knoten sind alle
+// einfach "ein Preis mit Herkunft", erst die Buendelung unterscheidet
+// danach wieder.
 interface RawLevelSource {
   price: number;
   pivot?: { timeframe: PivotTimeframe };
   liquidation?: { notionalUsd: number };
+  spotVolume?: { buyVolumeBtc: number; sellVolumeBtc: number };
 }
 
 // Kernstueck der Key-Levels-Neuerung: buendelt Pivot-Punkte (aus allen vier
-// Zeitrahmen) UND Liquidations-Cluster zu Zonen, wenn sie innerhalb
-// tolerancePct beieinander liegen (single-linkage, sortiert nach Preis) --
-// EMA/VWAP werden NICHT hier eingerechnet (siehe withConfirmationLevels()),
-// damit diese Funktion komplett pure/testbar bleibt (kein Fetch, keine
-// externen Werte).
+// Zeitrahmen), Liquidations-Cluster UND Spot-Volume-Knoten zu Zonen, wenn
+// sie innerhalb tolerancePct beieinander liegen (single-linkage, sortiert
+// nach Preis) -- EMA/VWAP werden NICHT hier eingerechnet (siehe
+// withConfirmationLevels()), damit diese Funktion komplett pure/testbar
+// bleibt (kein Fetch, keine externen Werte).
 export function buildKeyLevelZones(
   pivotPoints: TimeframePivotPoint[],
   liquidationClusters: LiquidationCluster[],
+  spotVolumeNodes: SpotVolumeNode[],
   currentPrice: number,
   tolerancePct: number = PIVOT_CONFLUENCE_TOLERANCE_PCT
 ): KeyLevel[] {
   const raw: RawLevelSource[] = [
     ...pivotPoints.map((p) => ({ price: p.price, pivot: { timeframe: p.timeframe } })),
     ...liquidationClusters.map((c) => ({ price: c.price, liquidation: { notionalUsd: c.notionalUsd } })),
+    ...spotVolumeNodes.map((n) => ({
+      price: n.price,
+      spotVolume: { buyVolumeBtc: n.buyVolumeBtc, sellVolumeBtc: n.sellVolumeBtc },
+    })),
   ].sort((a, b) => a.price - b.price);
 
   const zones: KeyLevel[] = [];
@@ -850,10 +906,20 @@ export function buildKeyLevelZones(
       new Set(clusterMembers.filter((m) => m.pivot).map((m) => m.pivot!.timeframe))
     );
     const liquidationMembers = clusterMembers.filter((m) => m.liquidation);
-    const confirmedBy: KeyLevelConfirmation[] = liquidationMembers.length > 0 ? ["liquidation"] : [];
+    const spotVolumeMembers = clusterMembers.filter((m) => m.spotVolume);
+    const confirmedBy: KeyLevelConfirmation[] = [];
+    if (liquidationMembers.length > 0) confirmedBy.push("liquidation");
+    if (spotVolumeMembers.length > 0) confirmedBy.push("spot_volume");
     const liquidationNotionalUsd =
       liquidationMembers.length > 0
         ? liquidationMembers.reduce((sum, m) => sum + m.liquidation!.notionalUsd, 0)
+        : null;
+    const spotVolume =
+      spotVolumeMembers.length > 0
+        ? {
+            buyVolumeBtc: spotVolumeMembers.reduce((sum, m) => sum + m.spotVolume!.buyVolumeBtc, 0),
+            sellVolumeBtc: spotVolumeMembers.reduce((sum, m) => sum + m.spotVolume!.sellVolumeBtc, 0),
+          }
         : null;
 
     zones.push({
@@ -862,6 +928,7 @@ export function buildKeyLevelZones(
       timeframes,
       confirmedBy,
       liquidationNotionalUsd,
+      spotVolume,
     });
     clusterMembers = [];
   };
@@ -941,11 +1008,12 @@ export interface ChartStructureData {
 }
 
 export async function getChartStructureData(): Promise<ChartStructureData> {
-  const [candles, candles4h, candlesDailySource, liquidationClusters] = await Promise.all([
+  const [candles, candles4h, candlesDailySource, liquidationClusters, spotVolumeNodes] = await Promise.all([
     fetchCandles(),
     fetchCandlesForInterval("4h", PIVOT_4H_LOOKBACK_CANDLES),
     fetchCandlesForInterval("1d", PIVOT_WEEKLY_SOURCE_DAILY_CANDLES),
     fetchLiquidationClusters(),
+    fetchSpotVolumeNodes(),
   ]);
 
   const lastCandle = candles[candles.length - 1] ?? null;
@@ -962,7 +1030,10 @@ export async function getChartStructureData(): Promise<ChartStructureData> {
     ...computeTimeframePivots(candles4h, "4h"),
     ...computeTimeframePivots(candles, "1h"),
   ];
-  const keyLevels = currentPrice !== null ? buildKeyLevelZones(pivotPoints, liquidationClusters, currentPrice) : [];
+  const keyLevels =
+    currentPrice !== null
+      ? buildKeyLevelZones(pivotPoints, liquidationClusters, spotVolumeNodes, currentPrice)
+      : [];
 
   return {
     interval: "1h",
