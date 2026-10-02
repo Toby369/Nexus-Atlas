@@ -59,7 +59,11 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   // "News-Einordnung (KI)" (vormals eigene Kachel) ist seit 20.09.2026 ein
   // aufklappbarer Abschnitt in "news-risk" (NewsRiskPanel.tsx) -- deckte
   // dieselben Schlagzeilen ab, keine eigene Kachel mehr.
-  { id: "signal-engine", title: "Signal Engine (KI)" },
+  // "Signal Engine (KI)" (vormals eigene Kachel) ist seit 02.10.2026 Teil
+  // von "system-briefing" (Konsistenz-Check im kontextCheck-Abschnitt,
+  // siehe lib/ai/promptProfiles.ts) -- Audit ergab 13 Tage ungenutzt, kein
+  // zusaetzlicher AI-Aufruf noetig, da System-Briefing denselben
+  // 14-Faktoren-Kontext bereits laedt.
   { id: "signal-review", title: "Periodischer Rückblick (KI)" },
   { id: "escalation", title: "Eskalation: Zweitmeinungen (KI)" },
   { id: "trade-debate", title: "Trade-Debate (KI)" },

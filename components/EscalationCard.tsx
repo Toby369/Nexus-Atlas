@@ -56,7 +56,7 @@ const CONSENSUS_LABELS: Record<string, string> = {
 };
 
 const TRIGGER_SOURCE_LABELS: Record<EscalationTriggerRecord["source"], string> = {
-  "signal-engine": "Signal-Engine",
+  "system-briefing": "System-Briefing",
   "divergence-radar": "Divergenz-Radar",
   "report-master": "Report-Master",
 };

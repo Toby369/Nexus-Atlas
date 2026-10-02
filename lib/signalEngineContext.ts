@@ -1,20 +1,20 @@
-// Kontext-Builder fuer die Signal-Engine-Kachel (Thema KI, Punkt 2/2,
-// 05.09.2026) -- zweite ueber runTileAnalysis() aktivierte Kachel. Primaerer
-// Provider ist Google (siehe lib/ai/tileConfig.ts "signal-engine" -> "auto"
-// -> "signal-logic"-Kategorie -> Google, Fallback-Kette openrouter/deepseek/
-// anthropic). Anthropic bewusst ans Ende der Kette verschoben (Nutzer-
-// Entscheidung 07.09.2026, nach einem Anthropic-Ausfall) -- war urspruenglich
-// primaer, siehe Git-Historie.
+// Kontext-Builder, urspruenglich fuer die eigenstaendige "Signal-Engine"-
+// Kachel gebaut (Thema KI, Punkt 2/2, 05.09.2026): ein unabhaengiges
+// "zweites Paar Augen" auf die bereits bestehende, regelbasierte
+// Gesamteinschaetzung (market_states, compute-market-state) -- prueft NICHT
+// neu, ob der Markt bullisch/baerisch ist (das macht die 14-Faktoren-Engine
+// bereits), sondern ob deren eigene Ausgabe (overall_state/score/
+// confidence/risk_level/patterns) in sich logisch konsistent mit den
+// einzelnen Faktor-Werten ist.
 //
-// Aufgabe dieser Kachel: ein unabhaengiges "zweites Paar Augen" auf die
-// bereits bestehende, regelbasierte Gesamteinschaetzung (market_states,
-// compute-market-state) -- prueft NICHT neu, ob der Markt bullisch/baerisch
-// ist (das macht die 14-Faktoren-Engine bereits), sondern ob deren eigene
-// Ausgabe (overall_state/score/confidence/risk_level/patterns) in sich
-// logisch konsistent mit den einzelnen Faktor-Werten ist. Eigenstaendig von
-// System-Briefing (Regelwerk-Anwendung inkl. kurzer Stunden-Einschaetzung)
-// und Divergenz-Radar (paarweise regelbasierte Vergleiche) -- diese Kachel
-// liest ausschliesslich die 14 Faktoren selbst.
+// 02.10.2026 -- die Kachel selbst wurde entfernt (Audit: 13 Tage ungenutzt,
+// Konsistenz-Check ist jetzt Teil von System-Briefings kontextCheck, siehe
+// lib/systemBriefingContext.ts + lib/ai/promptProfiles.ts). DIESE Datei
+// bleibt bestehen -- buildSignalEngineContext() liefert weiterhin den
+// rohen 14-Faktoren-Schnappschuss, den lib/escalationContext.ts den
+// unabhaengigen Eskalations-Providern als gemeinsame Grundlage uebergibt
+// (siehe dortiger Kommentar "bekommen unabhaengig DIESELBE rohe
+// Gesamteinschaetzung").
 //
 // Server-only (nutzt Supabase direkt) -- niemals aus einer "use client"
 // Komponente importieren.

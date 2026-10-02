@@ -549,28 +549,6 @@ export interface NewsAnalysisSnapshot {
   error: string | null;
 }
 
-// Signal-Engine-Kachel (Thema KI, Punkt 2/2, 05.09.2026, zweiter aktivierter
-// Slot mit Anthropic als primaerem Provider) -- Konsistenzpruefung der
-// bestehenden regelbasierten Gesamteinschaetzung (market_states), kein
-// eigener Bias. Siehe lib/signalEngineContext.ts + lib/ai/promptProfiles.ts
-// ("signal-analysis").
-export interface SignalEngineResult {
-  isConsistent: boolean;
-  confidence: number;
-  summary: string;
-  concerns: string[];
-}
-
-export interface SignalEngineSnapshot {
-  id: number;
-  generated_at: string;
-  provider: string | null;
-  model: string | null;
-  result: SignalEngineResult | null;
-  status: "ok" | "error";
-  error: string | null;
-}
-
 // Periodischer KI-Rueckblick, Phase 3 (10.09.2026) -- liest ausschliesslich
 // die in Phase 2 (signal_stats_results) fertig berechneten Zahlen, kein
 // eigener Bias, kein Handelssignal. Siehe lib/signalReviewContext.ts +
@@ -594,13 +572,14 @@ export interface SignalReviewSnapshot {
 
 // Eskalations-Kachel (Thema KI, "gezielte Eskalation", 05.09.2026) -- kein
 // Dauerbetrieb mehrerer Provider, sondern eine gezielte Zweit-/Drittmeinung
-// nur wenn eines der bestehenden Mechanismen (Signal-Engine, Divergenz-
-// Radar, Report-Master) bereits einen Widerspruch/eine Divergenz meldet.
+// nur wenn eines der bestehenden Mechanismen (System-Briefing-Kontext-
+// Check, Divergenz-Radar, Report-Master) bereits einen Widerspruch/eine
+// Divergenz meldet.
 // Siehe lib/escalationContext.ts (Trigger-Erkennung) + lib/
 // escalationConsensus.ts (reine Konsens-Logik) + lib/ai/promptProfiles.ts
 // ("escalation-analysis").
 export interface EscalationTriggerRecord {
-  source: "signal-engine" | "divergence-radar" | "report-master";
+  source: "system-briefing" | "divergence-radar" | "report-master";
   label: string;
   detail: string[];
 }

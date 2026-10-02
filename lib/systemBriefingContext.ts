@@ -188,12 +188,22 @@ export interface SystemBriefingContext {
   bewegungsvorrat: BewegungsvorratRow;
   market_state: {
     overall_state: MarketState["overall_state"];
+    score: number | null;
     confidence: number;
     data_coverage_pct: number;
     risk_level: MarketState["risk_level"];
     risk_factors: string[] | null;
     patterns: { name: string; note: string }[];
     mtf_alignment: MarketState["mtf_alignment"];
+    // Die einzelnen Faktor-Werte der 14-Faktoren-Engine (nicht nur deren
+    // Aggregat) -- seit 02.10.2026 hier aufgenommen, um die vormals
+    // eigenstaendige "Signal-Engine"-Kachel zu ersetzen (Nutzer: "braucht
+    // es alle Kacheln so wie sie sind?", Audit ergab: 13 Tage ungenutzt).
+    // Zweck bleibt derselbe wie dort: pruefen, ob overall_state/score/
+    // confidence/risk_level/patterns tatsaechlich zu den einzelnen
+    // Faktoren passen -- jetzt als Teil DIESES KI-Aufrufs (kontextCheck),
+    // kein zusaetzlicher separater Call noetig.
+    factors: MarketState["factors"];
   } | null;
   confidence_breakdown: {
     coveragePct: number;
@@ -266,12 +276,14 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
     market_state: state
       ? {
           overall_state: state.overall_state,
+          score: state.score,
           confidence: state.confidence,
           data_coverage_pct: state.data_coverage_pct,
           risk_level: state.risk_level,
           risk_factors: state.risk_factors,
           patterns: state.patterns ?? [],
           mtf_alignment: state.mtf_alignment,
+          factors: state.factors,
         }
       : null,
     confidence_breakdown: state ? computeConfidenceBreakdown(state) : null,

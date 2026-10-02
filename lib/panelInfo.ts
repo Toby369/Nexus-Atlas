@@ -55,7 +55,9 @@ So entsteht der Wert: Datenbasis ist ausschliesslich Binance Spot BTC/USDT im 5-
 // components/PositioningPanel.tsx -- der zugrundeliegende Faktor bleibt Teil
 // der 14-Faktoren-Engine und wird weiterhin in HeroHeader gezeigt.
 
-export const liquidationsInfo = `So liest du das: Ein Hinweis auf eine mögliche Cascade erscheint, wenn mindestens 3 Liquidationen innerhalb von 2 Minuten auftreten. Wegen der Stichprobenerfassung ist die Zahl eine Annäherung, kein vollständiges Bild aller tatsächlichen Liquidationen, und kein eigenständiges Handelssignal.
+export const liquidationsInfo = `Unterschied zur Liquidations-/Hebelkarte: hier stehen tatsächlich bereits PASSIERTE Liquidations-Events (Echtzeit-Stream von Binance/Bybit) — dort werden PROJIZIERTE Levels aus der Open-Interest-Historie geschätzt, wo es als Nächstes passieren könnte. Zwei unterschiedliche Fragen ("was ist geschehen" vs. "wo könnte es als Nächstes knallen"), keine doppelte Darstellung derselben Daten.
+
+So liest du das: Ein Hinweis auf eine mögliche Cascade erscheint, wenn mindestens 3 Liquidationen innerhalb von 2 Minuten auftreten. Wegen der Stichprobenerfassung ist die Zahl eine Annäherung, kein vollständiges Bild aller tatsächlichen Liquidationen, und kein eigenständiges Handelssignal.
 
 Preis-Cluster zeigen bis zu 4 Preis-Spannen (je 200 USD breit, zentriert um den jeweiligen Häufungspunkt) mit den grössten liquidierten Volumina im 6-Stunden-Fenster, absteigend sortiert, mit Anteil am Gesamtvolumen — unabhängig davon, ob ein einzelner Cluster dominiert oder das Volumen verteilt ist.
 

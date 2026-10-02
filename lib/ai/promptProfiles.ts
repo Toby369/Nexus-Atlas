@@ -198,25 +198,6 @@ function validateNewsAnalysis(data: unknown): string[] {
   return errors;
 }
 
-function validateSignalAnalysis(data: unknown): string[] {
-  const errors: string[] = [];
-
-  if (typeof field(data, "isConsistent") !== "boolean") {
-    errors.push(`"isConsistent" muss ein boolean sein.`);
-  }
-  if (!isConfidence(field(data, "confidence"))) {
-    errors.push(`"confidence" muss eine Zahl zwischen 0 und 100 sein.`);
-  }
-  if (!isNonEmptyString(field(data, "summary"))) {
-    errors.push(`"summary" muss ein nicht-leerer String sein.`);
-  }
-  if (!isStringArray(field(data, "concerns"))) {
-    errors.push(`"concerns" muss ein String-Array sein.`);
-  }
-
-  return errors;
-}
-
 // Master-Report: prüft die drei Einzelreports auf Widersprüche statt sie
 // zu kopieren/mitteln. componentBiases macht nachvollziehbar, WELCHE
 // Einzelmeinung in welche Richtung zeigt (Transparenz, keine Black Box).
@@ -380,40 +361,6 @@ export const promptProfiles: Record<string, PromptProfile> = {
     validate: (data) =>
       validateBiasSummary(data, { biasField: "overallBias", requireRiskLevel: true }),
   },
-  // --- Signal Engine (Thema KI, Punkt 2/2, 05.09.2026) ---------------------
-  // Kein neuer Bias -- prueft, ob die bereits bestehende, regelbasierte
-  // Gesamteinschaetzung (14-Faktoren-Engine, market_states) in sich logisch
-  // konsistent ist: passt overall_state/score/confidence zur Mehrheit der
-  // einzelnen Faktor-Werte, widerspricht ein Muster (patterns) der Richtung,
-  // ist eine hohe confidence mit niedrigem consensus_pct erklaerbar? Kontext
-  // aus lib/signalEngineContext.ts (buildSignalEngineContext).
-  "signal-analysis": {
-    id: "signal-analysis",
-    category: "signal-logic",
-    description:
-      "Konsistenzpruefung der bestehenden regelbasierten Gesamteinschaetzung (14-Faktoren-Engine) -- kein neuer Bias, sondern ein zweites Paar Augen auf deren eigene Ausgabe.",
-    systemPrompt:
-      "Du bekommst die aktuelle Ausgabe der regelbasierten 14-Faktoren-Marktzustands-Engine " +
-      "fuer BTC/USDT-Futures (market_states): overall_state, score, confidence samt " +
-      "confidence_breakdown (coverage_pct/consensus_pct/signal_strength_pct), risk_level, " +
-      "risk_factors, patterns und die einzelnen factors (je -1/baerisch, 0/neutral, " +
-      "+1/bullisch, oder null wenn keine Daten, mit basis-Feldern als Beleg). Deine Aufgabe " +
-      "ist NICHT, selbst eine neue Marktrichtung zu bestimmen, sondern zu pruefen, ob diese " +
-      "Ausgabe in sich WIDERSPRUCHSFREI ist. Beispiele fuer echte Widersprueche: " +
-      "overall_state weicht von der Mehrheitsrichtung der verfuegbaren factors ab; ein " +
-      "gemeldetes pattern deutet in eine andere Richtung als overall_state; confidence ist " +
-      "hoch, obwohl consensus_pct niedrig ist (widerspruechliche Faktoren) oder " +
-      "signal_strength_pct niedrig ist (fast alle Faktoren neutral); risk_level passt nicht " +
-      "zu den genannten risk_factors. Ist alles stimmig, sag das explizit statt Widersprueche " +
-      "zu konstruieren, die es nicht gibt -- concerns bleibt dann ein leeres Array. Erfinde " +
-      "keine zusaetzlichen Daten ausserhalb des Kontexts. " +
-      NUMBER_FORMAT_INSTRUCTION +
-      " Antworte als JSON mit: isConsistent (boolean, true nur wenn KEIN Widerspruch " +
-      "gefunden wurde), confidence (0-100, deine eigene Sicherheit in dieses Urteil), " +
-      "summary (string, deutsch), concerns (string[], leer wenn keine Widersprueche).",
-    validate: validateSignalAnalysis,
-  },
-
   // --- Periodischer KI-Rueckblick, Phase 3 (10.09.2026) --------------------
   // Liest AUSSCHLIESSLICH die in Phase 2 (compute_signal_stats(),
   // signal_stats_results) bereits fertig berechneten Zahlen -- kein eigener
@@ -617,6 +564,16 @@ export const promptProfiles: Record<string, PromptProfile> = {
   // lib/systemBriefingContext.ts geworden. Kursziel/Trigger-Sprache ist jetzt
   // explizit erlaubt (Nutzer-Entscheidung 30.09.2026, vorher verboten) --
   // dieselbe Sprache, die Trade-Debate (siehe unten) schon laenger nutzt.
+  //
+  // 02.10.2026 -- Kachel-Audit (Nutzer: "braucht es alle Kacheln so wie sie
+  // sind?"): die vormals eigenstaendige "Signal-Engine"-Kachel (Konsistenz-
+  // Check "passt overall_state/score/risk_level zu den einzelnen Faktoren?")
+  // war 13 Tage ungenutzt und wurde komplett entfernt -- ihr Zweck ist jetzt
+  // Teil des kontextCheck-Abschnitts hier (market_state enthaelt dafuer neu
+  // auch factors), kein zusaetzlicher AI-Aufruf noetig. Die Eskalations-
+  // Kachel liest ihren entsprechenden Trigger seither aus DIESEM Snapshot
+  // statt aus einem separaten signal_engine_snapshots-Eintrag (siehe
+  // lib/escalationContext.ts).
   "system-briefing": {
     id: "system-briefing",
     category: "signal-logic",
@@ -631,8 +588,12 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "Trendregime-Gates, inkl. closePrice; trading_indicators: GUSS-Pullback-Signal, VWAP-Vector, " +
       "CVD-Footprint -- DEINE EINZIGE Quelle fuer Orderflow-/VWAP-Richtung, die einzelnen vwap_" +
       "position/cvd-Faktoren in market_state NICHT zusaetzlich separat kommentieren, das waere " +
-      "dieselbe Aussage doppelt; market_state: 14-Faktoren-Gesamteinschaetzung (overall_state/" +
-      "confidence/risk_level/patterns); liquidations: Preis-Cluster nahe am aktuellen Kurs; " +
+      "dieselbe Aussage doppelt; market_state: 14-Faktoren-Gesamteinschaetzung (overall_state/score/" +
+      "confidence/risk_level/patterns), PLUS factors (die einzelnen Faktor-Werte -1/0/1, aus denen " +
+      "overall_state/score abgeleitet werden) -- factors NUR nutzen, um zu pruefen, ob overall_state/" +
+      "score/confidence/risk_level/patterns tatsaechlich zu den einzelnen Faktoren passen (z.B. " +
+      "overall_state=BULLISH, aber die Mehrheit der factors zeigt -1), NICHT um sie einzeln " +
+      "aufzuzaehlen oder nachzuerzaehlen; liquidations: Preis-Cluster nahe am aktuellen Kurs; " +
       "market_context: regelbasierte Kombination aus Preis-/OI-Richtung und Spot-Bestaetigung; " +
       "etf_flows: kumulierter Netto-ETF-Flow der letzten Handelstage; positioning: Retail-/Top-" +
       "Trader-Divergenz-Confidence; news: Anzahl markbewegender Nachrichten der letzten 72h). " +
@@ -663,11 +624,13 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "sonst diese Zeile komplett weglassen, nicht erzwingen. " +
       "Zeile 'Liquidation: ...' -- NUR ausgeben, wenn ein liquidations-Cluster nahe am aktuellen " +
       "Kurs als Risiko-/Magnet-Hinweis relevant ist -- sonst weglassen. " +
-      "(3) kontextCheck -- NUR befuellen, wenn market_context, etf_flows, positioning oder news dem " +
-      "Bild aus regelwerkCheck WIDERSPRECHEN (z.B. Regelwerk-Gates erfuellt, aber ETF-Flows/" +
-      "Marktkontext dagegen) -- in diesem Fall 1-2 Saetze, welcher Widerspruch. Gibt es keinen " +
-      "nennenswerten Widerspruch, setze kontextCheck auf null, erzwinge KEINE Erwaehnung nur weil " +
-      "die Felder vorhanden sind. " +
+      "(3) kontextCheck -- NUR befuellen, wenn (a) market_context, etf_flows, positioning oder news " +
+      "dem Bild aus regelwerkCheck WIDERSPRECHEN (z.B. Regelwerk-Gates erfuellt, aber ETF-Flows/" +
+      "Marktkontext dagegen), ODER (b) market_state.overall_state/score/confidence/risk_level/" +
+      "patterns NICHT zu den einzelnen market_state.factors passen (z.B. overall_state bullisch, " +
+      "aber mehrere Kern-Faktoren negativ/neutral) -- in beiden Faellen 1-2 Saetze, welcher " +
+      "Widerspruch. Gibt es keinen nennenswerten Widerspruch, setze kontextCheck auf null, erzwinge " +
+      "KEINE Erwaehnung nur weil die Felder vorhanden sind. " +
       "(4) trigger -- bedingungen (string[], je Eintrag ein wenn/dann-Satz, an eine konkrete Zahl " +
       "oder ein konkretes Ereignis gebunden, z.B. 'Wenn der Kurs ueber EMA50 bei $X schliesst, " +
       "dann...'); kursziel (Zahl oder null -- EIN konkretes Kursziel, wenn bias/regelwerkCheck " +

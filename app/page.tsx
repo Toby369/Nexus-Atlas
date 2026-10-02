@@ -16,7 +16,6 @@ import type {
   NewsEvent,
   OiChangeByExchange,
   OrderbookWallSnapshot,
-  SignalEngineSnapshot,
   SignalReviewSnapshot,
   ShortTermRangeCheck,
   TradeDebateSnapshot,
@@ -50,7 +49,6 @@ import OrderbookWallCard from "@/components/OrderbookWallCard";
 import DivergenceRadarCard from "@/components/DivergenceRadarCard";
 import ConfluenceScoreCard from "@/components/ConfluenceScoreCard";
 import RegimeScoreCard from "@/components/RegimeScoreCard";
-import SignalEngineCard from "@/components/SignalEngineCard";
 import SignalReviewCard from "@/components/SignalReviewCard";
 import EscalationCard from "@/components/EscalationCard";
 import TradeDebateCard from "@/components/TradeDebateCard";
@@ -254,24 +252,6 @@ async function getLatestNewsAnalysis(): Promise<NewsAnalysisSnapshot | null> {
 
   if (error) {
     console.error("Fehler beim Laden der News-Einordnung:", error.message);
-    return null;
-  }
-  return data;
-}
-
-// Signal-Engine-Kachel (Thema KI, Punkt 2/2, 05.09.2026): letzter
-// zwischengespeicherter Stand -- reines Lesen, kein AI-Aufruf (der passiert
-// nur ueber POST /api/signal-engine/generate, siehe SignalEngineCard.tsx).
-async function getLatestSignalEngine(): Promise<SignalEngineSnapshot | null> {
-  const { data, error } = await supabase
-    .from("signal_engine_snapshots")
-    .select("*")
-    .order("generated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error("Fehler beim Laden der Signal-Engine-Pruefung:", error.message);
     return null;
   }
   return data;
@@ -640,7 +620,6 @@ export default async function Home({
     regimeScore,
     regimeSignalDetail,
     latestNewsAnalysis,
-    latestSignalEngine,
     latestSignalReview,
     escalationTriggers,
     latestEscalation,
@@ -674,7 +653,6 @@ export default async function Home({
     buildRegimeScore(),
     buildRegimeSignalDetail(),
     getLatestNewsAnalysis(),
-    getLatestSignalEngine(),
     getLatestSignalReview(),
     detectEscalationTriggers(),
     getLatestEscalation(),
@@ -835,7 +813,6 @@ export default async function Home({
                     "news-risk": (
                       <NewsRiskPanel initialNews={highImpactNews} initialNewsAnalysis={latestNewsAnalysis} />
                     ),
-                    "signal-engine": <SignalEngineCard initialSnapshot={latestSignalEngine} />,
                     "signal-review": <SignalReviewCard initialSnapshot={latestSignalReview} />,
                     escalation: (
                       <EscalationCard initialTriggers={escalationTriggers} initialSnapshot={latestEscalation} />

@@ -83,24 +83,18 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     promptProfile: "market-intelligence",
     fallbackProviders: ["google"],
   },
-  "signal-engine": {
-    tileId: "signal-engine",
-    aiProvider: "auto", // -> google (signal-logic)
-    promptProfile: "signal-analysis",
-    fallbackProviders: ["openrouter", "deepseek"],
-  },
   // System-Briefing (Umsetzungsplan Phase 4, 18.09.2026; erweitert
   // 22.09.2026 -- deckt seither auch den Umfang des entfernten
   // "market-state-narrative"-Profils mit ab, 30.09.2026 zusaetzlich mit der
-  // ehemals eigenstaendigen Handelslage-Kachel zusammengelegt, siehe
-  // promptProfiles.ts/systemBriefingContext.ts) -- signal-logic-Kategorie,
-  // google primaer, seit 25.09.2026 derselbe kostenlose Fallback wie oben
-  // (Live-Vorfall: ein echter Google-503-Ausfall, von Toby per Screenshot
-  // gemeldet, liess die Kachel zuvor komplett fehlschlagen, obwohl die
-  // Schwester-Kachel "signal-engine" laengst denselben kostenlosen Fallback
-  // nutzte). Faellt auch dieser komplett aus, greift weiterhin bewusst die
-  // "schlaegt fehl statt bezahltem Fallback"-Linie von Anthropic oben, kein
-  // dritter (erst recht kein bezahlter) Provider.
+  // ehemals eigenstaendigen Handelslage-Kachel zusammengelegt, 02.10.2026
+  // zusaetzlich mit der ehemals eigenstaendigen Signal-Engine-Kachel
+  // (Konsistenz-Check, siehe promptProfiles.ts), siehe promptProfiles.ts/
+  // systemBriefingContext.ts) -- signal-logic-Kategorie, google primaer,
+  // seit 25.09.2026 kostenloser Fallback (Live-Vorfall: ein echter
+  // Google-503-Ausfall, von Toby per Screenshot gemeldet, liess die Kachel
+  // zuvor komplett fehlschlagen). Faellt auch dieser komplett aus, greift
+  // weiterhin bewusst die "schlaegt fehl statt bezahltem Fallback"-Linie
+  // von Anthropic oben, kein dritter (erst recht kein bezahlter) Provider.
   "system-briefing": {
     tileId: "system-briefing",
     aiProvider: "auto",
@@ -160,11 +154,11 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     fallbackProviders: ["google", "openrouter"],
   },
   // Periodischer KI-Rueckblick, Phase 3 (10.09.2026): liest ausschliesslich
-  // signal_stats_results (Phase 2), kein eigener Bias -- gleiche
-  // Provider-/Fallback-Logik wie "signal-engine" (ebenfalls ein "zweites
-  // Paar Augen" auf bereits berechnete Zahlen, kein neues Handelssignal).
-  // Wird woechentlich vom signal-review-scheduler-Cron ausgeloest, nicht
-  // manuell.
+  // signal_stats_results (Phase 2), kein eigener Bias -- ein "zweites Paar
+  // Augen" auf bereits berechnete Zahlen, kein neues Handelssignal (gleiche
+  // Rolle wie vormals die am 02.10.2026 entfernte Signal-Engine-Kachel,
+  // siehe promptProfiles.ts "system-briefing"). Wird woechentlich vom
+  // signal-review-scheduler-Cron ausgeloest, nicht manuell.
   "signal-review": {
     tileId: "signal-review",
     aiProvider: "auto", // -> google (signal-logic)

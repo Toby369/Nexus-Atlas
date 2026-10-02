@@ -9,6 +9,7 @@ import PanelInfo from "@/components/PanelInfo";
 
 const INFO_TEXT = [
   "Was das ist: ein MODELL, keine Messung -- schaetzt aus der Open-Interest-Historie der letzten 48h, wo gehebelte Positionen liquidiert wuerden. Steigt das offene Interesse, wurden dort Positionen eroeffnet; die Kerze sagt zu welchem Preis, das Taker-Volumen (angenaehert) in welche Richtung.",
+  "Unterschied zur \"Liquidationen\"-Kachel: dort stehen tatsaechlich bereits PASSIERTE Liquidations-Events (Echtzeit-Stream von Binance/Bybit) -- hier siehst du PROJIZIERTE Levels, wo es als Naechstes passieren KOENNTE, falls der Preis dort hinlaeuft. Zwei unterschiedliche Fragen (\"was ist geschehen\" vs. \"wo koennte es als Naechstes knallen\"), keine doppelte Darstellung derselben Daten.",
   "Long-Cluster (unterhalb des Preises): hier wuerden LONG-Positionen liquidiert -- erzwungene Verkaeufe. Short-Cluster (oberhalb): hier wuerden SHORT-Positionen liquidiert -- erzwungene Kaeufe.",
   "Benachbarte Cluster (innerhalb von 1% vom aktuellen Preis) werden zu einer Zone gebuendelt angezeigt -- antippen/aufklappen zeigt die einzelnen Hebelstufen-Level dahinter.",
   "Bekannte Grenzen: ΔOI ist ein Saldo (Umschlag innerhalb einer Stunde bleibt unsichtbar), jeder Kontrakt hat zwei Seiten (das Modell unterstellt je Periode nur eine gehebelte Seite), der Einstiegspreis innerhalb einer Kerze ist unbekannt, die tatsaechliche Hebelverteilung ist unbekannt (10x/25x/50x/100x sind ein Was-waere-wenn), Cross Margin/Nachschuss sind nicht abgebildet.",

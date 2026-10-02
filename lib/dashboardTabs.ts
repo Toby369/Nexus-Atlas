@@ -67,7 +67,6 @@ export const DASHBOARD_TABS: DashboardTabMeta[] = [
     id: "ki-einschaetzungen",
     label: "KI-Einschätzungen",
     tileIds: [
-      "signal-engine",
       "signal-review",
       "escalation",
       "trade-debate",

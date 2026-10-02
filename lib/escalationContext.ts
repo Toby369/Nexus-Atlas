@@ -3,11 +3,22 @@
 // 05.09.2026): mehrere unabhaengige AI-Provider bekommen unabhaengig
 // voneinander dieselbe rohe Gesamteinschaetzung (14-Faktoren-Engine) zur
 // Beurteilung -- aber NUR, wenn Nexus intern bereits eine Divergenz/einen
-// Widerspruch erkannt hat (Signal-Engine-Inkonsistenz, Divergenz-Radar-Paar,
-// Report-Master-Konflikt). Ohne aktiven Trigger keine Mehrfach-Anfrage --
-// dieselbe Kosten-Zurueckhaltung wie bei den anderen KI-Kacheln, nur eine
-// Stufe davor: hier wird bereits die Entscheidung "lohnt sich ueberhaupt
-// eine zweite Meinung" kostenlos (reine DB-Reads) getroffen.
+// Widerspruch erkannt hat (System-Briefing-Inkonsistenz, Divergenz-Radar-
+// Paar, Report-Master-Konflikt). Ohne aktiven Trigger keine Mehrfach-
+// Anfrage -- dieselbe Kosten-Zurueckhaltung wie bei den anderen KI-
+// Kacheln, nur eine Stufe davor: hier wird bereits die Entscheidung "lohnt
+// sich ueberhaupt eine zweite Meinung" kostenlos (reine DB-Reads)
+// getroffen.
+//
+// 02.10.2026 -- der erste Trigger las zuvor einen separaten
+// signal_engine_snapshots-Eintrag (eigene "Signal-Engine"-Kachel, seither
+// entfernt, siehe lib/signalEngineContext.ts). Liest jetzt stattdessen den
+// kontextCheck-Abschnitt des aktuellen System-Briefing-Snapshots -- dort
+// ist der Konsistenz-Check (plus alle anderen Kontext-Widersprueche)
+// seither Teil derselben Synthese. Zuverlaessiger als vorher: System-
+// Briefing wird per Auto-Refresh regelmaessig neu generiert, die alte
+// Signal-Engine-Kachel wurde laut Audit 13 Tage lang nicht manuell
+// ausgeloest.
 //
 // Server-only (nutzt Supabase direkt) -- niemals aus einer "use client"
 // Komponente importieren.
@@ -15,12 +26,12 @@
 import { supabase } from "./supabase";
 import { buildSignalEngineContext, type SignalEngineContext } from "./signalEngineContext";
 import { buildDivergenceRadar, type DivergenceRadarResult } from "./divergenceRadarContext";
-import type { SignalEngineSnapshot, EscalationTriggerRecord } from "./types";
+import type { EscalationTriggerRecord, SystemBriefingSnapshot } from "./types";
 
 // Reports laufen zeitgesteuert (pg_cron) und ein manuell generierter
-// Signal-Engine-Snapshot kann Stunden alt sein -- ohne Frische-Grenze
-// wuerde ein einmal aufgetretener, laengst ueberholter Widerspruch die
-// Eskalation dauerhaft "aktiv" halten.
+// Snapshot kann Stunden alt sein -- ohne Frische-Grenze wuerde ein einmal
+// aufgetretener, laengst ueberholter Widerspruch die Eskalation dauerhaft
+// "aktiv" halten.
 const TRIGGER_FRESHNESS_HOURS = 24;
 
 const DIVERGENCE_RADAR_LABELS: Partial<Record<keyof DivergenceRadarResult, string>> = {
@@ -38,15 +49,15 @@ function isFresh(iso: string): boolean {
   return ageMs <= TRIGGER_FRESHNESS_HOURS * 60 * 60 * 1000;
 }
 
-async function getLatestSignalEngineSnapshot(): Promise<SignalEngineSnapshot | null> {
+async function getLatestSystemBriefing(): Promise<SystemBriefingSnapshot | null> {
   const { data, error } = await supabase
-    .from("signal_engine_snapshots")
+    .from("system_briefings")
     .select("*")
     .order("generated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (error) {
-    console.error("escalationContext: Fehler bei signal_engine_snapshots:", error.message);
+    console.error("escalationContext: Fehler bei system_briefings:", error.message);
     return null;
   }
   return data;
@@ -79,8 +90,8 @@ async function getLatestMasterReportRun(): Promise<MasterReportRow | null> {
  * also nichts. Leeres Array = keine Eskalation gerechtfertigt.
  */
 export async function detectEscalationTriggers(): Promise<EscalationTrigger[]> {
-  const [signalEngineRow, radar, masterRun] = await Promise.all([
-    getLatestSignalEngineSnapshot(),
+  const [briefing, radar, masterRun] = await Promise.all([
+    getLatestSystemBriefing(),
     buildDivergenceRadar(),
     getLatestMasterReportRun(),
   ]);
@@ -88,14 +99,14 @@ export async function detectEscalationTriggers(): Promise<EscalationTrigger[]> {
   const triggers: EscalationTrigger[] = [];
 
   if (
-    signalEngineRow?.status === "ok" &&
-    signalEngineRow.result?.isConsistent === false &&
-    isFresh(signalEngineRow.generated_at)
+    briefing?.status === "ok" &&
+    !!briefing.result?.kontextCheck &&
+    isFresh(briefing.generated_at)
   ) {
     triggers.push({
-      source: "signal-engine",
-      label: "Signal-Engine meldet einen Widerspruch in der Gesamteinschaetzung",
-      detail: signalEngineRow.result.concerns,
+      source: "system-briefing",
+      label: "System-Briefing meldet einen Widerspruch (Kontext-Check)",
+      detail: [briefing.result.kontextCheck],
     });
   }
 
