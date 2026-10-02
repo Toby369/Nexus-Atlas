@@ -24,6 +24,7 @@ import {
 } from "@/lib/marketRegime";
 import { getSalomonInterpretation } from "@/lib/salomonInterpretation";
 import { detectMomentumDivergence } from "@/lib/momentumDivergence";
+import { computeSystemBriefingVsStateDivergence } from "@/lib/divergenceRadar";
 import {
   regimeDirection,
   spotPressureDirection,
@@ -70,6 +71,7 @@ function formatSignedPct(value: number | null) {
 // Kuerzung eines langen Fliesstexts mehr noetig.
 const SHORT_NARRATIVE_INFO_TEXT = [
   "Was das ist: das Fazit der System-Briefing-Einordnung (Regelwerk + Nexus-Faktoren) als schneller Überblick direkt hier oben -- dieselbe Analyse wie unten in der System-Briefing-Kachel, nicht extra generiert.",
+  "Andere Engine als das grosse Badge oben: das Badge ist die regelbasierte 14-Faktoren-Gesamteinschätzung, diese Box wendet dein eigenes Regelwerk (Welz/Salomon/\"Mein Trading System\") AUF diese Einschätzung an -- beide können unterschiedlicher Meinung sein. Weicht der aktuelle Stand tatsächlich ab, erscheint hier ein Warnhinweis (⚠) statt zwei stillschweigend widersprüchlichen Badges.",
   `Automatische Aktualisierung: ist der zuletzt generierte Stand älter als ${NARRATIVE_AUTO_REFRESH_HOURS} Std., löst diese Kachel automatisch EINEN neuen System-Briefing-Aufruf aus (kostenloses Gratis-Tier, wie jede andere KI-Kachel) -- bis dahin wird kein veralteter Text angezeigt. Ein manueller Klick auf "Neu generieren" auf der System-Briefing-Kachel (Tab "KI-Einschätzungen") funktioniert weiterhin unabhängig davon.`,
   "Wichtig: Preis-/EMA-/sonstige Zahlen IM TEXT sind der Stand zum Generierungszeitpunkt (siehe Zeitstempel darunter), keine Live-Werte. Für den Live-Preis immer die BTC-Preis-Kachel nutzen.",
 ].join("\n\n");
@@ -95,6 +97,20 @@ function formatUsdM(value: number) {
 // Muster, Risk-Faktoren, 14-Faktoren-Aufklapper) -- kein Datenverlust,
 // keine Kachel weniger nur aus Marketing-Gruenden, sondern weil es
 // tatsaechlich derselbe Rechenweg war.
+//
+// 02.10.2026 -- Nutzer-Feedback "verstaendlicher, klarer, strukturierter":
+// (1) MTF-Alignment-% (nur 1H/4H/1D) entfernt -- live nachgewiesen, dass sie
+// einen echten 15M-Gegentrend verdecken konnte (100% Alignment trotz
+// bestaetigt baerischem 15M, weil die Prozentzahl 15M/1W gar nicht erfasst);
+// die MTF-Ampel (5 Zeitrahmen, mit ADX-Nuance) bleibt alleinige Quelle. (2)
+// "Kurze Einordnung" (System-Briefing) jetzt als eigener, umrandeter Block
+// mit explizitem Hinweis "andere Engine" + automatischer Divergenz-Warnung
+// (briefingDivergence), statt stillschweigend ein zweites, potenziell
+// widerspruechliches Bullisch/Baerisch-Badge unter dem oberen zu zeigen. (3)
+// Die Confidence-/Risk-Detailzeile in "Datenqualitaet" vs. "Marktlage"
+// gruppiert statt einer flachen 5-6-Werte-Zeile. (4) Die vormals separat
+// schwebende "X von Y Signalen bestaetigen"-Zeile ist jetzt Teil von
+// StatusLineSummary selbst (✓/✗ direkt an der jeweiligen Zeile, siehe dort).
 
 const MARKET_STATE_REFRESH_MS = 60_000;
 // Regime aendert sich hoechstens stuendlich (1H-Kerzen-Raster, siehe
@@ -462,6 +478,16 @@ export default function HeroHeader({
     { name: "Spot Pressure", direction: spotPressureDirection(spotVerdict.verdict) },
   ];
   const confirmation = summarizeConfirmation(state.overall_state, state.confidence, signals);
+  // Siehe StatusLineSummary.tsx: true/false markiert die beiden Zeilen, die
+  // tatsaechlich Teil der Vergleichslogik oben sind (Marktphase, Spot
+  // Pressure) -- die uebrigen Status-Zeilen bleiben unmarkiert (undefined),
+  // da sie nie Teil von `signals` waren.
+  function confirmsFor(signalName: string): boolean | undefined {
+    if (!confirmation.primaryDirection) return undefined;
+    if (confirmation.confirming.includes(signalName)) return true;
+    if (confirmation.contradicting.includes(signalName)) return false;
+    return undefined;
+  }
 
   // Ebene-0-Statuszeilen: eine Zeile je Sparte mit ihrem eigenen, bereits
   // vorhandenen Wert + Pfeil (siehe lib/heroSummary.ts fuer die 4-Zustands-
@@ -498,12 +524,14 @@ export default function HeroHeader({
       label: "Marktphase",
       valueText: regimeLabelText,
       arrow: regimeArrowDirection(regime, regimeSuppressed),
+      confirms: confirmsFor("Marktphase"),
     },
     {
       key: "spot-pressure",
       label: "Spot Pressure",
       valueText: spotVerdict.label,
       arrow: spotPressureArrowDirection(spotVerdict.verdict),
+      confirms: confirmsFor("Spot Pressure"),
     },
     {
       key: "live-price",
@@ -527,6 +555,18 @@ export default function HeroHeader({
   const confidenceBreakdown = computeConfidenceBreakdown(state);
   const salomonInterpretation = getSalomonInterpretation(patterns, mtf);
   const momentumDivergence = detectMomentumDivergence(state);
+  // Zwei-Engines-Trennung (Nutzer-Feedback: Kopf-Kachel "verstaendlicher,
+  // klarer, strukturierter" -- das Bullisch/Baerisch-Badge oben (14-
+  // Faktoren-Engine) und das Fazit unten in "Kurze Einordnung" (System-
+  // Briefing, wendet Tobys eigenes Regelwerk an) sind ZWEI unabhaengige
+  // Einschaetzungen, die bisher ohne jede Kennzeichnung als Widerspruch
+  // untereinander standen. Gleiche Berechnung wie Divergenz-Radar
+  // (systemBriefingVsState), hier direkt aus den ohnehin schon geladenen
+  // state/narrativeSnapshot-Werten, kein zusaetzlicher Fetch.
+  const briefingDivergence = computeSystemBriefingVsStateDivergence(
+    narrativeSnapshot?.result?.fazit?.bias,
+    state.overall_state
+  );
 
   return (
     <section className="rounded-lg border border-accent/40 bg-surface-raised p-6 space-y-3">
@@ -563,17 +603,14 @@ export default function HeroHeader({
 
       <TradingHoursBadge events={upcomingEconomicEvents} />
 
-      {confirmation.primaryDirection && confirmation.totalComparable > 0 && (
-        <p className="text-xs text-text-faint pt-2 border-t border-border/60">
-          {confirmation.confirmingCount} von {confirmation.totalComparable} unabhängigen
-          Signalen bestätigen
-          {confirmation.confirming.length > 0 && ` (${confirmation.confirming.join(", ")})`}
-          {confirmation.contradicting.length > 0 &&
-            ` · widerspricht: ${confirmation.contradicting.join(", ")}`}
-        </p>
-      )}
-
-      <StatusLineSummary items={statusLines} />
+      <StatusLineSummary
+        items={statusLines}
+        heading={
+          confirmation.primaryDirection && confirmation.totalComparable > 0
+            ? `${confirmation.confirmingCount} von ${confirmation.totalComparable} unabhängigen Signalen bestätigen (✓/✗ unten)`
+            : undefined
+        }
+      />
 
       {/* Gesamteinschaetzung-spezifisches Detail (vormals eigene
           MarketStateCard) -- Fortsetzung derselben Box statt zweiter
@@ -592,37 +629,35 @@ export default function HeroHeader({
           <PanelInfo title="Gesamteinschätzung" content={marketStateInfo} />
         </div>
 
-        <div className="flex gap-4 text-xs text-text-faint flex-wrap">
-          <span>Verlässlichkeit: {Math.round(state.confidence)}/100</span>
-          <span>Datenabdeckung: {Math.round(state.data_coverage_pct)}%</span>
-          <span>Signal-Stärke: {Math.round(confidenceBreakdown.signalStrengthPct)}%</span>
-          <span>
-            Konsens:{" "}
-            {confidenceBreakdown.consensusPct !== null
-              ? `${Math.round(confidenceBreakdown.consensusPct)}%`
-              : "—"}
-          </span>
+        <div className="space-y-1.5 text-xs text-text-faint">
+          <div className="flex gap-x-4 gap-y-1 flex-wrap items-baseline">
+            <span className="text-[10px] uppercase tracking-[0.1em] text-text-faint/70 w-full">
+              Datenqualität
+            </span>
+            <span>Verlässlichkeit: {Math.round(state.confidence)}/100</span>
+            <span>Datenabdeckung: {Math.round(state.data_coverage_pct)}%</span>
+            <span>Signal-Stärke: {Math.round(confidenceBreakdown.signalStrengthPct)}%</span>
+            <span>
+              Konsens:{" "}
+              {confidenceBreakdown.consensusPct !== null
+                ? `${Math.round(confidenceBreakdown.consensusPct)}%`
+                : "—"}
+            </span>
+          </div>
           {state.risk_level && (
-            <span>
-              Risk: <span className={riskColor(state.risk_level)}>{RISK_LABELS[state.risk_level] ?? state.risk_level}</span>
-            </span>
-          )}
-          {mtf && (
-            <span>
-              MTF-Alignment: {mtf.alignment_pct}%{" "}
-              (
-              {mtf.dominant_direction === "bullish"
-                ? "bullisch"
-                : mtf.dominant_direction === "bearish"
-                ? "bärisch"
-                : "range-gebunden"}
-              )
-            </span>
+            <div className="flex gap-x-4 gap-y-1 flex-wrap items-baseline">
+              <span className="text-[10px] uppercase tracking-[0.1em] text-text-faint/70 w-full">
+                Marktlage
+              </span>
+              <span>
+                Risk: <span className={riskColor(state.risk_level)}>{RISK_LABELS[state.risk_level] ?? state.risk_level}</span>
+              </span>
+            </div>
           )}
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs text-text-faint">MTF-Ampel:</span>
+          <span className="text-xs text-text-faint">MTF-Ampel (15M-1W):</span>
           <MtfDotsRow dots={mtfDots} />
         </div>
 
@@ -729,11 +764,20 @@ export default function HeroHeader({
             System-Briefing-Snapshot aus (siehe Effect oben) statt weiter
             veralteten Text zu zeigen oder auf einen manuellen Klick im
             System-Briefing-Tab zu warten. */}
-        <div className="pt-2 border-t border-border/60 space-y-1.5">
-          <span className="flex items-center gap-1.5">
+        <div className="mt-1 rounded-md border border-accent/25 bg-accent/[0.04] p-3 space-y-1.5">
+          <span className="flex items-center gap-1.5 flex-wrap">
             <p className="text-xs uppercase tracking-[0.15em] text-text-muted">Kurze Einordnung</p>
+            <span className="text-[10px] text-text-faint border border-border rounded px-1">
+              dein Regelwerk, andere Engine
+            </span>
             <PanelInfo title="Kurze Einordnung" content={SHORT_NARRATIVE_INFO_TEXT} />
           </span>
+          {briefingDivergence === "DIVERGENCE" && (
+            <p className="text-xs text-down flex items-center gap-1">
+              ⚠ Weicht von der Gesamteinschätzung oben ab (14-Faktoren-Engine vs. dein Regelwerk) —
+              einen echten Widerspruch, keinen Darstellungsfehler.
+            </p>
+          )}
           {!narrativeSnapshot?.result?.fazit?.kernaussage ? (
             <p className="text-xs text-text-faint">
               Noch keine Einordnung generiert — siehe System-Briefing (Tab &quot;KI-Einschätzungen&quot;).
