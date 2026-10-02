@@ -1,12 +1,46 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { getTimeframe, type TimeframeId } from "@/lib/timeframes";
 import { deriveMarketContext } from "@/lib/marketContext";
 import { classifySpotPressure } from "@/lib/spotPressure";
 import PanelInfo from "@/components/PanelInfo";
-import { marktkontextInfo, spotPressureInfo } from "@/lib/panelInfo";
+import { marktkontextInfo, spotPressureInfo, spotVolumeProfileInfo } from "@/lib/panelInfo";
 import { useDashboardPoll } from "@/components/DashboardPollProvider";
 import SpotPressureChart from "@/components/SpotPressureChart";
+import SpotVolumeProfileChart, { type SpotVolumeBucket } from "@/components/SpotVolumeProfileChart";
+import { supabase } from "@/lib/supabase";
+
+// Preis-Bucket-Breite fuer das Spot-Volumen-Profil -- dieselbe Breite wie
+// bei den Key Levels/Liquidations-Clustern (lib/chartStructureContext.ts,
+// components/LiquidationPanel.tsx), damit "$200-Bucket" ueberall dasselbe
+// bedeutet.
+const SPOT_VOLUME_PRICE_BUCKET_USD = 200;
+const SPOT_VOLUME_REFRESH_MS = 60_000;
+
+// Eigener, kleiner Client-Fetch (wie RegimeMatrixCard/HeroHeader) statt
+// Erweiterung des geteilten DashboardPollProvider-Bundles -- das Profil
+// braucht einen eigenen RPC-Parameter (p_price_bucket_usd), der nicht Teil
+// von get_dashboard_poll_bundle ist, und wird nur hier gebraucht.
+async function fetchSpotVolumeProfile(sinceIso: string): Promise<SpotVolumeBucket[]> {
+  const { data, error } = await supabase.rpc("get_spot_volume_profile", {
+    p_since: sinceIso,
+    p_price_bucket_usd: SPOT_VOLUME_PRICE_BUCKET_USD,
+  });
+  if (error) {
+    console.error("MarketContextCard: Fehler bei get_spot_volume_profile:", error.message);
+    return [];
+  }
+  const buckets =
+    ((data as Record<string, unknown> | null)?.price_buckets as
+      | { price_bucket: number; buy_volume: number; sell_volume: number }[]
+      | undefined) ?? [];
+  return buckets.map((b) => ({
+    priceBucket: b.price_bucket,
+    buyVolume: b.buy_volume,
+    sellVolume: b.sell_volume,
+  }));
+}
 
 function formatSignedPct(value: number | null) {
   if (value === null || Number.isNaN(value)) return "—";
@@ -35,6 +69,21 @@ export default function MarketContextCard({
   // PositioningPanel.
   const { bundle, fetchedSinceIso, fetchedAtMs, isLoading } = useDashboardPoll();
   const tf = getTimeframe(timeframe);
+
+  const [spotVolumeBuckets, setSpotVolumeBuckets] = useState<SpotVolumeBucket[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const buckets = await fetchSpotVolumeProfile(fetchedSinceIso);
+      if (!cancelled) setSpotVolumeBuckets(buckets);
+    }
+    load();
+    const interval = setInterval(load, SPOT_VOLUME_REFRESH_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [fetchedSinceIso]);
 
   const {
     result,
@@ -224,6 +273,16 @@ export default function MarketContextCard({
                 ) : (
                   <SpotPressureChart data={spotSeries} />
                 )}
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-border">
+                <span className="flex items-center gap-1.5 mb-2">
+                  <span className="text-[11px] uppercase tracking-[0.12em] text-text-faint">
+                    Spot-Volumen-Profil · {tf.label}
+                  </span>
+                  <PanelInfo title="Spot-Volumen-Profil" content={spotVolumeProfileInfo(tf.label)} />
+                </span>
+                <SpotVolumeProfileChart buckets={spotVolumeBuckets} />
               </div>
             </>
           )}

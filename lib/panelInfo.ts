@@ -50,6 +50,19 @@ export function spotPressureInfo(tfLabel: string): string {
 So entsteht der Wert: Datenbasis ist ausschliesslich Binance Spot BTC/USDT im 5-Minuten-Takt über ${tfLabel} – die einzige öffentliche Route mit echtem Taker-Buy/Sell-Split, keine Schätzung. Berechnet wird (Taker-Kaufvolumen − Taker-Verkaufsvolumen) / Gesamtvolumen über alle Kerzen im Fenster; ab ±5 % gilt BUYING bzw. SELLING PRESSURE, sonst NEUTRAL.`;
 }
 
+// Spot-Volumen-Profil (02.10.2026, Nutzer-Wunsch: "spot Volumen möchte ich
+// bei spot pressure angezeigt haben") -- nutzt dieselbe get_spot_volume_
+// profile-RPC wie die Key Levels in der Struktur-Kachel (lib/
+// chartStructureContext.ts), hier aber als eigene Grafik statt nur als
+// Bestaetigungs-Tag an einzelnen Levels. Anders als der Chart direkt
+// darueber (zeitlicher Verlauf, WANN gekauft/verkauft wurde) zeigt dieses
+// Profil, BEI WELCHEM PREIS gekauft/verkauft wurde.
+export function spotVolumeProfileInfo(tfLabel: string): string {
+  return `So liest du das: Je Preis-Bucket ($200-Schritte) ein grüner Balken nach rechts (Kaufvolumen) und ein roter Balken nach links (Verkaufsvolumen) -- gespiegelt an der Nulllinie, wie ein klassisches Volume Profile. Ein Bucket mit deutlich mehr Kauf- als Verkaufsvolumen ist ein Hinweis auf eine mögliche Unterstützung (dort wurde bereits aktiv gekauft), deutlich mehr Verkaufsvolumen auf einen möglichen Widerstand (dort wurde bereits aktiv verkauft) -- eine Beobachtungshilfe, kein geprüftes/validiertes Signal und keine Anlageberatung.
+
+So entsteht der Wert: Binance Spot BTC/USDT Aggregated-Trades (echte Taker-Buy/Sell-Klassifikation, keine Schätzung), lückenlos per Cursor erfasst (alle 5 Minuten) und direkt beim Erfassen in $200-Preis-Buckets aggregiert. Zeitraum: derselbe ${tfLabel}, der oben im Dashboard gewählt ist. Dieselben Preis-Buckets fliessen auch als Bestätigung in die Key Levels der Struktur-Kachel ein (Tab "Tools & Lernen" → Lernen → Mein System).`;
+}
+
 // positioningRatiosInfo/takerFlowInfo/positioningAssessmentInfo (PanelInfo-
 // Texte der ehemaligen "Positionierung"-Kachel) entfernt 21.09.2026 mit
 // components/PositioningPanel.tsx -- der zugrundeliegende Faktor bleibt Teil
