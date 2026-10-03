@@ -151,16 +151,28 @@ const RISK_FACTOR_LABELS: Record<string, string> = {
   elevated_volatility: "erhöhte Volatilität",
 };
 
+// 02.10.2026 -- Nutzer-Feedback: "warnmuster: soll zusaetzlich angezeigt
+// werden welches." Vorher bewusst ein Meta-Signal-Badge ohne Namen (siehe
+// Git-Historie) -- WELCHES der Muster vorliegt stand nur in den separaten
+// Pattern-Badges darueber, Nutzer musste beide Badge-Reihen gedanklich
+// verknuepfen. Jetzt steht der/die Mustername(n) direkt im Badge-Text
+// selbst, aus demselben state.patterns, das die Pattern-Badges oben schon
+// anzeigen -- keine neue Datenquelle.
+function riskFactorLabel(factor: string, patterns: { name: string }[]): string {
+  if (factor === "warning_pattern" && patterns.length > 0) {
+    return `Warn-Muster: ${patterns.map((p) => p.name).join(", ")}`;
+  }
+  return RISK_FACTOR_LABELS[factor] ?? factor;
+}
+
 // Erklaerungstext je Risk-Factor (Nutzer-Feedback: "warn-muster erkannt:
 // kann das erklaert werden? idee: wenn ich es druecke kommt erklaerung").
 // Feste, allgemeine Erklaerung je Faktor-TYP (nicht pro Vorkommnis) --
 // dieselben fuenf Schwellenwerte/Bedingungen wie in compute-market-state
-// (Risk-Abschnitt), hier nur in Textform uebersetzt. warning_pattern ist
-// bewusst ein Meta-Signal: WELCHES der vier Muster genau vorliegt, steht
-// bereits in den Pattern-Badges darueber (eigener Hover-Tooltip je Muster).
+// (Risk-Abschnitt), hier nur in Textform uebersetzt.
 const RISK_FACTOR_EXPLANATIONS: Record<string, string> = {
   warning_pattern:
-    "Mindestens eines von vier Warn-Mustern wurde erkannt: „Fragile Bullish“ (Struktur bullisch, aber Orderflow bestätigt nicht), „Distribution Warning“ (Preis nahe 20-Perioden-Hoch, aber fallender Orderflow), „Capitulation“ (RSI überverkauft + fallender Orderflow + überdurchschnittliche Liquidationen) oder „Short Squeeze“ (Positionierungs-Divergenz deutet auf Squeeze-Setup). Welches genau aktiv ist, zeigen die Muster-Badges oben — Ⓘ dort antippen für Details.",
+    "Mindestens eines von vier Warn-Mustern wurde erkannt: „Fragile Bullish“ (Struktur bullisch, aber Orderflow bestätigt nicht), „Distribution Warning“ (Preis nahe 20-Perioden-Hoch, aber fallender Orderflow), „Capitulation“ (RSI überverkauft + fallender Orderflow + überdurchschnittliche Liquidationen) oder „Short Squeeze“ (Positionierungs-Divergenz deutet auf Squeeze-Setup). Das aktive Muster steht bereits im Badge-Text oben — die Pattern-Badges weiter oben (Ⓘ antippen) liefern die vollständige Begründung dazu.",
   low_mtf_alignment:
     "Die Struktur über die drei Zeitrahmen 1H/4H/1D stimmt aktuell zu weniger als 60% (gewichtet) überein — die Zeitrahmen sind sich uneins, was die Gefahr einer plötzlichen Umkehr oder von Chop (richtungslosem Hin-und-Her) erhöht.",
   funding_crowding:
@@ -697,7 +709,7 @@ export default function HeroHeader({
                       : "border-down/30 text-down/90 hover:border-down/50"
                   }`}
                 >
-                  {RISK_FACTOR_LABELS[f] ?? f}
+                  {riskFactorLabel(f, patterns)}
                 </button>
               ))}
             </div>
