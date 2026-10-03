@@ -45,6 +45,7 @@ import {
 import StatusLineSummary, { type StatusLineItem } from "@/components/StatusLineSummary";
 import TradingHoursBadge from "@/components/TradingHoursBadge";
 import EconomicHeroBadge from "@/components/EconomicHeroBadge";
+import MasterReportHeroCard from "@/components/MasterReportHeroCard";
 import PanelInfo from "@/components/PanelInfo";
 import { marketStateInfo, MARKET_STATE_FACTOR_INFO, momentumDivergenceInfo } from "@/lib/panelInfo";
 import { fetchMtfDots, type MtfTimeframeDot } from "@/lib/mtfSignal";
@@ -894,6 +895,8 @@ export default function HeroHeader({
             </>
           ) : null}
         </div>
+
+        <MasterReportHeroCard />
       </div>
     </section>
   );
