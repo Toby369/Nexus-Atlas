@@ -158,9 +158,40 @@ const RISK_FACTOR_LABELS: Record<string, string> = {
 // verknuepfen. Jetzt steht der/die Mustername(n) direkt im Badge-Text
 // selbst, aus demselben state.patterns, das die Pattern-Badges oben schon
 // anzeigen -- keine neue Datenquelle.
+//
+// Nachtrag (gleicher Tag) -- Nutzer-Wunsch "inkl deren Richtung, im
+// gleichen Badge": compute-market-state (Edge Function) speichert selbst
+// keine Richtung je Pattern, nur name+note -- hier dieselbe geschlossene
+// Namensmenge wie RISK_ELEVATING_PATTERNS dort dupliziert (gleiches
+// Duplizierungs-Muster wie bei anderen Edge-Function-Konstanten im
+// Next.js-Repo, siehe z.B. send-state-change-push). Richtung = wohin das
+// Muster deutet, nicht die reine Namens-Herkunft: "Fragile Bullish"/
+// "Distribution Warning" warnen TROTZ bullischer Oberflaeche vor
+// baerischer Schwaeche/Umkehr, "Capitulation" beschreibt eine laufende
+// baerische Erschoepfung (keine erfundene Boden-Prognose), "Short Squeeze"
+// deutet auf einen bullischen Squeeze nach oben.
+const PATTERN_DIRECTION: Record<string, "bullish" | "bearish"> = {
+  "Bullish Confirmation": "bullish",
+  "Fragile Bullish": "bearish",
+  "Distribution Warning": "bearish",
+  Capitulation: "bearish",
+  "Short Squeeze": "bullish",
+};
+
+const PATTERN_DIRECTION_LABEL: Record<"bullish" | "bearish", string> = {
+  bullish: "bullisch",
+  bearish: "bärisch",
+};
+
 function riskFactorLabel(factor: string, patterns: { name: string }[]): string {
   if (factor === "warning_pattern" && patterns.length > 0) {
-    return `Warn-Muster: ${patterns.map((p) => p.name).join(", ")}`;
+    const named = patterns
+      .map((p) => {
+        const direction = PATTERN_DIRECTION[p.name];
+        return direction ? `${p.name} (${PATTERN_DIRECTION_LABEL[direction]})` : p.name;
+      })
+      .join(", ");
+    return `Warn-Muster: ${named}`;
   }
   return RISK_FACTOR_LABELS[factor] ?? factor;
 }
@@ -172,7 +203,7 @@ function riskFactorLabel(factor: string, patterns: { name: string }[]): string {
 // (Risk-Abschnitt), hier nur in Textform uebersetzt.
 const RISK_FACTOR_EXPLANATIONS: Record<string, string> = {
   warning_pattern:
-    "Mindestens eines von vier Warn-Mustern wurde erkannt: „Fragile Bullish“ (Struktur bullisch, aber Orderflow bestätigt nicht), „Distribution Warning“ (Preis nahe 20-Perioden-Hoch, aber fallender Orderflow), „Capitulation“ (RSI überverkauft + fallender Orderflow + überdurchschnittliche Liquidationen) oder „Short Squeeze“ (Positionierungs-Divergenz deutet auf Squeeze-Setup). Das aktive Muster steht bereits im Badge-Text oben — die Pattern-Badges weiter oben (Ⓘ antippen) liefern die vollständige Begründung dazu.",
+    "Mindestens eines von vier Warn-Mustern wurde erkannt: „Fragile Bullish“ — bärisch (Struktur bullisch, aber Orderflow bestätigt nicht), „Distribution Warning“ — bärisch (Preis nahe 20-Perioden-Hoch, aber fallender Orderflow), „Capitulation“ — bärisch (RSI überverkauft + fallender Orderflow + überdurchschnittliche Liquidationen) oder „Short Squeeze“ — bullisch (Positionierungs-Divergenz deutet auf Squeeze-Setup). Muster und Richtung stehen bereits im Badge-Text oben — die Pattern-Badges weiter oben (Ⓘ antippen) liefern die vollständige Begründung dazu.",
   low_mtf_alignment:
     "Die Struktur über die drei Zeitrahmen 1H/4H/1D stimmt aktuell zu weniger als 60% (gewichtet) überein — die Zeitrahmen sind sich uneins, was die Gefahr einer plötzlichen Umkehr oder von Chop (richtungslosem Hin-und-Her) erhöht.",
   funding_crowding:
