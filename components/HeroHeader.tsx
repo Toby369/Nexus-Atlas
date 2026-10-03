@@ -170,6 +170,14 @@ const RISK_FACTOR_LABELS: Record<string, string> = {
 // baerischer Schwaeche/Umkehr, "Capitulation" beschreibt eine laufende
 // baerische Erschoepfung (keine erfundene Boden-Prognose), "Short Squeeze"
 // deutet auf einen bullischen Squeeze nach oben.
+//
+// Zweiter Nachtrag (gleicher Tag, Nutzer-Frage "warnmuster nun doppelt
+// angezeigt?"): ja, war es -- die obere Pattern-Badge-Reihe zeigte denselben
+// Namen nochmal neben dem jetzt bereits vollstaendigen Warn-Muster-Badge.
+// Siehe RISK_ELEVATING_PATTERN_NAMES unten: diese Namen werden aus der
+// oberen Reihe gefiltert, bleiben aber (inkl. Begruendung) vollstaendig im
+// Warn-Muster-Badge/dessen Erklaerungstext erhalten -- kein Informations-
+// verlust, nur keine doppelte Darstellung mehr.
 const PATTERN_DIRECTION: Record<string, "bullish" | "bearish"> = {
   "Bullish Confirmation": "bullish",
   "Fragile Bullish": "bearish",
@@ -177,6 +185,23 @@ const PATTERN_DIRECTION: Record<string, "bullish" | "bearish"> = {
   Capitulation: "bearish",
   "Short Squeeze": "bullish",
 };
+
+// Dieselbe Namensmenge wie RISK_ELEVATING_PATTERNS in compute-market-state
+// (Edge Function) -- jedes dieser Muster loest dort IMMER den
+// "warning_pattern"-Risk-Factor aus (siehe dortige Zeile "if (patterns.some(
+// p => RISK_ELEVATING_PATTERNS.has(p.name)))"). 02.10.2026, Nutzer-Frage
+// "warnmuster nun doppelt angezeigt?": seit das Warn-Muster-Badge unten
+// Name+Richtung selbst zeigt, waere eine zusaetzliche Pattern-Badge mit
+// demselben Namen oben reine Dopplung -- diese Namen werden deshalb aus der
+// oberen Pattern-Reihe ausgefiltert. "Bullish Confirmation" ist NICHT in
+// dieser Menge und bleibt dadurch weiterhin oben sichtbar (kein Risk-Factor,
+// hat also kein eigenes Badge weiter unten).
+const RISK_ELEVATING_PATTERN_NAMES = new Set([
+  "Fragile Bullish",
+  "Distribution Warning",
+  "Capitulation",
+  "Short Squeeze",
+]);
 
 const PATTERN_DIRECTION_LABEL: Record<"bullish" | "bearish", string> = {
   bullish: "bullisch",
@@ -203,7 +228,7 @@ function riskFactorLabel(factor: string, patterns: { name: string }[]): string {
 // (Risk-Abschnitt), hier nur in Textform uebersetzt.
 const RISK_FACTOR_EXPLANATIONS: Record<string, string> = {
   warning_pattern:
-    "Mindestens eines von vier Warn-Mustern wurde erkannt: „Fragile Bullish“ — bärisch (Struktur bullisch, aber Orderflow bestätigt nicht), „Distribution Warning“ — bärisch (Preis nahe 20-Perioden-Hoch, aber fallender Orderflow), „Capitulation“ — bärisch (RSI überverkauft + fallender Orderflow + überdurchschnittliche Liquidationen) oder „Short Squeeze“ — bullisch (Positionierungs-Divergenz deutet auf Squeeze-Setup). Muster und Richtung stehen bereits im Badge-Text oben — die Pattern-Badges weiter oben (Ⓘ antippen) liefern die vollständige Begründung dazu.",
+    "Mindestens eines von vier Warn-Mustern wurde erkannt: „Fragile Bullish“ — bärisch (Struktur bullisch, aber Orderflow bestätigt nicht), „Distribution Warning“ — bärisch (Preis nahe 20-Perioden-Hoch, aber fallender Orderflow), „Capitulation“ — bärisch (RSI überverkauft + fallender Orderflow + überdurchschnittliche Liquidationen) oder „Short Squeeze“ — bullisch (Positionierungs-Divergenz deutet auf Squeeze-Setup). Muster, Richtung und Begründung stehen bereits hier vollständig beisammen — bewusst keine zusätzliche, inhaltsgleiche Pattern-Badge mehr oben, um dieselbe Information nicht doppelt zu zeigen.",
   low_mtf_alignment:
     "Die Struktur über die drei Zeitrahmen 1H/4H/1D stimmt aktuell zu weniger als 60% (gewichtet) überein — die Zeitrahmen sind sich uneins, was die Gefahr einer plötzlichen Umkehr oder von Chop (richtungslosem Hin-und-Her) erhöht.",
   funding_crowding:
@@ -704,17 +729,19 @@ export default function HeroHeader({
           <MtfDotsRow dots={mtfDots} />
         </div>
 
-        {patterns.length > 0 && (
+        {patterns.filter((p) => !RISK_ELEVATING_PATTERN_NAMES.has(p.name)).length > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {patterns.map((p) => (
-              <span
-                key={p.name}
-                className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border border-accent/30 text-text-muted"
-              >
-                {p.name}
-                <PanelInfo title={p.name} content={p.note} />
-              </span>
-            ))}
+            {patterns
+              .filter((p) => !RISK_ELEVATING_PATTERN_NAMES.has(p.name))
+              .map((p) => (
+                <span
+                  key={p.name}
+                  className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border border-accent/30 text-text-muted"
+                >
+                  {p.name}
+                  <PanelInfo title={p.name} content={p.note} />
+                </span>
+              ))}
           </div>
         )}
 
