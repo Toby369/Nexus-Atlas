@@ -11,11 +11,13 @@ import type { MarketFeaturesMtfRow } from "./types";
 // Status zusammen. Bewusst KEINE neue Berechnung/kein neuer Cron -- reine
 // Anzeige bereits vorhandener market_features-Spalten.
 //
-// 1W ist bewusst immer "no_data": collect-candles sammelt aktuell nur
-// 1m/15m/1h/4h/1d (siehe dortiger INTERVALS-Kommentar) -- keine Wochen-
-// kerzen vorhanden. Eine erfundene 1W-Aussage waere schlimmer als eine
-// ehrliche Luecke (dieselbe Philosophie wie UNRESOLVED_NEUTRAL/
-// INSUFFICIENT_DATA an anderer Stelle im Projekt).
+// 02.10.2026 -- 1W war bis dahin hart codiert immer "no_data" (collect-
+// candles sammelte nur 1m/15m/1h/4h/1d). Nutzer-Frage "mtf ampel 1w wird
+// nicht angezeigt weil nicht vorhanden?" bestaetigt: ja, bewusst leer, aber
+// Nutzer-Entscheidung "ja, umsetzen" -- collect-candles sammelt seither
+// zusaetzlich 1w (Binance Futures Klines, Backfill bis 2019 lief beim
+// ersten Deploy automatisch mit). 1W wird hier jetzt wie jedes andere
+// Intervall behandelt, kein Sonderfall mehr noetig.
 
 export type MtfDotStatus =
   | "bullish_confirmed"
@@ -38,6 +40,7 @@ export const MTF_TIMEFRAMES: { interval: string; label: string }[] = [
   { interval: "1h", label: "1H" },
   { interval: "4h", label: "4H" },
   { interval: "1d", label: "1D" },
+  { interval: "1w", label: "1W" },
 ];
 
 // Dieselbe Wilder-Schwelle wie TREND_EXPANSION_* in classify_market_regime()
@@ -51,6 +54,7 @@ const INTERVAL_MS: Record<string, number> = {
   "1h": 60 * 60 * 1000,
   "4h": 4 * 60 * 60 * 1000,
   "1d": 24 * 60 * 60 * 1000,
+  "1w": 7 * 24 * 60 * 60 * 1000,
 };
 
 // Wie lange eine Kerze nach ihrem Schluss noch als "aktuell" gilt -- 2x
@@ -104,13 +108,7 @@ export function classifyMtfDot(timeframeLabel: string, row: MarketFeaturesMtfRow
 // server- oder client-seitigen Supabase-Read, siehe getLatestMtfDots()
 // (app/page.tsx) bzw. fetchMtfDots() (components/RegimeMatrixCard.tsx).
 export function buildMtfDots(rowsByInterval: Record<string, MarketFeaturesMtfRow | null>): MtfTimeframeDot[] {
-  const dots = MTF_TIMEFRAMES.map((tf) => classifyMtfDot(tf.label, rowsByInterval[tf.interval] ?? null));
-  dots.push({
-    timeframe: "1W",
-    status: "no_data",
-    detail: "1W: Wochenkerzen werden aktuell nicht erfasst",
-  });
-  return dots;
+  return MTF_TIMEFRAMES.map((tf) => classifyMtfDot(tf.label, rowsByInterval[tf.interval] ?? null));
 }
 
 export const MTF_DOT_COLOR_CLASSES: Record<MtfDotStatus, string> = {

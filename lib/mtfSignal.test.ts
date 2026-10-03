@@ -78,10 +78,15 @@ describe("buildMtfDots", () => {
     expect(dots.map((d) => d.timeframe)).toEqual(["15M", "1H", "4H", "1D", "1W"]);
   });
 
-  it("1W ist immer no_data, unabhängig von den übergebenen Zeilen", () => {
-    const dots = buildMtfDots({ "1w": row({ interval: "1w", structure_trend: "bullish", adx_14: 30 }) });
+  it("1W wird seit 02.10.2026 wie jeder andere Zeitrahmen anhand der uebergebenen Zeile klassifiziert", () => {
+    // candle_open_time 8 Tage in der Vergangenheit -> Schlusszeit (open + 7
+    // Tage) liegt 1 Tag zurueck, innerhalb der 1W-Frische-Toleranz.
+    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
+    const dots = buildMtfDots({
+      "1w": row({ interval: "1w", candle_open_time: eightDaysAgo, structure_trend: "bullish", adx_14: 30 }),
+    });
     const w = dots.find((d) => d.timeframe === "1W");
-    expect(w?.status).toBe("no_data");
+    expect(w?.status).toBe("bullish_confirmed");
   });
 
   it("übernimmt fehlende Zeitrahmen als no_data statt zu werfen", () => {
@@ -91,9 +96,10 @@ describe("buildMtfDots", () => {
     expect(statuses["1H"]).toBe("bearish_confirmed");
     expect(statuses["4H"]).toBe("no_data");
     expect(statuses["1D"]).toBe("no_data");
+    expect(statuses["1W"]).toBe("no_data");
   });
 
-  it("MTF_TIMEFRAMES deckt genau die vier von collect-candles gepflegten Intervalle ab", () => {
-    expect(MTF_TIMEFRAMES.map((t) => t.interval)).toEqual(["15m", "1h", "4h", "1d"]);
+  it("MTF_TIMEFRAMES deckt genau die fuenf von collect-candles gepflegten Intervalle ab", () => {
+    expect(MTF_TIMEFRAMES.map((t) => t.interval)).toEqual(["15m", "1h", "4h", "1d", "1w"]);
   });
 });

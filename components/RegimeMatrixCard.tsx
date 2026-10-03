@@ -135,7 +135,7 @@ export default function RegimeMatrixCard({
   initialMatrix: MarketStateMatrix | null;
   // MTF-Ampel (22.09.2026, siehe lib/mtfSignal.ts) -- unabhaengig von
   // initialMatrix (das ist ausschliesslich die 1H-Regime-Engine), deckt
-  // 15M/1H/4H/1D ab (1W immer "keine Daten", siehe buildMtfDots()).
+  // 15M/1H/4H/1D/1W ab (seit 02.10.2026 inkl. 1W, siehe buildMtfDots()).
   initialMtfDots: MtfTimeframeDot[];
   // Kurzfristiger Seitwaerts-Check (20.09.2026, siehe fetchShortTermRangeCheck
   // oben) -- unabhaengig von initialMatrix, kann null sein (z.B. zu wenig
