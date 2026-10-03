@@ -44,6 +44,7 @@ import {
 } from "@/components/ClientTimestamp";
 import StatusLineSummary, { type StatusLineItem } from "@/components/StatusLineSummary";
 import TradingHoursBadge from "@/components/TradingHoursBadge";
+import EconomicHeroBadge from "@/components/EconomicHeroBadge";
 import PanelInfo from "@/components/PanelInfo";
 import { marketStateInfo, MARKET_STATE_FACTOR_INFO, momentumDivergenceInfo } from "@/lib/panelInfo";
 import { fetchMtfDots, type MtfTimeframeDot } from "@/lib/mtfSignal";
@@ -670,6 +671,7 @@ export default function HeroHeader({
       </p>
 
       <TradingHoursBadge events={upcomingEconomicEvents} />
+      <EconomicHeroBadge events={upcomingEconomicEvents} />
 
       <StatusLineSummary
         items={statusLines}

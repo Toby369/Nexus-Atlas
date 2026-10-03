@@ -95,6 +95,37 @@ export function DaysUntil({
   return <span className={className}>{text ?? iso}</span>;
 }
 
+// Feingranularer Countdown in Std/Min (z.B. "in 1Std 15Min") -- anders als
+// formatDaysUntil() oben (Tages-Granularitaet, fuer Kalendertermine wie den
+// Wirtschaftskalender) braucht die Head-Kachel (Nutzer-Wunsch 03.10.2026,
+// "aktuellste bevorstehende daten sollen in head kachel erscheinen")
+// Stunden/Minuten-Genauigkeit, da der 60-/15-Minuten-Vorwarnbereich sonst
+// nicht sichtbar waere.
+export function formatCountdown(targetMs: number, nowMs: number): string {
+  const diffMs = targetMs - nowMs;
+  if (diffMs <= 0) return "jetzt";
+  const totalMin = Math.round(diffMs / 60_000);
+  const days = Math.floor(totalMin / (24 * 60));
+  const hours = Math.floor((totalMin % (24 * 60)) / 60);
+  const minutes = totalMin % 60;
+  if (days > 0) return `in ${days}T ${hours}Std`;
+  if (hours > 0) return `in ${hours}Std ${minutes}Min`;
+  return `in ${minutes}Min`;
+}
+
+export function CountdownTime({ targetMs, className }: { targetMs: number; className?: string }) {
+  const [text, setText] = useState<string | null>(null);
+
+  useEffect(() => {
+    const update = () => setText(formatCountdown(targetMs, Date.now()));
+    update();
+    const interval = setInterval(update, RELATIVE_REFRESH_MS);
+    return () => clearInterval(interval);
+  }, [targetMs]);
+
+  return <span className={className}>{text ?? "…"}</span>;
+}
+
 // Kurzes Datum (z.B. "28. Aug.") -- gleiche Hydration-Problematik wie
 // ClockTime (toLocaleDateString ohne explizite Zeitzone haengt vom
 // Laufzeit-Standort ab), gleiche Loesung.

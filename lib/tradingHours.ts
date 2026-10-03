@@ -132,8 +132,14 @@ export interface TradingHoursState {
   tradeable: boolean;
 }
 
-/** Wanduhrzeit `HH:mm` an `dateStr` (`YYYY-MM-DD`) in `zone` -> UTC-Millisekunden. */
-function zonedWallTimeToUtc(dateStr: string, hhmm: string, zone: string): number {
+/** Wanduhrzeit `HH:mm` an `dateStr` (`YYYY-MM-DD`) in `zone` -> UTC-Millisekunden.
+ *  Exportiert (Nutzer-Wunsch 03.10.2026, Head-Kachel zeigt den naechsten
+ *  Wirtschaftstermin): wird von lib/economicCalendar.ts wiederverwendet statt
+ *  dort erneut dupliziert zu werden -- anders als bei den Supabase Edge
+ *  Functions (eigene Deno-Runtime, kann dieses Repo nicht importieren) laeuft
+ *  dieser Code im selben Next.js-Repo, ein Import ist hier moeglich und
+ *  vorzuziehen. */
+export function zonedWallTimeToUtc(dateStr: string, hhmm: string, zone: string): number {
   const naiveUtc = Date.parse(`${dateStr}T${hhmm}:00Z`);
   const offsetMs = timeZoneOffsetMs(zone, naiveUtc);
   return naiveUtc - offsetMs;
