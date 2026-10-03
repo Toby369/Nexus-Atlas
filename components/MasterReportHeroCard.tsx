@@ -56,6 +56,10 @@ interface MasterReportResult {
   confidence?: number;
   overallBias?: string;
   componentBiases?: Record<string, string>;
+  // 03.10.2026 (Nutzer-Wunsch "kann der report auf den vorherigen kurz
+  // eingehen?!") -- null, wenn kein vorheriger Lauf im Kontext war (siehe
+  // Prompt-Profil "report-master"), string wenn verglichen wurde.
+  changeSinceLast?: string | null;
 }
 
 async function fetchLatestMasterRun(): Promise<ReportRun | null> {
@@ -129,6 +133,10 @@ export default function MasterReportHeroCard() {
       </div>
 
       {data.summary && <p className="text-sm text-text-muted leading-relaxed">{data.summary}</p>}
+
+      {data.changeSinceLast && (
+        <p className="text-xs text-text-faint italic">Seit dem letzten Lauf: {data.changeSinceLast}</p>
+      )}
 
       {conflicts.length > 0 ? (
         <div className="rounded-md border border-accent/30 bg-accent/10 p-3">

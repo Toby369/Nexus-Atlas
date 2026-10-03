@@ -41,6 +41,10 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((v) => typeof v === "string");
 }
 
+function isNullableNonEmptyString(value: unknown): value is string | null {
+  return value === null || isNonEmptyString(value);
+}
+
 const BIAS_3 = ["bullish", "bearish", "neutral"] as const;
 const RISK_ON_OFF = ["risk-on", "risk-off", "neutral"] as const;
 const RISK_LEVELS = ["low", "medium", "high"] as const;
@@ -225,6 +229,18 @@ function validateMasterReport(data: unknown): string[] {
     if (!isNonEmptyString(field(componentBiases, key))) {
       errors.push(`"componentBiases.${key}" muss ein nicht-leerer String sein.`);
     }
+  }
+
+  // changeSinceLast (03.10.2026, Nutzer-Wunsch "kann der report auf den
+  // vorherigen kurz eingehen?!") -- null ist der korrekte Wert, wenn der
+  // Kontext keinen vorherigen Lauf enthielt (allererster Master-Lauf
+  // ueberhaupt, oder der vorherige Lauf konnte nicht geladen werden), KEIN
+  // Validierungsfehler. Ein nicht-leerer String ist nur dann falsch, wenn
+  // er fehlt, obwohl ein vorherigerLauf im Kontext mitgegeben wurde -- das
+  // kann diese rein strukturelle Pruefung aber nicht unterscheiden (kennt
+  // den Kontext nicht), daher hier nur der Typ geprueft.
+  if (!isNullableNonEmptyString(field(data, "changeSinceLast"))) {
+    errors.push(`"changeSinceLast" muss ein nicht-leerer String oder null sein.`);
   }
 
   return errors;
@@ -511,12 +527,23 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "conflicts ein leeres Array und overallBias entspricht der gemeinsamen Richtung. " +
       "Erfinde keine zusätzlichen Daten -- nutze ausschliesslich die gelieferten " +
       "Report-Ergebnisse und Marktdaten. " +
+      "Enthält der Kontext zusätzlich previousMasterReport (generated_at/overallBias/" +
+      "confidence/summary deines eigenen vorherigen Laufs), vergleiche kurz: hat sich " +
+      "overallBias geändert, ist confidence deutlich gestiegen/gefallen, hat sich einer " +
+      "der drei componentBiases gedreht? Schreibe das als 1-2 Sätze in changeSinceLast " +
+      "(z.B. \"Bias von neutral auf bullish gedreht, seit Positioning von Short- auf " +
+      "Long-Überhang gewechselt hat -- Confidence damit von 42 auf 61 gestiegen.\"). Gab " +
+      "es keine relevante Änderung, sag das explizit (\"Kaum Veränderung seit dem letzten " +
+      "Lauf.\"), erfinde keine Bewegung. Fehlt previousMasterReport im Kontext (erster " +
+      "Lauf, oder vorheriger Lauf nicht verfügbar), setze changeSinceLast auf null -- " +
+      "nie erfinden, was vorher war. " +
       DATA_QUALITY_INSTRUCTION +
       NUMBER_FORMAT_INSTRUCTION +
       " Antworte als JSON mit: overallBias (bullish|bearish|neutral|conflicting), " +
       "confidence (0-100), summary (string, deutsch), conflicts (string[], leer wenn " +
       "keine), componentBiases ({ marketStructure, positioning, newsMacro } als kurze " +
-      "String-Zusammenfassungen der jeweiligen Einzelrichtung).",
+      "String-Zusammenfassungen der jeweiligen Einzelrichtung), changeSinceLast (string " +
+      "oder null, siehe oben).",
     validate: validateMasterReport,
   },
 

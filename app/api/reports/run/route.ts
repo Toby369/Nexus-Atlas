@@ -132,6 +132,9 @@ function buildReportEmailHtml(config: ReportConfig, timeframe: string, resultDat
 
   const confidence = typeof data.confidence === "number" ? Math.round(data.confidence) : undefined;
   const summary = typeof data.summary === "string" ? data.summary : "";
+  // changeSinceLast (03.10.2026) -- nur beim Master-Report vorhanden, siehe
+  // Prompt-Profil "report-master" in lib/ai/promptProfiles.ts.
+  const changeSinceLast = typeof data.changeSinceLast === "string" ? data.changeSinceLast : undefined;
   const keyFactors = stringArray(data.keyFactors);
   const riskLevel = typeof data.riskLevel === "string" ? data.riskLevel : undefined;
   const conflicts = stringArray(data.conflicts);
@@ -150,6 +153,10 @@ function buildReportEmailHtml(config: ReportConfig, timeframe: string, resultDat
 
   const summarySection = summary
     ? `<p style="font-size:15px;line-height:1.5;color:#111827;margin:0 0 16px;">${escapeHtml(summary)}</p>`
+    : "";
+
+  const changeSinceLastSection = changeSinceLast
+    ? `<p style="font-size:13px;line-height:1.5;color:#6b7280;margin:0 0 16px;font-style:italic;">Seit dem letzten Lauf: ${escapeHtml(changeSinceLast)}</p>`
     : "";
 
   const conflictsSection =
@@ -200,6 +207,7 @@ function buildReportEmailHtml(config: ReportConfig, timeframe: string, resultDat
     `<div style="padding:20px 24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;">` +
     biasSection +
     summarySection +
+    changeSinceLastSection +
     conflictsSection +
     componentBiasesSection +
     riskLevelSection +
@@ -316,10 +324,17 @@ export async function POST(req: NextRequest) {
   let contextPayload: unknown;
 
   if (config.report_type === "master") {
-    const [marketStructureRun, positioningRun, newsMacroRun] = await Promise.all([
+    const [marketStructureRun, positioningRun, newsMacroRun, previousMasterRun] = await Promise.all([
       getLatestSuccessfulRun("market_structure"),
       getLatestSuccessfulRun("positioning"),
       getLatestSuccessfulRun("news_macro"),
+      // Nutzer-Wunsch 03.10.2026 ("kann der report auf den vorherigen kurz
+      // eingehen?!"): anders als marketStructureRun/positioningRun/
+      // newsMacroRun oben ist ein fehlender vorheriger Master-Lauf KEIN
+      // Fehler (erster Lauf ueberhaupt) -- siehe previousMasterReport unten,
+      // bleibt dann schlicht null, der Prompt (report-master) weiss das zu
+      // behandeln.
+      getLatestSuccessfulRun("master"),
     ]);
 
     const missing = [
@@ -358,6 +373,14 @@ export async function POST(req: NextRequest) {
         generated_at: newsMacroRun!.generated_at,
         provider: newsMacroRun!.provider,
       },
+      previousMasterReport: previousMasterRun
+        ? {
+            generated_at: previousMasterRun.generated_at,
+            overallBias: (previousMasterRun.result as { overallBias?: unknown } | null)?.overallBias ?? null,
+            confidence: (previousMasterRun.result as { confidence?: unknown } | null)?.confidence ?? null,
+            summary: (previousMasterRun.result as { summary?: unknown } | null)?.summary ?? null,
+          }
+        : null,
       marketData: {
         btc_price: fullContext.btc_price,
         oi: fullContext.oi,
