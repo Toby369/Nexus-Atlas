@@ -49,12 +49,6 @@ const STATE_TEXT: Record<MarketState["overall_state"], string> = {
   INSUFFICIENT_DATA: "aktuell nicht auswertbar (zu wenig Daten)",
 };
 
-const RISK_TEXT: Record<string, string> = {
-  LOW: "niedrig",
-  MEDIUM: "mittel",
-  HIGH: "hoch",
-};
-
 export function buildCompactMarketStateSummary(state: MarketState): string {
   if (state.overall_state === "INSUFFICIENT_DATA") {
     return (
@@ -67,19 +61,17 @@ export function buildCompactMarketStateSummary(state: MarketState): string {
   const stateText = suppressed
     ? `${UNCLEAR_STATE_LABEL.toLowerCase()} (Verlässlichkeit unter ${DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD}/100 für eine Richtungsaussage)`
     : STATE_TEXT[state.overall_state];
-  const riskText = state.risk_level && state.risk_level !== "UNKNOWN" ? RISK_TEXT[state.risk_level] : null;
   const topPattern = state.patterns.length > 0 ? state.patterns[0].name : null;
 
-  let text =
-    `Marktzustand ${stateText} bei ${state.confidence}/100 Verlässlichkeit ` +
-    `(${state.data_coverage_pct.toFixed(0)}% Datenabdeckung).`;
+  // Verlässlichkeit, Datenabdeckung und Risk bewusst NICHT hier -- die
+  // stehen bereits unten in "Gesamteinschätzung im Detail" (Datenqualität/
+  // Marktlage). Nutzer-Feedback (04.10.2026): derselbe Satz oben wiederholte
+  // dieselben drei Werte ein zweites Mal.
+  let text = `Marktzustand ${stateText}.`;
   if (topPattern) {
     text += ` Muster: „${topPattern}".`;
   }
-  if (riskText) {
-    text += ` Risk: ${riskText}.`;
-  }
-  text += " Basis: 14-Faktoren-Engine (Gesamteinschätzung) — keine Anlageberatung.";
+  text += " Basis: 14-Faktoren-Engine (Gesamteinschätzung).";
   return text;
 }
 

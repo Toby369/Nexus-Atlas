@@ -33,11 +33,11 @@ function baseState(overrides: Partial<MarketState> = {}): MarketState {
 }
 
 describe("buildCompactMarketStateSummary", () => {
-  it("nennt Zustand, Confidence und Coverage fuer einen normalen BULLISH-Zustand", () => {
+  it("nennt den Zustand fuer einen normalen BULLISH-Zustand, ohne Confidence/Coverage zu wiederholen (stehen bereits in Gesamteinschaetzung im Detail)", () => {
     const text = buildCompactMarketStateSummary(baseState());
     expect(text).toContain("bullisch");
-    expect(text).toContain("72/100");
-    expect(text).toContain("93%");
+    expect(text).not.toContain("72/100");
+    expect(text).not.toContain("93%");
   });
 
   it("nennt den Sonderfall INSUFFICIENT_DATA statt eines Zustandslabels", () => {
@@ -60,18 +60,8 @@ describe("buildCompactMarketStateSummary", () => {
     expect(text).not.toContain("Muster:");
   });
 
-  it("nennt Risk, wenn risk_level gesetzt und nicht UNKNOWN ist", () => {
+  it("nennt Risk nirgends mehr -- steht nur noch unten in Gesamteinschaetzung im Detail (Marktlage)", () => {
     const text = buildCompactMarketStateSummary(baseState({ risk_level: "HIGH" }));
-    expect(text).toContain("Risk: hoch");
-  });
-
-  it("laesst Risk weg, wenn risk_level UNKNOWN ist", () => {
-    const text = buildCompactMarketStateSummary(baseState({ risk_level: "UNKNOWN" }));
-    expect(text).not.toContain("Risk:");
-  });
-
-  it("laesst Risk weg, wenn risk_level null ist", () => {
-    const text = buildCompactMarketStateSummary(baseState({ risk_level: null }));
     expect(text).not.toContain("Risk:");
   });
 
