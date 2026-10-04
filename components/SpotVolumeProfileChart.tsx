@@ -22,8 +22,8 @@ export interface SpotVolumeBucket {
 interface ChartRow {
   price: string;
   buy: number;
-  sellNeg: number; // negativ, damit der Balken links vom Nullpunkt waechst
-  sellAbs: number; // fuer den Tooltip (positiver Anzeigewert)
+  sell: number;
+  total: number; // fuer den Tooltip (Gesamtvolumen dieser Preisstufe)
 }
 
 function formatPrice(value: number): string {
@@ -34,11 +34,15 @@ function formatBtc(value: number): string {
   return value.toLocaleString("de-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// Preis-Volumen-Profil (horizontal, divergierend): je Preis-Bucket ein
-// gruener Balken nach rechts (Kaufvolumen) und ein roter Balken nach links
-// (Verkaufsvolumen), gespiegelt an der Nulllinie -- dieselbe Lesart wie ein
-// klassisches "Volume Profile" an einer vertikalen Preisachse, nur mit
-// echtem Taker-Buy/Sell-Split statt reinem Gesamtvolumen je Preis.
+// Preis-Volumen-Profil (horizontal, gestapelt): je Preis-Bucket EIN Balken,
+// dessen Laenge das Gesamtvolumen zeigt und der intern nach Kauf-/
+// Verkaufsanteil gruen/rot eingefaerbt ist -- bewusst NICHT gespiegelt
+// (Nutzer-Feedback 04.10.2026: die vorherige Links/Rechts-Spiegelung an
+// einer Nulllinie liess sich nicht auf Anhieb lesen, weil das
+// Gesamtvolumen je Preisstufe erst durch gedankliches Addieren von rot und
+// gruen sichtbar wurde). So ist die Balkenlaenge direkt zwischen allen
+// Preisstufen vergleichbar, das Farbverhaeltnis zeigt trotzdem, wer
+// dominiert hat.
 export default function SpotVolumeProfileChart({
   buckets,
   height = 220,
@@ -60,8 +64,8 @@ export default function SpotVolumeProfileChart({
   const rows: ChartRow[] = sorted.map((b) => ({
     price: formatPrice(b.priceBucket),
     buy: b.buyVolume,
-    sellNeg: -b.sellVolume,
-    sellAbs: b.sellVolume,
+    sell: b.sellVolume,
+    total: b.buyVolume + b.sellVolume,
   }));
 
   const rowHeight = 22;
@@ -89,7 +93,7 @@ export default function SpotVolumeProfileChart({
           >
             <XAxis
               type="number"
-              tickFormatter={(v) => formatBtc(Math.abs(Number(v)))}
+              tickFormatter={(v) => formatBtc(Number(v))}
               tick={{ fill: "#565c63", fontSize: 11 }}
               axisLine={false}
               tickLine={false}
@@ -105,14 +109,17 @@ export default function SpotVolumeProfileChart({
             <ReferenceLine x={0} stroke="#262b31" />
             <Tooltip
               formatter={(value, name) => [
-                `${formatBtc(Math.abs(Number(value ?? 0)))} BTC`,
+                `${formatBtc(Number(value ?? 0))} BTC`,
                 name === "buy" ? "Kaufvolumen" : "Verkaufsvolumen",
               ]}
-              labelFormatter={(label) => label}
+              labelFormatter={(label, payload) => {
+                const total = payload?.[0]?.payload?.total as number | undefined;
+                return total !== undefined ? `${label} · Gesamt ${formatBtc(total)} BTC` : label;
+              }}
               contentStyle={{ fontSize: 12 }}
             />
-            <Bar dataKey="sellNeg" name="sell" fill={SELL_COLOR} isAnimationActive={false} />
-            <Bar dataKey="buy" name="buy" fill={BUY_COLOR} isAnimationActive={false} />
+            <Bar dataKey="buy" name="buy" stackId="volume" fill={BUY_COLOR} isAnimationActive={false} />
+            <Bar dataKey="sell" name="sell" stackId="volume" fill={SELL_COLOR} isAnimationActive={false} />
           </BarChart>
         </ResponsiveContainer>
       </div>
