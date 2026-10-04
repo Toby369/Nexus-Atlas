@@ -164,6 +164,22 @@ function TrendConfirmationLine({ trendCount, trendSignals }: { trendCount: numbe
   );
 }
 
+// Nutzer-Wunsch (04.10.2026: "Kachel klein machen, anzeigen badge von up
+// und down, bei antippen wird gross wie aktuell"): Kachel ist jetzt ein
+// <details>, standardmaessig zu -- im <summary> nur Titel + ein Mini-Badge
+// je Richtung (Stufe + Trefferquote, im passenden LONG/SHORT-Ton), der
+// komplette bisherige Inhalt steckt im aufklappbaren Teil. Dieselbe native
+// <details>-Technik wie bereits bei "Signale im Detail" weiter unten --
+// bleibt ein Server-Component, kein Client-State noetig.
+function ScoreBadge({ row, label, tone }: { row: ConfluenceScoreRow | null; label: string; tone: "up" | "down" }) {
+  const toneClass = tone === "up" ? "text-up border-up/40 bg-up/10" : "text-down border-down/40 bg-down/10";
+  return (
+    <span className={`px-1.5 py-0.5 text-[10px] rounded-md border font-semibold whitespace-nowrap ${toneClass}`}>
+      {label} {row ? `${row.tier} · ${row.probability.toFixed(1)}%` : "–"}
+    </span>
+  );
+}
+
 function ScoreRow({ row, label, tone }: { row: ConfluenceScoreRow | null; label: string; tone: "up" | "down" }) {
   const toneClass = tone === "up" ? "text-up" : "text-down";
 
@@ -254,39 +270,48 @@ export default function ConfluenceScoreCard({
   const unvalidatedCount = signalDetail.length - validatedCount;
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
-      <span className="flex items-center gap-1.5 flex-wrap">
+    <details className="rounded-lg border border-border bg-surface p-5 space-y-3">
+      <summary className="flex items-center justify-between gap-2 cursor-pointer select-none">
         <p className="text-sm font-medium text-text">Setup-Score</p>
-        <span className="text-[11px] text-text-faint">(15m · TP 1,75% · SL 0,5% · 20x)</span>
-        <PanelInfo title="Setup-Score" content={INFO_TEXT} />
-      </span>
+        <span className="flex items-center gap-1.5 shrink-0">
+          <ScoreBadge row={score.long} label="LONG" tone="up" />
+          <ScoreBadge row={score.short} label="SHORT" tone="down" />
+        </span>
+      </summary>
 
-      <p className="text-[11px] text-text-faint">
-        Vorab-Score bei Entry · Break-even ab {BREAKEVEN_PCT}% Trefferquote
-      </p>
+      <div className="pt-3 space-y-3">
+        <span className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[11px] text-text-faint">(15m · TP 1,75% · SL 0,5% · 20x)</span>
+          <PanelInfo title="Setup-Score" content={INFO_TEXT} />
+        </span>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-start">
-        <ScoreRow row={score.long} label="LONG" tone="up" />
-        <ScoreRow row={score.short} label="SHORT" tone="down" />
+        <p className="text-[11px] text-text-faint">
+          Vorab-Score bei Entry · Break-even ab {BREAKEVEN_PCT}% Trefferquote
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-start">
+          <ScoreRow row={score.long} label="LONG" tone="up" />
+          <ScoreRow row={score.short} label="SHORT" tone="down" />
+        </div>
+
+        {signalDetail.length > 0 && (
+          <details className="pt-1 border-t border-border/60">
+            <summary className="text-[11px] text-text-faint cursor-pointer select-none">
+              Signale im Detail ({validatedCount} validiert, {unvalidatedCount} unbestätigt)
+            </summary>
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint mb-1">LONG</p>
+                <SignalDetailList signals={signalDetail} direction="LONG" />
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint mb-1">SHORT</p>
+                <SignalDetailList signals={signalDetail} direction="SHORT" />
+              </div>
+            </div>
+          </details>
+        )}
       </div>
-
-      {signalDetail.length > 0 && (
-        <details className="pt-1 border-t border-border/60">
-          <summary className="text-[11px] text-text-faint cursor-pointer select-none">
-            Signale im Detail ({validatedCount} validiert, {unvalidatedCount} unbestätigt)
-          </summary>
-          <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint mb-1">LONG</p>
-              <SignalDetailList signals={signalDetail} direction="LONG" />
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint mb-1">SHORT</p>
-              <SignalDetailList signals={signalDetail} direction="SHORT" />
-            </div>
-          </div>
-        </details>
-      )}
-    </div>
+    </details>
   );
 }

@@ -212,6 +212,22 @@ function FactorLine({ label, active }: { label: string; active: boolean | null }
   );
 }
 
+// Nutzer-Wunsch (04.10.2026: "Kachel klein machen, anzeigen badge von up
+// und down, bei antippen wird gross wie aktuell"): Kachel ist jetzt ein
+// <details>, standardmaessig zu -- im <summary> nur Titel + ein Mini-Badge
+// je Richtung (Stufe + Trefferquote, im passenden UP/DOWN-Ton), der
+// komplette bisherige Inhalt steckt im aufklappbaren Teil. Dieselbe native
+// <details>-Technik wie bereits bei "Signale im Detail" weiter unten --
+// bleibt ein Server-Component, kein Client-State noetig.
+function ScoreBadge({ row, label, tone }: { row: RegimeScoreRow | null; label: string; tone: "up" | "down" }) {
+  const toneClass = tone === "up" ? "text-up border-up/40 bg-up/10" : "text-down border-down/40 bg-down/10";
+  return (
+    <span className={`px-1.5 py-0.5 text-[10px] rounded-md border font-semibold whitespace-nowrap ${toneClass}`}>
+      {label} {row ? `${row.tier} · ${row.probability.toFixed(1)}%` : "–"}
+    </span>
+  );
+}
+
 function ScoreRow({ row, label, tone }: { row: RegimeScoreRow | null; label: string; tone: "up" | "down" }) {
   const toneClass = tone === "up" ? "text-up" : "text-down";
 
@@ -295,41 +311,55 @@ export default function RegimeScoreCard({
   const unvalidatedCount = signalDetail.length - validatedCount;
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
-      <span className="flex items-center gap-1.5 flex-wrap">
-        <p className="text-sm font-medium text-text">Regime-Score</p>
-        <span className="text-[10px] text-text-faint border border-border rounded px-1">
-          in Aufbau · 34/52 Signale getestet
+    <details className="rounded-lg border border-border bg-surface p-5 space-y-3">
+      <summary className="flex items-center justify-between gap-2 cursor-pointer select-none">
+        <span className="flex items-center gap-1.5 flex-wrap">
+          <p className="text-sm font-medium text-text">Regime-Score</p>
+          <span className="text-[10px] text-text-faint border border-border rounded px-1">
+            in Aufbau
+          </span>
         </span>
-        <PanelInfo title="Regime-Score" content={INFO_TEXT} />
-      </span>
+        <span className="flex items-center gap-1.5 shrink-0">
+          <ScoreBadge row={score.up} label="UP" tone="up" />
+          <ScoreBadge row={score.down} label="DOWN" tone="down" />
+        </span>
+      </summary>
 
-      <p className="text-[11px] text-text-faint">
-        4h-Horizont · ±1×ATR(14) · unabhängig vom Setup-Score
-      </p>
+      <div className="pt-3 space-y-3">
+        <span className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] text-text-faint border border-border rounded px-1">
+            34/52 Signale getestet
+          </span>
+          <PanelInfo title="Regime-Score" content={INFO_TEXT} />
+        </span>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-start">
-        <ScoreRow row={score.up} label="UP" tone="up" />
-        <ScoreRow row={score.down} label="DOWN" tone="down" />
+        <p className="text-[11px] text-text-faint">
+          4h-Horizont · ±1×ATR(14) · unabhängig vom Setup-Score
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-start">
+          <ScoreRow row={score.up} label="UP" tone="up" />
+          <ScoreRow row={score.down} label="DOWN" tone="down" />
+        </div>
+
+        {signalDetail.length > 0 && (
+          <details className="pt-1 border-t border-border/60">
+            <summary className="text-[11px] text-text-faint cursor-pointer select-none">
+              Signale im Detail ({validatedCount} validiert, {unvalidatedCount} unbestätigt)
+            </summary>
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint mb-1">UP</p>
+                <SignalDetailList signals={signalDetail} direction="UP" />
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint mb-1">DOWN</p>
+                <SignalDetailList signals={signalDetail} direction="DOWN" />
+              </div>
+            </div>
+          </details>
+        )}
       </div>
-
-      {signalDetail.length > 0 && (
-        <details className="pt-1 border-t border-border/60">
-          <summary className="text-[11px] text-text-faint cursor-pointer select-none">
-            Signale im Detail ({validatedCount} validiert, {unvalidatedCount} unbestätigt)
-          </summary>
-          <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint mb-1">UP</p>
-              <SignalDetailList signals={signalDetail} direction="UP" />
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint mb-1">DOWN</p>
-              <SignalDetailList signals={signalDetail} direction="DOWN" />
-            </div>
-          </div>
-        </details>
-      )}
-    </div>
+    </details>
   );
 }
