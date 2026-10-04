@@ -341,9 +341,15 @@ async function getLatestYoutubeAnalyses(): Promise<YoutubeVideoAnalysis[]> {
   // besonders aktiver Kanal die anderen aus der Liste verdraengen. Die
   // sichtbare Videoliste in YoutubeMonitorCard bleibt trotzdem auf die
   // juengsten 8 begrenzt (nur die Vergleichslogik sieht mehr).
+  //
+  // Nutzer-Wunsch (04.10.2026: "zu viele alte Reports"): zusaetzlich auf
+  // die letzten 2 Tage begrenzt -- alte Videos sollen hier nicht mehr
+  // auftauchen, auch wenn noch keine 40 neueren existieren.
+  const twoDaysAgoIso = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from("youtube_video_analyses")
     .select("*")
+    .gte("published_at", twoDaysAgoIso)
     .order("published_at", { ascending: false })
     .limit(40);
 
