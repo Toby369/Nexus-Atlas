@@ -796,6 +796,10 @@ export interface KeyLevel {
   // Widerstand-Hinweis (Toby-Idee 30.09.2026). null, wenn keine
   // signifikante Konzentration in dieser Zone lag.
   spotVolume: { buyVolumeBtc: number; sellVolumeBtc: number } | null;
+  // Fruehester beitragender Pivot-Zeitpunkt (03.10.2026) -- null bei reinen
+  // Liquidations-/Spot-Volume-Zonen ohne Pivot-Beteiligung. Startpunkt fuer
+  // lib/levelStructureContext.ts's "haelt die Zone seit damals?"-Analyse.
+  anchorOpenTime: string | null;
 }
 
 interface LiquidationCluster {
@@ -868,7 +872,7 @@ async function fetchSpotVolumeNodes(): Promise<SpotVolumeNode[]> {
 // danach wieder.
 interface RawLevelSource {
   price: number;
-  pivot?: { timeframe: PivotTimeframe };
+  pivot?: { timeframe: PivotTimeframe; openTime: string };
   liquidation?: { notionalUsd: number };
   spotVolume?: { buyVolumeBtc: number; sellVolumeBtc: number };
 }
@@ -887,7 +891,7 @@ export function buildKeyLevelZones(
   tolerancePct: number = PIVOT_CONFLUENCE_TOLERANCE_PCT
 ): KeyLevel[] {
   const raw: RawLevelSource[] = [
-    ...pivotPoints.map((p) => ({ price: p.price, pivot: { timeframe: p.timeframe } })),
+    ...pivotPoints.map((p) => ({ price: p.price, pivot: { timeframe: p.timeframe, openTime: p.openTime } })),
     ...liquidationClusters.map((c) => ({ price: c.price, liquidation: { notionalUsd: c.notionalUsd } })),
     ...spotVolumeNodes.map((n) => ({
       price: n.price,
@@ -921,6 +925,16 @@ export function buildKeyLevelZones(
             sellVolumeBtc: spotVolumeMembers.reduce((sum, m) => sum + m.spotVolume!.sellVolumeBtc, 0),
           }
         : null;
+    // Fruehester beitragender Pivot-Zeitpunkt -- lexikalischer String-Min
+    // reicht, weil openTime echte ISO-8601-Zeitstempel sind (sortieren
+    // korrekt als String). null bei reinen Liquidations-/Spot-Volume-Zonen
+    // ohne Pivot-Beteiligung (siehe KeyLevel-Kommentar). Wird von
+    // lib/levelStructureContext.ts (03.10.2026, Nutzer-Wunsch "so moechte
+    // ich das angezeigt bekommen") als Startpunkt fuer die Struktur-
+    // Analyse (hat die Zone seitdem gehalten?) verwendet.
+    const pivotMembers = clusterMembers.filter((m) => m.pivot);
+    const anchorOpenTime =
+      pivotMembers.length > 0 ? pivotMembers.map((m) => m.pivot!.openTime).sort()[0] : null;
 
     zones.push({
       price,
@@ -929,6 +943,7 @@ export function buildKeyLevelZones(
       confirmedBy,
       liquidationNotionalUsd,
       spotVolume,
+      anchorOpenTime,
     });
     clusterMembers = [];
   };

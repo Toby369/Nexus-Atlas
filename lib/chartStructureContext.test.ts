@@ -392,6 +392,7 @@ describe("buildKeyLevelZones", () => {
         confirmedBy: [],
         liquidationNotionalUsd: null,
         spotVolume: null,
+        anchorOpenTime: "d1",
       },
     ]);
   });
@@ -435,6 +436,7 @@ describe("buildKeyLevelZones", () => {
         confirmedBy: ["liquidation"],
         liquidationNotionalUsd: 20_000,
         spotVolume: null,
+        anchorOpenTime: null,
       },
     ]);
   });
@@ -475,6 +477,7 @@ describe("buildKeyLevelZones", () => {
         confirmedBy: ["spot_volume"],
         liquidationNotionalUsd: null,
         spotVolume: { buyVolumeBtc: 0.4, sellVolumeBtc: 2.1 },
+        anchorOpenTime: null,
       },
     ]);
   });
@@ -505,6 +508,7 @@ describe("withConfirmationLevels", () => {
         confirmedBy: [],
         liquidationNotionalUsd: null,
         spotVolume: null,
+        anchorOpenTime: null,
       },
     ]);
     const result = withConfirmationLevels(data, [
@@ -523,6 +527,7 @@ describe("withConfirmationLevels", () => {
         confirmedBy: ["ema50"],
         liquidationNotionalUsd: null,
         spotVolume: null,
+        anchorOpenTime: null,
       },
     ]);
     const result = withConfirmationLevels(data, [{ label: "ema50", price: 1000 }]);
@@ -538,6 +543,7 @@ describe("withConfirmationLevels", () => {
         confirmedBy: [],
         liquidationNotionalUsd: null,
         spotVolume: null,
+        anchorOpenTime: null,
       },
     ]);
     const result = withConfirmationLevels(data, [{ label: "vwap_weekly", price: null }]);

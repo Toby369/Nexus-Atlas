@@ -49,6 +49,11 @@ import MasterReportHeroCard from "@/components/MasterReportHeroCard";
 import PanelInfo from "@/components/PanelInfo";
 import { marketStateInfo, MARKET_STATE_FACTOR_INFO, momentumDivergenceInfo } from "@/lib/panelInfo";
 import { fetchMtfDots, type MtfTimeframeDot } from "@/lib/mtfSignal";
+import {
+  PATTERN_DIRECTION,
+  PATTERN_DIRECTION_LABEL,
+  RISK_ELEVATING_PATTERN_NAMES,
+} from "@/lib/patternDirection";
 import MtfDotsRow from "@/components/MtfDotsRow";
 
 const CUMULATIVE_ETF_DAYS = 5;
@@ -162,53 +167,22 @@ const RISK_FACTOR_LABELS: Record<string, string> = {
 // anzeigen -- keine neue Datenquelle.
 //
 // Nachtrag (gleicher Tag) -- Nutzer-Wunsch "inkl deren Richtung, im
-// gleichen Badge": compute-market-state (Edge Function) speichert selbst
-// keine Richtung je Pattern, nur name+note -- hier dieselbe geschlossene
-// Namensmenge wie RISK_ELEVATING_PATTERNS dort dupliziert (gleiches
-// Duplizierungs-Muster wie bei anderen Edge-Function-Konstanten im
-// Next.js-Repo, siehe z.B. send-state-change-push). Richtung = wohin das
-// Muster deutet, nicht die reine Namens-Herkunft: "Fragile Bullish"/
-// "Distribution Warning" warnen TROTZ bullischer Oberflaeche vor
-// baerischer Schwaeche/Umkehr, "Capitulation" beschreibt eine laufende
-// baerische Erschoepfung (keine erfundene Boden-Prognose), "Short Squeeze"
-// deutet auf einen bullischen Squeeze nach oben.
+// gleichen Badge": Richtung je Pattern + die Namensmenge, die den
+// "warning_pattern"-Risk-Factor ausloest (identisch zu
+// RISK_ELEVATING_PATTERNS in compute-market-state). Seit 03.10.2026 in
+// lib/patternDirection.ts ausgelagert (lib/levelStructureContext.ts braucht
+// dieselbe Zuordnung fuer den Signal-Abgleich, kein Grund fuer eine zweite
+// Kopie im selben Repo).
 //
 // Zweiter Nachtrag (gleicher Tag, Nutzer-Frage "warnmuster nun doppelt
 // angezeigt?"): ja, war es -- die obere Pattern-Badge-Reihe zeigte denselben
 // Namen nochmal neben dem jetzt bereits vollstaendigen Warn-Muster-Badge.
-// Siehe RISK_ELEVATING_PATTERN_NAMES unten: diese Namen werden aus der
-// oberen Reihe gefiltert, bleiben aber (inkl. Begruendung) vollstaendig im
-// Warn-Muster-Badge/dessen Erklaerungstext erhalten -- kein Informations-
-// verlust, nur keine doppelte Darstellung mehr.
-const PATTERN_DIRECTION: Record<string, "bullish" | "bearish"> = {
-  "Bullish Confirmation": "bullish",
-  "Fragile Bullish": "bearish",
-  "Distribution Warning": "bearish",
-  Capitulation: "bearish",
-  "Short Squeeze": "bullish",
-};
-
-// Dieselbe Namensmenge wie RISK_ELEVATING_PATTERNS in compute-market-state
-// (Edge Function) -- jedes dieser Muster loest dort IMMER den
-// "warning_pattern"-Risk-Factor aus (siehe dortige Zeile "if (patterns.some(
-// p => RISK_ELEVATING_PATTERNS.has(p.name)))"). 02.10.2026, Nutzer-Frage
-// "warnmuster nun doppelt angezeigt?": seit das Warn-Muster-Badge unten
-// Name+Richtung selbst zeigt, waere eine zusaetzliche Pattern-Badge mit
-// demselben Namen oben reine Dopplung -- diese Namen werden deshalb aus der
-// oberen Pattern-Reihe ausgefiltert. "Bullish Confirmation" ist NICHT in
-// dieser Menge und bleibt dadurch weiterhin oben sichtbar (kein Risk-Factor,
-// hat also kein eigenes Badge weiter unten).
-const RISK_ELEVATING_PATTERN_NAMES = new Set([
-  "Fragile Bullish",
-  "Distribution Warning",
-  "Capitulation",
-  "Short Squeeze",
-]);
-
-const PATTERN_DIRECTION_LABEL: Record<"bullish" | "bearish", string> = {
-  bullish: "bullisch",
-  bearish: "bärisch",
-};
+// RISK_ELEVATING_PATTERN_NAMES filtert diese Namen aus der oberen Reihe,
+// sie bleiben aber (inkl. Begruendung) vollstaendig im Warn-Muster-Badge/
+// dessen Erklaerungstext erhalten -- kein Informationsverlust, nur keine
+// doppelte Darstellung mehr. "Bullish Confirmation" ist NICHT in dieser
+// Menge und bleibt dadurch weiterhin oben sichtbar (kein Risk-Factor, hat
+// also kein eigenes Badge weiter unten).
 
 function riskFactorLabel(factor: string, patterns: { name: string }[]): string {
   if (factor === "warning_pattern" && patterns.length > 0) {

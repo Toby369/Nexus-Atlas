@@ -7,6 +7,7 @@ import { getKnowledgeBase } from "@/lib/knowledgeBaseContext";
 import { getMeinSystemChecklistData } from "@/lib/meinSystemContext";
 import { getTradingIndicatorsData } from "@/lib/tradingIndicatorsContext";
 import { getChartStructureData, withConfirmationLevels } from "@/lib/chartStructureContext";
+import { getLevelStructureData } from "@/lib/levelStructureContext";
 
 export const revalidate = 0;
 
@@ -71,6 +72,17 @@ export default async function LernenPage() {
     { label: "vwap_swing_low", price: tradingIndicators.vwapVector.swingLowVwap },
   ]);
 
+  // Level-Struktur (Nutzer-Wunsch 03.10.2026): baut auf den bereits mit
+  // EMA50/Swing-VWAP angereicherten Key Levels oben auf (chartStructureEnriched
+  // .keyLevels liefert direkt confirmedBy fuer die Konfluenz-Stufe, kein
+  // zweiter Fetch) + dem bereits geladenen CVD-Trend -- eigener Fetch nur
+  // fuer die 1H-Kerzen-/Swing-Historie je Zone und die aktuellen Warn-
+  // Muster/MTF-Ampel-Werte, siehe lib/levelStructureContext.ts.
+  const levelStructureZones = await getLevelStructureData(
+    chartStructureEnriched.keyLevels,
+    tradingIndicators.cvd.trend
+  );
+
   return (
     <main className="flex-1 flex flex-col">
       <header className="border-b border-border px-6 py-5 flex items-baseline justify-between">
@@ -106,6 +118,7 @@ export default async function LernenPage() {
           vwapVectorData={tradingIndicators.vwapVector}
           cvdData={tradingIndicators.cvd}
           chartStructureData={chartStructureEnriched}
+          levelStructureZones={levelStructureZones}
         />
       </section>
 

@@ -291,3 +291,11 @@ Key Levels: Pivot-Punkte (fraktale Schwenkpunkte, gleicher Massstab wie AVWAP-Pi
 Reine Entscheidungsunterstützung, kein automatisches Handelssignal und keine Anlageberatung.
 
 So entsteht der Wert: Bei jedem Seitenaufruf neu berechnet, keine gespeicherten Snapshots.`;
+
+export const levelStructureInfo = `So liest du das: Je Key-Level (die zwei nächstgelegenen pro Seite, nur mit Pivot-Anker) wird nachgezeichnet, ob die Zone seit ihrem Pivot noch hält ("keine höheren Hochs" bei Widerstand, "keine tieferen Tiefs" bei Unterstützung) oder bereits gebrochen wurde – inkl. ehrlichem Hinweis auf einen etwaigen Gegentest nach dem Bruch (z.B. ein tieferer Dip kurz nach dem Durchbruch, der die Zone nochmal berührt, bevor die Struktur sich wieder dreht).
+
+Konfluenz-Stufe: Schwach = nur das Key-Level selbst, Mittel = zusätzlich EMA50 ODER Swing-VWAP nahe dran, Stark = beides gleichzeitig – liest dieselbe Konfluenz-Markierung, die auch bei "Struktur: Key Levels..." neben der Zone steht.
+
+Andere Signale: zeigt, wie viele der aktuell laufenden Nexus-Signale (CVD-Trend, Warn-Muster, MTF-Ampel) gerade bullisch bzw. bärisch stehen – bewusst ungewichtet (einfache Zählung) und bewusst der AKTUELLE Stand, keine Rückrechnung, wie diese Signale zum Zeitpunkt der Ablehnung/des Bruchs selbst standen.
+
+So entsteht der Wert: Bruch-Erkennung über den Schlusskurs der letzten bis zu 270 Tage (1H-Kerzen), Gegentest-Erkennung über market_features.swing_type (dieselbe Swing-Hoch/-Tief-Klassifikation, die auch die MTF-Ampel/Markt-Struktur-Faktoren nutzen) – reine Berechnung, kein KI-Modell. Keine Anlageberatung.`;
