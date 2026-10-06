@@ -8,10 +8,14 @@ import type { TileAIConfig } from "./types";
 // (siehe router.ts / AUTO_CATEGORY_PROVIDER). Ein expliziter aiProvider
 // erzwingt einen bestimmten Anbieter.
 //
-// Die meisten Eintraege hier sind weiterhin vorbereitete Konfiguration ohne
-// UI-Anbindung (die jeweilige Kachel bleibt regelbasiert). "system-briefing"
-// ist seit Umsetzungsplan Phase 3/4 (05./18.09.2026) produktiv aufgerufen --
-// siehe app/api/system-briefing/generate/route.ts.
+// 06.10.2026 -- Aufraeumung: 7 nie angebundene Eintraege aus der fruehen
+// Projektphase entfernt (open-interest/funding/liquidations/market-structure/
+// macro/etf-flows/ai-market-analysis, samt ihrer Prompt-Profile in
+// promptProfiles.ts) -- keine Kachel/Route rief sie je auf (OI/Funding/
+// Liquidationen/ETF-Flows laufen laengst regelbasiert, Marktstruktur/
+// "Market Intelligence" sind durch System-Briefing/Chart-Narrativ/
+// Master-Report ueberholt). Alle verbleibenden Eintraege sind produktiv
+// angebunden.
 //
 // Anthropic wurde am 15.09.2026 aus JEDER Kette hier entfernt (Nutzer-
 // Bedingung: die App soll durchgehend kostenlos bleiben -- Anthropic ist
@@ -24,30 +28,6 @@ import type { TileAIConfig } from "./types";
 // eines bezahlten Fallbacks -- bewusst in Kauf genommen.
 
 export const tileConfigs: Record<string, TileAIConfig> = {
-  "open-interest": {
-    tileId: "open-interest",
-    aiProvider: "auto", // -> xai (market-mechanics), siehe Rollen-Doku
-    promptProfile: "oi-analysis",
-    fallbackProviders: ["google"],
-  },
-  funding: {
-    tileId: "funding",
-    aiProvider: "auto",
-    promptProfile: "funding-analysis",
-    fallbackProviders: ["google"],
-  },
-  liquidations: {
-    tileId: "liquidations",
-    aiProvider: "auto",
-    promptProfile: "liquidation-analysis",
-    fallbackProviders: ["google"],
-  },
-  "market-structure": {
-    tileId: "market-structure",
-    aiProvider: "auto",
-    promptProfile: "market-structure",
-    fallbackProviders: ["google"],
-  },
   // Primaerprovider 22.09.2026 von "auto" (-> perplexity, "research"-
   // Kategorie) auf explizit Google umgestellt: Perplexity ist nie
   // konfiguriert -- kein PERPLEXITY_API_KEY gesetzt, faellt also als
@@ -64,24 +44,6 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     aiProvider: "google",
     promptProfile: "news-analysis",
     fallbackProviders: ["groq"],
-  },
-  macro: {
-    tileId: "macro",
-    aiProvider: "auto",
-    promptProfile: "macro-analysis",
-    fallbackProviders: ["google"],
-  },
-  "etf-flows": {
-    tileId: "etf-flows",
-    aiProvider: "auto",
-    promptProfile: "etf-analysis",
-    fallbackProviders: ["google"],
-  },
-  "ai-market-analysis": {
-    tileId: "ai-market-analysis",
-    aiProvider: "auto", // -> openai (orchestration)
-    promptProfile: "market-intelligence",
-    fallbackProviders: ["google"],
   },
   // System-Briefing (Umsetzungsplan Phase 4, 18.09.2026; erweitert
   // 22.09.2026 -- deckt seither auch den Umfang des entfernten

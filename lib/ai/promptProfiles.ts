@@ -276,53 +276,6 @@ function validateYoutubeOverallAnalysis(data: unknown): string[] {
 }
 
 export const promptProfiles: Record<string, PromptProfile> = {
-  "oi-analysis": {
-    id: "oi-analysis",
-    category: "market-mechanics",
-    description: "Interpretation von Open-Interest-Bewegungen relativ zu Preis und Funding.",
-    systemPrompt:
-      "Du analysierst Open-Interest-Daten für BTC/USDT Perpetual Futures. " +
-      "Ordne die OI-Bewegung im Verhältnis zu Preis und Funding ein (Positionsaufbau, " +
-      "-abbau, Short-Covering, Long-Liquidation). Formuliere Wahrscheinlichkeiten, keine " +
-      "Fakten. Antworte als JSON mit den Feldern: bias (bullish|bearish|neutral), " +
-      "confidence (0-100), summary (string, deutsch), keyFactors (string[]).",
-    validate: (data) => validateBiasSummary(data, { requireKeyFactors: true }),
-  },
-  "funding-analysis": {
-    id: "funding-analysis",
-    category: "market-mechanics",
-    description: "Einordnung der Funding-Rate-Situation und was sie für Positionierung bedeutet.",
-    systemPrompt:
-      "Du analysierst die Funding Rate von BTC/USDT Perpetual Futures über mehrere " +
-      "Börsen hinweg. Ordne ein, ob der Markt eher long- oder short-lastig positioniert " +
-      "ist und ob Abweichungen zwischen Börsen auffällig sind. Antworte als JSON mit: " +
-      "bias (bullish|bearish|neutral), confidence (0-100), summary (string, deutsch), " +
-      "keyFactors (string[]).",
-    validate: (data) => validateBiasSummary(data, { requireKeyFactors: true }),
-  },
-  "liquidation-analysis": {
-    id: "liquidation-analysis",
-    category: "market-mechanics",
-    description: "Einordnung von Liquidationsereignissen (Größe, Richtung, Häufung).",
-    systemPrompt:
-      "Du analysierst BTC-Futures-Liquidationsdaten. Ordne ein, ob es sich um vereinzelte " +
-      "Liquidationen oder eine Häufung (Cascade) handelt und in welche Richtung " +
-      "(Long/Short) sie überwiegen. Antworte als JSON mit: bias (bullish|bearish|neutral), " +
-      "confidence (0-100), summary (string, deutsch), keyFactors (string[]).",
-    validate: (data) => validateBiasSummary(data, { requireKeyFactors: true }),
-  },
-  "market-structure": {
-    id: "market-structure",
-    category: "market-mechanics",
-    description: "Gesamtbild aus Preis, OI, Funding und Liquidationen über mehrere Börsen.",
-    systemPrompt:
-      "Du fasst die aktuelle BTC-Futures-Marktstruktur zusammen (Preis, Open Interest, " +
-      "Funding, Liquidationen, Multi-Exchange-Vergleich). Antworte als JSON mit: " +
-      "bias (bullish|bearish|neutral), confidence (0-100), summary (string, deutsch), " +
-      "keyFactors (string[]), riskLevel (low|medium|high).",
-    validate: (data) =>
-      validateBiasSummary(data, { requireKeyFactors: true, requireRiskLevel: true }),
-  },
   "news-analysis": {
     id: "news-analysis",
     category: "research",
@@ -341,41 +294,6 @@ export const promptProfiles: Record<string, PromptProfile> = {
       " Antworte als JSON mit: items (Array aus { headline, impact: high|medium|low, " +
       "reasoning }), summary (string, deutsch, 2-3 Saetze Gesamtbild).",
     validate: validateNewsAnalysis,
-  },
-  "macro-analysis": {
-    id: "macro-analysis",
-    category: "research",
-    description: "Fed, CPI, ETF-Flows und geopolitische Faktoren mit BTC-Relevanz.",
-    systemPrompt:
-      "Du bewertest makroökonomische Faktoren (Fed-Politik, CPI, ETF-Flows, Geopolitik) " +
-      "auf ihre Relevanz für den BTC-Markt. Antworte als JSON mit: bias " +
-      "(risk-on|risk-off|neutral), confidence (0-100), summary (string, deutsch), " +
-      "keyFactors (string[]).",
-    validate: (data) =>
-      validateBiasSummary(data, { biasValues: RISK_ON_OFF, requireKeyFactors: true }),
-  },
-  "etf-analysis": {
-    id: "etf-analysis",
-    category: "research",
-    description: "Einordnung von BTC-ETF-Zu-/Abflüssen.",
-    systemPrompt:
-      "Du analysierst BTC-ETF-Flow-Daten. Ordne ein, ob Zuflüsse oder Abflüsse " +
-      "überwiegen und was das für institutionelle Nachfrage bedeuten könnte. Antworte " +
-      "als JSON mit: bias (bullish|bearish|neutral), confidence (0-100), summary (string, " +
-      "deutsch).",
-    validate: (data) => validateBiasSummary(data),
-  },
-  "market-intelligence": {
-    id: "market-intelligence",
-    category: "orchestration",
-    description: "Gesamtbewertung, die mehrere Einzelanalysen zusammenführt.",
-    systemPrompt:
-      "Du führst mehrere Einzelanalysen (Marktstruktur, News, Makro) zu einer " +
-      "Gesamtbewertung für BTC/USDT Futures zusammen. Antworte als JSON mit: " +
-      "overallBias (bullish|bearish|neutral), confidence (0-100), summary (string, " +
-      "deutsch), riskLevel (low|medium|high).",
-    validate: (data) =>
-      validateBiasSummary(data, { biasField: "overallBias", requireRiskLevel: true }),
   },
   // --- Periodischer KI-Rueckblick, Phase 3 (10.09.2026) --------------------
   // Liest AUSSCHLIESSLICH die in Phase 2 (compute_signal_stats(),
