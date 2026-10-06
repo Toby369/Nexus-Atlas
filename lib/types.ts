@@ -423,19 +423,33 @@ export interface SystemBriefingFazit {
   kernaussage: string;
 }
 
-export interface SystemBriefingTrigger {
+// Trigger&Szenario liefert seit der Zusammenlegung mit der vormaligen
+// Chart-Narrativ-Kachel (06.10.2026) IMMER beide Richtungen -- kursziel
+// MUSS einem echten keyLevels-Preis entsprechen oder null sein (siehe
+// promptProfiles.ts "system-briefing").
+export interface SystemBriefingScenario {
   bedingungen: string[];
   kursziel: number | null;
+}
+
+export interface SystemBriefingTrigger {
+  bullish: SystemBriefingScenario;
+  bearish: SystemBriefingScenario;
   invalidierung: string;
 }
 
 export interface SystemBriefingResult {
   fazit: SystemBriefingFazit;
   regelwerkCheck: string;
-  // null, wenn Marktkontext/ETF/Positionierung/News dem Regelwerk-Check
-  // NICHT widersprechen -- bewusst weggelassen statt erzwungen erwaehnt
-  // (Hauptursache der frueheren Laenge).
-  kontextCheck: string | null;
+  // Chart-Formationen/Key Levels/Level-Struktur -- aus der 06.10.2026
+  // zusammengelegten Chart-Narrativ-Kachel (vormals "structureNarrative").
+  chartStruktur: string;
+  // null, wenn weder Marktkontext/ETF/Positionierung/News NOCH Chart-
+  // Struktur dem Regelwerk-Check widersprechen -- bewusst weggelassen statt
+  // erzwungen erwaehnt (Hauptursache der frueheren Laenge). Vormals
+  // "kontextCheck", umbenannt, da jetzt auch den Chart-Struktur-Abgleich
+  // (vormals "confluence" in der Chart-Narrativ-Kachel) mit abdeckt.
+  konfluenzCheck: string | null;
   trigger: SystemBriefingTrigger;
 }
 
@@ -445,34 +459,6 @@ export interface SystemBriefingSnapshot {
   provider: string | null;
   model: string | null;
   result: SystemBriefingResult | null;
-  status: "ok" | "error";
-  error: string | null;
-}
-
-// Chart-Narrativ-Kachel (Nutzer-Wunsch 06.10.2026, siehe
-// lib/chartNarrativeContext.ts + promptProfiles.ts "chart-narrative-analysis").
-export interface ChartNarrativeScenario {
-  trigger: string;
-  target: number | null;
-  note: string;
-}
-
-export interface ChartNarrativeResult {
-  bias: "bullish" | "bearish" | "neutral";
-  confidence: number;
-  structureNarrative: string;
-  confluence: string;
-  bullishScenario: ChartNarrativeScenario;
-  bearishScenario: ChartNarrativeScenario;
-  invalidation: string;
-}
-
-export interface ChartNarrativeSnapshot {
-  id: number;
-  generated_at: string;
-  provider: string | null;
-  model: string | null;
-  result: ChartNarrativeResult | null;
   status: "ok" | "error";
   error: string | null;
 }

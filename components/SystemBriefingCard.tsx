@@ -41,12 +41,20 @@ import PanelInfo from "@/components/PanelInfo";
 // Orderflow-Zeile nur noch erwaehnt, wenn Nexus' Regime-Engine tatsaechlich
 // einen Trend erkennt (sonst ist GUSS schlicht nicht anwendbar) -- vorher
 // stand dort oft nur Rauschen wie "GUSS aktiv=false (Regime ...)".
+//
+// 06.10.2026 -- Zusammengelegt mit der vormals eigenstaendigen Chart-
+// Narrativ-Kachel (Nutzer-Audit "welche Reports sind sehr aehnlich?" --
+// beide nutzten bereits denselben breiten Signal-Satz). Zwei Abschnitte
+// kamen dazu (Chart-Struktur, vormals "structureNarrative"), zwei wurden
+// zusammengefuehrt (kontextCheck + confluence -> konfluenzCheck), und
+// Trigger&Szenario zeigt jetzt IMMER beide Richtungen (bullish+bearish,
+// Nutzer-Entscheidung) statt nur eines Pfads -- siehe ScenarioBlock unten.
 
 const INFO_TEXT = [
-  "Was das ist: eine KI-Synthese, die dein eigenes Regelwerk (Welz/Salomon-Methodik + \"Mein Trading System\"-Checkliste) auf den aktuellen Stand von Nexus' berechneten Faktoren anwendet -- Bewegungsvorrat, 14-Faktoren-Engine, VWAP-Vector/CVD, Liquidations-Cluster, Marktkontext, ETF-Flows, Positionierung, News.",
-  "Wiederholt bewusst KEINE der einzeln angezeigten Werte — sagt stattdessen, ob dein eigenes Regelwerk aktuell erfüllt ist und ob sich die Quellen gegenseitig bestätigen oder widersprechen. Der Kontext-Check erscheint nur, wenn es einen echten Widerspruch gibt.",
-  "Regelwerk-Check steht seit 01.10.2026 als kurze Zeilen statt als ein Fliesstext-Block (Gates / Orderflow / Bewegungsvorrat / Liquidation) — nur befüllte Zeilen werden gezeigt. GUSS taucht in der Orderflow-Zeile nur auf, wenn Nexus' Regime-Engine gerade einen Trend erkennt (sonst ist GUSS gar nicht anwendbar) — dann als kurze Info/Erinnerung, nicht als eigenständiges Signal.",
-  "Trigger & Szenario enthält jetzt ein konkretes Kursziel (seit 30.09.2026 erlaubt) — trotzdem eine Entscheidungsunterstützung anhand deiner eigenen Regeln, keine automatisierte Anlageberatung.",
+  "Was das ist: eine KI-Synthese, die dein eigenes Regelwerk (Welz/Salomon-Methodik + \"Mein Trading System\"-Checkliste) UND die algorithmisch berechnete Chart-Struktur (Formationen, Key Levels, Level-Struktur) auf den aktuellen Stand von Nexus' berechneten Faktoren anwendet -- Bewegungsvorrat, 14-Faktoren-Engine, VWAP-Vector/CVD, Liquidations-Cluster, Marktkontext, ETF-Flows, Positionierung, News.",
+  "Wiederholt bewusst KEINE der einzeln angezeigten Werte — sagt stattdessen, ob dein eigenes Regelwerk aktuell erfüllt ist, was die Chart-Struktur zeigt, und ob sich die Quellen gegenseitig bestätigen oder widersprechen. Der Konfluenz-Check erscheint nur, wenn es einen echten Widerspruch gibt.",
+  "Regelwerk-Check steht als kurze Zeilen statt als ein Fliesstext-Block (Gates / Orderflow / Bewegungsvorrat / Liquidation) — nur befüllte Zeilen werden gezeigt. GUSS taucht in der Orderflow-Zeile nur auf, wenn Nexus' Regime-Engine gerade einen Trend erkennt (sonst ist GUSS gar nicht anwendbar) — dann als kurze Info/Erinnerung, nicht als eigenständiges Signal.",
+  "Trigger & Szenario zeigt IMMER beide Richtungen (bullisch + bärisch) mit je eigenem Kursziel — jedes Kursziel entspricht zwingend einem echten Key Level, nie einer frei geschätzten Zahl. Trotzdem eine Entscheidungsunterstützung anhand deiner eigenen Regeln und der Chart-Struktur, keine automatisierte Anlageberatung.",
   "Die \"Kurze Einordnung\" oben in der Gesamteinschätzung (HeroHeader) zeigt das Fazit dieser Analyse.",
   "Aktualisiert sich automatisch, sobald der zuletzt generierte Stand zu alt wird (ausgelöst über die \"Kurze Einordnung\" oben) — zusätzlich weiterhin per Klick auf \"Neu generieren\" hier möglich.",
 ].join("\n\n");
@@ -59,6 +67,43 @@ const BIAS_LABEL: Record<"bullish" | "bearish" | "neutral", string> = {
 
 function formatPrice(value: number): string {
   return `$${value.toLocaleString("de-CH", { maximumFractionDigits: 0 })}`;
+}
+
+function ScenarioBlock({
+  label,
+  scenario,
+  tone,
+}: {
+  label: string;
+  scenario: { bedingungen: string[]; kursziel: number | null };
+  tone: "up" | "down";
+}) {
+  const toneClass = tone === "up" ? "text-up" : "text-down";
+  if (scenario.bedingungen.length === 0 && scenario.kursziel === null) {
+    return (
+      <div className="rounded-md border border-border/60 p-2.5 space-y-1">
+        <p className={`text-xs font-medium ${toneClass}`}>{label}</p>
+        <p className="text-xs text-text-faint">Kein plausibles Szenario aus der aktuellen Lage ableitbar.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-md border border-border/60 p-2.5 space-y-1">
+      <p className={`text-xs font-medium ${toneClass}`}>{label}</p>
+      {scenario.bedingungen.length > 0 && (
+        <ul className="space-y-1 text-xs text-text-muted list-disc list-inside">
+          {scenario.bedingungen.map((b, i) => (
+            <li key={i}>{b}</li>
+          ))}
+        </ul>
+      )}
+      {scenario.kursziel !== null && (
+        <p className="text-xs text-text">
+          Kursziel: <span className="font-semibold">{formatPrice(scenario.kursziel)}</span>
+        </p>
+      )}
+    </div>
+  );
 }
 
 // regelwerkCheck kommt seit 01.10.2026 als max. 4 Zeilen ("Label: Befund"),
@@ -78,10 +123,11 @@ function parseRegelwerkLines(text: string): { label: string; detail: string }[] 
     });
 }
 
-// Schutz gegen Alt-Format-Zeilen (vor der Fusion mit Handelslage am
-// 30.09.2026 hatten result-Spalten noch die Form { narrative: string }
-// ohne fazit/regelwerkCheck/trigger) -- ohne diesen Guard wirft der Render
-// unten (result.fazit.bias etc.) und reisst die ganze Seite mit runter.
+// Schutz gegen Alt-Format-Snapshots (vor der Fusion mit Handelslage am
+// 30.09.2026 hatten result-Spalten noch die Form { narrative: string },
+// vor der Zusammenlegung mit Chart-Narrativ am 06.10.2026 fehlten
+// chartStruktur/trigger.bullish/trigger.bearish) -- ohne diesen Guard wirft
+// der Render unten und reisst die ganze Seite mit runter.
 function isValidResult(result: unknown): result is SystemBriefingResult {
   if (!result || typeof result !== "object") return false;
   const r = result as Partial<SystemBriefingResult>;
@@ -90,8 +136,12 @@ function isValidResult(result: unknown): result is SystemBriefingResult {
     typeof r.fazit.bias === "string" &&
     typeof r.fazit.kernaussage === "string" &&
     typeof r.regelwerkCheck === "string" &&
+    typeof r.chartStruktur === "string" &&
     !!r.trigger &&
-    Array.isArray(r.trigger.bedingungen) &&
+    !!r.trigger.bullish &&
+    Array.isArray(r.trigger.bullish.bedingungen) &&
+    !!r.trigger.bearish &&
+    Array.isArray(r.trigger.bearish.bedingungen) &&
     typeof r.trigger.invalidierung === "string"
   );
 }
@@ -155,7 +205,7 @@ export default function SystemBriefingCard({
 
       {isStaleFormat && (
         <p className="text-xs text-text-faint">
-          Dieser Stand ist im alten Format (vor der Fusion mit Handelslage) — bitte neu generieren.
+          Dieser Stand ist im alten Format (vor der Zusammenlegung mit Chart-Narrativ) — bitte neu generieren.
         </p>
       )}
 
@@ -192,27 +242,24 @@ export default function SystemBriefingCard({
             </ul>
           </div>
 
-          {result.kontextCheck && (
+          <div className="pt-2 border-t border-border/60 space-y-1">
+            <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Chart-Struktur</p>
+            <p className="text-sm text-text-muted leading-relaxed">{result.chartStruktur}</p>
+          </div>
+
+          {result.konfluenzCheck && (
             <div className="pt-2 border-t border-border/60 space-y-1">
-              <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Kontext-Check</p>
-              <p className="text-sm text-text-muted leading-relaxed">{result.kontextCheck}</p>
+              <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Konfluenz-Check</p>
+              <p className="text-sm text-text-muted leading-relaxed">{result.konfluenzCheck}</p>
             </div>
           )}
 
           <div className="pt-2 border-t border-border/60 space-y-1.5">
             <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Trigger &amp; Szenario</p>
-            {result.trigger.bedingungen.length > 0 && (
-              <ul className="space-y-1 text-xs text-text-muted list-disc list-inside">
-                {result.trigger.bedingungen.map((b, i) => (
-                  <li key={i}>{b}</li>
-                ))}
-              </ul>
-            )}
-            {result.trigger.kursziel !== null && (
-              <p className="text-xs text-text">
-                Kursziel: <span className="font-semibold">{formatPrice(result.trigger.kursziel)}</span>
-              </p>
-            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-start">
+              <ScenarioBlock label="Bullisches Szenario" scenario={result.trigger.bullish} tone="up" />
+              <ScenarioBlock label="Bärisches Szenario" scenario={result.trigger.bearish} tone="down" />
+            </div>
             <p className="text-xs text-text-faint">Ungültig wenn: {result.trigger.invalidierung}</p>
           </div>
         </div>

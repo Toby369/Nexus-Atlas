@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import type { ChartNarrativeSnapshot, ChecklistRun, QuizCard, QuizProgressRow } from "@/lib/types";
+import type { ChecklistRun, QuizCard, QuizProgressRow } from "@/lib/types";
 import LernenDashboard from "@/components/LernenDashboard";
 import LogoutButton from "@/components/LogoutButton";
 import { getKnowledgeBase } from "@/lib/knowledgeBaseContext";
@@ -46,26 +46,8 @@ async function getChecklistHistory(): Promise<ChecklistRun[]> {
   return data ?? [];
 }
 
-// Chart-Narrativ (Nutzer-Wunsch 06.10.2026) -- reines Lesen, kein AI-Aufruf
-// (der passiert nur ueber POST /api/chart-narrative/generate, siehe
-// ChartNarrativeCard.tsx).
-async function getLatestChartNarrative(): Promise<ChartNarrativeSnapshot | null> {
-  const { data, error } = await supabase
-    .from("chart_narratives")
-    .select("*")
-    .order("generated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error("Fehler beim Laden des Chart-Narrativs:", error.message);
-    return null;
-  }
-  return data ?? null;
-}
-
 export default async function LernenPage() {
-  const [cards, progress, knowledgeBase, meinSystemData, checklistHistory, tradingIndicators, chartStructure, chartNarrativeSnapshot] =
+  const [cards, progress, knowledgeBase, meinSystemData, checklistHistory, tradingIndicators, chartStructure] =
     await Promise.all([
       getCards(),
       getProgress(),
@@ -74,7 +56,6 @@ export default async function LernenPage() {
       getChecklistHistory(),
       getTradingIndicatorsData(),
       getChartStructureData(),
-      getLatestChartNarrative(),
     ]);
 
   // Key-Levels-Konfluenz mit EMA13/50/200 (meinSystemData) und VWAP
@@ -138,7 +119,6 @@ export default async function LernenPage() {
           cvdData={tradingIndicators.cvd}
           chartStructureData={chartStructureEnriched}
           levelStructureZones={levelStructureZones}
-          chartNarrativeSnapshot={chartNarrativeSnapshot}
         />
       </section>
 

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import type { ChartNarrativeSnapshot, ChecklistRun, KnowledgeBaseEntry, QuizCard, QuizProgressRow } from "@/lib/types";
+import type { ChecklistRun, KnowledgeBaseEntry, QuizCard, QuizProgressRow } from "@/lib/types";
 import {
   BOX_MAX,
   GRADES,
@@ -20,7 +20,6 @@ import PanelInfo from "@/components/PanelInfo";
 import { CvdFootprintCard, GussSignalCard, VwapVectorCard } from "@/components/TradingIndicatorsCards";
 import ChartStructureCard from "@/components/ChartStructureCard";
 import LevelStructureCard from "@/components/LevelStructureCard";
-import ChartNarrativeCard from "@/components/ChartNarrativeCard";
 import { CandlestickPatternIllustration } from "@/components/CandlestickPatternIllustration";
 import { institutionalPlaybookInfo } from "@/lib/panelInfo";
 
@@ -77,7 +76,6 @@ export default function LernenDashboard({
   cvdData,
   chartStructureData,
   levelStructureZones,
-  chartNarrativeSnapshot,
 }: {
   initialCards: QuizCard[];
   initialProgress: QuizProgressRow[];
@@ -89,7 +87,6 @@ export default function LernenDashboard({
   cvdData: CvdFootprintData;
   chartStructureData: ChartStructureData;
   levelStructureZones: LevelStructureZone[];
-  chartNarrativeSnapshot: ChartNarrativeSnapshot | null;
 }) {
   const [cards, setCards] = useState(initialCards);
   const [progressRows, setProgressRows] = useState(initialProgress);
@@ -164,7 +161,6 @@ export default function LernenDashboard({
           cvdData={cvdData}
           chartStructureData={chartStructureData}
           levelStructureZones={levelStructureZones}
-          chartNarrativeSnapshot={chartNarrativeSnapshot}
         />
       )}
     </div>
@@ -969,7 +965,6 @@ function WissenPanel({
   cvdData,
   chartStructureData,
   levelStructureZones,
-  chartNarrativeSnapshot,
 }: {
   knowledgeBase: KnowledgeBaseEntry[];
   meinSystemData: MeinSystemChecklistData;
@@ -979,7 +974,6 @@ function WissenPanel({
   cvdData: CvdFootprintData;
   chartStructureData: ChartStructureData;
   levelStructureZones: LevelStructureZone[];
-  chartNarrativeSnapshot: ChartNarrativeSnapshot | null;
 }) {
   const [module, setModule] = useState<WissenModule>("welz");
   const [checklistHistory, setChecklistHistory] = useState(initialChecklistHistory);
@@ -1050,7 +1044,6 @@ function WissenPanel({
           <CvdFootprintCard data={cvdData} />
           <ChartStructureCard data={chartStructureData} />
           <LevelStructureCard zones={levelStructureZones} />
-          <ChartNarrativeCard initialSnapshot={chartNarrativeSnapshot} />
           <ChecklistBlock
             title="Entry-Regelwerk"
             items={MEIN_SYSTEM_MANUAL_CHECKLIST}

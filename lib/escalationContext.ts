@@ -100,13 +100,13 @@ export async function detectEscalationTriggers(): Promise<EscalationTrigger[]> {
 
   if (
     briefing?.status === "ok" &&
-    !!briefing.result?.kontextCheck &&
+    !!briefing.result?.konfluenzCheck &&
     isFresh(briefing.generated_at)
   ) {
     triggers.push({
       source: "system-briefing",
-      label: "System-Briefing meldet einen Widerspruch (Kontext-Check)",
-      detail: [briefing.result.kontextCheck],
+      label: "System-Briefing meldet einen Widerspruch (Konfluenz-Check)",
+      detail: [briefing.result.konfluenzCheck],
     });
   }
 

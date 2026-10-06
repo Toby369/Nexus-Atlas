@@ -71,11 +71,12 @@ function formatSignedPct(value: number | null) {
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
 
-// Kurze Einordnung (22.09.2026, 30.09.2026 angepasst): zeigt das FAZIT
-// (kernaussage) des System-Briefing-Snapshots -- seit der Umstrukturierung
-// auf vier Abschnitte (siehe lib/types.ts::SystemBriefingResult) ist das
-// bereits die kurze, 1-2-saetzige Zusammenfassung, keine clientseitige
-// Kuerzung eines langen Fliesstexts mehr noetig.
+// Kurze Einordnung (22.09.2026, 30.09.2026 angepasst, 06.10.2026 um Chart-
+// Struktur erweitert): zeigt das FAZIT (kernaussage) des System-Briefing-
+// Snapshots -- seit der Umstrukturierung auf fuenf Abschnitte (siehe
+// lib/types.ts::SystemBriefingResult) ist das bereits die kurze, 1-2-
+// saetzige Zusammenfassung, keine clientseitige Kuerzung eines langen
+// Fliesstexts mehr noetig.
 const SHORT_NARRATIVE_INFO_TEXT = [
   "Was das ist: das Fazit der System-Briefing-Einordnung (Regelwerk + Nexus-Faktoren) als schneller Überblick direkt hier oben -- dieselbe Analyse wie unten in der System-Briefing-Kachel, nicht extra generiert.",
   "Andere Engine als das grosse Badge oben: das Badge ist die regelbasierte 14-Faktoren-Gesamteinschätzung, diese Box wendet dein eigenes Regelwerk (Welz/Salomon/\"Mein Trading System\") AUF diese Einschätzung an -- beide können unterschiedlicher Meinung sein. Weicht der aktuelle Stand tatsächlich ab, erscheint hier ein Warnhinweis (⚠) statt zwei stillschweigend widersprüchlichen Badges.",

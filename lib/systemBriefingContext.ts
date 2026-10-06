@@ -5,6 +5,13 @@ import { getTradingIndicatorsData, type TradingIndicatorsData } from "./tradingI
 import { getKnowledgeBase } from "./knowledgeBaseContext";
 import { DEFAULT_TIMEFRAME, getTimeframe } from "./timeframes";
 import { deriveMarketContext } from "./marketContext";
+import {
+  getChartStructureData,
+  withConfirmationLevels,
+  type ChartStructureData,
+  type KeyLevel,
+} from "./chartStructureContext";
+import { getLevelStructureData, type LevelStructureZone } from "./levelStructureContext";
 import type {
   MarketState,
   LiquidationIntelligence,
@@ -37,6 +44,16 @@ import type {
 // (siehe Chat-Verlauf, Redundanz-Analyse). market_state (14-Faktoren-
 // Engine) bleibt, da mein_system_checklist/Regelwerk-Gates direkt darauf
 // aufbauen.
+//
+// 06.10.2026 -- Zusammengelegt mit der vormals eigenstaendigen Chart-
+// Narrativ-Kachel (Nutzer-Audit "welche Reports sind sehr aehnlich?" --
+// beide nutzten bereits denselben breiten Signal-Satz, siehe ehemalige
+// lib/chartNarrativeContext.ts, jetzt hier aufgegangen). chart_structure
+// liefert die algorithmisch berechneten Formationen/Key Levels/Level-
+// Struktur direkt mit -- dieselbe Anreicherung (EMA13/50/200 + VWAP-
+// Vector-Konfluenz), die vormals app/lernen/page.tsx separat durchfuehrte,
+// jetzt EINMAL hier, da mein_system_checklist/trading_indicators ohnehin
+// schon oben geladen werden (kein zweiter Fetch).
 //
 // Server-only (nutzt Supabase direkt) -- niemals aus einer "use client"
 // Komponente importieren.
@@ -232,6 +249,18 @@ export interface SystemBriefingContext {
   etf_flows: { cumulative_usd_m: number | null; days: number };
   positioning: { confidence: number | null };
   news: { count: number; lookback_hours: number };
+  // Chart-Strukturdaten (06.10.2026, aus der zusammengelegten Chart-
+  // Narrativ-Kachel) -- algorithmisch berechnet, nicht vision-basiert.
+  triangle: ChartStructureData["triangle"];
+  continuationFormation: ChartStructureData["continuationFormation"];
+  swingFormations: ChartStructureData["swingFormations"];
+  recentCandlestickPatterns: ChartStructureData["candlestickPatterns"];
+  keyLevels: KeyLevel[];
+  // signalTally bewusst weggelassen -- die zugrunde liegenden Signale
+  // (CVD-Trend, Warn-Muster, MTF-Ampel) stehen bereits oben in diesem
+  // Kontext (market_state/trading_indicators), eine zweite Zaehlung waere
+  // Dopplung.
+  levelStruktur: Array<Omit<LevelStructureZone, "signalTally">>;
 }
 
 export async function buildSystemBriefingContext(): Promise<SystemBriefingContext> {
@@ -249,6 +278,7 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
     bundle,
     recentEtfFlows,
     highImpactNews,
+    chartStructure,
   ] = await Promise.all([
     getLatestMarketState(),
     getBewegungsvorrat(),
@@ -259,6 +289,7 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
     getDashboardPollBundle(sinceIso),
     getRecentEtfFlows(),
     getHighImpactNews(),
+    getChartStructureData(),
   ]);
 
   const marketContextDerived = bundle
@@ -269,6 +300,24 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
     ? recentEtfFlows.slice(0, CUMULATIVE_ETF_DAYS).reduce((sum, f) => sum + (f.total_flow_usd_m ?? 0), 0)
     : null;
   const etfDays = Math.min(recentEtfFlows.length, CUMULATIVE_ETF_DAYS);
+
+  // Dieselbe Anreicherung wie vormals app/lernen/page.tsx/lib/
+  // chartNarrativeContext.ts -- EMA13/50/200 und VWAP-Vector sind oben
+  // bereits geladen (meinSystemChecklist/tradingIndicators), kein zweiter
+  // Fetch.
+  const chartStructureEnriched = withConfirmationLevels(chartStructure, [
+    { label: "ema13", price: meinSystemChecklist.ema13 },
+    { label: "ema50", price: meinSystemChecklist.ema50 },
+    { label: "ema200", price: meinSystemChecklist.ema200 },
+    { label: "vwap_daily", price: tradingIndicators.vwapVector.dayVwap },
+    { label: "vwap_weekly", price: tradingIndicators.vwapVector.weeklyVwap },
+    { label: "vwap_swing_high", price: tradingIndicators.vwapVector.swingHighVwap },
+    { label: "vwap_swing_low", price: tradingIndicators.vwapVector.swingLowVwap },
+  ]);
+  const levelStructureZones = await getLevelStructureData(
+    chartStructureEnriched.keyLevels,
+    tradingIndicators.cvd.trend
+  );
 
   return {
     generated_at: new Date().toISOString(),
@@ -311,5 +360,15 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
     etf_flows: { cumulative_usd_m: etfCumulative, days: etfDays },
     positioning: { confidence: bundle?.positioning_signal?.confidence ?? null },
     news: { count: highImpactNews.length, lookback_hours: NEWS_LOOKBACK_HOURS },
+    triangle: chartStructureEnriched.triangle,
+    continuationFormation: chartStructureEnriched.continuationFormation,
+    swingFormations: chartStructureEnriched.swingFormations,
+    recentCandlestickPatterns: chartStructureEnriched.candlestickPatterns.slice(-5),
+    keyLevels: chartStructureEnriched.keyLevels,
+    levelStruktur: levelStructureZones.map((zone) => {
+      const { signalTally, ...rest } = zone;
+      void signalTally;
+      return rest;
+    }),
   };
 }

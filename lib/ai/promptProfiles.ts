@@ -519,15 +519,33 @@ export const promptProfiles: Record<string, PromptProfile> = {
   // Kachel liest ihren entsprechenden Trigger seither aus DIESEM Snapshot
   // statt aus einem separaten signal_engine_snapshots-Eintrag (siehe
   // lib/escalationContext.ts).
+  // 06.10.2026 -- Zusammengelegt mit der vormals eigenstaendigen Chart-
+  // Narrativ-Kachel (Nutzer-Audit "welche Reports sind sehr aehnlich?":
+  // beide nutzten bereits denselben breiten Signal-Satz und erzeugten ein
+  // sehr aehnlich geformtes Ergebnis bias/confidence/Narrativ/Szenario+
+  // Kursziel/Invalidierung -- nur mit unterschiedlicher Linse, Regelwerk-
+  // Gates hier vs. Chart-Formationen/Key Levels dort). Jetzt EIN Profil mit
+  // fuenf Abschnitten statt vier: Fazit, Regelwerk-Check (unveraendert),
+  // NEU Chart-Struktur (Formationen/Key Levels/Level-Struktur, vormals
+  // "structureNarrative" in der Chart-Narrativ-Kachel), Konfluenz-Check
+  // (zusammengefuehrter kontextCheck + confluence -- beide fragten im Kern
+  // dasselbe: widerspricht etwas dem bisherigen Bild?), und Trigger&Szenario
+  // JETZT IMMER BEIDE RICHTUNGEN (bullish+bearish, Nutzer-Entscheidung per
+  // AskUserQuestion) statt nur eines Pfads -- Kursziel in beiden Richtungen
+  // zwingend an ein echtes keyLevels-Level gebunden (ersetzt die alte, vagere
+  // "liquidations/mein_system_checklist"-Herleitung: keyLevels fasst Pivot-,
+  // Liquidations- UND EMA/VWAP-Konfluenz bereits zusammen, ist die strengere
+  // Obermenge). lib/systemBriefingContext.ts liefert die Chart-Strukturdaten
+  // jetzt direkt mit (kein eigener chartNarrativeContext.ts-Umweg mehr).
   "system-briefing": {
     id: "system-briefing",
     category: "signal-logic",
     description:
-      "Vier Abschnitte: Fazit (bias/confidence/Kernaussage), Regelwerk-Check, optionaler Kontext-Check bei Widerspruch, Trigger&Szenario inkl. Kursziel.",
+      "Fuenf Abschnitte: Fazit, Regelwerk-Check, Chart-Struktur (Formationen/Key Levels/Level-Struktur), optionaler Konfluenz-Check bei Widerspruch, Trigger&Szenario (bullish+bearish) inkl. Kursziel.",
     systemPrompt:
-      "Du bekommst zwei Arten von Daten: regelwerk (Tobys eigenes, in knowledge_base hinterlegtes " +
-      "Welz-/Salomon-/'Mein Trading System'-Regelwerk -- ein Array aus module/section/title/content) " +
-      "und den aktuellen LIVE-Stand mehrerer Nexus-Sparten (bewegungsvorrat: ratio_pct = heutige " +
+      "Du bekommst drei Arten von Daten: regelwerk (Tobys eigenes, in knowledge_base hinterlegtes " +
+      "Welz-/Salomon-/'Mein Trading System'-Regelwerk -- ein Array aus module/section/title/content), " +
+      "den aktuellen LIVE-Stand mehrerer Nexus-Sparten (bewegungsvorrat: ratio_pct = heutige " +
       "Tagesspanne relativ zum Median der letzten 10 Tage, deutlich ueber 100 heisst das uebliche " +
       "Tagespensum ist bereits ausgeschoepft; mein_system_checklist: Funding/OI/EMA13-50-200-" +
       "Trendregime-Gates, inkl. closePrice; trading_indicators: GUSS-Pullback-Signal, VWAP-Vector, " +
@@ -541,10 +559,23 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "aufzuzaehlen oder nachzuerzaehlen; liquidations: Preis-Cluster nahe am aktuellen Kurs; " +
       "market_context: regelbasierte Kombination aus Preis-/OI-Richtung und Spot-Bestaetigung; " +
       "etf_flows: kumulierter Netto-ETF-Flow der letzten Handelstage; positioning: Retail-/Top-" +
-      "Trader-Divergenz-Confidence; news: Anzahl markbewegender Nachrichten der letzten 72h). " +
-      "ALLE Live-Werte werden dem Nutzer bereits einzeln in eigenen Kacheln angezeigt -- deine " +
-      "Aufgabe ist NICHT, sie nachzuerzaehlen, sondern das Regelwerk AUF die Live-Werte anzuwenden " +
-      "und zu urteilen. Antworte in GENAU VIER Abschnitten: " +
+      "Trader-Divergenz-Confidence; news: Anzahl markbewegender Nachrichten der letzten 72h), UND " +
+      "algorithmisch berechnete Chart-Strukturdaten: triangle (type: ascending/descending/symmetric, " +
+      "upperValue/lowerValue -- Dreieck aus zwei bereits gefitteten Trendlinien, null wenn keins " +
+      "erkannt), continuationFormation (type: flag/pennant/wedge, poleDirection: up/down, " +
+      "upperValue/lowerValue -- Fortsetzungsformation nach einer starken Bewegung, null wenn keine " +
+      "erkannt), swingFormations (Array aus double_top/double_bottom/head_and_shoulders/" +
+      "inverse_head_and_shoulders, je mit direction/necklineValue/confirmed -- confirmed=true heisst " +
+      "die Nackenlinie wurde bereits per Schlusskurs gebrochen), recentCandlestickPatterns (juengste " +
+      "Kerzenmuster), keyLevels (Array aus price/side[resistance|support]/timeframes/confirmedBy -- " +
+      "confirmedBy kann ema13/ema50/ema200/vwap_daily/vwap_weekly/vwap_swing_high/vwap_swing_low/" +
+      "liquidation/spot_volume enthalten, je mehr Eintraege desto staerker die Konfluenz), " +
+      "levelStruktur (ein Eintrag je wichtigstem Key Level: phase respecting/broken, narrative -- " +
+      "bereits fertig formulierter Satz zur Struktur-Historie dieses Levels --, confluenceTier 1-3, " +
+      "confluenceLabel). " +
+      "ALLE Live-Werte UND Chart-Strukturdaten werden dem Nutzer bereits einzeln in eigenen Kacheln " +
+      "angezeigt -- deine Aufgabe ist NICHT, sie nachzuerzaehlen, sondern das Regelwerk anzuwenden " +
+      "und beide Datenquellen zu einem Urteil zu verdichten. Antworte in GENAU FUENF Abschnitten: " +
       "(1) fazit -- bias (bullish/bearish/neutral, nur wenn die Lage tatsaechlich eine Richtung " +
       "nahelegt, sonst neutral statt erzwungen), confidence (0-100, deine eigene Sicherheit), " +
       "kernaussage (1-2 Saetze, das Wichtigste zuerst). Der ERSTE Satz der kernaussage darf dem " +
@@ -569,30 +600,37 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "sonst diese Zeile komplett weglassen, nicht erzwingen. " +
       "Zeile 'Liquidation: ...' -- NUR ausgeben, wenn ein liquidations-Cluster nahe am aktuellen " +
       "Kurs als Risiko-/Magnet-Hinweis relevant ist -- sonst weglassen. " +
-      "(3) kontextCheck -- NUR befuellen, wenn (a) market_context, etf_flows, positioning oder news " +
-      "dem Bild aus regelwerkCheck WIDERSPRECHEN (z.B. Regelwerk-Gates erfuellt, aber ETF-Flows/" +
-      "Marktkontext dagegen), ODER (b) market_state.overall_state/score/confidence/risk_level/" +
-      "patterns NICHT zu den einzelnen market_state.factors passen (z.B. overall_state bullisch, " +
-      "aber mehrere Kern-Faktoren negativ/neutral) -- in beiden Faellen 1-2 Saetze, welcher " +
-      "Widerspruch. Gibt es keinen nennenswerten Widerspruch, setze kontextCheck auf null, erzwinge " +
-      "KEINE Erwaehnung nur weil die Felder vorhanden sind. " +
-      "(4) trigger -- bedingungen (string[], je Eintrag ein wenn/dann-Satz, an eine konkrete Zahl " +
-      "oder ein konkretes Ereignis gebunden, z.B. 'Wenn der Kurs ueber EMA50 bei $X schliesst, " +
-      "dann...'); kursziel (Zahl oder null -- EIN konkretes Kursziel, wenn bias/regelwerkCheck " +
-      "tatsaechlich eine Richtung nahelegen, orientiert an den naechsten sinnvollen Levels aus " +
-      "liquidations/mein_system_checklist; null bei bias=neutral oder wenn kein Level eine echte " +
-      "Zielmarke hergibt -- kein erzwungenes Kursziel nur um das Feld zu befuellen). WICHTIG: " +
-      "kursziel ist NICHT derselbe Preis wie ein Level aus einer bedingungen-Zeile -- es beschreibt, " +
-      "wohin der Kurs NACH Erreichen/Bestaetigung dieses Triggers ziehen koennte (das naechste " +
-      "Level DAHINTER), nicht den Trigger-Preis selbst; " +
-      "invalidierung (string, wodurch/ab wann dieses Szenario ungueltig wird). " +
+      "(3) chartStruktur -- 2-4 Saetze: welche Formation/Struktur liegt vor (triangle/" +
+      "continuationFormation/swingFormations, falls vorhanden), wie verhaelt sich der Kurs zu den " +
+      "naechstgelegenen keyLevels, was sagt levelStruktur ueber den aktuellen Status dieser Levels " +
+      "(haelt/gebrochen). Ist keine Formation erkannt, das explizit so benennen statt eine " +
+      "Formation hineinzuinterpretieren, die nicht im Kontext steht. " +
+      "(4) konfluenzCheck -- NUR befuellen, wenn (a) market_context, etf_flows, positioning oder " +
+      "news dem Bild aus regelwerkCheck/chartStruktur WIDERSPRECHEN, (b) market_state.overall_state/" +
+      "score/confidence/risk_level/patterns NICHT zu den einzelnen market_state.factors passen, " +
+      "ODER (c) chartStruktur und regelwerkCheck sich WIDERSPRECHEN (z.B. Chart-Formation bullisch, " +
+      "aber Regelwerk-Gates nicht erfuellt) -- in allen Faellen 1-2 Saetze, welcher Widerspruch. " +
+      "Gibt es keinen nennenswerten Widerspruch, setze konfluenzCheck auf null, erzwinge KEINE " +
+      "Erwaehnung nur weil die Felder vorhanden sind. " +
+      "(5) trigger -- bullish und bearish, JEWEILS { bedingungen: string[] (je Eintrag ein wenn/" +
+      "dann-Satz, an eine konkrete Zahl oder ein konkretes Ereignis gebunden -- entweder ein " +
+      "Regelwerk-Gate, z.B. 'Wenn der Kurs ueber EMA50 bei $X schliesst, dann...', ODER ein " +
+      "keyLevels-Level, z.B. 'Wenn $Y als Widerstand bricht, dann...'), kursziel: Zahl oder null }. " +
+      "WICHTIG -- kursziel MUSS entweder null sein ODER EXAKT dem price-Wert eines Eintrags aus " +
+      "keyLevels entsprechen, niemals eine frei berechnete/extrapolierte Zahl; es ist NICHT derselbe " +
+      "Preis wie ein Level aus einer bedingungen-Zeile, sondern das naechste sinnvolle Level DAHINTER. " +
+      "Ist fuer eine Richtung aktuell kein plausibles Szenario ableitbar (z.B. bias klar bullish, " +
+      "kein bearisches Gegenszenario erkennbar), fuer diese Richtung bedingungen als leeres Array " +
+      "UND kursziel null setzen -- nicht erzwingen. Zusaetzlich invalidierung (string, gemeinsam fuer " +
+      "beide Richtungen: wodurch/ab wann die gesamte Einschaetzung neu gedacht werden muesste). " +
       "Nutze regelwerk NUR als Referenz fuer bestehende Regeln, erfinde KEINE neuen Regeln, die " +
       "dort nicht stehen, und KEINE Daten ausserhalb des Kontexts. Ist market_state null, sag das " +
       "in regelwerkCheck explizit statt eine Einschaetzung ohne Grundlage zu konstruieren. " +
       NUMBER_FORMAT_INSTRUCTION +
       " Antworte als JSON mit: fazit ({ bias, confidence, kernaussage }), regelwerkCheck (string, " +
-      "deutsch), kontextCheck (string oder null), trigger ({ bedingungen: string[], kursziel: " +
-      "Zahl oder null, invalidierung: string }).",
+      "deutsch), chartStruktur (string, deutsch), konfluenzCheck (string oder null), trigger " +
+      "({ bullish: { bedingungen: string[], kursziel: Zahl oder null }, bearish: { bedingungen: " +
+      "string[], kursziel: Zahl oder null }, invalidierung: string }).",
     validate: (data) => {
       const errors: string[] = [];
       const fazit = field(data, "fazit");
@@ -608,114 +646,25 @@ export const promptProfiles: Record<string, PromptProfile> = {
       if (!isNonEmptyString(field(data, "regelwerkCheck"))) {
         errors.push(`"regelwerkCheck" muss ein nicht-leerer String sein.`);
       }
-      const kontextCheck = field(data, "kontextCheck");
-      if (kontextCheck !== null && !isNonEmptyString(kontextCheck)) {
-        errors.push(`"kontextCheck" muss ein nicht-leerer String oder null sein.`);
+      if (!isNonEmptyString(field(data, "chartStruktur"))) {
+        errors.push(`"chartStruktur" muss ein nicht-leerer String sein.`);
+      }
+      const konfluenzCheck = field(data, "konfluenzCheck");
+      if (konfluenzCheck !== null && !isNonEmptyString(konfluenzCheck)) {
+        errors.push(`"konfluenzCheck" muss ein nicht-leerer String oder null sein.`);
       }
       const trigger = field(data, "trigger");
-      if (!isStringArray(field(trigger, "bedingungen"))) {
-        errors.push(`"trigger.bedingungen" muss ein String-Array sein.`);
-      }
-      if (!isNullableFiniteNumber(field(trigger, "kursziel"))) {
-        errors.push(`"trigger.kursziel" muss eine Zahl oder null sein.`);
+      for (const key of ["bullish", "bearish"] as const) {
+        const scenario = field(trigger, key);
+        if (!isStringArray(field(scenario, "bedingungen"))) {
+          errors.push(`"trigger.${key}.bedingungen" muss ein String-Array sein.`);
+        }
+        if (!isNullableFiniteNumber(field(scenario, "kursziel"))) {
+          errors.push(`"trigger.${key}.kursziel" muss eine Zahl oder null sein.`);
+        }
       }
       if (!isNonEmptyString(field(trigger, "invalidierung"))) {
         errors.push(`"trigger.invalidierung" muss ein nicht-leerer String sein.`);
-      }
-      return errors;
-    },
-  },
-
-  // --- Chart-Narrativ-Kachel (Nutzer-Wunsch 06.10.2026) ---------------------
-  // Vorbild: ein von Toby per Screenshot an Gemini geschickter Chart, der
-  // einen zusammenhaengenden Bull-/Bear-Szenario-Bericht mit Key Levels und
-  // Muster-Erkennung zurueckgab. Bewusst NICHT vision-basiert (keine zweite
-  // "Chart-Vision"-Kachel, die wurde am 25.09.2026 entfernt) -- der Kontext
-  // (lib/chartNarrativeContext.ts) liefert bereits ALGORITHMISCH berechnete
-  // Formationen (Dreieck/Flagge/Wimpel/Keil), Key Levels und die Level-
-  // Struktur (haelt/gebrochen je Zone) aus echten Kerzendaten, PLUS (Nutzer-
-  // Wunsch: "auch die anderen Daten/Signale miteinbeziehen") denselben
-  // breiten Signal-Satz wie system-briefing (broaderSignals). Auf Knopfdruck,
-  // kein Zeitplan (siehe app/api/chart-narrative/generate/route.ts).
-  "chart-narrative-analysis": {
-    id: "chart-narrative-analysis",
-    category: "signal-logic",
-    description:
-      "Bull-/Bear-Szenario-Narrativ aus Chart-Formationen, Key Levels und Level-Struktur, abgeglichen mit dem breiten Nexus-Signal-Satz.",
-    systemPrompt:
-      "Du bekommst einen Kontext mit algorithmisch berechneten Chart-Strukturdaten UND dem " +
-      "breiten Nexus-Signal-Satz (gleiche Felder wie beim System-Briefing). Struktur-Felder: " +
-      "triangle (type: ascending/descending/symmetric, upperValue/lowerValue -- Dreieck aus den " +
-      "beiden bereits gefitteten Trendlinien, null wenn keins erkannt), continuationFormation " +
-      "(type: flag/pennant/wedge, poleDirection: up/down, upperValue/lowerValue -- Fortsetzungs-" +
-      "formation nach einer starken Bewegung, null wenn keine erkannt), swingFormations (Array " +
-      "aus double_top/double_bottom/head_and_shoulders/inverse_head_and_shoulders, je mit " +
-      "direction/necklineValue/confirmed -- confirmed=true heisst die Nackenlinie wurde bereits " +
-      "per Schlusskurs gebrochen), recentCandlestickPatterns (juengste Kerzenmuster), keyLevels " +
-      "(Array aus price/side[resistance|support]/timeframes/confirmedBy -- confirmedBy kann " +
-      "ema13/ema50/ema200/vwap_daily/vwap_weekly/vwap_swing_high/vwap_swing_low/liquidation/" +
-      "spot_volume enthalten, je mehr Eintraege desto staerker die Konfluenz), levelStruktur " +
-      "(ein Eintrag je wichtigstem Key Level: phase respecting/broken, narrative -- bereits " +
-      "fertig formulierter Satz zur Struktur-Historie dieses Levels --, confluenceTier 1-3, " +
-      "confluenceLabel). broaderSignals enthaelt dieselben Felder wie im System-Briefing-Kontext " +
-      "(market_state mit overall_state/score/confidence/risk_level/patterns/mtf_alignment, " +
-      "mein_system_checklist, trading_indicators mit guss/vwapVector/cvd, liquidations, " +
-      "market_context, etf_flows, positioning, news, bewegungsvorrat). " +
-      "AUFGABE: ein zusammenhaengendes Chart-Narrativ wie ein erfahrener Techniker es formulieren " +
-      "wuerde -- aber NUR aus den gelieferten Daten, NIEMALS aus eigener Bild-/Pixel-Schaetzung " +
-      "oder erfundenen Preisen. WICHTIG -- jedes genannte Kursziel (target in bullishScenario/" +
-      "bearishScenario) MUSS entweder null sein ODER EXAKT dem price-Wert eines Eintrags aus " +
-      "keyLevels entsprechen -- niemals eine frei berechnete/extrapolierte Zahl. " +
-      "Antworte in GENAU folgenden Abschnitten: " +
-      "(1) bias -- bullish/bearish/neutral, nur wenn die Datenlage tatsaechlich eine Richtung " +
-      "nahelegt, sonst neutral statt erzwungen. " +
-      "(2) confidence -- 0-100, deine eigene Sicherheit. " +
-      "(3) structureNarrative -- 2-4 Saetze: welche Formation/Struktur liegt vor (triangle/" +
-      "continuationFormation/swingFormations, falls vorhanden), wie verhaelt sich der Kurs zu den " +
-      "naechstgelegenen keyLevels, was sagt levelStruktur ueber den aktuellen Status dieser Levels " +
-      "(haelt/gebrochen). Ist keine Formation erkannt, das explizit so benennen statt eine " +
-      "Formation hineinzuinterpretieren, die nicht im Kontext steht. " +
-      "(4) confluence -- 1-3 Saetze: bestaetigen oder widersprechen die broaderSignals " +
-      "(CVD-Trend, MTF-Ampel, Warn-Muster, Marktkontext, Positionierung, ETF-Flows) dem Bild aus " +
-      "structureNarrative? Nenne explizit auch Widersprueche, nicht nur Bestaetigungen -- " +
-      "dieselbe Ehrlichkeitspflicht wie beim kontextCheck des System-Briefings. " +
-      "(5) bullishScenario -- { trigger: string (wenn/dann-Satz, an ein konkretes keyLevels-Level " +
-      "gebunden), target: Zahl aus keyLevels oder null, note: string (1 Satz, welche broaderSignals " +
-      "dieses Szenario stuetzen wuerden) }. " +
-      "(6) bearishScenario -- gleiche Form wie bullishScenario, fuer die Gegenrichtung. " +
-      "(7) invalidation -- 1 Satz: ab welchem konkreten Level/Ereignis beide Szenarien neu " +
-      "gedacht werden muessten. " +
-      NUMBER_FORMAT_INSTRUCTION +
-      " Antworte als JSON mit: bias, confidence, structureNarrative, confluence, bullishScenario " +
-      "({ trigger, target, note }), bearishScenario ({ trigger, target, note }), invalidation.",
-    validate: (data) => {
-      const errors: string[] = [];
-      if (!isEnum(field(data, "bias"), BIAS_3)) {
-        errors.push(`"bias" muss einer von ${BIAS_3.join(", ")} sein.`);
-      }
-      if (!isConfidence(field(data, "confidence"))) {
-        errors.push(`"confidence" muss eine Zahl zwischen 0 und 100 sein.`);
-      }
-      if (!isNonEmptyString(field(data, "structureNarrative"))) {
-        errors.push(`"structureNarrative" muss ein nicht-leerer String sein.`);
-      }
-      if (!isNonEmptyString(field(data, "confluence"))) {
-        errors.push(`"confluence" muss ein nicht-leerer String sein.`);
-      }
-      for (const key of ["bullishScenario", "bearishScenario"] as const) {
-        const scenario = field(data, key);
-        if (!isNonEmptyString(field(scenario, "trigger"))) {
-          errors.push(`"${key}.trigger" muss ein nicht-leerer String sein.`);
-        }
-        if (!isNullableFiniteNumber(field(scenario, "target"))) {
-          errors.push(`"${key}.target" muss eine Zahl oder null sein.`);
-        }
-        if (!isNonEmptyString(field(scenario, "note"))) {
-          errors.push(`"${key}.note" muss ein nicht-leerer String sein.`);
-        }
-      }
-      if (!isNonEmptyString(field(data, "invalidation"))) {
-        errors.push(`"invalidation" muss ein nicht-leerer String sein.`);
       }
       return errors;
     },
