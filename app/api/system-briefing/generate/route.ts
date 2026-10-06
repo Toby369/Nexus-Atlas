@@ -56,9 +56,17 @@ export async function POST() {
     );
   }
 
-  const context = await buildSystemBriefingContext();
-
   try {
+    // 06.10.2026 -- Bugfix: buildSystemBriefingContext() lief vorher
+    // AUSSERHALB dieses try/catch -- ein Fehler darin (z.B. eine der neu
+    // hinzugekommenen Chart-Struktur-Abfragen) riss die Route unbehandelt
+    // ab. Next.js/Vercel liefert dann eine generische, NICHT-JSON-
+    // Fehlerseite ("An error occurred ...") aus, an der res.json() im
+    // Client mit "Unexpected token 'A' ... is not valid JSON" scheitert --
+    // live von Toby gemeldet. Jetzt innerhalb des try/catch, liefert also
+    // in jedem Fehlerfall eine saubere { success: false, error } Antwort.
+    const context = await buildSystemBriefingContext();
+
     const result = await runTileAnalysis<SystemBriefingResult>("system-briefing", {
       context: JSON.stringify(context),
     });
