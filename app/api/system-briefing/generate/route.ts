@@ -16,6 +16,16 @@ import type { SystemBriefingResult } from "@/lib/types";
 //
 // Auth: proxy.ts sperrt diese Route wie jede andere /api/*-Route hinter eine
 // Login-Session -- keine eigene Pruefung noetig.
+//
+// 06.10.2026 -- buildSystemBriefingContext() laedt seit der Zusammenlegung
+// mit der vormaligen Chart-Narrativ-Kachel zusaetzlich die komplette Chart-
+// Struktur (getChartStructureData()/getLevelStructureData(), mehrere
+// grosse Kerzen-Abfragen) -- zusammen mit dem anschliessenden KI-Aufruf
+// laenger als Vercels unkonfigurierter Default (~10s). Live-Vorfall: "Failed
+// to fetch" beim Klick auf "Neu generieren". Gleiches Vorbild/gleicher Fix
+// wie app/api/youtube-monitor/generate/route.ts -- 60s ist das Maximum, das
+// der Hobby-Plan erlaubt.
+export const maxDuration = 60;
 
 const RATE_LIMIT_WINDOW_MINUTES = 20;
 const RATE_LIMIT_MAX_REQUESTS = 5;
