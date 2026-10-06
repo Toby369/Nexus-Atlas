@@ -101,6 +101,15 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     promptProfile: "system-briefing",
     fallbackProviders: ["openrouter", "deepseek"],
   },
+  // Chart-Narrativ-Kachel (Nutzer-Wunsch 06.10.2026): gleiche komplett
+  // kostenlose Kette wie system-briefing (google primaer, openrouter/
+  // deepseek als Fallback) -- auf Knopfdruck, kein Zeitplan.
+  "chart-narrative": {
+    tileId: "chart-narrative",
+    aiProvider: "auto", // -> google (signal-logic)
+    promptProfile: "chart-narrative-analysis",
+    fallbackProviders: ["openrouter", "deepseek"],
+  },
   // Eskalations-Kachel ("gezielte Eskalation", 05.09.2026): aiProvider hier
   // ist nur ein Platzhalter -- app/api/escalation/generate/route.ts ruft
   // runTileAnalysis() mehrfach mit explizitem providerOverride auf (je ein

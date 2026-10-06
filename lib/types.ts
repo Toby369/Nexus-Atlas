@@ -449,6 +449,34 @@ export interface SystemBriefingSnapshot {
   error: string | null;
 }
 
+// Chart-Narrativ-Kachel (Nutzer-Wunsch 06.10.2026, siehe
+// lib/chartNarrativeContext.ts + promptProfiles.ts "chart-narrative-analysis").
+export interface ChartNarrativeScenario {
+  trigger: string;
+  target: number | null;
+  note: string;
+}
+
+export interface ChartNarrativeResult {
+  bias: "bullish" | "bearish" | "neutral";
+  confidence: number;
+  structureNarrative: string;
+  confluence: string;
+  bullishScenario: ChartNarrativeScenario;
+  bearishScenario: ChartNarrativeScenario;
+  invalidation: string;
+}
+
+export interface ChartNarrativeSnapshot {
+  id: number;
+  generated_at: string;
+  provider: string | null;
+  model: string | null;
+  result: ChartNarrativeResult | null;
+  status: "ok" | "error";
+  error: string | null;
+}
+
 // Lernplattform-Kachel (Leitner-Karteikasten), Nutzer-Wunsch "wie im
 // Trading Journal" -- siehe lib/leitner.ts fuer die Uebergangsregeln.
 export interface QuizCard {
