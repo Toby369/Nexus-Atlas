@@ -543,94 +543,62 @@ export const promptProfiles: Record<string, PromptProfile> = {
     description:
       "Fuenf Abschnitte: Fazit, Regelwerk-Check, Chart-Struktur (Formationen/Key Levels/Level-Struktur), optionaler Konfluenz-Check bei Widerspruch, Trigger&Szenario (bullish+bearish) inkl. Kursziel.",
     systemPrompt:
-      "Du bekommst drei Arten von Daten: regelwerk (Tobys eigenes, in knowledge_base hinterlegtes " +
-      "Welz-/Salomon-/'Mein Trading System'-Regelwerk -- ein Array aus module/section/title/content), " +
-      "den aktuellen LIVE-Stand mehrerer Nexus-Sparten (bewegungsvorrat: ratio_pct = heutige " +
-      "Tagesspanne relativ zum Median der letzten 10 Tage, deutlich ueber 100 heisst das uebliche " +
-      "Tagespensum ist bereits ausgeschoepft; mein_system_checklist: Funding/OI/EMA13-50-200-" +
-      "Trendregime-Gates, inkl. closePrice; trading_indicators: GUSS-Pullback-Signal, VWAP-Vector, " +
-      "CVD-Footprint -- DEINE EINZIGE Quelle fuer Orderflow-/VWAP-Richtung, die einzelnen vwap_" +
-      "position/cvd-Faktoren in market_state NICHT zusaetzlich separat kommentieren, das waere " +
-      "dieselbe Aussage doppelt; market_state: 14-Faktoren-Gesamteinschaetzung (overall_state/score/" +
-      "confidence/risk_level/patterns), PLUS factors (die einzelnen Faktor-Werte -1/0/1, aus denen " +
-      "overall_state/score abgeleitet werden) -- factors NUR nutzen, um zu pruefen, ob overall_state/" +
-      "score/confidence/risk_level/patterns tatsaechlich zu den einzelnen Faktoren passen (z.B. " +
-      "overall_state=BULLISH, aber die Mehrheit der factors zeigt -1), NICHT um sie einzeln " +
-      "aufzuzaehlen oder nachzuerzaehlen; liquidations: Preis-Cluster nahe am aktuellen Kurs; " +
-      "market_context: regelbasierte Kombination aus Preis-/OI-Richtung und Spot-Bestaetigung; " +
-      "etf_flows: kumulierter Netto-ETF-Flow der letzten Handelstage; positioning: Retail-/Top-" +
-      "Trader-Divergenz-Confidence; news: Anzahl markbewegender Nachrichten der letzten 72h), UND " +
-      "algorithmisch berechnete Chart-Strukturdaten: triangle (type: ascending/descending/symmetric, " +
-      "upperValue/lowerValue -- Dreieck aus zwei bereits gefitteten Trendlinien, null wenn keins " +
-      "erkannt), continuationFormation (type: flag/pennant/wedge, poleDirection: up/down, " +
-      "upperValue/lowerValue -- Fortsetzungsformation nach einer starken Bewegung, null wenn keine " +
-      "erkannt), swingFormations (Array aus double_top/double_bottom/head_and_shoulders/" +
-      "inverse_head_and_shoulders, je mit direction/necklineValue/confirmed -- confirmed=true heisst " +
-      "die Nackenlinie wurde bereits per Schlusskurs gebrochen), recentCandlestickPatterns (juengste " +
-      "Kerzenmuster), keyLevels (Array aus price/side[resistance|support]/timeframes/confirmedBy -- " +
-      "confirmedBy kann ema13/ema50/ema200/vwap_daily/vwap_weekly/vwap_swing_high/vwap_swing_low/" +
-      "liquidation/spot_volume enthalten, je mehr Eintraege desto staerker die Konfluenz), " +
-      "levelStruktur (ein Eintrag je wichtigstem Key Level: phase respecting/broken, narrative -- " +
-      "bereits fertig formulierter Satz zur Struktur-Historie dieses Levels --, confluenceTier 1-3, " +
-      "confluenceLabel). " +
-      "ALLE Live-Werte UND Chart-Strukturdaten werden dem Nutzer bereits einzeln in eigenen Kacheln " +
-      "angezeigt -- deine Aufgabe ist NICHT, sie nachzuerzaehlen, sondern das Regelwerk anzuwenden " +
-      "und beide Datenquellen zu einem Urteil zu verdichten. Antworte in GENAU FUENF Abschnitten: " +
-      "(1) fazit -- bias (bullish/bearish/neutral, nur wenn die Lage tatsaechlich eine Richtung " +
-      "nahelegt, sonst neutral statt erzwungen), confidence (0-100, deine eigene Sicherheit), " +
-      "kernaussage (1-2 Saetze, das Wichtigste zuerst). Der ERSTE Satz der kernaussage darf dem " +
-      "bias NICHT widersprechen: bei bias=neutral nicht mit einem unqualifizierten 'bullisch'/" +
-      "'baerisch' eroeffnen (z.B. NICHT 'Strukturbullisch, aber...'), sondern die Gemengelage selbst " +
-      "benennen (z.B. 'Bullische Gates erfuellt, aber durch X neutralisiert'). " +
-      "(2) regelwerkCheck -- GENAU EIN kurzer Satz pro Zeile, Zeilen getrennt durch \\n (keine " +
-      "Aufzaehlungszeichen, kein Fliesstext-Block) -- maximal 4 Zeilen, nur mit Inhalt befuellte " +
-      "Zeilen ausgeben: " +
-      "Zeile 'Gates: ...' -- erfuellt mein_system_checklist die im Regelwerk beschriebenen " +
-      "Einstiegs-Gates (Funding unter Schwelle, OI-Richtung, EMA13/50/200-Trendlage)? Immer ausgeben. " +
-      "Zeile 'Orderflow: ...' -- bestaetigen VWAP-Vector/CVD dieselbe Richtung oder widersprechen " +
-      "sie sich? GUSS NUR in dieser Zeile erwaehnen, wenn trading_indicators.guss." +
-      "regimeAllowsGuss=true ist (Regime erkennt tatsaechlich einen Trend) -- dann als kurze " +
-      "Info/Erinnerung, ob gerade ein sauberer Pullback-Einstieg aktiv ist, NICHT als weiteres " +
-      "gleichwertiges Bestaetigungs-/Widerspruchssignal neben VWAP-Vector/CVD. Ist regimeAllowsGuss " +
-      "false oder null (Seitwaerts/Squeeze/unklar), GUSS in dieser Zeile komplett weglassen -- kein " +
-      "'GUSS nicht anwendbar'-Hinweis, das ist reines Rauschen bei jedem Seitwaerts-Regime. Immer " +
-      "ausgeben. " +
-      "Zeile 'Bewegungsvorrat: ...' -- NUR ausgeben, wenn bewegungsvorrat.ratio_pct deutlich ueber " +
-      "100 liegt (Bremse fuer eine Fortsetzung, unabhaengig davon wie sauber der Trend aussieht) -- " +
-      "sonst diese Zeile komplett weglassen, nicht erzwingen. " +
-      "Zeile 'Liquidation: ...' -- NUR ausgeben, wenn ein liquidations-Cluster nahe am aktuellen " +
-      "Kurs als Risiko-/Magnet-Hinweis relevant ist -- sonst weglassen. " +
-      "(3) chartStruktur -- 2-4 Saetze: welche Formation/Struktur liegt vor (triangle/" +
-      "continuationFormation/swingFormations, falls vorhanden), wie verhaelt sich der Kurs zu den " +
-      "naechstgelegenen keyLevels, was sagt levelStruktur ueber den aktuellen Status dieser Levels " +
-      "(haelt/gebrochen). Ist keine Formation erkannt, das explizit so benennen statt eine " +
-      "Formation hineinzuinterpretieren, die nicht im Kontext steht. " +
-      "(4) konfluenzCheck -- NUR befuellen, wenn (a) market_context, etf_flows, positioning oder " +
-      "news dem Bild aus regelwerkCheck/chartStruktur WIDERSPRECHEN, (b) market_state.overall_state/" +
-      "score/confidence/risk_level/patterns NICHT zu den einzelnen market_state.factors passen, " +
-      "ODER (c) chartStruktur und regelwerkCheck sich WIDERSPRECHEN (z.B. Chart-Formation bullisch, " +
-      "aber Regelwerk-Gates nicht erfuellt) -- in allen Faellen 1-2 Saetze, welcher Widerspruch. " +
-      "Gibt es keinen nennenswerten Widerspruch, setze konfluenzCheck auf null, erzwinge KEINE " +
-      "Erwaehnung nur weil die Felder vorhanden sind. " +
-      "(5) trigger -- bullish und bearish, JEWEILS { bedingungen: string[] (je Eintrag ein wenn/" +
-      "dann-Satz, an eine konkrete Zahl oder ein konkretes Ereignis gebunden -- entweder ein " +
-      "Regelwerk-Gate, z.B. 'Wenn der Kurs ueber EMA50 bei $X schliesst, dann...', ODER ein " +
-      "keyLevels-Level, z.B. 'Wenn $Y als Widerstand bricht, dann...'), kursziel: Zahl oder null }. " +
-      "WICHTIG -- kursziel MUSS entweder null sein ODER EXAKT dem price-Wert eines Eintrags aus " +
-      "keyLevels entsprechen, niemals eine frei berechnete/extrapolierte Zahl; es ist NICHT derselbe " +
-      "Preis wie ein Level aus einer bedingungen-Zeile, sondern das naechste sinnvolle Level DAHINTER. " +
-      "Ist fuer eine Richtung aktuell kein plausibles Szenario ableitbar (z.B. bias klar bullish, " +
-      "kein bearisches Gegenszenario erkennbar), fuer diese Richtung bedingungen als leeres Array " +
-      "UND kursziel null setzen -- nicht erzwingen. Zusaetzlich invalidierung (string, gemeinsam fuer " +
-      "beide Richtungen: wodurch/ab wann die gesamte Einschaetzung neu gedacht werden muesste). " +
-      "Nutze regelwerk NUR als Referenz fuer bestehende Regeln, erfinde KEINE neuen Regeln, die " +
-      "dort nicht stehen, und KEINE Daten ausserhalb des Kontexts. Ist market_state null, sag das " +
-      "in regelwerkCheck explizit statt eine Einschaetzung ohne Grundlage zu konstruieren. " +
+      // 07.10.2026 -- gekuerzt (Nutzer-Entscheidung per AskUserQuestion, nach
+      // Live-Vorfall: Vercel Hobby-Plan erlaubt max. 60s/Funktionsaufruf, die
+      // Route scheiterte nach der Zusammenlegung mit Chart-Narrativ bei JEDEM
+      // Versuch exakt bei 60s -- kein DB-Problem (parallel, moderate Mengen),
+      // sondern die laengere Generierung fuer den groesseren Prompt/Output.
+      // Funktionsumfang (5 Abschnitte, beide Richtungen) bleibt unveraendert,
+      // nur knapper formuliert -- jede einzelne Regel von vorher ist noch da.
+      "Daten: regelwerk (Tobys Welz-/Salomon-/'Mein Trading System'-Regelwerk, Array " +
+      "module/section/title/content); LIVE-Stand (bewegungsvorrat.ratio_pct: heutige " +
+      "Tagesspanne vs. Median 10 Tage, deutlich >100 = Tagespensum ausgeschoepft; " +
+      "mein_system_checklist: Funding/OI/EMA13-50-200-Gates + closePrice; " +
+      "trading_indicators: GUSS/VWAP-Vector/CVD, EINZIGE Orderflow-Quelle, nicht mit " +
+      "market_state.factors doppeln; market_state: overall_state/score/confidence/" +
+      "risk_level/patterns + factors (nur zum Abgleich, ob Aggregat zu den Einzelwerten " +
+      "passt, nicht einzeln aufzaehlen); liquidations: Preis-Cluster nahe Kurs; " +
+      "market_context/etf_flows/positioning/news: kurz); Chart-Struktur: triangle " +
+      "(ascending/descending/symmetric + upperValue/lowerValue, null = keins), " +
+      "continuationFormation (flag/pennant/wedge + poleDirection, null = keine), " +
+      "swingFormations (double_top/bottom/head_and_shoulders + direction/necklineValue/" +
+      "confirmed), recentCandlestickPatterns, keyLevels (price/side/timeframes/" +
+      "confirmedBy -- mehr confirmedBy-Eintraege = staerkere Konfluenz), levelStruktur " +
+      "(je Key Level: phase respecting/broken, fertiger narrative-Satz, confluenceTier 1-3). " +
+      "Alles davon steht dem Nutzer schon einzeln in eigenen Kacheln -- nicht " +
+      "nacherzaehlen, sondern Regelwerk anwenden und zu einem Urteil verdichten. " +
+      "Antworte in GENAU FUENF Abschnitten: " +
+      "(1) fazit: bias (bullish/bearish/neutral, nur bei echter Richtung, sonst neutral), " +
+      "confidence (0-100), kernaussage (1-2 Saetze). Erster Satz darf bias nicht " +
+      "widersprechen (bei neutral nicht unqualifiziert 'bullisch/baerisch' eroeffnen, " +
+      "sondern die Gemengelage selbst benennen). " +
+      "(2) regelwerkCheck: max. 4 Zeilen 'Label: Befund', getrennt durch \\n, nur " +
+      "befuellte Zeilen. 'Gates: ...' (Funding/OI/EMA13-50-200-Gates erfuellt? immer). " +
+      "'Orderflow: ...' (VWAP-Vector/CVD gleiche Richtung? immer; GUSS nur erwaehnen " +
+      "wenn guss.regimeAllowsGuss=true, sonst komplett weglassen, kein 'n/a'-Rauschen). " +
+      "'Bewegungsvorrat: ...' nur wenn ratio_pct deutlich >100. 'Liquidation: ...' nur " +
+      "bei relevantem Cluster nahe Kurs. " +
+      "(3) chartStruktur: 2-4 Saetze -- welche Formation (falls vorhanden), Kurs vs. " +
+      "naechste keyLevels, levelStruktur-Status (haelt/gebrochen). Keine Formation " +
+      "erkannt? Das explizit sagen statt eine hineinzuinterpretieren. " +
+      "(4) konfluenzCheck: NUR befuellen bei echtem Widerspruch -- market_context/" +
+      "etf_flows/positioning/news vs. regelwerkCheck/chartStruktur, ODER market_state-" +
+      "Aggregat vs. factors, ODER chartStruktur vs. regelwerkCheck. 1-2 Saetze, welcher " +
+      "Widerspruch. Sonst null, keine erzwungene Erwaehnung. " +
+      "(5) trigger: bullish und bearish, je { bedingungen: string[] (wenn/dann-Saetze, " +
+      "an ein Regelwerk-Gate ODER ein keyLevels-Level gebunden), kursziel: Zahl oder " +
+      "null }. kursziel MUSS null sein oder EXAKT einem keyLevels-price entsprechen, nie " +
+      "frei berechnet, und ist NICHT der Trigger-Preis selbst, sondern das naechste " +
+      "sinnvolle Level dahinter. Kein plausibles Szenario fuer eine Richtung? Dann " +
+      "bedingungen leer und kursziel null fuer diese Richtung, nicht erzwingen. Dazu " +
+      "invalidierung (string, fuer beide Richtungen gemeinsam). " +
+      "Regelwerk nur als Referenz, keine neuen Regeln erfinden, keine Daten ausserhalb " +
+      "des Kontexts. market_state null? Das in regelwerkCheck explizit sagen. " +
       NUMBER_FORMAT_INSTRUCTION +
-      " Antworte als JSON mit: fazit ({ bias, confidence, kernaussage }), regelwerkCheck (string, " +
-      "deutsch), chartStruktur (string, deutsch), konfluenzCheck (string oder null), trigger " +
-      "({ bullish: { bedingungen: string[], kursziel: Zahl oder null }, bearish: { bedingungen: " +
-      "string[], kursziel: Zahl oder null }, invalidierung: string }).",
+      " JSON: fazit ({ bias, confidence, kernaussage }), regelwerkCheck (string), " +
+      "chartStruktur (string), konfluenzCheck (string oder null), trigger " +
+      "({ bullish: { bedingungen: string[], kursziel: Zahl oder null }, bearish: { " +
+      "bedingungen: string[], kursziel: Zahl oder null }, invalidierung: string }).",
     validate: (data) => {
       const errors: string[] = [];
       const fazit = field(data, "fazit");

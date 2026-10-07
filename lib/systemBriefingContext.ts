@@ -254,7 +254,13 @@ export interface SystemBriefingContext {
   triangle: ChartStructureData["triangle"];
   continuationFormation: ChartStructureData["continuationFormation"];
   swingFormations: ChartStructureData["swingFormations"];
+  // Nur die juengsten 3 (07.10.2026, vorher 5) -- Teil der Prompt-
+  // Verschlankung gegen das Vercel-60s-Limit, siehe Kommentar bei
+  // nearestKeyLevels unten.
   recentCandlestickPatterns: ChartStructureData["candlestickPatterns"];
+  // Nur die 2 naechstgelegenen je Seite (07.10.2026, vorher bis zu 4) --
+  // deckungsgleich mit levelStruktur, siehe nearestKeyLevels in
+  // buildSystemBriefingContext().
   keyLevels: KeyLevel[];
   // signalTally bewusst weggelassen -- die zugrunde liegenden Signale
   // (CVD-Trend, Warn-Muster, MTF-Ampel) stehen bereits oben in diesem
@@ -319,6 +325,24 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
     tradingIndicators.cvd.trend
   );
 
+  // 07.10.2026 -- fuer den KI-Kontext auf die 2 naechstgelegenen Key Levels
+  // je Seite begrenzt (deckungsgleich mit levelStruktur, die ohnehin nur
+  // diese narrativ beschreibt) statt aller bis zu KEY_LEVEL_MAX_ZONES_PER_SIDE
+  // (4) -- weniger Daten je Aufruf, Teil der Prompt-Verschlankung gegen das
+  // Vercel-60s-Limit (siehe promptProfiles.ts "system-briefing"). Die volle
+  // Liste bleibt fuer getLevelStructureData oben unveraendert.
+  const currentPriceForSort = chartStructureEnriched.currentPrice ?? 0;
+  const nearestKeyLevels = [
+    ...chartStructureEnriched.keyLevels
+      .filter((z) => z.side === "resistance")
+      .sort((a, b) => a.price - b.price)
+      .slice(0, 2),
+    ...chartStructureEnriched.keyLevels
+      .filter((z) => z.side === "support")
+      .sort((a, b) => b.price - a.price)
+      .slice(0, 2),
+  ].sort((a, b) => Math.abs(a.price - currentPriceForSort) - Math.abs(b.price - currentPriceForSort));
+
   return {
     generated_at: new Date().toISOString(),
     bewegungsvorrat,
@@ -363,8 +387,8 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
     triangle: chartStructureEnriched.triangle,
     continuationFormation: chartStructureEnriched.continuationFormation,
     swingFormations: chartStructureEnriched.swingFormations,
-    recentCandlestickPatterns: chartStructureEnriched.candlestickPatterns.slice(-5),
-    keyLevels: chartStructureEnriched.keyLevels,
+    recentCandlestickPatterns: chartStructureEnriched.candlestickPatterns.slice(-3),
+    keyLevels: nearestKeyLevels,
     levelStruktur: levelStructureZones.map((zone) => {
       const { signalTally, ...rest } = zone;
       void signalTally;
