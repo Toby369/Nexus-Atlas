@@ -31,13 +31,26 @@ import type { SystemBriefingResult, SystemBriefingTrigger } from "@/lib/types";
 // 60s-Limit (Hobby-Plan) ab; reines Kuerzen des Prompts (07.10.2026) war nur
 // ein Pflaster. Jetzt wie die AI Report Engine (report-market-structure/
 // positioning/news-macro + report-master): drei kleine, unabhaengige
-// Teil-Aufrufe NACHEINANDER (Regelwerk-Check, Chart-Struktur, Trigger&Szenario --
-// bewusst sequenziell statt parallel, siehe Kommentar weiter unten bei den
-// Aufrufen), danach EIN kleiner Synthese-Call, der nur die drei Teil-Ergebnisse
+// Teil-Aufrufe PARALLEL (Regelwerk-Check, Chart-Struktur, Trigger&Szenario),
+// danach EIN kleiner Synthese-Call, der nur die drei Teil-Ergebnisse
 // verdichtet (keine Rohdaten erneut) -- siehe lib/ai/promptProfiles.ts
 // ("system-briefing-*") und lib/systemBriefingContext.ts (sliceFor*). Die
 // gespeicherte SystemBriefingResult-Form bleibt exakt gleich, die Kachel
 // merkt vom Split nichts.
+//
+// Noch am selben Tag zwei Live-Vorfaelle, beide behoben: (1) alle vier
+// Teil-Aufrufe liefen per "auto" auf Google -> 4x Quota-Verbrauch je
+// Generierung riss die geteilte Google-Gratis-Quota (429) -- siehe
+// lib/ai/tileConfig.ts, jetzt auf zwei Provider verteilt (je 2x Google/
+// OpenRouter primaer). (2) Der naheliegende Gegenzug "dann eben
+// NACHEINANDER statt parallel" fuehrte prompt zum naechsten Vorfall:
+// vier sequenzielle Aufrufe rissen zusammen wieder die 60s-Grenze
+// (clientseitig als "Failed to fetch" sichtbar -- die Funktion wird von
+// Vercel hart gekillt, bevor sie antworten kann, kein JSON-Fehler mehr
+// moeglich). PARALLEL ist daher bewusst beibehalten -- die
+// Provider-Verteilung allein reduziert die gleichzeitige Google-Last
+// bereits von 4x auf 2x (Regelwerk + Trigger), ohne Geschwindigkeit zu
+// kosten.
 export const maxDuration = 60;
 
 const RATE_LIMIT_WINDOW_MINUTES = 20;
@@ -87,26 +100,25 @@ export async function POST() {
   try {
     const context = await buildSystemBriefingContext();
 
-    // Drei fokussierte, voneinander unabhaengige Teil-Aufrufe -- jeder
-    // bekommt nur seinen eigenen Daten-Ausschnitt (sliceFor*), daher deutlich
-    // kleinerer Prompt je Call als vorher der eine grosse.
-    //
-    // 08.10.2026 -- bewusst NACHEINANDER statt Promise.all (Live-Vorfall am
-    // selben Tag: alle drei liefen gleichzeitig gegen dieselbe Google-Quota
-    // und rissen sie, "exceeded your current quota"). Sequenziell vermeidet
-    // diese Lastspitze; bei weiterhin kleinen Prompts bleibt genug Zeit vor
-    // maxDuration. Siehe auch tileConfig.ts: die vier Teil-Aufrufe sind
-    // zusaetzlich auf zwei verschiedene Provider verteilt (je 2x Google/
-    // OpenRouter primaer statt alle vier auf "auto" -> Google).
-    const regelwerkResult = await runTileAnalysis<RegelwerkResult>("system-briefing-regelwerk", {
-      context: JSON.stringify(sliceForRegelwerk(context)),
-    });
-    const chartResult = await runTileAnalysis<ChartStrukturResult>("system-briefing-chart", {
-      context: JSON.stringify(sliceForChartStruktur(context)),
-    });
-    const triggerResult = await runTileAnalysis<SystemBriefingTrigger>("system-briefing-trigger", {
-      context: JSON.stringify(sliceForTrigger(context)),
-    });
+    // Drei fokussierte, voneinander unabhaengige Teil-Aufrufe PARALLEL --
+    // jeder bekommt nur seinen eigenen Daten-Ausschnitt (sliceFor*), daher
+    // deutlich kleinerer Prompt je Call als vorher der eine grosse. Bewusst
+    // Promise.all (nicht nacheinander, siehe Datei-Kopfkommentar fuer den
+    // Vorfall mit der sequenziellen Zwischenversion): tileConfig.ts verteilt
+    // die vier Teil-Aufrufe bereits auf zwei Provider, dadurch treffen hier
+    // ohnehin nur zwei (Regelwerk + Trigger) gleichzeitig auf Google, nicht
+    // alle drei/vier wie vorher.
+    const [regelwerkResult, chartResult, triggerResult] = await Promise.all([
+      runTileAnalysis<RegelwerkResult>("system-briefing-regelwerk", {
+        context: JSON.stringify(sliceForRegelwerk(context)),
+      }),
+      runTileAnalysis<ChartStrukturResult>("system-briefing-chart", {
+        context: JSON.stringify(sliceForChartStruktur(context)),
+      }),
+      runTileAnalysis<SystemBriefingTrigger>("system-briefing-trigger", {
+        context: JSON.stringify(sliceForTrigger(context)),
+      }),
+    ]);
 
     // Vierter Call: verdichtet die drei Teil-Ergebnisse zu Fazit +
     // Konfluenz-Check -- bekommt KEINE Rohdaten mehr (ausser dem kleinen
