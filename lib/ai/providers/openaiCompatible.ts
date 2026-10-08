@@ -4,6 +4,7 @@ import type {
   AIProviderId,
   AIStructuredResult,
 } from "../types";
+import { extractJson } from "../extractJson";
 
 // Mehrere Anbieter (OpenAI, xAI/Grok, DeepSeek, Perplexity) bieten eine
 // weitgehend identische "/chat/completions"-API im OpenAI-Format an.
@@ -16,18 +17,6 @@ export interface OpenAiCompatibleConfig {
   baseUrl: string;
   /** Env-Var, ueber die das Default-Modell konfiguriert wird (z.B. "XAI_MODEL"). */
   modelEnvVar: string;
-}
-
-function extractJson(raw: string): unknown {
-  // Manche Modelle umschliessen JSON trotz Anweisung mit ```json ... ```.
-  const cleaned = raw.replace(/^```json\s*|```$/g, "").trim();
-  try {
-    return JSON.parse(cleaned);
-  } catch {
-    throw new Error(
-      `Antwort war kein valides JSON. Rohtext (gekuerzt): ${cleaned.slice(0, 200)}`
-    );
-  }
 }
 
 export function createOpenAiCompatibleProvider(

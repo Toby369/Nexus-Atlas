@@ -102,7 +102,13 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   "system-briefing-trigger": {
     tileId: "system-briefing-trigger",
     aiProvider: "google",
-    aiModel: "gemini-2.5-flash",
+    // 08.10.2026, 19:03 -- "gemini-2.5-flash" (ein sehr verbreitetes,
+    // oft als Default genutztes Modell) war trotz gruenem Dashboard-Status
+    // (18:18) 45 Min. spaeter bereits wieder 429 -- vermutlich hohe
+    // allgemeine Nachfrage auf diesem Modell, nicht projekteigener
+    // Verbrauch. Auf die "Lite"-Variante gewechselt (eigenes, meist
+    // weniger stark nachgefragtes Kontingent).
+    aiModel: "gemini-2.5-flash-lite",
     promptProfile: "system-briefing-trigger",
     fallbackProviders: ["openrouter", "deepseek"],
   },

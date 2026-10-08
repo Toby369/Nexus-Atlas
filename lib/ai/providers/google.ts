@@ -4,6 +4,7 @@ import type {
   AIStructuredResult,
 } from "../types";
 import { fetchWithRetry } from "../fetchWithRetry";
+import { extractJson } from "../extractJson";
 
 // Env-Vars: GOOGLE_API_KEY, GOOGLE_MODEL (z.B. "gemini-..." – aktuelles
 // Modell zum Zeitpunkt der Aktivierung eintragen, kein Default hier).
@@ -15,17 +16,6 @@ import { fetchWithRetry } from "../fetchWithRetry";
 // kostenlos gehaltenen Kacheln (siehe Kommentar in tileConfig.ts) und darf
 // nicht durch einen kostenpflichtigen Anbieter (z.B. Anthropic) ersetzt
 // werden, ohne das explizit mit dem Nutzer abzuklaeren.
-
-function extractJson(raw: string): unknown {
-  const cleaned = raw.replace(/^```json\s*|```$/g, "").trim();
-  try {
-    return JSON.parse(cleaned);
-  } catch {
-    throw new Error(
-      `google: Antwort war kein valides JSON. Rohtext (gekuerzt): ${cleaned.slice(0, 200)}`
-    );
-  }
-}
 
 async function callGenerateContent(
   systemPrompt: string | undefined,
