@@ -58,31 +58,40 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   // weiterhin bewusst die "schlaegt fehl statt bezahltem Fallback"-Linie
   // von Anthropic oben, kein dritter (erst recht kein bezahlter) Provider.
   // System-Briefing (08.10.2026 strukturell in vier Teil-Aufrufe aufgeteilt,
-  // siehe lib/ai/promptProfiles.ts Kopfkommentar dort) -- alle vier teilen
-  // sich dieselbe Provider-Kette wie vorher der eine grosse Aufruf.
+  // siehe lib/ai/promptProfiles.ts Kopfkommentar dort). Live-Vorfall noch am
+  // selben Tag: alle vier liefen per "auto" auf Google (signal-logic) --
+  // 4x Google-Quota-Verbrauch je Generierung statt vorher 1x, riss die
+  // ohnehin von mehreren Kacheln geteilte Google-Quota (429 "exceeded your
+  // current quota"). Jetzt bewusst auf die beiden tatsaechlich
+  // konfigurierten Gratis-Provider verteilt (je 2 primaer Google, 2 primaer
+  // OpenRouter, jeweils der andere als Fallback) -- halbiert die
+  // Google-Last je Generierung, ohne einen dritten (erst recht keinen
+  // bezahlten) Provider einzufuehren. deepseek bleibt als letzter Fallback
+  // fuer beide (aktuell nicht konfiguriert, greift automatisch, falls das
+  // sich aendert).
   "system-briefing-regelwerk": {
     tileId: "system-briefing-regelwerk",
-    aiProvider: "auto",
+    aiProvider: "google",
     promptProfile: "system-briefing-regelwerk",
     fallbackProviders: ["openrouter", "deepseek"],
   },
   "system-briefing-chart": {
     tileId: "system-briefing-chart",
-    aiProvider: "auto",
+    aiProvider: "openrouter",
     promptProfile: "system-briefing-chart",
-    fallbackProviders: ["openrouter", "deepseek"],
+    fallbackProviders: ["google", "deepseek"],
   },
   "system-briefing-trigger": {
     tileId: "system-briefing-trigger",
-    aiProvider: "auto",
+    aiProvider: "google",
     promptProfile: "system-briefing-trigger",
     fallbackProviders: ["openrouter", "deepseek"],
   },
   "system-briefing-synthese": {
     tileId: "system-briefing-synthese",
-    aiProvider: "auto",
+    aiProvider: "openrouter",
     promptProfile: "system-briefing-synthese",
-    fallbackProviders: ["openrouter", "deepseek"],
+    fallbackProviders: ["google", "deepseek"],
   },
   // Eskalations-Kachel ("gezielte Eskalation", 05.09.2026): aiProvider hier
   // ist nur ein Platzhalter -- app/api/escalation/generate/route.ts ruft

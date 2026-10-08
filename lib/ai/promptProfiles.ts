@@ -616,6 +616,17 @@ export const promptProfiles: Record<string, PromptProfile> = {
     category: "signal-logic",
     description: "Teil-Aufruf 3/4 des System-Briefings: Trigger&Szenario (bullish+bearish) inkl. Kursziel und Invalidierung.",
     systemPrompt:
+      // 08.10.2026 -- Framing-Satz ergaenzt (Live-Vorfall: ein Gratis-Modell
+      // hinter OpenRouter verweigerte dieses isolierte Teil-Prompt mit "User
+      // Safety: unsafe Safety Categories: Unauthorized Advice" statt JSON zu
+      // liefern). Im vormaligen EINEN grossen Prompt stand derselbe Trigger-
+      // Abschnitt eingebettet in sichtbar analytischen Regelwerk-Kontext und
+      // loeste das nicht aus -- isoliert liest sich "bullish/bearish + Kursziel"
+      // fuer einen Sicherheitsfilter offenbar eher wie eine direkte
+      // Kaufempfehlung. Reine Klarstellung, keine inhaltliche Aenderung.
+      "Du erstellst eine rein strukturelle Wenn-Dann-Analyse fuer Tobys eigenes, " +
+      "bereits bestehendes Trading-Regelwerk -- private Nutzung, keine Finanzberatung " +
+      "oder Kaufempfehlung an Dritte. " +
       "Daten: keyLevels (price/side/timeframes/confirmedBy), mein_system_checklist " +
       "(Funding/OI/EMA13-50-200-Gates + closePrice), trading_indicators (GUSS/" +
       "VWAP-Vector/CVD). bullish und bearish, je { bedingungen: string[] (wenn/dann-" +

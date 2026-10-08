@@ -31,8 +31,9 @@ import type { SystemBriefingResult, SystemBriefingTrigger } from "@/lib/types";
 // 60s-Limit (Hobby-Plan) ab; reines Kuerzen des Prompts (07.10.2026) war nur
 // ein Pflaster. Jetzt wie die AI Report Engine (report-market-structure/
 // positioning/news-macro + report-master): drei kleine, unabhaengige
-// Teil-Aufrufe PARALLEL (Regelwerk-Check, Chart-Struktur, Trigger&Szenario),
-// danach EIN kleiner Synthese-Call, der nur die drei Teil-Ergebnisse
+// Teil-Aufrufe NACHEINANDER (Regelwerk-Check, Chart-Struktur, Trigger&Szenario --
+// bewusst sequenziell statt parallel, siehe Kommentar weiter unten bei den
+// Aufrufen), danach EIN kleiner Synthese-Call, der nur die drei Teil-Ergebnisse
 // verdichtet (keine Rohdaten erneut) -- siehe lib/ai/promptProfiles.ts
 // ("system-briefing-*") und lib/systemBriefingContext.ts (sliceFor*). Die
 // gespeicherte SystemBriefingResult-Form bleibt exakt gleich, die Kachel
@@ -86,20 +87,26 @@ export async function POST() {
   try {
     const context = await buildSystemBriefingContext();
 
-    // Drei fokussierte, voneinander unabhaengige Teil-Aufrufe parallel --
-    // jeder bekommt nur seinen eigenen Daten-Ausschnitt (sliceFor*), daher
-    // deutlich kleinerer Prompt je Call als vorher der eine grosse.
-    const [regelwerkResult, chartResult, triggerResult] = await Promise.all([
-      runTileAnalysis<RegelwerkResult>("system-briefing-regelwerk", {
-        context: JSON.stringify(sliceForRegelwerk(context)),
-      }),
-      runTileAnalysis<ChartStrukturResult>("system-briefing-chart", {
-        context: JSON.stringify(sliceForChartStruktur(context)),
-      }),
-      runTileAnalysis<SystemBriefingTrigger>("system-briefing-trigger", {
-        context: JSON.stringify(sliceForTrigger(context)),
-      }),
-    ]);
+    // Drei fokussierte, voneinander unabhaengige Teil-Aufrufe -- jeder
+    // bekommt nur seinen eigenen Daten-Ausschnitt (sliceFor*), daher deutlich
+    // kleinerer Prompt je Call als vorher der eine grosse.
+    //
+    // 08.10.2026 -- bewusst NACHEINANDER statt Promise.all (Live-Vorfall am
+    // selben Tag: alle drei liefen gleichzeitig gegen dieselbe Google-Quota
+    // und rissen sie, "exceeded your current quota"). Sequenziell vermeidet
+    // diese Lastspitze; bei weiterhin kleinen Prompts bleibt genug Zeit vor
+    // maxDuration. Siehe auch tileConfig.ts: die vier Teil-Aufrufe sind
+    // zusaetzlich auf zwei verschiedene Provider verteilt (je 2x Google/
+    // OpenRouter primaer statt alle vier auf "auto" -> Google).
+    const regelwerkResult = await runTileAnalysis<RegelwerkResult>("system-briefing-regelwerk", {
+      context: JSON.stringify(sliceForRegelwerk(context)),
+    });
+    const chartResult = await runTileAnalysis<ChartStrukturResult>("system-briefing-chart", {
+      context: JSON.stringify(sliceForChartStruktur(context)),
+    });
+    const triggerResult = await runTileAnalysis<SystemBriefingTrigger>("system-briefing-trigger", {
+      context: JSON.stringify(sliceForTrigger(context)),
+    });
 
     // Vierter Call: verdichtet die drei Teil-Ergebnisse zu Fazit +
     // Konfluenz-Check -- bekommt KEINE Rohdaten mehr (ausser dem kleinen
