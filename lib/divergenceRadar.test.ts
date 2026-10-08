@@ -6,6 +6,7 @@ import {
   computeSpotPressureVsOrderbookDivergence,
   computeCycleVsMomentumDivergence,
   computeSystemBriefingVsStateDivergence,
+  computeMasterReportVsEnginesDivergence,
   computeOnchainVsPriceDivergence,
   computeWallPersistence,
   findCorroboratingLiquidation,
@@ -178,6 +179,23 @@ describe("computeSystemBriefingVsStateDivergence", () => {
     expect(computeSystemBriefingVsStateDivergence(undefined, "BULLISH")).toBe("NOT_COMPARABLE");
     expect(computeSystemBriefingVsStateDivergence("neutral", "BULLISH")).toBe("NOT_COMPARABLE");
     expect(computeSystemBriefingVsStateDivergence("bullish", "MIXED")).toBe("NOT_COMPARABLE");
+  });
+});
+
+describe("computeMasterReportVsEnginesDivergence", () => {
+  it("AGREEMENT wenn alle drei dieselbe Richtung zeigen", () => {
+    expect(computeMasterReportVsEnginesDivergence("bullish", "BULLISH", "bullish")).toBe("AGREEMENT");
+  });
+  it("DIVERGENCE wenn Master-Report der einigen Gesamteinschaetzung+Briefing widerspricht", () => {
+    expect(computeMasterReportVsEnginesDivergence("bullish", "BEARISH", "bearish")).toBe("DIVERGENCE");
+  });
+  it("NOT_COMPARABLE ohne Master-Bias, bei neutral oder ohne Konsens der anderen beiden", () => {
+    expect(computeMasterReportVsEnginesDivergence(undefined, "BEARISH", "bearish")).toBe("NOT_COMPARABLE");
+    expect(computeMasterReportVsEnginesDivergence("neutral", "BEARISH", "bearish")).toBe("NOT_COMPARABLE");
+    expect(computeMasterReportVsEnginesDivergence("bullish", null, "bearish")).toBe("NOT_COMPARABLE");
+    expect(computeMasterReportVsEnginesDivergence("bullish", "MIXED", "bearish")).toBe("NOT_COMPARABLE");
+    // Gesamteinschaetzung und Briefing sind sich selbst uneins -> kein Konsens zum Vergleichen
+    expect(computeMasterReportVsEnginesDivergence("bullish", "BULLISH", "bearish")).toBe("NOT_COMPARABLE");
   });
 });
 

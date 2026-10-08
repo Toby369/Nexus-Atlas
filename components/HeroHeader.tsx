@@ -871,7 +871,10 @@ export default function HeroHeader({
           ) : null}
         </div>
 
-        <MasterReportHeroCard />
+        <MasterReportHeroCard
+          overallState={state.overall_state}
+          briefingBias={narrativeSnapshot?.result?.fazit?.bias}
+        />
       </div>
     </section>
   );

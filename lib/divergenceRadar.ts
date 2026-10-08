@@ -107,6 +107,27 @@ export function computeSystemBriefingVsStateDivergence(
   return bias === stateDirection ? "AGREEMENT" : "DIVERGENCE";
 }
 
+// --- 4b. Master-Report-Bias vs. 14-Faktoren-Engine + System-Briefing-Konsens
+// Nur sinnvoll, wenn die beiden anderen Engines sich EINIG sind (siehe
+// computeSystemBriefingVsStateDivergence direkt oberhalb) -- sonst gibt es
+// gar keinen klaren Konsens, gegen den der Master-Report abweichen koennte.
+// 08.10.2026, Nutzer-Beobachtung: Master-Report (Positioning/Makro-lastig,
+// laeuft 3x/Tag, kann daher bis zu ~8h alt sein) und die beiden live-
+// orientierten Engines (Struktur/Momentum, minuetlich/alle paar Stunden neu)
+// konnten ohne jede Kennzeichnung widersprechen.
+export function computeMasterReportVsEnginesDivergence(
+  masterBias: "bullish" | "bearish" | "neutral" | undefined,
+  overallState: MarketState["overall_state"] | null,
+  briefingBias: "bullish" | "bearish" | "neutral" | undefined
+): EngineDivergenceStatus {
+  if (!masterBias || masterBias === "neutral") return "NOT_COMPARABLE";
+  if (!briefingBias || briefingBias === "neutral" || overallState === null) return "NOT_COMPARABLE";
+  if (overallState !== "BULLISH" && overallState !== "BEARISH") return "NOT_COMPARABLE";
+  const stateDirection = overallState === "BULLISH" ? "bullish" : "bearish";
+  if (briefingBias !== stateDirection) return "NOT_COMPARABLE"; // kein Konsens zum Vergleichen
+  return masterBias === stateDirection ? "AGREEMENT" : "DIVERGENCE";
+}
+
 // --- 5. On-Chain (SOPR) vs. Preis -------------------------------------------
 // Klassisches On-Chain-Distribution-Muster (Preis nahe lokalem Hoch/Tief,
 // aber SOPR zeigt das Gegenteil von "mehr Gewinnmitnahme bei steigenden

@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import type { ReportRun } from "@/lib/types";
+import type { MarketState, ReportRun } from "@/lib/types";
 import { FullDateTime, StaleBadge } from "@/components/ClientTimestamp";
 import PanelInfo from "@/components/PanelInfo";
+import { computeMasterReportVsEnginesDivergence } from "@/lib/divergenceRadar";
 
 // Master-Report in der Head-Kachel (Nutzer-Wunsch 03.10.2026, Screenshot der
 // Master-Report-E-Mail: "den moechte ich 3x/tag in head kachel angezeigt
@@ -47,14 +48,15 @@ const COMPONENT_LABEL: Record<string, string> = {
 
 const INFO_TEXT = [
   "Was das ist: der Master-Report der AI Report Engine (Tab \"KI-Einschätzungen\" → /reports, Slot 4) -- fasst die drei Einzelreports (Market Structure, Positioning, News/Macro) zusammen und benennt Widersprüche zwischen ihnen explizit, statt sie zu einem Bias zu verwischen. Eigenständige KI-Engine, unabhängig von der regelbasierten Gesamteinschätzung oben UND von der \"Kurze Einordnung\" (dein eigenes Regelwerk) -- drei unterschiedliche Blickwinkel auf denselben Markt.",
-  "Aktualisierung: automatisch 3x täglich (siehe /reports, Slot 4 für die genauen Uhrzeiten). Diese Kachel zeigt immer den zuletzt generierten Lauf, kein eigener Button hier.",
+  "Aktualisierung: automatisch 3x täglich (siehe /reports, Slot 4 für die genauen Uhrzeiten). Diese Kachel zeigt immer den zuletzt generierten Lauf, kein eigener Button hier -- dadurch kann er bis zu ~8h älter sein als die beiden live-orientierten Engines oben.",
+  "Widerspruchs-Warnung (08.10.2026): erscheint, wenn die 14-Faktoren-Gesamteinschätzung und die Kurze Einordnung sich einig sind, dieser Report aber eine andere Richtung zeigt -- meist, weil er stärker auf Positioning/Makro (träger, nachlaufend) statt auf Live-Struktur/Momentum setzt, oder weil die Live-Engines auf eine Bewegung reagiert haben, die erst NACH diesem Lauf passiert ist.",
 ].join("\n\n");
 
 interface MasterReportResult {
   summary?: string;
   conflicts?: string[];
   confidence?: number;
-  overallBias?: string;
+  overallBias?: "bullish" | "bearish" | "neutral";
   componentBiases?: Record<string, string>;
   // 03.10.2026 (Nutzer-Wunsch "kann der report auf den vorherigen kurz
   // eingehen?!") -- null, wenn kein vorheriger Lauf im Kontext war (siehe
@@ -79,7 +81,18 @@ async function fetchLatestMasterRun(): Promise<ReportRun | null> {
   return data;
 }
 
-export default function MasterReportHeroCard() {
+export default function MasterReportHeroCard({
+  overallState,
+  briefingBias,
+}: {
+  // 08.10.2026 (Nutzer-Beobachtung "master report und system briefing/head
+  // kachel sind ja sehr widerspruechlich"): fuer die Divergenz-Warnung unten
+  // -- beide bereits in HeroHeader geladen (state/narrativeSnapshot), kein
+  // zusaetzlicher Fetch hier noetig, gleiches Prinzip wie briefingDivergence
+  // dort.
+  overallState: MarketState["overall_state"] | null;
+  briefingBias: "bullish" | "bearish" | "neutral" | undefined;
+}) {
   const [run, setRun] = useState<ReportRun | null>(null);
 
   useEffect(() => {
@@ -103,6 +116,12 @@ export default function MasterReportHeroCard() {
   const confidence = data.confidence;
   const conflicts = data.conflicts ?? [];
   const componentBiases = data.componentBiases ?? {};
+  // Nur eine Aussage, wenn die beiden anderen Engines (14-Faktoren +
+  // Kurze Einordnung) sich einig sind -- siehe
+  // computeMasterReportVsEnginesDivergence. Steht dieser Report (bis zu 8h
+  // alt, Positioning/Makro-lastig) dem entgegen, ist das ein echter
+  // Widerspruch, kein Darstellungsfehler.
+  const enginesDivergence = computeMasterReportVsEnginesDivergence(bias, overallState, briefingBias);
 
   return (
     <div className="rounded-lg border border-border bg-surface-raised p-4 space-y-3">
@@ -131,6 +150,15 @@ export default function MasterReportHeroCard() {
           <span className="text-xs text-text-faint">Confidence {Math.round(confidence)}/100</span>
         )}
       </div>
+
+      {enginesDivergence === "DIVERGENCE" && (
+        <p className="text-xs text-down flex items-center gap-1">
+          ⚠ Weicht von der Gesamteinschätzung + Kurzer Einordnung oben ab (die beiden sind sich aktuell
+          einig) — ein echter Widerspruch, kein Darstellungsfehler. Dieser Report kann durch den
+          3x-täglichen Takt mehrere Stunden älter sein und stützt sich stärker auf Positioning/Makro statt
+          auf Live-Struktur.
+        </p>
+      )}
 
       {data.summary && <p className="text-sm text-text-muted leading-relaxed">{data.summary}</p>}
 
