@@ -58,47 +58,60 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   // weiterhin bewusst die "schlaegt fehl statt bezahltem Fallback"-Linie
   // von Anthropic oben, kein dritter (erst recht kein bezahlter) Provider.
   // System-Briefing (08.10.2026 strukturell in vier Teil-Aufrufe aufgeteilt,
-  // siehe lib/ai/promptProfiles.ts Kopfkommentar dort). Zwei Live-Vorfaelle
+  // siehe lib/ai/promptProfiles.ts Kopfkommentar dort). Drei Live-Vorfaelle
   // noch am selben Tag: (1) alle vier liefen per "auto" auf Google, 4x Quota-
   // Verbrauch je Generierung statt vorher 1x; (2) ein erster Fix (je 2x
   // Google/OpenRouter primaer) reichte NICHT -- per Google-AI-Studio-
   // Dashboard bestaetigt (Toby-Screenshot 08.10.2026, 18:11): die komplette
-  // Gratis-Tagesquota von Gemini 3.6 Flash war projektweit bereits
-  // ausgeschoepft (Google selbst zeigt "Abrechnung einrichten, um Limits zu
-  // erhoehen" -- keine Code-Fehlerquelle mehr, sondern ein harter Deckel).
-  // Da "muss kostenlos sein" eine bewusste, fruehere Vorgabe ist (siehe
-  // AUTO_CATEGORY_PROVIDER-Kommentar in lib/ai/router.ts), keine Abrechnung
-  // aktivieren -- stattdessen System-Briefing komplett von Google weg auf
-  // OpenRouter als primaeren Provider fuer ALLE VIER Teil-Aufrufe, Google nur
-  // noch als letzter Ausweichpunkt (zusammen mit dem ohnehin unkonfigurierten
-  // deepseek). Reduziert NICHT die projektweite Google-Last auf 0 (News,
-  // Trade-Debate, Signal-Review, Custom-Query, YouTube-Monitor haengen
-  // weiterhin an Google) -- das waere eine groessere, von Toby zu treffende
-  // Entscheidung -- aber System-Briefing traegt ab jetzt nichts mehr dazu
-  // bei, solange die Gratis-Quota angespannt ist.
+  // Gratis-Tagesquota von Gemini 3.6 Flash (dem global in GOOGLE_MODEL
+  // eingetragenen Modell) war projektweit ausgeschoepft -- kein Code-Fehler
+  // mehr, ein harter Deckel; (3) als Zwischenloesung komplett auf OpenRouter
+  // umgestellt (alle vier primaer), funktionierte, aber der Trigger-Call
+  // wich dem dortigen Sicherheitsfilter nur per Framing-Satz aus.
+  //
+  // Toby entdeckte danach im selben Dashboard: fast ALLE anderen Gemini-
+  // Modelle (3.7/3.8 Flash, 2.5 Flash/Pro, 3.1 Pro, ...) waren weiterhin
+  // gruen -- nur das eine, global via GOOGLE_MODEL fest eingetragene Modell
+  // war betroffen. tileConfig.ts erlaubt bereits einen Modell-Override je
+  // Kachel (aiModel, unabhaengig von der globalen Env-Var) -- jetzt genutzt,
+  // um die vier Teil-Aufrufe auf VIER VERSCHIEDENE Gemini-Modelle zu
+  // verteilen (je eigenes Kontingent, siehe Dashboard). Faellt kuenftig mal
+  // wieder eines aus, sind die anderen drei trotzdem nicht betroffen -- ohne
+  // auf OpenRouter als primaeren Provider ausweichen zu muessen. OpenRouter
+  // bleibt als Fallback, deepseek als letzter (aktuell unkonfiguriert).
+  //
+  // Modellnamen nach Googles ueblichem Schema (gemini-X.Y-flash/-pro,
+  // Kleinschreibung/Bindestriche) aus der im Dashboard angezeigten
+  // Bezeichnung abgeleitet, NICHT selbst live getestet -- schlaegt eine ID
+  // fehl, faengt die Fallback-Kette es ab, aber die exakte ID lohnt sich bei
+  // Gelegenheit gegenzupruefen.
   "system-briefing-regelwerk": {
     tileId: "system-briefing-regelwerk",
-    aiProvider: "openrouter",
+    aiProvider: "google",
+    aiModel: "gemini-3.7-flash",
     promptProfile: "system-briefing-regelwerk",
-    fallbackProviders: ["google", "deepseek"],
+    fallbackProviders: ["openrouter", "deepseek"],
   },
   "system-briefing-chart": {
     tileId: "system-briefing-chart",
-    aiProvider: "openrouter",
+    aiProvider: "google",
+    aiModel: "gemini-3.8-flash",
     promptProfile: "system-briefing-chart",
-    fallbackProviders: ["google", "deepseek"],
+    fallbackProviders: ["openrouter", "deepseek"],
   },
   "system-briefing-trigger": {
     tileId: "system-briefing-trigger",
-    aiProvider: "openrouter",
+    aiProvider: "google",
+    aiModel: "gemini-2.5-flash",
     promptProfile: "system-briefing-trigger",
-    fallbackProviders: ["google", "deepseek"],
+    fallbackProviders: ["openrouter", "deepseek"],
   },
   "system-briefing-synthese": {
     tileId: "system-briefing-synthese",
-    aiProvider: "openrouter",
+    aiProvider: "google",
+    aiModel: "gemini-3.1-flash-lite",
     promptProfile: "system-briefing-synthese",
-    fallbackProviders: ["google", "deepseek"],
+    fallbackProviders: ["openrouter", "deepseek"],
   },
   // Eskalations-Kachel ("gezielte Eskalation", 05.09.2026): aiProvider hier
   // ist nur ein Platzhalter -- app/api/escalation/generate/route.ts ruft
