@@ -98,6 +98,15 @@ export async function runTileAnalysis<T = unknown>(
       continue;
     }
 
+    // 08.10.2026 -- Live-Vorfall (System-Briefing "Regelwerk"-Kachel):
+    // Google UND OpenRouter liefen wiederholt exakt bis zum konfigurierten
+    // Zeitlimit (erst 12s, dann 20s) ohne jede Antwort aus -- bei einem nur
+    // ~5KB kleinen Kontext kein Last-/Groessenproblem. Ohne Zeitmessung pro
+    // Versuch liess sich nicht unterscheiden, OB ein Provider ueberhaupt
+    // etwas tat, bevor das Zeitlimit griff. Jetzt wird jeder Versuch mit
+    // Dauer geloggt (Vercel Runtime Logs) -- naechster Vorfall liefert damit
+    // echte Daten statt einer weiteren Vermutung.
+    const attemptStart = Date.now();
     try {
       const result = await provider.generateStructured<T>(options.context, {
         systemPrompt: profile.systemPrompt,
@@ -119,6 +128,9 @@ export async function runTileAnalysis<T = unknown>(
         }
       }
 
+      console.log(
+        `AI Router: "${tileId}" -> ${providerId} erfolgreich nach ${Date.now() - attemptStart}ms.`
+      );
       return {
         ...result,
         tileId,
@@ -126,8 +138,12 @@ export async function runTileAnalysis<T = unknown>(
         attemptedProviders: attempted,
       };
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(
+        `AI Router: "${tileId}" -> ${providerId} fehlgeschlagen nach ${Date.now() - attemptStart}ms: ${message}`
+      );
       attempted.push(providerId);
-      errors.push(err instanceof Error ? err.message : String(err));
+      errors.push(message);
       // Naechster Provider in der Kette wird versucht.
     }
   }
