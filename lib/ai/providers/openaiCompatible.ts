@@ -5,6 +5,7 @@ import type {
   AIStructuredResult,
 } from "../types";
 import { extractJson } from "../extractJson";
+import { PROVIDER_TIMEOUT_MS } from "../fetchWithRetry";
 
 // Mehrere Anbieter (OpenAI, xAI/Grok, DeepSeek, Perplexity) bieten eine
 // weitgehend identische "/chat/completions"-API im OpenAI-Format an.
@@ -48,19 +49,35 @@ export function createOpenAiCompatibleProvider(
       );
     }
 
-    const res = await fetch(`${config.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: options?.temperature,
-        max_tokens: options?.maxTokens,
-      }),
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${config.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: options?.temperature,
+          max_tokens: options?.maxTokens,
+        }),
+        // Siehe fetchWithRetry.ts (PROVIDER_TIMEOUT_MS) -- derselbe Live-
+        // Vorfall (System-Briefing riss Vercels 60s-Limit) gilt hier genauso:
+        // ohne eigenes Zeitlimit konnte ein haengender/sehr langsamer
+        // OpenAI-kompatibler Provider das gesamte Budget allein verbrauchen,
+        // bevor die Kette (router.ts) auf den naechsten Provider auswich.
+        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+      });
+    } catch (err) {
+      if (err instanceof Error && err.name === "TimeoutError") {
+        throw new Error(
+          `${config.id}: Zeitueberschreitung nach ${PROVIDER_TIMEOUT_MS / 1000}s (keine Antwort).`
+        );
+      }
+      throw err;
+    }
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");

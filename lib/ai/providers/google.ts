@@ -38,20 +38,26 @@ async function callGenerateContent(
 
   const contents = [{ role: "user", parts: [{ text: userPrompt }] }];
 
-  const res = await fetchWithRetry(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents,
-      systemInstruction: systemPrompt
-        ? { parts: [{ text: systemPrompt }] }
-        : undefined,
-      generationConfig: {
-        temperature: options?.temperature,
-        maxOutputTokens: options?.maxTokens,
-      },
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetchWithRetry(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents,
+        systemInstruction: systemPrompt
+          ? { parts: [{ text: systemPrompt }] }
+          : undefined,
+        generationConfig: {
+          temperature: options?.temperature,
+          maxOutputTokens: options?.maxTokens,
+        },
+      }),
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`google: ${message}`);
+  }
 
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
