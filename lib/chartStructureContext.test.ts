@@ -455,6 +455,33 @@ describe("buildKeyLevelZones", () => {
     expect(zones.map((z) => z.price).sort((a, b) => a - b)).toEqual([1010, 1050]);
   });
 
+  it("verhindert Chaining: ein dritter Pivot darf nur gegen den Zonen-Anker pruefen, nicht gegen den mitwandernden Mittelwert", () => {
+    // Regression 08.10.2026 (7-Tage-Check): mit der alten Logik (Toleranz-
+    // Pruefung gegen den nach jedem neuen Mitglied neu berechneten Mittel-
+    // wert) haette sich 1004 noch angehaengt (Mittel aus 1000+1002 = 1001,
+    // 1004 ist davon nur 0,2997% entfernt) -- obwohl 1004 vom ersten
+    // Mitglied (1000) bereits 0,4% entfernt liegt, also AUSSERHALB der
+    // 0,3%-Toleranz. Die Zone haette sich schrittweise "fortbewegt".
+    const zones = buildKeyLevelZones(
+      [
+        { timeframe: "1d", kind: "high", price: 1000, openTime: "d1" },
+        { timeframe: "4h", kind: "high", price: 1002, openTime: "h1" }, // 0,2% vom Anker -> buendelt
+        { timeframe: "1h", kind: "high", price: 1004, openTime: "h2" }, // 0,4% vom Anker -> eigene Zone
+      ],
+      [],
+      [],
+      1000
+    );
+    expect(zones).toHaveLength(2);
+    // Resistances werden absteigend zurueckgegeben (am weitesten vom Kurs
+    // entfernte zuerst) -- 1004 liegt weiter vom aktuellen Kurs (1000)
+    // entfernt als 1001.
+    expect(zones[0].price).toBe(1004);
+    expect(zones[0].timeframes).toEqual(["1h"]);
+    expect(zones[1].price).toBe(1001);
+    expect(zones[1].timeframes.sort()).toEqual(["1d", "4h"]);
+  });
+
   it("bestaetigt eine Zone durch einen nahen Spot-Volume-Knoten (Kauf-Uebergewicht -> Support-Hinweis)", () => {
     const zones = buildKeyLevelZones(
       [{ timeframe: "1h", kind: "low", price: 950, openTime: "h1" }],

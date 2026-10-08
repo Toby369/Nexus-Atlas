@@ -879,8 +879,8 @@ interface RawLevelSource {
 
 // Kernstueck der Key-Levels-Neuerung: buendelt Pivot-Punkte (aus allen vier
 // Zeitrahmen), Liquidations-Cluster UND Spot-Volume-Knoten zu Zonen, wenn
-// sie innerhalb tolerancePct beieinander liegen (single-linkage, sortiert
-// nach Preis) -- EMA/VWAP werden NICHT hier eingerechnet (siehe
+// sie innerhalb tolerancePct vom Ankerpreis der Zone (sortiert nach Preis,
+// erstes Mitglied) liegen -- EMA/VWAP werden NICHT hier eingerechnet (siehe
 // withConfirmationLevels()), damit diese Funktion komplett pure/testbar
 // bleibt (kein Fetch, keine externen Werte).
 export function buildKeyLevelZones(
@@ -901,7 +901,16 @@ export function buildKeyLevelZones(
 
   const zones: KeyLevel[] = [];
   let clusterMembers: RawLevelSource[] = [];
-  let clusterMeanPrice = 0;
+  // Ankerpreis = Preis des ERSTEN (niedrigsten, da raw aufsteigend sortiert)
+  // Mitglieds der Zone -- bleibt fuer die gesamte Zone fest. Fix 08.10.2026
+  // (7-Tage-Check nach Einfuehrung, Live-Daten zeigten das Problem): vorher
+  // wurde gegen den mit jedem neuen Mitglied NEU berechneten Mittelwert
+  // geprueft ("Chaining"/Single-Linkage) -- jeder einzelne Schritt blieb
+  // innerhalb tolerancePct, aber die Zone konnte sich schrittweise ueber
+  // mehrere tolerancePct hinweg "fortbewegen" (gemessen: bis 0,537% Spanne
+  // bei 0,3% Toleranz). Gegen den fixen Anker zu pruefen begrenzt die
+  // Gesamtspanne einer Zone hart auf tolerancePct.
+  let clusterAnchorPrice = 0;
 
   const flush = () => {
     if (clusterMembers.length === 0) return;
@@ -951,18 +960,17 @@ export function buildKeyLevelZones(
   for (const source of raw) {
     if (clusterMembers.length === 0) {
       clusterMembers.push(source);
-      clusterMeanPrice = source.price;
+      clusterAnchorPrice = source.price;
       continue;
     }
     const withinTolerance =
-      clusterMeanPrice > 0 && Math.abs(source.price - clusterMeanPrice) / clusterMeanPrice <= tolerancePct;
+      clusterAnchorPrice > 0 && Math.abs(source.price - clusterAnchorPrice) / clusterAnchorPrice <= tolerancePct;
     if (withinTolerance) {
       clusterMembers.push(source);
-      clusterMeanPrice = clusterMembers.reduce((sum, m) => sum + m.price, 0) / clusterMembers.length;
     } else {
       flush();
       clusterMembers.push(source);
-      clusterMeanPrice = source.price;
+      clusterAnchorPrice = source.price;
     }
   }
   flush();
