@@ -58,22 +58,29 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   // weiterhin bewusst die "schlaegt fehl statt bezahltem Fallback"-Linie
   // von Anthropic oben, kein dritter (erst recht kein bezahlter) Provider.
   // System-Briefing (08.10.2026 strukturell in vier Teil-Aufrufe aufgeteilt,
-  // siehe lib/ai/promptProfiles.ts Kopfkommentar dort). Live-Vorfall noch am
-  // selben Tag: alle vier liefen per "auto" auf Google (signal-logic) --
-  // 4x Google-Quota-Verbrauch je Generierung statt vorher 1x, riss die
-  // ohnehin von mehreren Kacheln geteilte Google-Quota (429 "exceeded your
-  // current quota"). Jetzt bewusst auf die beiden tatsaechlich
-  // konfigurierten Gratis-Provider verteilt (je 2 primaer Google, 2 primaer
-  // OpenRouter, jeweils der andere als Fallback) -- halbiert die
-  // Google-Last je Generierung, ohne einen dritten (erst recht keinen
-  // bezahlten) Provider einzufuehren. deepseek bleibt als letzter Fallback
-  // fuer beide (aktuell nicht konfiguriert, greift automatisch, falls das
-  // sich aendert).
+  // siehe lib/ai/promptProfiles.ts Kopfkommentar dort). Zwei Live-Vorfaelle
+  // noch am selben Tag: (1) alle vier liefen per "auto" auf Google, 4x Quota-
+  // Verbrauch je Generierung statt vorher 1x; (2) ein erster Fix (je 2x
+  // Google/OpenRouter primaer) reichte NICHT -- per Google-AI-Studio-
+  // Dashboard bestaetigt (Toby-Screenshot 08.10.2026, 18:11): die komplette
+  // Gratis-Tagesquota von Gemini 3.6 Flash war projektweit bereits
+  // ausgeschoepft (Google selbst zeigt "Abrechnung einrichten, um Limits zu
+  // erhoehen" -- keine Code-Fehlerquelle mehr, sondern ein harter Deckel).
+  // Da "muss kostenlos sein" eine bewusste, fruehere Vorgabe ist (siehe
+  // AUTO_CATEGORY_PROVIDER-Kommentar in lib/ai/router.ts), keine Abrechnung
+  // aktivieren -- stattdessen System-Briefing komplett von Google weg auf
+  // OpenRouter als primaeren Provider fuer ALLE VIER Teil-Aufrufe, Google nur
+  // noch als letzter Ausweichpunkt (zusammen mit dem ohnehin unkonfigurierten
+  // deepseek). Reduziert NICHT die projektweite Google-Last auf 0 (News,
+  // Trade-Debate, Signal-Review, Custom-Query, YouTube-Monitor haengen
+  // weiterhin an Google) -- das waere eine groessere, von Toby zu treffende
+  // Entscheidung -- aber System-Briefing traegt ab jetzt nichts mehr dazu
+  // bei, solange die Gratis-Quota angespannt ist.
   "system-briefing-regelwerk": {
     tileId: "system-briefing-regelwerk",
-    aiProvider: "google",
+    aiProvider: "openrouter",
     promptProfile: "system-briefing-regelwerk",
-    fallbackProviders: ["openrouter", "deepseek"],
+    fallbackProviders: ["google", "deepseek"],
   },
   "system-briefing-chart": {
     tileId: "system-briefing-chart",
@@ -83,9 +90,9 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   },
   "system-briefing-trigger": {
     tileId: "system-briefing-trigger",
-    aiProvider: "google",
+    aiProvider: "openrouter",
     promptProfile: "system-briefing-trigger",
-    fallbackProviders: ["openrouter", "deepseek"],
+    fallbackProviders: ["google", "deepseek"],
   },
   "system-briefing-synthese": {
     tileId: "system-briefing-synthese",

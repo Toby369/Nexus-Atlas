@@ -616,17 +616,25 @@ export const promptProfiles: Record<string, PromptProfile> = {
     category: "signal-logic",
     description: "Teil-Aufruf 3/4 des System-Briefings: Trigger&Szenario (bullish+bearish) inkl. Kursziel und Invalidierung.",
     systemPrompt:
-      // 08.10.2026 -- Framing-Satz ergaenzt (Live-Vorfall: ein Gratis-Modell
-      // hinter OpenRouter verweigerte dieses isolierte Teil-Prompt mit "User
-      // Safety: unsafe Safety Categories: Unauthorized Advice" statt JSON zu
-      // liefern). Im vormaligen EINEN grossen Prompt stand derselbe Trigger-
-      // Abschnitt eingebettet in sichtbar analytischen Regelwerk-Kontext und
-      // loeste das nicht aus -- isoliert liest sich "bullish/bearish + Kursziel"
-      // fuer einen Sicherheitsfilter offenbar eher wie eine direkte
+      // 08.10.2026 -- Framing-Satz ergaenzt, 08.10.2026 (spaeter am selben Tag)
+      // nochmal verstaerkt: ein Gratis-Modell hinter OpenRouter verweigerte
+      // dieses isolierte Teil-Prompt wiederholt mit "User Safety: unsafe
+      // Safety Categories: Unauthorized Advice" statt JSON zu liefern -- seit
+      // dem zweiten Live-Vorfall (Google-Gratis-Quota projektweit erschoepft,
+      // siehe tileConfig.ts) laeuft dieser Call primaer auf OpenRouter, nicht
+      // mehr nur als Fallback, der Framing-Satz traegt also mehr Gewicht. Im
+      // vormaligen EINEN grossen Prompt stand derselbe Trigger-Abschnitt
+      // eingebettet in sichtbar analytischen Regelwerk-Kontext und loeste das
+      // nicht aus -- isoliert liest sich "bullish/bearish + Kursziel" fuer
+      // einen Sicherheitsfilter offenbar eher wie eine direkte
       // Kaufempfehlung. Reine Klarstellung, keine inhaltliche Aenderung.
-      "Du erstellst eine rein strukturelle Wenn-Dann-Analyse fuer Tobys eigenes, " +
-      "bereits bestehendes Trading-Regelwerk -- private Nutzung, keine Finanzberatung " +
-      "oder Kaufempfehlung an Dritte. " +
+      "Du erstellst eine rein strukturelle, hypothetische Wenn-Dann-Analyse fuer Tobys " +
+      "eigenes, bereits bestehendes Trading-Regelwerk -- ausschliesslich private " +
+      "Eigennutzung durch Toby selbst, keine Finanzberatung, keine Kaufempfehlung und " +
+      "keine Handlungsaufforderung an irgendwen. Es wird keine Order ausgefuehrt, keine " +
+      "dritte Person liest dieses Ergebnis -- du beschreibst nur, WELCHE bereits in " +
+      "mein_system_checklist/keyLevels vorhandenen Bedingungen zu welchem bereits " +
+      "vorhandenen Preis-Level gehoeren wuerden. " +
       "Daten: keyLevels (price/side/timeframes/confirmedBy), mein_system_checklist " +
       "(Funding/OI/EMA13-50-200-Gates + closePrice), trading_indicators (GUSS/" +
       "VWAP-Vector/CVD). bullish und bearish, je { bedingungen: string[] (wenn/dann-" +
