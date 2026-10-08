@@ -81,12 +81,31 @@ export async function POST() {
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 
-  const rateLimit = await checkAndRecordRateLimit(
-    supabaseAdmin,
-    RATE_LIMIT_ENDPOINT,
-    RATE_LIMIT_WINDOW_MINUTES,
-    RATE_LIMIT_MAX_REQUESTS
-  );
+  // 08.10.2026 -- Live-Vorfall: Client zeigte "Unexpected token 'A', \"An
+  // error o\"..." -- ein Hinweis darauf, dass die Route keine saubere JSON-
+  // Antwort mehr lieferte, sondern eine rohe Plattform-Fehlerseite. Im
+  // Unterschied zu getSupabaseAdmin() direkt oberhalb und dem Hauptblock
+  // weiter unten war dieser Aufruf NICHT abgesichert: checkAndRecordRateLimit
+  // faengt Supabase-FEHLERANTWORTEN selbst ab (siehe rateLimit.ts), aber ein
+  // echter Netzwerkfehler beim Fetch an Supabase wirft eine Exception, die
+  // hier ungefangen durchschlug -- Vercel liefert dafuer keine JSON-, sondern
+  // eine HTML/Text-Fehlerseite, die der Client dann vergeblich als JSON
+  // parsen wollte.
+  let rateLimit: Awaited<ReturnType<typeof checkAndRecordRateLimit>>;
+  try {
+    rateLimit = await checkAndRecordRateLimit(
+      supabaseAdmin,
+      RATE_LIMIT_ENDPOINT,
+      RATE_LIMIT_WINDOW_MINUTES,
+      RATE_LIMIT_MAX_REQUESTS
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json(
+      { success: false, error: `Rate-Limit-Pruefung fehlgeschlagen: ${message}` },
+      { status: 500 }
+    );
+  }
   if (!rateLimit.allowed) {
     return NextResponse.json(
       {
