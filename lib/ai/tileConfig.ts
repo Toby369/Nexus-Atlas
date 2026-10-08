@@ -89,9 +89,23 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   // model models/gemini-2.5-flash is no longer available to new users.
   // ... use models/gemini-3.8-flash" -- eine Modell-Abschaltung, kein
   // Kontingent-Problem, und Google nennt selbst die richtige Alternative.
-  // Je 2x auf die beiden bestaetigten Modelle verteilt -- weniger
-  // Kontingent-Streuung als die vorherige 4-Modelle-Idee, aber keine
-  // weiteren unverifizierten Modell-IDs mehr.
+  //
+  // 08.10.2026, 19:41 -- vierter Versuch, jetzt mit echten Zahlen statt
+  // Vermutung (siehe Zeitmessung in router.ts): zwei verschiedene Modell-
+  // NAMEN teilen sich offenbar trotzdem ein gemeinsames Projekt-/Account-
+  // Limit (RPM/Concurrency), nicht nur die Tages-Quota je Modell. Live-Log
+  // bewies es: EIN Klick (3 parallele Teil-Aufrufe, alle primaer Google)
+  // brauchte 8s/11s/17s fuer triviale Prompts -- bereits ein Drossel-
+  // Symptom -- und ein sofortiger zweiter Klick direkt danach bekam von
+  // Google fuer die drei gleichzeitigen Aufrufe EINMAL einen schnellen 429
+  // UND ZWEIMAL schlicht GAR KEINE Antwort (volle 20s Stille) -- ein
+  // ueberlastetes Gateway, das unter Druck einen Teil der Anfragen nicht
+  // mal mehr sauber ablehnt. Jetzt laufen die DREI PARALLELEN Teil-Aufrufe
+  // auf drei verschiedenen Vendors (nur noch einer trifft Google
+  // gleichzeitig) -- Regelwerk bleibt Google (bestaetigt stabilstes
+  // Modell), Chart auf Groq, Trigger auf OpenRouter umgestellt. Synthese
+  // (sequenziell, laeuft erst NACH den dreien, nie gleichzeitig mit ihnen)
+  // bleibt auf Google.
   "system-briefing-regelwerk": {
     tileId: "system-briefing-regelwerk",
     aiProvider: "google",
@@ -101,17 +115,15 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   },
   "system-briefing-chart": {
     tileId: "system-briefing-chart",
-    aiProvider: "google",
-    aiModel: "gemini-3.8-flash",
+    aiProvider: "groq",
     promptProfile: "system-briefing-chart",
-    fallbackProviders: ["openrouter", "deepseek"],
+    fallbackProviders: ["google", "openrouter"],
   },
   "system-briefing-trigger": {
     tileId: "system-briefing-trigger",
-    aiProvider: "google",
-    aiModel: "gemini-3.8-flash",
+    aiProvider: "openrouter",
     promptProfile: "system-briefing-trigger",
-    fallbackProviders: ["openrouter", "deepseek"],
+    fallbackProviders: ["google", "deepseek"],
   },
   "system-briefing-synthese": {
     tileId: "system-briefing-synthese",
