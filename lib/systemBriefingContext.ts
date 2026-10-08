@@ -18,6 +18,7 @@ import type {
   EtfFlowDay,
   NewsEvent,
   DashboardPollBundle,
+  SystemBriefingTrigger,
 } from "./types";
 
 // Kontext-Builder fuer die System-Briefing-Kachel (Umsetzungsplan Phase 4,
@@ -394,5 +395,59 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
       void signalTally;
       return rest;
     }),
+  };
+}
+
+// --- Kontext-Zuschnitte je Teil-Aufruf (08.10.2026) -------------------------
+// Struktureller Fix gegen das Vercel-60s-Limit: reines Kuerzen des EINEN
+// grossen Prompts (07.10.2026) war nur ein Pflaster. buildSystemBriefingContext()
+// faengt weiterhin ALLES in einem Promise.all (derselbe DB-Aufwand wie vorher),
+// aber der AI-Aufruf wird jetzt in vier kleine, fokussierte Calls aufgeteilt
+// statt einem grossen -- gleiches Prinzip wie sliceContextFor* in app/api/
+// reports/run/route.ts (AI Report Engine). Jede Funktion hier ist pure (kein
+// Fetch), bekommt den bereits fertigen Kontext und reicht nur ihren Ausschnitt
+// weiter. Siehe lib/ai/promptProfiles.ts ("system-briefing-*") fuer die vier
+// Prompts und app/api/system-briefing/generate/route.ts fuer die Orchestrierung.
+
+export function sliceForRegelwerk(ctx: SystemBriefingContext) {
+  const { regelwerk, bewegungsvorrat, mein_system_checklist, trading_indicators, liquidations } = ctx;
+  return { regelwerk, bewegungsvorrat, mein_system_checklist, trading_indicators, liquidations };
+}
+
+export function sliceForChartStruktur(ctx: SystemBriefingContext) {
+  const { triangle, continuationFormation, swingFormations, recentCandlestickPatterns, keyLevels, levelStruktur } =
+    ctx;
+  return { triangle, continuationFormation, swingFormations, recentCandlestickPatterns, keyLevels, levelStruktur };
+}
+
+export function sliceForTrigger(ctx: SystemBriefingContext) {
+  const { keyLevels, mein_system_checklist, trading_indicators } = ctx;
+  return { keyLevels, mein_system_checklist, trading_indicators };
+}
+
+// Eingabe fuer sliceForSynthese: die bereits fertigen Ergebnisse der drei
+// anderen Teil-Aufrufe (nicht die Rohdaten dahinter) -- analog zu
+// marketStructureReport/positioningReport/newsMacroReport im Master-Report-
+// Kontext (app/api/reports/run/route.ts).
+export interface SystemBriefingSynthesisParts {
+  regelwerkCheck: { regelwerkCheck: string; leanBias: "bullish" | "bearish" | "neutral" };
+  chartStruktur: { chartStruktur: string; leanBias: "bullish" | "bearish" | "neutral" };
+  trigger: SystemBriefingTrigger;
+}
+
+export function sliceForSynthese(ctx: SystemBriefingContext, parts: SystemBriefingSynthesisParts) {
+  const { market_state, market_context, etf_flows, positioning, news, bewegungsvorrat } = ctx;
+  return {
+    regelwerkCheck: parts.regelwerkCheck.regelwerkCheck,
+    regelwerkLeanBias: parts.regelwerkCheck.leanBias,
+    chartStruktur: parts.chartStruktur.chartStruktur,
+    chartLeanBias: parts.chartStruktur.leanBias,
+    trigger: parts.trigger,
+    market_state,
+    market_context,
+    etf_flows,
+    positioning,
+    news,
+    bewegungsvorrat_ratio_pct: bewegungsvorrat.ratio_pct,
   };
 }

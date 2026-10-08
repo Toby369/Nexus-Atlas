@@ -57,10 +57,31 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   // zuvor komplett fehlschlagen). Faellt auch dieser komplett aus, greift
   // weiterhin bewusst die "schlaegt fehl statt bezahltem Fallback"-Linie
   // von Anthropic oben, kein dritter (erst recht kein bezahlter) Provider.
-  "system-briefing": {
-    tileId: "system-briefing",
+  // System-Briefing (08.10.2026 strukturell in vier Teil-Aufrufe aufgeteilt,
+  // siehe lib/ai/promptProfiles.ts Kopfkommentar dort) -- alle vier teilen
+  // sich dieselbe Provider-Kette wie vorher der eine grosse Aufruf.
+  "system-briefing-regelwerk": {
+    tileId: "system-briefing-regelwerk",
     aiProvider: "auto",
-    promptProfile: "system-briefing",
+    promptProfile: "system-briefing-regelwerk",
+    fallbackProviders: ["openrouter", "deepseek"],
+  },
+  "system-briefing-chart": {
+    tileId: "system-briefing-chart",
+    aiProvider: "auto",
+    promptProfile: "system-briefing-chart",
+    fallbackProviders: ["openrouter", "deepseek"],
+  },
+  "system-briefing-trigger": {
+    tileId: "system-briefing-trigger",
+    aiProvider: "auto",
+    promptProfile: "system-briefing-trigger",
+    fallbackProviders: ["openrouter", "deepseek"],
+  },
+  "system-briefing-synthese": {
+    tileId: "system-briefing-synthese",
+    aiProvider: "auto",
+    promptProfile: "system-briefing-synthese",
     fallbackProviders: ["openrouter", "deepseek"],
   },
   // Eskalations-Kachel ("gezielte Eskalation", 05.09.2026): aiProvider hier

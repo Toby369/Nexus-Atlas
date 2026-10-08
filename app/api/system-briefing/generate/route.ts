@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { buildSystemBriefingContext } from "@/lib/systemBriefingContext";
+import {
+  buildSystemBriefingContext,
+  sliceForRegelwerk,
+  sliceForChartStruktur,
+  sliceForTrigger,
+  sliceForSynthese,
+} from "@/lib/systemBriefingContext";
 import { runTileAnalysis } from "@/lib/ai/router";
 import { checkAndRecordRateLimit } from "@/lib/rateLimit";
-import type { SystemBriefingResult } from "@/lib/types";
+import type { SystemBriefingResult, SystemBriefingTrigger } from "@/lib/types";
 
 // POST /api/system-briefing/generate
 //
@@ -17,19 +23,40 @@ import type { SystemBriefingResult } from "@/lib/types";
 // Auth: proxy.ts sperrt diese Route wie jede andere /api/*-Route hinter eine
 // Login-Session -- keine eigene Pruefung noetig.
 //
-// 06.10.2026 -- buildSystemBriefingContext() laedt seit der Zusammenlegung
-// mit der vormaligen Chart-Narrativ-Kachel zusaetzlich die komplette Chart-
-// Struktur (getChartStructureData()/getLevelStructureData(), mehrere
-// grosse Kerzen-Abfragen) -- zusammen mit dem anschliessenden KI-Aufruf
-// laenger als Vercels unkonfigurierter Default (~10s). Live-Vorfall: "Failed
-// to fetch" beim Klick auf "Neu generieren". Gleiches Vorbild/gleicher Fix
-// wie app/api/youtube-monitor/generate/route.ts -- 60s ist das Maximum, das
-// der Hobby-Plan erlaubt.
+// 08.10.2026 -- struktureller Umbau (Nutzer-Beobachtung "sollten Master-
+// Report und System-Briefing nicht effizienter laufen, 3 verschiedene KI-
+// Aufrufe nutzen?"): vorher EIN grosser runTileAnalysis()-Aufruf mit allen
+// fuenf Abschnitten. Nach der Zusammenlegung mit Chart-Narrativ (06.10.2026)
+// riss dieser EINE Aufruf die Route bei jedem Versuch exakt bei Vercels
+// 60s-Limit (Hobby-Plan) ab; reines Kuerzen des Prompts (07.10.2026) war nur
+// ein Pflaster. Jetzt wie die AI Report Engine (report-market-structure/
+// positioning/news-macro + report-master): drei kleine, unabhaengige
+// Teil-Aufrufe PARALLEL (Regelwerk-Check, Chart-Struktur, Trigger&Szenario),
+// danach EIN kleiner Synthese-Call, der nur die drei Teil-Ergebnisse
+// verdichtet (keine Rohdaten erneut) -- siehe lib/ai/promptProfiles.ts
+// ("system-briefing-*") und lib/systemBriefingContext.ts (sliceFor*). Die
+// gespeicherte SystemBriefingResult-Form bleibt exakt gleich, die Kachel
+// merkt vom Split nichts.
 export const maxDuration = 60;
 
 const RATE_LIMIT_WINDOW_MINUTES = 20;
 const RATE_LIMIT_MAX_REQUESTS = 5;
 const RATE_LIMIT_ENDPOINT = "system_briefing_generate";
+
+interface RegelwerkResult {
+  regelwerkCheck: string;
+  leanBias: "bullish" | "bearish" | "neutral";
+}
+
+interface ChartStrukturResult {
+  chartStruktur: string;
+  leanBias: "bullish" | "bearish" | "neutral";
+}
+
+interface SyntheseResult {
+  fazit: SystemBriefingResult["fazit"];
+  konfluenzCheck: string | null;
+}
 
 export async function POST() {
   let supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
@@ -57,26 +84,56 @@ export async function POST() {
   }
 
   try {
-    // 06.10.2026 -- Bugfix: buildSystemBriefingContext() lief vorher
-    // AUSSERHALB dieses try/catch -- ein Fehler darin (z.B. eine der neu
-    // hinzugekommenen Chart-Struktur-Abfragen) riss die Route unbehandelt
-    // ab. Next.js/Vercel liefert dann eine generische, NICHT-JSON-
-    // Fehlerseite ("An error occurred ...") aus, an der res.json() im
-    // Client mit "Unexpected token 'A' ... is not valid JSON" scheitert --
-    // live von Toby gemeldet. Jetzt innerhalb des try/catch, liefert also
-    // in jedem Fehlerfall eine saubere { success: false, error } Antwort.
     const context = await buildSystemBriefingContext();
 
-    const result = await runTileAnalysis<SystemBriefingResult>("system-briefing", {
-      context: JSON.stringify(context),
+    // Drei fokussierte, voneinander unabhaengige Teil-Aufrufe parallel --
+    // jeder bekommt nur seinen eigenen Daten-Ausschnitt (sliceFor*), daher
+    // deutlich kleinerer Prompt je Call als vorher der eine grosse.
+    const [regelwerkResult, chartResult, triggerResult] = await Promise.all([
+      runTileAnalysis<RegelwerkResult>("system-briefing-regelwerk", {
+        context: JSON.stringify(sliceForRegelwerk(context)),
+      }),
+      runTileAnalysis<ChartStrukturResult>("system-briefing-chart", {
+        context: JSON.stringify(sliceForChartStruktur(context)),
+      }),
+      runTileAnalysis<SystemBriefingTrigger>("system-briefing-trigger", {
+        context: JSON.stringify(sliceForTrigger(context)),
+      }),
+    ]);
+
+    // Vierter Call: verdichtet die drei Teil-Ergebnisse zu Fazit +
+    // Konfluenz-Check -- bekommt KEINE Rohdaten mehr (ausser dem kleinen
+    // Abgleichs-Schnitt in sliceForSynthese), analog zu report-master, das
+    // ebenfalls nur die drei Teilreports liest statt neu zu rechnen.
+    const syntheseResult = await runTileAnalysis<SyntheseResult>("system-briefing-synthese", {
+      context: JSON.stringify(
+        sliceForSynthese(context, {
+          regelwerkCheck: regelwerkResult.data,
+          chartStruktur: chartResult.data,
+          trigger: triggerResult.data,
+        })
+      ),
     });
+
+    const combined: SystemBriefingResult = {
+      fazit: syntheseResult.data.fazit,
+      regelwerkCheck: regelwerkResult.data.regelwerkCheck,
+      chartStruktur: chartResult.data.chartStruktur,
+      konfluenzCheck: syntheseResult.data.konfluenzCheck,
+      trigger: triggerResult.data,
+    };
 
     const { data: snapshot, error: insertError } = await supabaseAdmin
       .from("system_briefings")
       .insert({
-        provider: result.provider,
-        model: result.model,
-        result: result.data,
+        // Provider/Modell des Synthese-Calls -- der Abschluss-Aufruf, der das
+        // Fazit erzeugt. Die drei Teil-Aufrufe koennen theoretisch auf
+        // unterschiedliche Fallback-Provider ausgewichen sein; das bleibt
+        // ohne eigene Spalte nachvollziehbar (jeder Aufruf wirft bei
+        // Fehlschlag), ist aber fuer die Anzeige nicht relevant.
+        provider: syntheseResult.provider,
+        model: syntheseResult.model,
+        result: combined,
         status: "ok",
       })
       .select()
