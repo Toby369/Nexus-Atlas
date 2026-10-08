@@ -119,11 +119,27 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     promptProfile: "system-briefing-chart",
     fallbackProviders: ["google", "openrouter"],
   },
+  // 08.10.2026, 20:49 -- OpenRouter als primaerer Provider fuer Trigger
+  // wieder entfernt: nach der Vendor-Verteilung oben (Regelwerk=Google,
+  // Chart=Groq, Trigger=OpenRouter) hing OpenRouter bei DIESER Kachel
+  // zweimal in Folge (zwei verschiedene Anfragen, zwei verschiedene
+  // Deployments) exakt bis zum 20s-Zeitlimit OHNE JEDE Antwort -- kein
+  // einziges Mal ein echter Fehler oder eine Verweigerung, einfach Stille.
+  // Da Trigger inhaltlich konkrete Kursziel-Szenarien erzeugt (derselbe
+  // Inhaltstyp, der hier bereits einmal eine OpenRouter-Sicherheits-
+  // verweigerung "Unauthorized Advice" ausgeloest hat, siehe promptProfiles.ts),
+  // liegt ein stiller Moderations-Haenger bei einem der kostenlosen
+  // OpenRouter-Modelle nahe -- zweimal exakt reproduziert, kein Zufall mehr.
+  // Primaer jetzt Mistral (dritter, bisher unbeteiligter Vendor -- bereits
+  // ueber MISTRAL_API_KEY konfiguriert, siehe ESCALATION_PROVIDER_ENSEMBLE),
+  // Fallback Groq -> Google. OpenRouter bewusst GANZ aus dieser einen Kette
+  // entfernt (bleibt bei Regelwerk/Chart weiterhin Fallback) statt weitere
+  // 20s auf einen wiederholt haengenden Provider zu verschwenden.
   "system-briefing-trigger": {
     tileId: "system-briefing-trigger",
-    aiProvider: "openrouter",
+    aiProvider: "mistral",
     promptProfile: "system-briefing-trigger",
-    fallbackProviders: ["google", "deepseek"],
+    fallbackProviders: ["groq", "google"],
   },
   "system-briefing-synthese": {
     tileId: "system-briefing-synthese",
