@@ -199,7 +199,16 @@ export default function SystemBriefingCard({
         <p className="text-xs text-text-faint">Noch kein System-Briefing generiert.</p>
       )}
 
-      {snapshot && snapshot.status === "error" && (
+      {/* 08.10.2026 -- Bugfix (Live-Vorfall, Screenshot zeigte zwei
+          widerspruechliche Fehlermeldungen gleichzeitig): `error` (dieser
+          Klick) und `snapshot.error` (zuletzt GESPEICHERTER Lauf, z.B. vom
+          Seitenaufruf) sind zwei unabhaengige Quellen -- schlaegt ein Klick
+          fehl, bleibt `snapshot` unveraendert (siehe handleGenerate(), kein
+          setSnapshot() im Fehlerfall), der veraltete DB-Fehler stand also
+          weiterhin parallel zum frischen `error` da. `error` ist bei einem
+          erneuten Klick-Fehlschlag immer die aktuellere der beiden -- bei
+          `error` also den DB-Fehler ausblenden statt beide zu zeigen. */}
+      {!error && snapshot && snapshot.status === "error" && (
         <p className="text-xs text-down">{snapshot.error ?? "Unbekannter Fehler."}</p>
       )}
 

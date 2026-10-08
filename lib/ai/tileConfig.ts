@@ -80,11 +80,18 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   // auf OpenRouter als primaeren Provider ausweichen zu muessen. OpenRouter
   // bleibt als Fallback, deepseek als letzter (aktuell unkonfiguriert).
   //
-  // Modellnamen nach Googles ueblichem Schema (gemini-X.Y-flash/-pro,
-  // Kleinschreibung/Bindestriche) aus der im Dashboard angezeigten
-  // Bezeichnung abgeleitet, NICHT selbst live getestet -- schlaegt eine ID
-  // fehl, faengt die Fallback-Kette es ab, aber die exakte ID lohnt sich bei
-  // Gelegenheit gegenzupruefen.
+  // Modellnamen (08.10.2026, 19:09, dritter Versuch): nicht mehr geraten,
+  // sondern auf die zwei Modelle reduziert, die in LIVE-Tests tatsaechlich
+  // funktionierten -- "gemini-3.7-flash" (Regelwerk, nur einmal kurz 503
+  // "high demand", danach ok) und "gemini-3.8-flash" (Chart, durchgehend
+  // ok). Zwei vorherige Rate-Trigger-Versuche ("gemini-2.5-flash",
+  // "gemini-2.5-flash-lite") scheiterten an Google selbst: HTTP 404 "This
+  // model models/gemini-2.5-flash is no longer available to new users.
+  // ... use models/gemini-3.8-flash" -- eine Modell-Abschaltung, kein
+  // Kontingent-Problem, und Google nennt selbst die richtige Alternative.
+  // Je 2x auf die beiden bestaetigten Modelle verteilt -- weniger
+  // Kontingent-Streuung als die vorherige 4-Modelle-Idee, aber keine
+  // weiteren unverifizierten Modell-IDs mehr.
   "system-briefing-regelwerk": {
     tileId: "system-briefing-regelwerk",
     aiProvider: "google",
@@ -102,20 +109,14 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   "system-briefing-trigger": {
     tileId: "system-briefing-trigger",
     aiProvider: "google",
-    // 08.10.2026, 19:03 -- "gemini-2.5-flash" (ein sehr verbreitetes,
-    // oft als Default genutztes Modell) war trotz gruenem Dashboard-Status
-    // (18:18) 45 Min. spaeter bereits wieder 429 -- vermutlich hohe
-    // allgemeine Nachfrage auf diesem Modell, nicht projekteigener
-    // Verbrauch. Auf die "Lite"-Variante gewechselt (eigenes, meist
-    // weniger stark nachgefragtes Kontingent).
-    aiModel: "gemini-2.5-flash-lite",
+    aiModel: "gemini-3.8-flash",
     promptProfile: "system-briefing-trigger",
     fallbackProviders: ["openrouter", "deepseek"],
   },
   "system-briefing-synthese": {
     tileId: "system-briefing-synthese",
     aiProvider: "google",
-    aiModel: "gemini-3.1-flash-lite",
+    aiModel: "gemini-3.7-flash",
     promptProfile: "system-briefing-synthese",
     fallbackProviders: ["openrouter", "deepseek"],
   },
