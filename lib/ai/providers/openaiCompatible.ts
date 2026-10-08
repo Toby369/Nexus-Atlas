@@ -49,9 +49,18 @@ export function createOpenAiCompatibleProvider(
       );
     }
 
-    let res: Response;
+    // 08.10.2026 -- Nachbesserung: AbortSignal.timeout() gilt fuer die
+    // GESAMTE Fetch-Lebensdauer (Verbindungsaufbau UND Lesen des Response-
+    // Bodies), nicht nur fuer den Verbindungsaufbau. Ein try/catch nur um
+    // fetch() selbst (vorherige Version) ging daher durch, wenn der Timeout
+    // erst WAEHREND res.json() ausloeste -- Live-Beweis: Google zeigte den
+    // neuen, saubern "Zeitueberschreitung"-Text, OpenRouter zeigte den
+    // rohen, unpraefixierten DOMException-Text ("The operation was aborted
+    // due to timeout") -- derselbe Fehler, nur an einer ungeschuetzten
+    // Stelle ausgeloest. Jetzt umschliesst EIN try/catch den gesamten
+    // Ablauf (Fetch + Status-Check + JSON-Parsing).
     try {
-      res = await fetch(`${config.baseUrl}/chat/completions`, {
+      const res = await fetch(`${config.baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -63,13 +72,30 @@ export function createOpenAiCompatibleProvider(
           temperature: options?.temperature,
           max_tokens: options?.maxTokens,
         }),
-        // Siehe fetchWithRetry.ts (PROVIDER_TIMEOUT_MS) -- derselbe Live-
-        // Vorfall (System-Briefing riss Vercels 60s-Limit) gilt hier genauso:
-        // ohne eigenes Zeitlimit konnte ein haengender/sehr langsamer
-        // OpenAI-kompatibler Provider das gesamte Budget allein verbrauchen,
-        // bevor die Kette (router.ts) auf den naechsten Provider auswich.
         signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
       });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        throw new Error(`${config.id}: HTTP ${res.status} – ${errText.slice(0, 300)}`);
+      }
+
+      const json = await res.json();
+      const content = json?.choices?.[0]?.message?.content;
+      if (typeof content !== "string") {
+        throw new Error(`${config.id}: unerwartetes Antwortformat.`);
+      }
+
+      return {
+        content,
+        model,
+        usage: json?.usage
+          ? {
+              promptTokens: json.usage.prompt_tokens,
+              completionTokens: json.usage.completion_tokens,
+            }
+          : undefined,
+      };
     } catch (err) {
       if (err instanceof Error && err.name === "TimeoutError") {
         throw new Error(
@@ -78,28 +104,6 @@ export function createOpenAiCompatibleProvider(
       }
       throw err;
     }
-
-    if (!res.ok) {
-      const errText = await res.text().catch(() => "");
-      throw new Error(`${config.id}: HTTP ${res.status} – ${errText.slice(0, 300)}`);
-    }
-
-    const json = await res.json();
-    const content = json?.choices?.[0]?.message?.content;
-    if (typeof content !== "string") {
-      throw new Error(`${config.id}: unerwartetes Antwortformat.`);
-    }
-
-    return {
-      content,
-      model,
-      usage: json?.usage
-        ? {
-            promptTokens: json.usage.prompt_tokens,
-            completionTokens: json.usage.completion_tokens,
-          }
-        : undefined,
-    };
   }
 
   return {

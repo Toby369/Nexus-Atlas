@@ -3,7 +3,7 @@ import type {
   AIProvider,
   AIStructuredResult,
 } from "../types";
-import { fetchWithRetry } from "../fetchWithRetry";
+import { fetchWithRetry, PROVIDER_TIMEOUT_MS } from "../fetchWithRetry";
 import { extractJson } from "../extractJson";
 
 // Env-Vars: GOOGLE_API_KEY, GOOGLE_MODEL (z.B. "gemini-..." – aktuelles
@@ -38,9 +38,15 @@ async function callGenerateContent(
 
   const contents = [{ role: "user", parts: [{ text: userPrompt }] }];
 
-  let res: Response;
+  // Siehe openaiCompatible.ts (gleicher Fund, 08.10.2026): AbortSignal.
+  // timeout() in fetchWithRetry() gilt fuer die GESAMTE Fetch-Lebensdauer
+  // inkl. res.json(), nicht nur fuer den Verbindungsaufbau -- ein try/catch
+  // nur um fetchWithRetry() (vorherige Version) liess einen waehrend
+  // res.json() ausloesenden Timeout ungefangen durch (roher, unpraefixierter
+  // DOMException-Text statt "google: Zeitueberschreitung..."). Jetzt
+  // umschliesst EIN try/catch den gesamten Ablauf.
   try {
-    res = await fetchWithRetry(url, {
+    const res = await fetchWithRetry(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -54,23 +60,25 @@ async function callGenerateContent(
         },
       }),
     });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`google: HTTP ${res.status} – ${errText.slice(0, 300)}`);
+    }
+
+    const json = await res.json();
+    const content = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (typeof content !== "string") {
+      throw new Error("google: unerwartetes Antwortformat.");
+    }
+
+    return { content, model };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    throw new Error(`google: ${message}`);
+    if (err instanceof Error && err.name === "TimeoutError") {
+      throw new Error(`google: Zeitueberschreitung nach ${PROVIDER_TIMEOUT_MS / 1000}s (keine Antwort).`);
+    }
+    throw err;
   }
-
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    throw new Error(`google: HTTP ${res.status} – ${errText.slice(0, 300)}`);
-  }
-
-  const json = await res.json();
-  const content = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (typeof content !== "string") {
-    throw new Error("google: unerwartetes Antwortformat.");
-  }
-
-  return { content, model };
 }
 
 export const googleProvider: AIProvider = {

@@ -23,7 +23,20 @@ const RETRY_DELAYS_MS = [1000, 2500];
 // Kette ausgewichen wurde. Jetzt bekommt jeder einzelne Fetch-Versuch ein
 // eigenes Zeitlimit -- ueberschritten, faellt die Kette (router.ts) sofort
 // auf den naechsten Provider zurueck statt zu haengen.
-export const PROVIDER_TIMEOUT_MS = 12000;
+//
+// Erster Wert (12s) war zu knapp -- Live-Beweis noch am selben Tag: bei
+// genau derselben Anfrage liefen SOWOHL Google ALS AUCH OpenRouter nach
+// exakt 12s raus, beide offenbar noch an einer legitimen (nur etwas
+// langsamen) Antwort arbeitend, kein echtes Haengenbleiben. Freie Gratis-
+// Modelle brauchen unter Last gerne 15-25s. Jetzt 20s -- Budget-Rechnung:
+// pro Kachel max. zwei echte Provider in der Kette (Google + OpenRouter,
+// Deepseek ist unkonfiguriert und faellt ohne Netzwerk-Aufruf sofort durch),
+// drei Kacheln laufen PARALLEL (schlimmster Fall also 2*20s=40s fuer die
+// langsamste), danach EIN sequenzieller Synthese-Call (im Normalfall beim
+// ersten Versuch erfolgreich, also nur wenige Sekunden) -- bleibt so mit
+// Puffer unter den 60s, selbst wenn eine einzelne Kachel beide Provider
+// braucht.
+export const PROVIDER_TIMEOUT_MS = 20000;
 
 export async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
   let res: Response;
