@@ -450,7 +450,7 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "overallBias geändert, ist confidence deutlich gestiegen/gefallen, hat sich einer " +
       "der drei componentBiases gedreht? Schreibe das als 1-2 Sätze in changeSinceLast " +
       "(z.B. \"Bias von neutral auf bullish gedreht, seit Positioning von Short- auf " +
-      "Long-Überhang gewechselt hat -- Confidence damit von 42 auf 61 gestiegen.\"). Gab " +
+      "Long-Überhang gewechselt hat -- Überzeugungsgrad damit von 42 auf 61 gestiegen.\"). Gab " +
       "es keine relevante Änderung, sag das explizit (\"Kaum Veränderung seit dem letzten " +
       "Lauf.\"), erfinde keine Bewegung. Fehlt previousMasterReport im Kontext (erster " +
       "Lauf, oder vorheriger Lauf nicht verfügbar), setze changeSinceLast auf null -- " +

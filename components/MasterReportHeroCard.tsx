@@ -147,7 +147,7 @@ export default function MasterReportHeroCard({
           </span>
         )}
         {confidence !== undefined && (
-          <span className="text-xs text-text-faint">Confidence {Math.round(confidence)}/100</span>
+          <span className="text-xs text-text-faint">Überzeugungsgrad {Math.round(confidence)}/100</span>
         )}
       </div>
 

@@ -146,7 +146,7 @@ function buildReportEmailHtml(config: ReportConfig, timeframe: string, resultDat
   const biasSection = biasField
     ? `<div style="margin:0 0 16px;">${badgeHtml(BIAS_STYLE[biasField], biasField)}` +
       (confidence !== undefined
-        ? `<span style="margin-left:10px;color:#6b7280;font-size:13px;">Confidence ${confidence}/100</span>`
+        ? `<span style="margin-left:10px;color:#6b7280;font-size:13px;">Überzeugungsgrad ${confidence}/100</span>`
         : "") +
       `</div>`
     : "";

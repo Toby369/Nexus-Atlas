@@ -232,7 +232,7 @@ export default function SystemBriefingCard({
             >
               {BIAS_LABEL[result.fazit.bias]}
             </span>
-            <span className="text-text-faint">· Confidence {result.fazit.confidence}/100</span>
+            <span className="text-text-faint">· Überzeugungsgrad {result.fazit.confidence}/100</span>
             <span className="text-text-faint">·</span>
             <FullDateTime iso={snapshot.generated_at} className="text-text-faint" />
             <StaleBadge iso={snapshot.generated_at} />
