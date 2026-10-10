@@ -66,3 +66,67 @@ Ein zeitraum-basierter Report ("von X bis Y") ist damit als NEUE, separate
 Idee im Backlog offen, falls Toby das aufgreifen will -- vermutlich am
 ehesten eine Erweiterung der bestehenden Report Engine (`/reports`) um
 einen frei waehlbaren Start/Ende statt nur "timeframe" (4H/1D/...).
+
+## OI/Preis-Quadrant: zwei unabhaengige Berechnungen derselben Taxonomie
+
+**Datum:** 10.10.2026
+
+**Kontext:** Im Rahmen einer Redundanz-Audit-Recherche (Toby: "haben wir zu
+viele differenzierte Metriken?") aufgefallen: Die Regime-Matrix
+(`lib/marketRegime.ts`, `oi_price_quadrant`, Teil der 5-Saeulen-Engine) und
+die Marktkontext-Kachel (`lib/marketContext.ts::classifyMarketContext`)
+klassifizieren BEIDE dieselben vier Kategorien (long_buildup/short_buildup/
+short_covering/long_unwind) aus Preis x Open-Interest-Richtung -- mit
+unterschiedlichen Formeln/Schwellen, auf zwei verschiedenen Kacheln
+(RegimeMatrixCard vs. MarketContextCard). Anders als bei CVD-Footprint vs.
+dem `cvd`-Faktor oder VWAP-Vector vs. TradingView-VWAP-Stretch (beide
+bereits im Code/PanelInfo explizit als "verwandt, aber methodisch anders"
+gekennzeichnet) ist dieses Paar bisher NIRGENDS dokumentiert oder
+gegeneinander abgeglichen -- einziger durch die Audit-Recherche gefundener,
+bislang unadressierter Fall.
+
+**Naechster Schritt, falls Toby das aufgreift:** gemeinsam entscheiden, ob
+(a) eine der beiden Berechnungen entfaellt und durch die andere ersetzt
+wird, (b) beide bleiben, aber mit derselben expliziten "koennen
+unterschiedlich ausfallen, weil..."-Kennzeichnung wie bei den anderen
+beiden Faellen versehen werden, oder (c) ein Divergenz-Radar-Paar dafuer
+ergaenzt wird (gleiche Machart wie `computeSystemBriefingVsStateDivergence`).
+
+## "Ueberzeugungsgrad"-Label fuer vier unabhaengige KI-Einschaetzungen
+
+**Datum:** 10.10.2026
+
+**Kontext:** Nach der Umbenennung von "Confidence" zu "Ueberzeugungsgrad"
+(09./10.10.2026, siehe Commit-Historie) im Rahmen derselben Redundanz-
+Audit-Recherche aufgefallen: Der neue Begriff steht jetzt identisch auf
+VIER Kacheln (System-Briefing, Master-Report, die 3 Report-Engine-Slots,
+YouTube-Gesamtanalyse) fuer vier methodisch unabhaengige KI-Aufrufe mit
+jeweils eigenem Kontext -- kein Rechenfehler, aber derselbe Oberflaechen-
+Effekt, der die juengste Verwirrung ausloeste ("sind das nicht dieselben
+Zahlen?"), nur unter neuem Namen statt "Confidence".
+
+**Naechster Schritt, falls Toby das aufgreift:** Label pro Kachel
+disambiguieren (z.B. "System-Briefing-Ueberzeugungsgrad",
+"Master-Report-Ueberzeugungsgrad"), damit auf einen Blick klar ist, dass es
+vier getrennte Zahlen sind, keine vier Messungen derselben Sache.
+
+## MTF-Ampel ohne Divergenz-Check gegen die Gesamteinschaetzung
+
+**Datum:** 10.10.2026
+
+**Kontext:** Toby beobachtete eine "Bullish"-Headline (14-Faktoren-Engine,
+Verlaesslichkeit nur 36/100) neben einer MTF-Ampel, die nur 1 von 5
+Zeitrahmen gruen zeigte. Recherche ergab: `overall_state` (Headline) und
+die MTF-Ampel (`lib/mtfSignal.ts`) sind zwei bewusst unabhaengige Engines
+(dokumentiert in `docs/research/METHODIC_DIVERGENCE_2026-08-29.md`,
+Abschnitt 7 "Offene Fragen" -- dort bereits als offener Punkt genannt:
+"Sollte computeEngineDivergence MTF-Alignment als dritte Vergleichsgroesse
+einbeziehen? Aktuell bewusst nicht umgesetzt."). Anders als die
+Divergenz-Paare 14-Faktoren-vs-System-Briefing und Master-Report-vs-
+beide-Engines (beide bereits mit Warn-Hinweis versehen) hat die MTF-Ampel
+selbst noch KEINEN Abgleich gegen die Gesamteinschaetzung.
+
+**Naechster Schritt, falls Toby das aufgreift:** ein weiteres
+Divergenz-Radar-Paar (oder eine Erweiterung von `computeEngineDivergence`)
+analog zu den bestehenden, das warnt, wenn `overall_state` stark
+gerichtet ist, aber die MTF-Ampel ueberwiegend widerspricht.
