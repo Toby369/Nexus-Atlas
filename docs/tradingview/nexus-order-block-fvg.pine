@@ -73,6 +73,11 @@ if bullFvg
 if bearFvg
     alert('{"secret":"' + secret + '","ticker":"BTCUSDT","signal_type":"FAIR_VALUE_GAP_BEARISH","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
 
+// Visuelle Markierung (09.10.2026, Nutzer-Wunsch) -- rein additiv, aendert
+// nichts an der Alert-/Webhook-Logik.
+plotshape(bullFvg, title="FVG Bullish", style=shape.diamond, location=location.belowbar, color=color.new(color.teal, 0), size=size.tiny, text="FVG")
+plotshape(bearFvg, title="FVG Bearish", style=shape.diamond, location=location.abovebar, color=color.new(color.maroon, 0), size=size.tiny, text="FVG")
+
 // --- Order Block ---
 pivotHigh = ta.pivothigh(high, pivotLen, pivotLen)
 pivotLow = ta.pivotlow(low, pivotLen, pivotLen)
@@ -121,8 +126,19 @@ hasBullishInLookback() =>
 
 // Nur alerten, wenn tatsaechlich eine Gegenkerze innerhalb obLookback
 // existiert -- sonst gibt es kein plausibles Order-Block-Level zu melden.
-if bosUp and hasBearishInLookback()
+// In eine Variable gezogen (09.10.2026, fuer die Visualisierung unten) --
+// sonst wuerde hasBearishInLookback()/hasBullishInLookback() doppelt
+// ausgewertet (einmal hier, einmal im plotshape), rein kosmetischer Fix,
+// keine Verhaltensaenderung.
+obBullCond = bosUp and hasBearishInLookback()
+obBearCond = bosDown and hasBullishInLookback()
+
+if obBullCond
     alert('{"secret":"' + secret + '","ticker":"BTCUSDT","signal_type":"ORDER_BLOCK_BULLISH","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
 
-if bosDown and hasBullishInLookback()
+if obBearCond
     alert('{"secret":"' + secret + '","ticker":"BTCUSDT","signal_type":"ORDER_BLOCK_BEARISH","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+
+// Visuelle Markierung (09.10.2026, Nutzer-Wunsch) -- rein additiv.
+plotshape(obBullCond, title="Order Block Bullish", style=shape.labelup, location=location.belowbar, color=color.new(color.lime, 0), size=size.small, text="OB")
+plotshape(obBearCond, title="Order Block Bearish", style=shape.labeldown, location=location.abovebar, color=color.new(color.red, 0), size=size.small, text="OB")

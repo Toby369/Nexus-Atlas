@@ -72,6 +72,12 @@ if sweepHigh
 if sweepLow
     lowSwept := true
 
+// Visuelle Markierung (09.10.2026, Nutzer-Wunsch: Signale sollen auch auf
+// dem Chart sichtbar sein, nicht nur per Webhook an Nexus gehen) -- rein
+// additiv, aendert nichts an der Alert-/Webhook-Logik oben.
+plotshape(sweepHigh, title="Liquidity Sweep (High)", style=shape.triangledown, location=location.abovebar, color=color.new(color.red, 0), size=size.small, text="Sweep")
+plotshape(sweepLow, title="Liquidity Sweep (Low)", style=shape.triangleup, location=location.belowbar, color=color.new(color.lime, 0), size=size.small, text="Sweep")
+
 // LIQUIDITY_SWEEP_HIGH = Buy-Side-Liquidity oberhalb eines Swing-Highs
 // gesweept, Schluss darunter zurueck -- moeglicher bearischer Reversal.
 // LIQUIDITY_SWEEP_LOW = Sell-Side-Liquidity unterhalb eines Swing-Lows

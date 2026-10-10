@@ -198,6 +198,39 @@ Faktoren (`compute-market-state`) und der 5-Säulen-Regime-Matrix:
    Varianten sind möglich, aber diese ist mechanisch nachvollziehbar statt
    eine einzelne "beste" Interpretation vorzutäuschen.
 
+## Visuelle Markierungen (09.10.2026)
+
+Alle 6 Skripte feuerten bisher AUSSCHLIESSLICH `alert()` für den Webhook --
+kein einziges hatte einen `plot()`/`plotshape()`-Aufruf, die zwei Skripte
+mit eigenem Panel (`nexus-squeeze-breakout.pine`,
+`nexus-rsi-macd-divergence.pine`) zeigten dadurch ein komplett leeres
+Panel. Nutzer-Wunsch: Signale sollen zusätzlich zum Webhook auch direkt auf
+dem Chart sichtbar sein. Jetzt markiert jedes Skript seine Auslöse-Bedingung
+zusätzlich mit einem `plotshape()` (Dreieck/Diamant/Label, grün=bullisch,
+rot=bärisch) -- rein additiv, die `alert()`-Aufrufe/Bedingungen selbst sind
+unverändert.
+
+- `nexus-liquidity-sweep.pine`: Dreieck ab-/aufwärts bei Sweep High/Low.
+- `nexus-order-block-fvg.pine`: Diamant für FVG, Label für Order Block.
+- `nexus-volume-expansion.pine`: Dreieck bei Breakout rauf/runter.
+- `nexus-vwap-stretch.pine`: zusätzlich Session-VWAP + Stddev-Bänder selbst
+  geplottet (vorher berechnet, nie angezeigt) plus Dreieck am Ausbruchs-Bar.
+- `nexus-squeeze-breakout.pine`: klassische TTM-Squeeze-Punktreihe an der
+  Nulllinie (schwarz=Squeeze aktiv, grau=keine Squeeze) plus Dreieck am
+  Release-Bar.
+- `nexus-rsi-macd-divergence.pine`: nur die vier Marker (location.top/
+  bottom), bewusst OHNE RSI-/MACD-Linien selbst -- unterschiedliche Skalen
+  (0-100 vs. kleine Preisdifferenz) würden sich im selben Panel gegenseitig
+  stauchen.
+
+**Bestehende Alarme müssen NICHT neu erstellt werden**, solange das
+bestehende Skript im Pine-Editor bearbeitet (nicht neu angelegt) wird: die
+`alert()`-Aufrufe sind textidentisch geblieben, ein Alarm mit Bedingung
+"Beliebiger alert()-Funktionsaufruf" hängt an diesem Mechanismus, nicht an
+einzelnen Codezeilen. Der `secret`-Input-Wert bleibt beim Speichern eines
+bestehenden Skripts ebenfalls erhalten (siehe Secret-als-Chart-Input-Fix
+oben).
+
 ## Divergenz-Radar (05.09.2026) — Richtungs-Ableitung aus signal_type
 
 Der Divergenz-Radar (`lib/divergenceRadar.ts::computeTradingViewVsStateDivergence`)

@@ -54,3 +54,13 @@ if isOverbought
 
 if isOversold
     alert('{"secret":"' + secret + '","ticker":"BTCUSDT","signal_type":"VWAP_STRETCH_LO","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+
+// Visuelle Markierung (09.10.2026, Nutzer-Wunsch) -- rein additiv. Zeigt
+// zusaetzlich die Session-VWAP + Stddev-Baender selbst (vorher berechnet,
+// aber nie geplottet), damit die Ueberdehnung auch optisch nachvollziehbar
+// ist, nicht nur der Ausloese-Pfeil.
+plot(vwapValue, title="Session VWAP", color=color.new(color.blue, 0))
+plot(upperBand, title="Oberes Band", color=color.new(color.gray, 40))
+plot(lowerBand, title="Unteres Band", color=color.new(color.gray, 40))
+plotshape(isOverbought, title="VWAP Stretch High", style=shape.triangledown, location=location.abovebar, color=color.new(color.red, 0), size=size.small, text="Stretch")
+plotshape(isOversold, title="VWAP Stretch Low", style=shape.triangleup, location=location.belowbar, color=color.new(color.lime, 0), size=size.small, text="Stretch")

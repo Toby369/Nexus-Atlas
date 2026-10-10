@@ -64,3 +64,13 @@ if isBullRelease
 
 if isBearRelease
     alert('{"secret":"' + secret + '","ticker":"BTCUSDT","signal_type":"SQUEEZE_RELEASE_BEAR","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+
+// Visuelle Markierung (09.10.2026, Nutzer-Wunsch) -- rein additiv. Dieses
+// Skript hatte bisher UEBERHAUPT keinen plot()-Aufruf (overlay=false, aber
+// leeres Panel) -- die klassische TTM-Squeeze-Punktreihe an der Nulllinie
+// (schwarz = Squeeze aktiv, grau = keine Squeeze) macht den Zustand
+// sichtbar, die Dreiecke oben/unten markieren den Release-Moment selbst.
+plot(sqzOn ? 0 : na, title="Squeeze aktiv", style=plot.style_circles, color=color.new(color.black, 0), linewidth=2)
+plot(not sqzOn ? 0 : na, title="Keine Squeeze", style=plot.style_circles, color=color.new(color.gray, 40), linewidth=2)
+plotshape(isBullRelease, title="Squeeze Release Bull", style=shape.triangleup, location=location.bottom, color=color.new(color.lime, 0), size=size.small, text="Release")
+plotshape(isBearRelease, title="Squeeze Release Bear", style=shape.triangledown, location=location.top, color=color.new(color.red, 0), size=size.small, text="Release")

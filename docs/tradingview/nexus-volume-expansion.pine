@@ -57,3 +57,8 @@ if isBreakoutUp
 
 if isBreakoutDown
     alert('{"secret":"' + secret + '","ticker":"BTCUSDT","signal_type":"VOLUME_EXPANSION_BEAR","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+
+// Visuelle Markierung (09.10.2026, Nutzer-Wunsch) -- rein additiv, aendert
+// nichts an der Alert-/Webhook-Logik oben.
+plotshape(isBreakoutUp, title="Volume Expansion Bull", style=shape.triangleup, location=location.belowbar, color=color.new(color.lime, 0), size=size.small, text="Vol+")
+plotshape(isBreakoutDown, title="Volume Expansion Bear", style=shape.triangledown, location=location.abovebar, color=color.new(color.red, 0), size=size.small, text="Vol+")

@@ -101,3 +101,15 @@ if macdBullDiv
 
 if macdBearDiv
     alert('{"secret":"' + secret + '","ticker":"BTCUSDT","signal_type":"MACD_BEARISH_DIVERGENCE","timeframe":"' + timeframe.period + '","price":' + str.tostring(close) + '}', alert.freq_once_per_bar_close)
+
+// Visuelle Markierung (09.10.2026, Nutzer-Wunsch) -- rein additiv. Dieses
+// Skript hatte bisher UEBERHAUPT keinen plot()-Aufruf (overlay=false, aber
+// leeres Panel). RSI (0-100) und MACD-Histogramm (kleine Preisdifferenz)
+// bewusst NICHT zusaetzlich als Linien geplottet -- unterschiedliche
+// Skalen wuerden sich im selben Panel gegenseitig stauchen; die vier
+// Marker an location.top/bottom sind skalenunabhaengig und zeigen den
+// Divergenz-Moment klar an, ohne das Panel zu verzerren.
+plotshape(rsiBullDiv, title="RSI Bullish Divergence", style=shape.triangleup, location=location.bottom, color=color.new(color.lime, 0), size=size.small, text="RSI")
+plotshape(rsiBearDiv, title="RSI Bearish Divergence", style=shape.triangledown, location=location.top, color=color.new(color.red, 0), size=size.small, text="RSI")
+plotshape(macdBullDiv, title="MACD Bullish Divergence", style=shape.labelup, location=location.bottom, color=color.new(color.lime, 0), size=size.small, text="MACD")
+plotshape(macdBearDiv, title="MACD Bearish Divergence", style=shape.labeldown, location=location.top, color=color.new(color.red, 0), size=size.small, text="MACD")
