@@ -13,7 +13,7 @@
 // getrennte, visuell strukturierte Absaetze mit hervorgehobenem Label.
 
 export function marktkontextInfo(tfLabel: string): string {
-  return `So liest du das: Das Panel zeigt eines von vier Szenarien: Long-Aufbau, Short-Aufbau, Short-Covering oder Long-Abbau – oder „Keine klare Struktur“, wenn weder Preis noch OI einen Mindestschwellenwert überschreiten. Der Zusatz „spotbestätigt“ zeigt, ob sich der Spot-Markt in dieselbe Richtung wie die Futures-Bewegung bewegt; eine unbestätigte Bewegung gilt als eher gehebelt statt real nachfragegetrieben. Die Einordnung ist rein regelbasiert (keine KI) und keine Anlageberatung.
+  return `So liest du das: Das Panel zeigt eines von vier Szenarien: Long-Aufbau, Short-Aufbau, Short-Covering oder Long-Abbau – oder „Keine klare Struktur“, wenn Preis und/oder OI ihren Mindestschwellenwert nicht überschreiten. Der Zusatz „spotbestätigt“ zeigt, ob sich der Spot-Markt in dieselbe Richtung wie die Futures-Bewegung bewegt; eine unbestätigte Bewegung gilt als eher gehebelt statt real nachfragegetrieben. Die Einordnung ist rein regelbasiert (keine KI) und keine Anlageberatung. Verwandt mit, aber methodisch anders als der „OI/Preis-Quadrant“ in der Marktphase-Kachel (gleiche vier Namen, aber dort fest 6h, nur Binance-OI und ohne Mindestschwelle – jede noch so kleine Bewegung zählt). Beide können deshalb unterschiedlich ausfallen: zeigt der Quadrant dort z.B. „Long-Aufbau“, während hier „Keine klare Struktur“ steht, war die Bewegung schlicht zu klein, um über das übliche Rauschen hinauszugehen.
 
 So entsteht der Wert: Kombiniert die Preisrichtung (Bybit), die aggregierte Open-Interest-Richtung (Summe über alle Börsen mit Daten) und den Spot-Taker-Netto-Flow (Binance) über ${tfLabel}. Reicht die OI-Historie für ${tfLabel} noch nicht aus oder ist die Spot-Datenbasis zu dünn, wird das Ergebnis als PRELIMINARY oder INSUFFICIENT DATA gekennzeichnet.`;
 }
@@ -225,9 +225,9 @@ So entsteht der Wert: (aktueller Preis − Preis vor 6h) / Preis vor 6h, alle 15
 
 So entsteht der Wert: (aktuelles OI − OI vor 6h) / OI vor 6h, alle 15 Minuten neu berechnet.`,
 
-  oiPriceQuadrant: `So liest du das: Kombiniert Preis-Δ und OI-Δ zu einem von vier Zuständen: Long-Aufbau (Preis↑, OI↑), Short-Aufbau (Preis↓, OI↑), Short-Covering (Preis↑, OI↓), Long-Abbau (Preis↓, OI↓). Long-Aufbau/Short-Covering gelten als eher bullisch, Short-Aufbau/Long-Abbau als eher bärisch – der eigentliche Mehrwert gegenüber den beiden Einzelwerten daneben.
+  oiPriceQuadrant: `So liest du das: Kombiniert Preis-Δ und OI-Δ zu einem von vier Zuständen: Long-Aufbau (Preis↑, OI↑), Short-Aufbau (Preis↓, OI↑), Short-Covering (Preis↑, OI↓), Long-Abbau (Preis↓, OI↓). Long-Aufbau/Short-Covering gelten als eher bullisch, Short-Aufbau/Long-Abbau als eher bärisch – der eigentliche Mehrwert gegenüber den beiden Einzelwerten daneben. Bewusst ohne Mindestschwelle: schon eine winzige Bewegung ergibt einen der vier Zustände, „neutral“ kommt praktisch nie vor – das Feld zeigt also die Richtung, nicht ob die Bewegung bedeutsam ist. Verwandt mit, aber methodisch anders als die Marktkontext-Kachel (gleiche vier Namen, dort aber wählbarer Zeitraum, aggregiertes OI aller Börsen, Bybit-Preis, eine mit dem Zeitraum wachsende Mindestschwelle und Spot-Bestätigung) – beide können unterschiedlich ausfallen, dort steht bei kleinen Bewegungen meist „Keine klare Struktur“.
 
-So entsteht der Wert: Vorzeichen-Kombination aus Preis-Δ und OI-Δ (6h), alle 15 Minuten neu berechnet.`,
+So entsteht der Wert: Vorzeichen-Kombination aus Preis-Δ (Binance-1h-Schlusskurs) und OI-Δ (nur Binance) über 6h, ohne Mindestschwelle, alle 15 Minuten neu berechnet.`,
 
   liqClusterDensity: `So liest du das: Wie dicht geschätzte Liquidations-Level aktuell um den Preis herum liegen, standardisiert. Ein hoher Wert bedeutet viele mögliche Liquidations-Trigger in der Nähe – potenziell schnellere/heftigere Bewegungen bei Erreichen dieser Level, aber ohne eigene Richtung. Reine Magnitude/Fragilitäts-Kennzahl, kein Richtungs-Badge.
 

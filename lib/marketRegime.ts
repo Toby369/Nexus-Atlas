@@ -197,6 +197,16 @@ export function bbPercentBDirection(bbPercentB: number | null): SignalDirection 
 // OI/Preis-Quadrant-Semantik (dieselbe Taxonomie wie InstitutionalPlaybook-
 // Card/QUADRANT_LABELS in RegimeMatrixCard.tsx): Long-Aufbau/Short-Covering
 // sind beide preistreibend nach oben, Short-Aufbau/Long-Abbau nach unten.
+// ACHTUNG Namensgleichheit: lib/marketContext.ts::classifyMarketContext
+// (Marktkontext-Kachel) klassifiziert dieselben vier Kategorien UNABHAENGIG
+// und mit anderer Methodik -- der DB-Quadrant hier (compute_market_state_
+// matrix_series) nutzt fest 6h, nur Binance-OI/-Kerzen und Schwelle 0
+// (reines Vorzeichen), marketContext dagegen den gewaehlten Zeitraum,
+// aggregiertes OI, Bybit-Preis und eine sqrt(Zeit)-skalierte Flat-Schwelle
+// (0.4% bei 1H). Echtdaten 30 Tage (10.10.2026): hier 0% "neutral", mit den
+// marketContext-Schwellen bei 6h waeren es ~88%. Beide sind deshalb in
+// PanelInfo als "verwandt, aber methodisch anders" gekennzeichnet --
+// Abweichungen zwischen den Kacheln sind erwartbar, kein Fehler.
 export function quadrantDirection(quadrant: OiPriceQuadrant | null): SignalDirection {
   if (quadrant === "long_buildup" || quadrant === "short_covering") return "up";
   if (quadrant === "short_buildup" || quadrant === "long_unwind") return "down";

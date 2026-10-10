@@ -92,6 +92,39 @@ unterschiedlich ausfallen, weil..."-Kennzeichnung wie bei den anderen
 beiden Faellen versehen werden, oder (c) ein Divergenz-Radar-Paar dafuer
 ergaenzt wird (gleiche Machart wie `computeSystemBriefingVsStateDivergence`).
 
+**Ergebnis (10.10.2026):** Methodik beider Berechnungen verglichen:
+
+| | Regime-Matrix (`oi_price_quadrant`) | Marktkontext (`classifyMarketContext`) |
+|---|---|---|
+| Ort | DB-Funktion `compute_market_state_matrix_series` | `lib/marketContext.ts` (Frontend) |
+| Zeitfenster | fest 6h (6 x 1h-Kerzen) | gewaehlter Zeitraum (15M ... 1M) |
+| Preis | Binance-1h-Schlusskurs | Bybit `last_price` |
+| OI | nur Binance | aggregiert ueber alle Boersen |
+| Flat-Schwelle | keine (reines Vorzeichen) | 0.4% x sqrt(Minuten/60), bei 6h ~0.98% |
+| Zusatz | -- | Spot-Bestaetigung, Datenqualitaets-Sperren |
+
+Echtdaten der letzten 30 Tage (719 Stundenwerte): die Regime-Matrix lieferte
+**kein einziges Mal** "neutral"; mit den Marktkontext-Schwellen bei 6h waeren
+~88% der Werte "Keine klare Struktur" gewesen. Die beiden Kacheln
+widersprechen sich also die meiste Zeit -- nicht wegen eines Fehlers, sondern
+weil die Regime-Matrix die Richtung zeigt und der Marktkontext nur
+bedeutsame Bewegungen einordnet.
+
+Umgesetzt: **Variante (b)** -- beide PanelInfo-Texte (`marktkontextInfo`,
+`REGIME_MATRIX_METRIC_INFO.oiPriceQuadrant`) tragen jetzt dieselbe
+"verwandt, aber methodisch anders"-Kennzeichnung wie die beiden anderen
+Faelle, inkl. Hinweis auf die fehlende Mindestschwelle im Quadranten;
+Querverweis-Kommentare in `lib/marketRegime.ts` und `lib/marketContext.ts`.
+Nebenbei korrigiert: `marktkontextInfo` sagte "wenn weder Preis noch OI
+einen Mindestschwellenwert ueberschreiten" -- tatsaechlich reicht es, wenn
+EINER der beiden darunter bleibt.
+
+**Weiterhin offen (Entscheidung Toby):** Variante (a)-light -- dem
+DB-Quadranten eine Flat-Schwelle geben (z.B. dieselbe ~0.98% fuer 6h), damit
+"neutral" wieder vorkommt. Aendert eine DB-Funktion der Regime-Engine und
+alle historischen Matrix-Zeilen (Research-Ergebnisse der Phase 1 nutzen den
+Quadranten), deshalb bewusst nicht ohne Freigabe umgesetzt.
+
 ## "Ueberzeugungsgrad"-Label fuer vier unabhaengige KI-Einschaetzungen
 
 **Datum:** 10.10.2026

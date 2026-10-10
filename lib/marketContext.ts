@@ -20,6 +20,12 @@ import { classifySpotPressure, type SpotPressureResult } from "./spotPressure";
 // der Spot-Markt in dieselbe Richtung, ist die Bewegung eher real
 // nachfragegetrieben; bewegt er sich nicht mit, ist sie eher gehebelt/
 // mechanisch (Liquidationen, Covering) und potenziell fragiler.
+//
+// Nicht zu verwechseln mit dem gleichnamigen `oi_price_quadrant` der
+// Regime-Matrix (DB-Funktion compute_market_state_matrix_series, angezeigt
+// in RegimeMatrixCard): dort fest 6h, nur Binance, ohne Flat-Schwelle --
+// beide koennen bewusst unterschiedlich ausfallen, siehe Kommentar bei
+// quadrantDirection() in lib/marketRegime.ts.
 
 export type MarketScenario =
   | "long_buildup"
