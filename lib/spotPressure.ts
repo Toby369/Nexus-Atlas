@@ -18,7 +18,7 @@ export type SpotPressureVerdict =
 
 export type DataQuality = "OK" | "PRELIMINARY" | "INSUFFICIENT";
 
-const FLAT_THRESHOLD_PCT = 5;
+export const FLAT_THRESHOLD_PCT = 5;
 // Unter dieser Abdeckung ist die Stichprobe zu duenn fuer irgendeine
 // Aussage -- der Verdikt wird unabhaengig vom Zahlenwert INSUFFICIENT_DATA.
 const INSUFFICIENT_COVERAGE_RATIO = 0.2;

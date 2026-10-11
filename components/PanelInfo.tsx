@@ -135,7 +135,7 @@ export default function PanelInfo({
                 // des Plain-Text-Strings.
                 const match = paragraph.match(/^([^:\n]{3,40}:)\s*([\s\S]*)$/);
                 return (
-                  <p key={index} className="text-xs text-text-muted leading-relaxed">
+                  <p key={index} className="text-xs text-text-muted leading-relaxed whitespace-pre-line">
                     {match ? (
                       <>
                         <span className="font-semibold text-text-muted">{match[1]}</span>{" "}
