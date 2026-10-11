@@ -56,8 +56,8 @@ const INFO_TEXT = [
   "Wiederholt bewusst KEINE der einzeln angezeigten Werte — sagt stattdessen, ob dein eigenes Regelwerk aktuell erfüllt ist, was die Chart-Struktur zeigt, und ob sich die Quellen gegenseitig bestätigen oder widersprechen. Der Konfluenz-Check erscheint nur, wenn es einen echten Widerspruch gibt.",
   "Regelwerk-Check steht als kurze Zeilen statt als ein Fliesstext-Block (Gates / Orderflow / Bewegungsvorrat / Liquidation) — nur befüllte Zeilen werden gezeigt. GUSS taucht in der Orderflow-Zeile nur auf, wenn Nexus' Regime-Engine gerade einen Trend erkennt (sonst ist GUSS gar nicht anwendbar) — dann als kurze Info/Erinnerung, nicht als eigenständiges Signal.",
   "Trigger & Szenario zeigt IMMER beide Richtungen (bullisch + bärisch) mit je eigenem Kursziel — jedes Kursziel entspricht zwingend einem echten Key Level, nie einer frei geschätzten Zahl. Trotzdem eine Entscheidungsunterstützung anhand deiner eigenen Regeln und der Chart-Struktur, keine automatisierte Anlageberatung.",
-  "Die \"Kurze Einordnung\" oben in der Gesamteinschätzung (HeroHeader) zeigt das Fazit dieser Analyse.",
-  "Aktualisiert sich automatisch, sobald der zuletzt generierte Stand zu alt wird (ausgelöst über die \"Kurze Einordnung\" oben) — zusätzlich weiterhin per Klick auf \"Neu generieren\" hier möglich.",
+  "Die \"KI-Einordnung\" oben im Lagebild zeigt das Fazit dieser Analyse.",
+  "Aktualisiert sich automatisch, sobald der zuletzt generierte Stand zu alt wird (ausgelöst über die \"KI-Einordnung\" im Lagebild oben) — zusätzlich weiterhin per Klick auf \"Neu generieren\" hier möglich.",
 ].join("\n\n");
 
 const BIAS_LABEL: Record<"bullish" | "bearish" | "neutral", string> = {
@@ -235,7 +235,7 @@ export default function SystemBriefingCard({
             >
               {BIAS_LABEL[result.fazit.bias]}
             </span>
-            <span className="text-text-faint">· Überzeugungsgrad {result.fazit.confidence}/100</span>
+            <span className="text-text-faint">· Briefing-Überzeugungsgrad {result.fazit.confidence}/100</span>
             <span className="text-text-faint">·</span>
             <FullDateTime iso={snapshot.generated_at} className="text-text-faint" />
             <StaleBadge iso={snapshot.generated_at} />

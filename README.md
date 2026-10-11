@@ -39,7 +39,7 @@ Schreibzugriff nur über den Service-Role-Key der Edge Functions.
 
 | Seite | Inhalt |
 |---|---|
-| `/` Dashboard | Fest oben: Zeitraum-Auswahl, Gesamteinschätzung (HeroHeader), Setup-Score, Regime-Score. Darunter drei Reiter (siehe `lib/dashboardTabs.ts`): **Marktkontext**, **Preis, Orderflow & Makro**, **KI & Tools** |
+| `/` Dashboard | Fest oben: Zeitraum-Auswahl und das Lagebild (`HeroHeader`: Gesamteinschätzung, Fazit-Satz, Setup-/Regime-Score, MTF-Ampel, Marktphase, KI-Einordnung; Details aufklappbar). Darunter drei Reiter (siehe `lib/dashboardTabs.ts`): **Marktkontext**, **Preis, Orderflow & Makro**, **KI & Tools** |
 | `/reports` | AI Report Engine (nur Gratis-Tier-Provider, siehe `lib/ai/reportProviders.ts`) |
 | `/lernen` | Lernplattform: Leitner-Karteikarten, Wissen, Checklisten, Indikator-/Chartstruktur-Module |
 | `/account` | Passwort ändern, Push-Benachrichtigungen |

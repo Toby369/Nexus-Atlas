@@ -60,7 +60,7 @@ So entsteht der Wert: Datenbasis ist ausschliesslich Binance Spot BTC/USDT im 5-
 export function spotVolumeProfileInfo(tfLabel: string): string {
   return `So liest du das: Je Preis-Bucket ($200-Schritte) ein grüner Balken nach rechts (Kaufvolumen) und ein roter Balken nach links (Verkaufsvolumen) -- gespiegelt an der Nulllinie, wie ein klassisches Volume Profile. Ein Bucket mit deutlich mehr Kauf- als Verkaufsvolumen ist ein Hinweis auf eine mögliche Unterstützung (dort wurde bereits aktiv gekauft), deutlich mehr Verkaufsvolumen auf einen möglichen Widerstand (dort wurde bereits aktiv verkauft) -- eine Beobachtungshilfe, kein geprüftes/validiertes Signal und keine Anlageberatung.
 
-So entsteht der Wert: Binance Spot BTC/USDT Aggregated-Trades (echte Taker-Buy/Sell-Klassifikation, keine Schätzung), lückenlos per Cursor erfasst (alle 5 Minuten) und direkt beim Erfassen in $200-Preis-Buckets aggregiert. Zeitraum: derselbe ${tfLabel}, der oben im Dashboard gewählt ist. Dieselben Preis-Buckets fliessen auch als Bestätigung in die Key Levels der Struktur-Kachel ein (Tab "Tools & Lernen" → Lernen → Mein System).`;
+So entsteht der Wert: Binance Spot BTC/USDT Aggregated-Trades (echte Taker-Buy/Sell-Klassifikation, keine Schätzung), lückenlos per Cursor erfasst (alle 5 Minuten) und direkt beim Erfassen in $200-Preis-Buckets aggregiert. Zeitraum: derselbe ${tfLabel}, der oben im Dashboard gewählt ist. Dieselben Preis-Buckets fliessen auch als Bestätigung in die Key Levels der Struktur-Kachel ein (Seite "Lernen" → Mein System).`;
 }
 
 // positioningRatiosInfo/takerFlowInfo/positioningAssessmentInfo (PanelInfo-

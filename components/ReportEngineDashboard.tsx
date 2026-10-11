@@ -425,7 +425,7 @@ function LastRunView({ lastRun }: { lastRun: ReportRun | null }) {
           {bias && (
             <p className="text-sm text-text">
               Bias: <span className="font-medium">{bias}</span>
-              {confidence !== undefined && ` · Überzeugungsgrad ${confidence}`}
+              {confidence !== undefined && ` · Report-Überzeugungsgrad ${confidence}`}
             </p>
           )}
           {summary && <p className="text-xs text-text-muted">{summary}</p>}

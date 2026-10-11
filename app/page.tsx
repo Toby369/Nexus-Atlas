@@ -741,19 +741,6 @@ export default async function Home({
               </Suspense>
             </div>
 
-            <HeroHeader
-              initialState={marketState}
-              initialRegime={marketStateMatrix?.regime ?? null}
-              timeframe={timeframe}
-              recentEtfFlows={recentEtfFlows}
-              initialSystemBriefing={latestSystemBriefing}
-              upcomingEconomicEvents={upcomingEconomicEvents}
-              initialMtfDots={mtfDots}
-            />
-
-            <ConfluenceScoreCard score={confluenceScore} signalDetail={confluenceSignalDetail} />
-            <RegimeScoreCard score={regimeScore} signalDetail={regimeSignalDetail} />
-
             <LivePriceDataProvider
                 timeframe={timeframe}
                 initialSnapshots={snapshots}
@@ -763,6 +750,29 @@ export default async function Home({
                 initialFetchedSinceIso={timeframeSinceIsoValue}
                 initialOiByExchange={oiByExchange}
               >
+                {/* Lagebild (11.10.2026): Setup- und Regime-Score stehen als
+                    Kennzahlen im HeroHeader, ihre vollstaendigen Karten im
+                    Aufklapper "Warum?" -- keine eigenen Boxen mehr darunter.
+                    HeroHeader sitzt dafuer innerhalb von LivePriceDataProvider
+                    (Live-Preis im Kopf). */}
+                <HeroHeader
+                  initialState={marketState}
+                  initialRegime={marketStateMatrix?.regime ?? null}
+                  timeframe={timeframe}
+                  recentEtfFlows={recentEtfFlows}
+                  initialSystemBriefing={latestSystemBriefing}
+                  upcomingEconomicEvents={upcomingEconomicEvents}
+                  initialMtfDots={mtfDots}
+                  setupScore={confluenceScore}
+                  regimeScore={regimeScore}
+                  scoreDetails={
+                    <div className="space-y-3">
+                      <ConfluenceScoreCard score={confluenceScore} signalDetail={confluenceSignalDetail} />
+                      <RegimeScoreCard score={regimeScore} signalDetail={regimeSignalDetail} />
+                    </div>
+                  }
+                />
+
                 <DashboardTabNav
                   tiles={{
                     "market-context": <MarketContextCard timeframe={timeframe} />,

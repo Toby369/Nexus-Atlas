@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import type {
   EconomicCalendarEvent,
@@ -20,8 +20,19 @@ import {
 } from "@/lib/marketStateSummary";
 import {
   regimeLabel,
+  regimeDescription,
   shouldSuppressRegimeDirectionalLabel,
 } from "@/lib/marketRegime";
+import type { ConfluenceScoreResult } from "@/lib/confluenceScoreContext";
+import type { RegimeScoreResult } from "@/lib/regimeScoreContext";
+import {
+  buildLagebildSentence,
+  countMtfDirections,
+  detectMtfStateConflict,
+  regimeLean,
+  setupLead,
+} from "@/lib/lagebild";
+import { useLivePriceData } from "@/components/LivePriceDataProvider";
 import { getSalomonInterpretation } from "@/lib/salomonInterpretation";
 import { detectMomentumDivergence } from "@/lib/momentumDivergence";
 import { computeSystemBriefingVsStateDivergence } from "@/lib/divergenceRadar";
@@ -80,7 +91,7 @@ function formatSignedPct(value: number | null) {
 const SHORT_NARRATIVE_INFO_TEXT = [
   "Was das ist: das Fazit der System-Briefing-Einordnung (Regelwerk + Nexus-Faktoren) als schneller Überblick direkt hier oben -- dieselbe Analyse wie unten in der System-Briefing-Kachel, nicht extra generiert.",
   "Andere Engine als das grosse Badge oben: das Badge ist die regelbasierte 14-Faktoren-Gesamteinschätzung, diese Box wendet dein eigenes Regelwerk (Welz/Salomon/\"Mein Trading System\") AUF diese Einschätzung an -- beide können unterschiedlicher Meinung sein. Weicht der aktuelle Stand tatsächlich ab, erscheint hier ein Warnhinweis (⚠) statt zwei stillschweigend widersprüchlichen Badges.",
-  `Automatische Aktualisierung: ist der zuletzt generierte Stand älter als ${NARRATIVE_AUTO_REFRESH_HOURS} Std., löst diese Kachel automatisch EINEN neuen System-Briefing-Aufruf aus (kostenloses Gratis-Tier, wie jede andere KI-Kachel) -- bis dahin wird kein veralteter Text angezeigt. Ein manueller Klick auf "Neu generieren" auf der System-Briefing-Kachel (Tab "KI-Einschätzungen") funktioniert weiterhin unabhängig davon.`,
+  `Automatische Aktualisierung: ist der zuletzt generierte Stand älter als ${NARRATIVE_AUTO_REFRESH_HOURS} Std., löst diese Kachel automatisch EINEN neuen System-Briefing-Aufruf aus (kostenloses Gratis-Tier, wie jede andere KI-Kachel) -- bis dahin wird kein veralteter Text angezeigt. Ein manueller Klick auf "Neu generieren" auf der System-Briefing-Kachel (Reiter "KI & Tools") funktioniert weiterhin unabhängig davon.`,
   "Wichtig: Preis-/EMA-/sonstige Zahlen IM TEXT sind der Stand zum Generierungszeitpunkt (siehe Zeitstempel darunter), keine Live-Werte. Für den Live-Preis immer die BTC-Preis-Kachel nutzen.",
 ].join("\n\n");
 
@@ -377,6 +388,9 @@ export default function HeroHeader({
   upcomingEconomicEvents,
   initialSystemBriefing,
   initialMtfDots,
+  setupScore,
+  regimeScore,
+  scoreDetails,
 }: {
   initialState: MarketState | null;
   initialRegime: MarketRegime | null;
@@ -403,14 +417,19 @@ export default function HeroHeader({
   // ADX-Nuance ab); die Ampel ergaenzt 15M/1H/4H/1D/1W mit Trend-vs-
   // Trendbildung-Unterscheidung.
   initialMtfDots: MtfTimeframeDot[];
+  // Lagebild (11.10.2026): Setup-/Regime-Score als Kennzahlen oben, die
+  // vollstaendigen Karten (scoreDetails) im Aufklapper "Warum?".
+  setupScore: ConfluenceScoreResult;
+  regimeScore: RegimeScoreResult;
+  scoreDetails: ReactNode;
 }) {
   const [state, setState] = useState(initialState);
   const [lastSyncOk, setLastSyncOk] = useState(true);
   const [regime, setRegime] = useState(initialRegime);
   const [mtfDots, setMtfDots] = useState(initialMtfDots);
-  const [expanded, setExpanded] = useState(false);
   const [expandedRiskFactor, setExpandedRiskFactor] = useState<string | null>(null);
   const { bundle, fetchedSinceIso, fetchedAtMs } = useDashboardPoll();
+  const { latest: latestSnapshot } = useLivePriceData();
 
   useEffect(() => {
     const load = async () => {
@@ -613,11 +632,51 @@ export default function HeroHeader({
     state.overall_state
   );
 
+  const mtfCounts = countMtfDirections(mtfDots);
+  const mtfConflict = detectMtfStateConflict(state.overall_state, suppressed, mtfDots);
+  const lead = setupLead(setupScore);
+  const lean = regimeLean(regimeScore);
+  const sentence = buildLagebildSentence({
+    overallState: state.overall_state,
+    directionSuppressed: suppressed,
+    conflict: mtfConflict,
+    dots: mtfDots,
+    setup: lead,
+    regime: lean,
+  });
+  const fazit = narrativeSnapshot?.result?.fazit;
+  const livePrice = latestSnapshot?.last_price ?? null;
+
   return (
-    <section className="rounded-lg border border-accent/40 bg-surface-raised p-6 space-y-3">
-      <div className="flex items-baseline justify-between flex-wrap gap-2">
-        <p className={`text-3xl sm:text-4xl font-bold ${badgeColor}`}>{displayLabel}</p>
-        <RelativeTime iso={state.timestamp_utc} className="text-xs text-text-faint" />
+    <section className="rounded-lg border border-accent/40 bg-surface-raised p-5 sm:p-6 space-y-4">
+      {/* Lagebild (Entwurf von Toby am 11.10.2026 freigegeben, siehe
+          NEXUS-STRUKTUR-KONZEPT Abschnitt 8): oben Aussage + vier
+          Kennzahlen, alles Weitere im Aufklapper "Warum?". */}
+      <div className="flex items-start justify-between flex-wrap gap-x-6 gap-y-2">
+        <div className="space-y-1">
+          <span className="flex items-center gap-1.5">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-text-faint">Lagebild BTC/USDT</p>
+            <PanelInfo title="Gesamteinschätzung" content={marketStateInfo} />
+          </span>
+          <div className="flex items-baseline gap-3 flex-wrap">
+            <p className={`text-3xl sm:text-4xl font-bold ${badgeColor}`}>
+              {suppressed ? "Unklar" : displayLabel}
+            </p>
+            <p className="text-xs text-text-faint">
+              {suppressed
+                ? `berechnet ${STATE_LABELS[state.overall_state]}, Verlässlichkeit ${Math.round(state.confidence)}/100 (für eine Richtung nötig: ${DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD})`
+                : `Verlässlichkeit ${Math.round(state.confidence)}/100`}
+            </p>
+          </div>
+        </div>
+        <div className="sm:text-right">
+          {livePrice !== null && (
+            <p className="tabular font-mono text-xl text-text">
+              {livePrice.toLocaleString("de-CH", { maximumFractionDigits: 0 })} USD
+            </p>
+          )}
+          <RelativeTime iso={state.timestamp_utc} className="text-xs text-text-faint" />
+        </div>
       </div>
 
       {!lastSyncOk && (
@@ -626,12 +685,14 @@ export default function HeroHeader({
         </p>
       )}
 
-      {suppressed && (
-        <p className="text-xs text-text-faint">
-          Berechneter Zustand war {STATE_LABELS[state.overall_state]}, aber Verlässlichkeit liegt unter{" "}
-          {DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD}/100 — für eine Richtungsaussage zu unsicher, daher
-          hier als &bdquo;{UNCLEAR_STATE_LABEL}&ldquo; angezeigt. Faktoren-Detail unten unverändert
-          einsehbar.
+      <p className="text-sm text-text leading-relaxed">{sentence}</p>
+
+      {mtfConflict && (
+        <p className="rounded-md border border-down/45 bg-down/10 px-3 py-2 text-xs text-text-muted">
+          <span className="font-semibold text-down">Widerspruch zur MTF-Ampel.</span> Die
+          Gesamteinschätzung zeigt {mtfConflict.direction}, aber {mtfConflict.opposing} von{" "}
+          {mtfConflict.total} Zeitrahmen zeigen in die Gegenrichtung. Die Richtungsaussage ist mit
+          Vorsicht zu lesen.
         </p>
       )}
 
@@ -642,240 +703,260 @@ export default function HeroHeader({
         </p>
       )}
 
-      <p className="text-sm text-text-muted leading-relaxed">
-        {buildCompactMarketStateSummary(state)}
-      </p>
-
       <TradingHoursBadge events={upcomingEconomicEvents} />
       <EconomicHeroBadge events={upcomingEconomicEvents} />
 
-      <StatusLineSummary
-        items={statusLines}
-        heading={
-          confirmation.primaryDirection && confirmation.totalComparable > 0
-            ? `${confirmation.confirmingCount} von ${confirmation.totalComparable} unabhängigen Signalen bestätigen (✓/✗ unten)`
-            : undefined
-        }
-      />
-
-      {/* Gesamteinschaetzung-spezifisches Detail (vormals eigene
-          MarketStateCard) -- Fortsetzung derselben Box statt zweiter
-          Kachel, da derselbe state-Wert oben schon vollstaendig geladen
-          ist. */}
-      <div className="pt-3 border-t border-border/60 space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-1.5 flex-wrap">
-            <h3 className="text-xs uppercase tracking-[0.15em] text-text-muted">
-              Gesamteinschätzung im Detail
-            </h3>
-            <span className="text-[10px] text-text-faint border border-border rounded px-1">
-              wird neu validiert
-            </span>
-          </span>
-          <PanelInfo title="Gesamteinschätzung" content={marketStateInfo} />
-        </div>
-
-        <div className="space-y-1.5 text-xs text-text-faint">
-          <div className="flex gap-x-4 gap-y-1 flex-wrap items-baseline">
-            <span className="text-[10px] uppercase tracking-[0.1em] text-text-faint/70 w-full">
-              Datenqualität
-            </span>
-            <span>Verlässlichkeit: {Math.round(state.confidence)}/100</span>
-            <span>Datenabdeckung: {Math.round(state.data_coverage_pct)}%</span>
-            <span>Signal-Stärke: {Math.round(confidenceBreakdown.signalStrengthPct)}%</span>
-            <span>
-              Konsens:{" "}
-              {confidenceBreakdown.consensusPct !== null
-                ? `${Math.round(confidenceBreakdown.consensusPct)}%`
-                : "—"}
-            </span>
-          </div>
-          {state.risk_level && (
-            <div className="flex gap-x-4 gap-y-1 flex-wrap items-baseline">
-              <span className="text-[10px] uppercase tracking-[0.1em] text-text-faint/70 w-full">
-                Marktlage
-              </span>
-              <span>
-                Risk: <span className={riskColor(state.risk_level)}>{RISK_LABELS[state.risk_level] ?? state.risk_level}</span>
-              </span>
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-text-faint">MTF-Ampel (15M-1W):</span>
-          <MtfDotsRow dots={mtfDots} />
-        </div>
-
-        {patterns.filter((p) => !RISK_ELEVATING_PATTERN_NAMES.has(p.name)).length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {patterns
-              .filter((p) => !RISK_ELEVATING_PATTERN_NAMES.has(p.name))
-              .map((p) => (
-                <span
-                  key={p.name}
-                  className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border border-accent/30 text-text-muted"
-                >
-                  {p.name}
-                  <PanelInfo title={p.name} content={p.note} />
-                </span>
-              ))}
-          </div>
-        )}
-
-        {salomonInterpretation && (
-          <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border border-border text-text-faint w-fit">
-            Salomon: {salomonInterpretation.phase}
-            <PanelInfo title={`Salomon: ${salomonInterpretation.phase}`} content={salomonInterpretation.sentence} />
-          </span>
-        )}
-
-        {state.risk_factors && state.risk_factors.length > 0 && (
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap gap-1.5">
-              {state.risk_factors.map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  onClick={() => setExpandedRiskFactor((current) => (current === f ? null : f))}
-                  aria-expanded={expandedRiskFactor === f}
-                  className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
-                    expandedRiskFactor === f
-                      ? "border-down/60 bg-down/10 text-down"
-                      : "border-down/30 text-down/90 hover:border-down/50"
-                  }`}
-                >
-                  {riskFactorLabel(f, patterns)}
-                </button>
-              ))}
-            </div>
-            {expandedRiskFactor && state.risk_factors.includes(expandedRiskFactor) && (
-              <p className="text-xs text-text-muted leading-relaxed pl-0.5">
-                {RISK_FACTOR_EXPLANATIONS[expandedRiskFactor] ?? "Keine Erklärung verfügbar."}
-              </p>
-            )}
-          </div>
-        )}
-
-        <button
-          type="button"
-          onClick={() => setExpanded((e) => !e)}
-          className="text-xs text-text-faint hover:text-text-muted underline decoration-dotted"
-        >
-          {expanded ? "Faktoren ausblenden" : "Faktoren anzeigen"}
-        </button>
-
-        {expanded && (
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-2 border-t border-border/60">
-            {FACTOR_GROUPS.map((group) => {
-              const rows = group.keys
-                .map((key) => ({ key, factor: state.factors?.[key] }))
-                .filter((r): r is { key: string; factor: MarketState["factors"][string] } => !!r.factor);
-              if (rows.length === 0) return null;
-              return (
-                <div key={group.title} className="col-span-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
-                  <div className="col-span-2 text-text-faint uppercase tracking-[0.1em] text-[10px] mt-1">
-                    {group.title}
-                  </div>
-                  {rows.map(({ key, factor }) => {
-                    const rawValue = factorRawValueLabel(key, factor.basis);
-                    return (
-                      <div key={key} className="text-xs">
-                        <span className="text-text-muted">{FACTOR_LABELS[key] ?? key}: </span>
-                        <span className={factorColor(factor.value)}>{factorLabel(factor.value)}</span>
-                        {rawValue && <span className="text-text-faint"> ({rawValue})</span>}
-                        {MARKET_STATE_FACTOR_INFO[key] && (
-                          <PanelInfo title={FACTOR_LABELS[key] ?? key} content={MARKET_STATE_FACTOR_INFO[key]} className="ml-1" />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        <p className="text-xs text-text-faint pt-1">
-          Kombiniert 14 unabhängige Datenquellen zu einem Gesamtzustand — Rohmaterial für eine
-          Einordnung, kein Handelssignal.
-        </p>
-
-        {/* Kurze Einordnung (22.09.2026): ersetzt die vormals eigenstaendige
-            "Zusammenfassung"-Kachel (eigener AI-Aufruf/eigene Route/eigene
-            Snapshot-Tabelle) -- die deckte sich inhaltlich stark mit dem
-            inzwischen breiteren System-Briefing (siehe lib/systemBriefing-
-            Context.ts, seit 22.09.2026 auch Marktkontext/ETF/Positionierung/
-            News). Zeigt einen kurzen, rein clientseitig gekuerzten Auszug
-            desselben System-Briefing-Snapshots. Ab NARRATIVE_AUTO_REFRESH_
-            HOURS (23.09.2026) loest die Kachel automatisch EINEN neuen
-            System-Briefing-Snapshot aus (siehe Effect oben) statt weiter
-            veralteten Text zu zeigen oder auf einen manuellen Klick im
-            System-Briefing-Tab zu warten. */}
-        <div className="mt-1 rounded-md border border-accent/25 bg-accent/[0.04] p-3 space-y-1.5">
-          <span className="flex items-center gap-1.5 flex-wrap">
-            <p className="text-xs uppercase tracking-[0.15em] text-text-muted">Kurze Einordnung</p>
-            <span className="text-[10px] text-text-faint border border-border rounded px-1">
-              dein Regelwerk, andere Engine
-            </span>
-            <PanelInfo title="Kurze Einordnung" content={SHORT_NARRATIVE_INFO_TEXT} />
-          </span>
-          {briefingDivergence === "DIVERGENCE" && (
-            <p className="text-xs text-down flex items-center gap-1">
-              ⚠ Weicht von der Gesamteinschätzung oben ab (14-Faktoren-Engine vs. dein Regelwerk) —
-              einen echten Widerspruch, keinen Darstellungsfehler.
-            </p>
-          )}
-          {!narrativeSnapshot?.result?.fazit?.kernaussage ? (
-            <p className="text-xs text-text-faint">
-              Noch keine Einordnung generiert — siehe System-Briefing (Tab &quot;KI-Einschätzungen&quot;).
-            </p>
-          ) : narrativeFreshness === "stale" ? (
-            narrativeRefreshError ? (
-              <p className="text-xs text-down">
-                Einordnung ist veraltet (Stand vor {narrativeHoursOld} Std.), automatische
-                Aktualisierung fehlgeschlagen ({narrativeRefreshError}) — im System-Briefing (Tab
-                &quot;KI-Einschätzungen&quot;) manuell neu generieren.
-              </p>
-            ) : (
-              <p className="text-xs text-text-faint">
-                Einordnung ist veraltet (Stand vor {narrativeHoursOld} Std.) —{" "}
-                {narrativeRefreshing ? "wird automatisch aktualisiert…" : "Aktualisierung wird angefordert…"}
-              </p>
-            )
-          ) : narrativeFreshness === "fresh" ? (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+        <div className="rounded-md border border-border bg-surface p-3 space-y-1">
+          <p className="text-[11px] uppercase tracking-[0.12em] text-text-faint">Setup-Score</p>
+          {lead ? (
             <>
-              <p className="text-sm text-text-muted leading-relaxed">
-                <span
-                  className={
-                    narrativeSnapshot.result.fazit.bias === "bullish"
-                      ? "text-up font-semibold"
-                      : narrativeSnapshot.result.fazit.bias === "bearish"
-                      ? "text-down font-semibold"
-                      : "text-text font-semibold"
-                  }
-                >
-                  {narrativeSnapshot.result.fazit.bias === "bullish"
-                    ? "Bullisch"
-                    : narrativeSnapshot.result.fazit.bias === "bearish"
-                    ? "Bärisch"
-                    : "Neutral"}
-                </span>{" "}
-                — {narrativeSnapshot.result.fazit.kernaussage}
+              <p className="text-base font-semibold">
+                <span className={lead.side === "Long" ? "text-up" : "text-down"}>{lead.side}</span>{" "}
+                <span className="tabular font-mono">{lead.probability.toFixed(1)} %</span>
               </p>
-              <FullDateTime iso={narrativeSnapshot.generated_at} className="text-xs text-text-faint" />
               <p className="text-xs text-text-faint">
-                Vollständige Einordnung im System-Briefing (Tab &quot;KI-Einschätzungen&quot;).
+                {lead.tier}
+                {lead.otherProbability !== null &&
+                  ` · ${lead.otherSide} ${lead.otherProbability.toFixed(1)} %`}
               </p>
             </>
-          ) : null}
+          ) : (
+            <p className="text-xs text-text-faint">Keine Daten</p>
+          )}
         </div>
-
-        <MasterReportHeroCard
-          overallState={state.overall_state}
-          briefingBias={narrativeSnapshot?.result?.fazit?.bias}
-        />
+        <div className="rounded-md border border-border bg-surface p-3 space-y-1">
+          <p className="text-[11px] uppercase tracking-[0.12em] text-text-faint">Regime-Score</p>
+          {lean && regimeScore.up && regimeScore.down ? (
+            <>
+              <p
+                className={`text-base font-semibold ${
+                  lean === "aufwärts" ? "text-up" : lean === "abwärts" ? "text-down" : "text-text-muted"
+                }`}
+              >
+                {lean === "aufwärts" ? "Aufwärts" : lean === "abwärts" ? "Abwärts" : "Ausgeglichen"}
+              </p>
+              <p className="text-xs text-text-faint">
+                Auf {regimeScore.up.probability.toFixed(1)} % · Ab {regimeScore.down.probability.toFixed(1)} % ·
+                in Aufbau
+              </p>
+            </>
+          ) : (
+            <p className="text-xs text-text-faint">Keine Daten</p>
+          )}
+        </div>
+        <div className="rounded-md border border-border bg-surface p-3 space-y-1.5">
+          <p className="text-[11px] uppercase tracking-[0.12em] text-text-faint">MTF-Ampel</p>
+          <MtfDotsRow dots={mtfDots} />
+          <p className="text-xs text-text-faint">
+            {mtfCounts.bullish} bullisch · {mtfCounts.bearish} bärisch · {mtfCounts.neutral} neutral
+          </p>
+        </div>
+        <div className="rounded-md border border-border bg-surface p-3 space-y-1">
+          <p className="text-[11px] uppercase tracking-[0.12em] text-text-faint">Marktphase</p>
+          <p className="text-base font-semibold text-text">{regimeLabelText}</p>
+          {regime !== null && !regimeSuppressed && (
+            <p className="text-xs text-text-faint line-clamp-2" title={regimeDescription(regime)}>
+              {regimeDescription(regime)}
+            </p>
+          )}
+        </div>
       </div>
+
+      {/* KI-Einordnung (vormals "Kurze Einordnung"): Fazit des System-
+          Briefings mit Zeitstempel daneben. Ab NARRATIVE_AUTO_REFRESH_HOURS
+          wird automatisch EIN neuer Snapshot angefordert (siehe Effect oben). */}
+      <div className="pt-3 border-t border-border/60 space-y-1.5">
+        <div className="flex items-center gap-x-2.5 gap-y-1 flex-wrap text-xs">
+          <span className="text-text-muted">KI-Einordnung (System-Briefing)</span>
+          <PanelInfo title="KI-Einordnung" content={SHORT_NARRATIVE_INFO_TEXT} />
+          {fazit && narrativeFreshness === "fresh" && (
+            <>
+              <span
+                className={`px-1.5 py-0.5 text-[11px] rounded-md border font-medium ${
+                  fazit.bias === "bullish"
+                    ? "border-up/40 bg-up/10 text-up"
+                    : fazit.bias === "bearish"
+                      ? "border-down/40 bg-down/10 text-down"
+                      : "border-border text-text-faint"
+                }`}
+              >
+                {fazit.bias === "bullish" ? "Bullisch" : fazit.bias === "bearish" ? "Bärisch" : "Neutral"}
+              </span>
+              <span className="tabular text-text-muted">Briefing-Überzeugungsgrad {fazit.confidence}/100</span>
+              {narrativeSnapshot && (
+                <FullDateTime iso={narrativeSnapshot.generated_at} className="text-text-faint" />
+              )}
+            </>
+          )}
+        </div>
+        {briefingDivergence === "DIVERGENCE" && narrativeFreshness === "fresh" && (
+          <p className="text-xs text-down">
+            ⚠ Weicht von der Gesamteinschätzung ab (14-Faktoren-Engine vs. dein Regelwerk) — ein echter
+            Widerspruch, kein Darstellungsfehler.
+          </p>
+        )}
+        {!fazit?.kernaussage ? (
+          <p className="text-xs text-text-faint">
+            Noch keine Einordnung generiert — siehe System-Briefing (Reiter &quot;KI &amp; Tools&quot;).
+          </p>
+        ) : narrativeFreshness === "stale" ? (
+          narrativeRefreshError ? (
+            <p className="text-xs text-down">
+              Einordnung ist veraltet (Stand vor {narrativeHoursOld} Std.), automatische Aktualisierung
+              fehlgeschlagen ({narrativeRefreshError}) — im System-Briefing (Reiter &quot;KI &amp;
+              Tools&quot;) manuell neu generieren.
+            </p>
+          ) : (
+            <p className="text-xs text-text-faint">
+              Einordnung ist veraltet (Stand vor {narrativeHoursOld} Std.) —{" "}
+              {narrativeRefreshing ? "wird automatisch aktualisiert…" : "Aktualisierung wird angefordert…"}
+            </p>
+          )
+        ) : narrativeFreshness === "fresh" ? (
+          <p className="text-sm text-text-muted leading-relaxed">{fazit.kernaussage}</p>
+        ) : null}
+      </div>
+
+      <details className="pt-3 border-t border-border/60">
+        <summary className="text-xs text-text-muted hover:text-text cursor-pointer select-none">
+          Warum? Faktoren und Signale im Detail
+        </summary>
+
+        <div className="pt-3 space-y-4">
+          <StatusLineSummary
+            items={statusLines}
+            heading={
+              confirmation.primaryDirection && confirmation.totalComparable > 0
+                ? `${confirmation.confirmingCount} von ${confirmation.totalComparable} unabhängigen Signalen bestätigen (✓/✗ unten)`
+                : undefined
+            }
+          />
+
+          <div className="space-y-3">
+            <span className="flex items-center gap-1.5 flex-wrap">
+              <h3 className="text-xs uppercase tracking-[0.15em] text-text-muted">
+                Gesamteinschätzung im Detail
+              </h3>
+              <span className="text-[10px] text-text-faint border border-border rounded px-1">
+                wird neu validiert
+              </span>
+            </span>
+            <p className="text-sm text-text-muted leading-relaxed">{buildCompactMarketStateSummary(state)}</p>
+
+            <div className="flex gap-x-4 gap-y-1 flex-wrap items-baseline text-xs text-text-faint">
+              <span>Verlässlichkeit: {Math.round(state.confidence)}/100</span>
+              <span>Datenabdeckung: {Math.round(state.data_coverage_pct)}%</span>
+              <span>Signal-Stärke: {Math.round(confidenceBreakdown.signalStrengthPct)}%</span>
+              <span>
+                Konsens:{" "}
+                {confidenceBreakdown.consensusPct !== null
+                  ? `${Math.round(confidenceBreakdown.consensusPct)}%`
+                  : "—"}
+              </span>
+              {state.risk_level && (
+                <span>
+                  Risk:{" "}
+                  <span className={riskColor(state.risk_level)}>
+                    {RISK_LABELS[state.risk_level] ?? state.risk_level}
+                  </span>
+                </span>
+              )}
+            </div>
+
+            {patterns.filter((p) => !RISK_ELEVATING_PATTERN_NAMES.has(p.name)).length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {patterns
+                  .filter((p) => !RISK_ELEVATING_PATTERN_NAMES.has(p.name))
+                  .map((p) => (
+                    <span
+                      key={p.name}
+                      className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border border-accent/30 text-text-muted"
+                    >
+                      {p.name}
+                      <PanelInfo title={p.name} content={p.note} />
+                    </span>
+                  ))}
+              </div>
+            )}
+
+            {salomonInterpretation && (
+              <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border border-border text-text-faint w-fit">
+                Salomon: {salomonInterpretation.phase}
+                <PanelInfo title={`Salomon: ${salomonInterpretation.phase}`} content={salomonInterpretation.sentence} />
+              </span>
+            )}
+
+            {state.risk_factors && state.risk_factors.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="flex flex-wrap gap-1.5">
+                  {state.risk_factors.map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setExpandedRiskFactor((current) => (current === f ? null : f))}
+                      aria-expanded={expandedRiskFactor === f}
+                      className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
+                        expandedRiskFactor === f
+                          ? "border-down/60 bg-down/10 text-down"
+                          : "border-down/30 text-down/90 hover:border-down/50"
+                      }`}
+                    >
+                      {riskFactorLabel(f, patterns)}
+                    </button>
+                  ))}
+                </div>
+                {expandedRiskFactor && state.risk_factors.includes(expandedRiskFactor) && (
+                  <p className="text-xs text-text-muted leading-relaxed pl-0.5">
+                    {RISK_FACTOR_EXPLANATIONS[expandedRiskFactor] ?? "Keine Erklärung verfügbar."}
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1.5">
+              {FACTOR_GROUPS.map((group) => {
+                const rows = group.keys
+                  .map((key) => ({ key, factor: state.factors?.[key] }))
+                  .filter((r): r is { key: string; factor: MarketState["factors"][string] } => !!r.factor);
+                if (rows.length === 0) return null;
+                return (
+                  <div key={group.title} className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1.5">
+                    <div className="sm:col-span-2 text-text-faint uppercase tracking-[0.1em] text-[10px] mt-1">
+                      {group.title}
+                    </div>
+                    {rows.map(({ key, factor }) => {
+                      const rawValue = factorRawValueLabel(key, factor.basis);
+                      return (
+                        <div key={key} className="text-xs">
+                          <span className="text-text-muted">{FACTOR_LABELS[key] ?? key}: </span>
+                          <span className={factorColor(factor.value)}>{factorLabel(factor.value)}</span>
+                          {rawValue && <span className="text-text-faint"> ({rawValue})</span>}
+                          {MARKET_STATE_FACTOR_INFO[key] && (
+                            <PanelInfo title={FACTOR_LABELS[key] ?? key} content={MARKET_STATE_FACTOR_INFO[key]} className="ml-1" />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+
+            <p className="text-xs text-text-faint">
+              Kombiniert 14 unabhängige Datenquellen zu einem Gesamtzustand — Rohmaterial für eine
+              Einordnung, kein Handelssignal.
+            </p>
+          </div>
+
+          <MasterReportHeroCard
+            overallState={state.overall_state}
+            briefingBias={narrativeSnapshot?.result?.fazit?.bias}
+          />
+
+          {scoreDetails}
+        </div>
+      </details>
     </section>
   );
 }

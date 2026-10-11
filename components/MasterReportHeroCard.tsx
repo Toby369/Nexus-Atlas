@@ -47,7 +47,7 @@ const COMPONENT_LABEL: Record<string, string> = {
 };
 
 const INFO_TEXT = [
-  "Was das ist: der Master-Report der AI Report Engine (Tab \"KI-Einschätzungen\" → /reports, Slot 4) -- fasst die drei Einzelreports (Market Structure, Positioning, News/Macro) zusammen und benennt Widersprüche zwischen ihnen explizit, statt sie zu einem Bias zu verwischen. Eigenständige KI-Engine, unabhängig von der regelbasierten Gesamteinschätzung oben UND von der \"Kurze Einordnung\" (dein eigenes Regelwerk) -- drei unterschiedliche Blickwinkel auf denselben Markt.",
+  "Was das ist: der Master-Report der AI Report Engine (Seite \"AI Reports\", Slot 4) -- fasst die drei Einzelreports (Market Structure, Positioning, News/Macro) zusammen und benennt Widersprüche zwischen ihnen explizit, statt sie zu einem Bias zu verwischen. Eigenständige KI-Engine, unabhängig von der regelbasierten Gesamteinschätzung oben UND von der \"KI-Einordnung\" (dein eigenes Regelwerk) -- drei unterschiedliche Blickwinkel auf denselben Markt.",
   "Aktualisierung: automatisch 3x täglich (siehe /reports, Slot 4 für die genauen Uhrzeiten). Diese Kachel zeigt immer den zuletzt generierten Lauf, kein eigener Button hier -- dadurch kann er bis zu ~8h älter sein als die beiden live-orientierten Engines oben.",
   "Widerspruchs-Warnung (08.10.2026): erscheint, wenn die 14-Faktoren-Gesamteinschätzung und die Kurze Einordnung sich einig sind, dieser Report aber eine andere Richtung zeigt -- meist, weil er stärker auf Positioning/Makro (träger, nachlaufend) statt auf Live-Struktur/Momentum setzt, oder weil die Live-Engines auf eine Bewegung reagiert haben, die erst NACH diesem Lauf passiert ist.",
 ].join("\n\n");
@@ -147,7 +147,7 @@ export default function MasterReportHeroCard({
           </span>
         )}
         {confidence !== undefined && (
-          <span className="text-xs text-text-faint">Überzeugungsgrad {Math.round(confidence)}/100</span>
+          <span className="text-xs text-text-faint">Master-Report-Überzeugungsgrad {Math.round(confidence)}/100</span>
         )}
       </div>
 

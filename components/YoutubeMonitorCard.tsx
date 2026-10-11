@@ -322,7 +322,7 @@ export default function YoutubeMonitorCard({
                   {BIAS_LABELS[overallAnalysis.result.overallBias] ?? overallAnalysis.result.overallBias}
                 </span>
                 <span className="text-[10px] text-text-faint">
-                  Überzeugungsgrad {overallAnalysis.result.confidence}
+                  YouTube-Überzeugungsgrad {overallAnalysis.result.confidence}
                 </span>
               </div>
               <p className="text-xs text-text-muted">{overallAnalysis.result.summary}</p>

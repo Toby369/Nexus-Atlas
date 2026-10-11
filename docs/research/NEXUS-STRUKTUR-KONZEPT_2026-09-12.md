@@ -172,7 +172,7 @@ vs. MTF-Ampel).
 | 0 | Gemeinsame Navigation, toter Code, Lint/Tests, Doku | ✅ erledigt (11.10.2026) |
 | 1 | Ziel festlegen (dieser Abschnitt) | ✅ erledigt (11.10.2026) |
 | 2 | KI-Kacheln zusammenlegen, OI/Preis-Quadrant auflösen — nach Besprechung der Entfernungsliste | Zusammenlegungen ✅ (11.10.2026); Quadrant ✅: Anzeige nur noch in Marktkontext, DB-Spalte bleibt für Forschung (`OI-PREIS-QUADRANT-VERGLEICH_2026-10-11.md`) |
-| 3 | Oberen Bereich verdichten (Gesamteinschätzung/Setup-Score/Regime-Score), Überzeugungsgrad-Labels, MTF-Divergenz-Warnung | offen |
+| 3 | Oberen Bereich verdichten (Gesamteinschätzung/Setup-Score/Regime-Score), Überzeugungsgrad-Labels, MTF-Divergenz-Warnung | ✅ erledigt (11.10.2026): "Lagebild" in `HeroHeader.tsx`, Logik in `lib/lagebild.ts` |
 | 4 | Lernen-Seite entschlacken (Checklisten, Module) | zurückgestellt (Checklisten bleiben, Entscheid 11.10.2026) |
 | 5 | Code verschlanken: datierte Verlaufs-Kommentare raus (Historie steht in Git), HeroHeader/LernenDashboard zerlegen — ohne Verhaltensänderung | offen |
 | 6 | Abschluss: dieses Dokument + Backlog aktualisieren, PR | offen |

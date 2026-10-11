@@ -114,6 +114,9 @@ disambiguieren (z.B. "System-Briefing-Ueberzeugungsgrad",
 "Master-Report-Ueberzeugungsgrad"), damit auf einen Blick klar ist, dass es
 vier getrennte Zahlen sind, keine vier Messungen derselben Sache.
 
+**Erledigt (11.10.2026):** Briefing-, Master-Report-, Report- und YouTube-Überzeugungsgrad
+je Kachel benannt (auch in der Report-E-Mail).
+
 ## MTF-Ampel ohne Divergenz-Check gegen die Gesamteinschaetzung
 
 **Datum:** 10.10.2026
@@ -134,3 +137,7 @@ selbst noch KEINEN Abgleich gegen die Gesamteinschaetzung.
 Divergenz-Radar-Paar (oder eine Erweiterung von `computeEngineDivergence`)
 analog zu den bestehenden, das warnt, wenn `overall_state` stark
 gerichtet ist, aber die MTF-Ampel ueberwiegend widerspricht.
+
+**Erledigt (11.10.2026):** Warnung "Widerspruch zur MTF-Ampel" im Lagebild oben, sobald die
+Gesamteinschaetzung eine Richtung zeigt und mindestens 3 von 5 Zeitrahmen dagegen stehen
+(`lib/lagebild.ts::detectMtfStateConflict`, Schwelle `MTF_CONFLICT_MIN_OPPOSING`).
