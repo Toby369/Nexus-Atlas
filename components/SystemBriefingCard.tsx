@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import type { SystemBriefingResult, SystemBriefingSnapshot } from "@/lib/types";
+import type { CustomQueryRun, SystemBriefingResult, SystemBriefingSnapshot } from "@/lib/types";
 import { FullDateTime, StaleBadge } from "@/components/ClientTimestamp";
 import PanelInfo from "@/components/PanelInfo";
+import CustomQueryPanel from "@/components/CustomQueryPanel";
 
 // Umsetzungsplan Phase 4 (18.09.2026): "kombinierte Entscheidungsunter-
 // stuetzungs-Kachel" -- fusioniert Tobys eigenes Regelwerk (Welz/Salomon +
@@ -148,8 +149,10 @@ function isValidResult(result: unknown): result is SystemBriefingResult {
 
 export default function SystemBriefingCard({
   initialSnapshot,
+  initialCustomQueries,
 }: {
   initialSnapshot: SystemBriefingSnapshot | null;
+  initialCustomQueries: CustomQueryRun[];
 }) {
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [loading, setLoading] = useState(false);
@@ -273,6 +276,18 @@ export default function SystemBriefingCard({
           </div>
         </div>
       )}
+
+      {/* Vormals eigene Kachel "Freie Anfrage (KI)" -- seit 11.10.2026 hier
+          eingeklappt, da sie auf demselben Marktkontext arbeitet. Offen,
+          sobald juengste Anfragen vorliegen. */}
+      <details className="pt-2 border-t border-border/60" open={initialCustomQueries.length > 0}>
+        <summary className="text-xs text-text-muted hover:text-text cursor-pointer select-none">
+          Rückfrage an die KI stellen
+        </summary>
+        <div className="pt-2">
+          <CustomQueryPanel initialRuns={initialCustomQueries} />
+        </div>
+      </details>
 
       <p className="text-xs text-text-faint pt-1">
         Entscheidungsunterstützung anhand deines eigenen Regelwerks, keine automatisierte Anlageberatung.

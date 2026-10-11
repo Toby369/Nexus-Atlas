@@ -384,42 +384,51 @@ export default function YoutubeMonitorCard({
         </div>
       )}
 
-      <div className="space-y-2">
-        {analyses.slice(0, VISIBLE_VIDEO_COUNT).map((a) => (
-          <div key={a.id} className="rounded-md border border-border/60 p-2.5 space-y-1">
-            <div className="flex items-start justify-between gap-2">
-              <a
-                href={a.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs font-medium text-text hover:underline"
-              >
-                {a.title}
-              </a>
-              {a.result && (
-                <span
-                  className={`shrink-0 px-1.5 py-0.5 text-[10px] rounded-md border font-medium ${
-                    BIAS_STYLES[a.result.bias] ?? BIAS_STYLES.neutral
-                  }`}
-                >
-                  {BIAS_LABELS[a.result.bias] ?? a.result.bias}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2 text-[10px] text-text-faint flex-wrap">
-              {a.channel_title && <span>{a.channel_title}</span>}
-              <RelativeTime iso={a.published_at} />
-              {a.result && <span>· {RELEVANCE_LABELS[a.result.relevance] ?? a.result.relevance}</span>}
-            </div>
-            {a.status === "ok" && a.result && (
-              <p className="text-xs text-text-faint">{a.result.summary}</p>
-            )}
-            {a.status === "error" && (
-              <p className="text-xs text-down">{a.error ?? "Analyse fehlgeschlagen."}</p>
-            )}
+      {/* Einzelvideos standardmaessig eingeklappt -- Gesamtanalyse und
+          Kanal-Vergleich oben reichen fuer den Ueberblick. */}
+      {analyses.length > 0 && (
+        <details>
+          <summary className="text-xs text-text-faint hover:text-text-muted cursor-pointer select-none">
+            Einzelvideos ({Math.min(analyses.length, VISIBLE_VIDEO_COUNT)})
+          </summary>
+          <div className="space-y-2 pt-2">
+            {analyses.slice(0, VISIBLE_VIDEO_COUNT).map((a) => (
+              <div key={a.id} className="rounded-md border border-border/60 p-2.5 space-y-1">
+                <div className="flex items-start justify-between gap-2">
+                  <a
+                    href={a.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-medium text-text hover:underline"
+                  >
+                    {a.title}
+                  </a>
+                  {a.result && (
+                    <span
+                      className={`shrink-0 px-1.5 py-0.5 text-[10px] rounded-md border font-medium ${
+                        BIAS_STYLES[a.result.bias] ?? BIAS_STYLES.neutral
+                      }`}
+                    >
+                      {BIAS_LABELS[a.result.bias] ?? a.result.bias}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-[10px] text-text-faint flex-wrap">
+                  {a.channel_title && <span>{a.channel_title}</span>}
+                  <RelativeTime iso={a.published_at} />
+                  {a.result && <span>· {RELEVANCE_LABELS[a.result.relevance] ?? a.result.relevance}</span>}
+                </div>
+                {a.status === "ok" && a.result && (
+                  <p className="text-xs text-text-faint">{a.result.summary}</p>
+                )}
+                {a.status === "error" && (
+                  <p className="text-xs text-down">{a.error ?? "Analyse fehlgeschlagen."}</p>
+                )}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </details>
+      )}
     </div>
   );
 }

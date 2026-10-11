@@ -57,26 +57,20 @@ export const DASHBOARD_TABS: DashboardTabMeta[] = [
       "news-risk",
     ],
   },
-  // 20.09.2026 -- vormals ein einzelner "KI-Analysen & Lernen"-Tab mit 11
-  // Kacheln (Nutzer-Feedback: zu viele Kacheln/Tabs, unuebersichtlich).
-  // Aufgeteilt nach Funktion: bewertende/lesende Analysen (dieser Tab
-  // aktualisiert sich per Klick, man liest sie) vs. aktiv bediente
-  // Werkzeuge + Lernmaterial (der Nutzer stellt hier selbst eine Frage/
-  // startet eine Suche/lernt Karteikarten).
+  // 11.10.2026 -- "KI-Einschaetzungen" und "Tools & Lernen" wieder zu einem
+  // Reiter zusammengelegt (Aufraeumrunde, NEXUS-STRUKTUR-KONZEPT Abschnitt
+  // 8): nach dem Buendeln der wenig genutzten KI-Kacheln blieben nur noch
+  // fuenf Kacheln uebrig, zwei Reiter dafuer waeren ein Klick zu viel.
   {
-    id: "ki-einschaetzungen",
-    label: "KI-Einschätzungen",
+    id: "ki-tools",
+    label: "KI & Tools",
     tileIds: [
-      "signal-review",
-      "escalation",
-      "trade-debate",
       "system-briefing",
+      "second-opinions",
+      "signal-review",
+      "youtube-monitor",
+      "lernen",
     ],
-  },
-  {
-    id: "tools-lernen",
-    label: "Tools & Lernen",
-    tileIds: ["custom-query", "youtube-monitor", "lernen"],
   },
 ];
 

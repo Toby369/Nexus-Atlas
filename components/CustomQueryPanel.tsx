@@ -5,8 +5,10 @@ import type { CustomQueryRun } from "@/lib/types";
 import { FullDateTime, StaleBadge } from "@/components/ClientTimestamp";
 import PanelInfo from "@/components/PanelInfo";
 
-// Freie-Anfrage-Kachel (Nutzer-Wunsch 08.09.2026: "kann ich eine Kachel
-// haben, in der ich KI konkreter Auftrag geben kann?"). Du formulierst eine
+// Freie Anfrage (Nutzer-Wunsch 08.09.2026: "kann ich eine Kachel haben, in
+// der ich KI konkreter Auftrag geben kann?"). Seit 11.10.2026 keine eigene
+// Kachel mehr, sondern aufklappbarer Abschnitt "Rueckfrage stellen" im
+// System-Briefing (SystemBriefingCard.tsx). Du formulierst eine
 // beliebige Aufgabe/Frage, die KI beantwortet sie ausschliesslich anhand des
 // echten, strukturierten Nexus-Marktkontexts (siehe lib/customQueryContext.ts)
 // -- nie mit erfundenen Zahlen. Provider: Google primaer, OpenRouter/Groq als
@@ -19,7 +21,7 @@ const INFO_TEXT = [
   "Kein Handelssignal, keine Anlageberatung -- eine Interpretationshilfe anhand vorhandener Daten, die eigene Entscheidung bleibt bei dir.",
 ].join("\n\n");
 
-export default function CustomQueryCard({
+export default function CustomQueryPanel({
   initialRuns,
 }: {
   initialRuns: CustomQueryRun[];
@@ -53,14 +55,7 @@ export default function CustomQueryCard({
   }
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <span className="flex items-center gap-1.5">
-          <p className="text-sm font-medium text-text">Freie Anfrage (KI)</p>
-          <PanelInfo title="Freie Anfrage (KI)" content={INFO_TEXT} />
-        </span>
-      </div>
-
+    <div className="space-y-3">
       <div className="space-y-2">
         <textarea
           value={prompt}
@@ -69,14 +64,17 @@ export default function CustomQueryCard({
           placeholder="z.B. Ist ein Long-Einstieg jetzt sinnvoll unter Beruecksichtigung von Funding und Liquidations-Clustern?"
           className="w-full text-xs rounded-md border border-border bg-surface-raised text-text px-2 py-1.5 focus:outline-none focus:border-accent/40"
         />
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={loading || prompt.trim().length === 0}
-          className="px-3 py-1.5 text-xs rounded-md border border-border text-text-muted hover:text-text disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {loading ? "Fragt an…" : "Anfrage stellen"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={loading || prompt.trim().length === 0}
+            className="px-3 py-1.5 text-xs rounded-md border border-border text-text-muted hover:text-text disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {loading ? "Fragt an…" : "Anfrage stellen"}
+          </button>
+          <PanelInfo title="Rückfrage stellen (KI)" content={INFO_TEXT} />
+        </div>
       </div>
 
       {error && <p className="text-xs text-down">{error}</p>}

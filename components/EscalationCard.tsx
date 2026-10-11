@@ -92,11 +92,11 @@ export default function EscalationCard({
   }
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
+    <section className="space-y-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <span className="flex items-center gap-1.5">
-          <p className="text-sm font-medium text-text">Eskalation: Zweitmeinungen (KI)</p>
-          <PanelInfo title="Eskalation: Zweitmeinungen (KI)" content={INFO_TEXT} />
+          <h3 className="text-xs uppercase tracking-[0.12em] text-text-muted">Eskalation bei Widerspruch</h3>
+          <PanelInfo title="Eskalation bei Widerspruch" content={INFO_TEXT} />
         </span>
         <button
           type="button"
@@ -178,6 +178,6 @@ export default function EscalationCard({
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 }

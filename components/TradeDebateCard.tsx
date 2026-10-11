@@ -91,11 +91,11 @@ export default function TradeDebateCard({
   }
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
+    <section className="space-y-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <span className="flex items-center gap-1.5">
-          <p className="text-sm font-medium text-text">Trade-Debate (KI)</p>
-          <PanelInfo title="Trade-Debate (KI)" content={INFO_TEXT} />
+          <h3 className="text-xs uppercase tracking-[0.12em] text-text-muted">Trade-Debate: Bull vs. Bear</h3>
+          <PanelInfo title="Trade-Debate: Bull vs. Bear" content={INFO_TEXT} />
           <MtfDotsRow dots={mtfDots} />
         </span>
         <button
@@ -195,6 +195,6 @@ export default function TradeDebateCard({
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }

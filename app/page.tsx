@@ -51,8 +51,8 @@ import RegimeScoreCard from "@/components/RegimeScoreCard";
 import SignalReviewCard from "@/components/SignalReviewCard";
 import EscalationCard from "@/components/EscalationCard";
 import TradeDebateCard from "@/components/TradeDebateCard";
-import CustomQueryCard from "@/components/CustomQueryCard";
 import SystemBriefingCard from "@/components/SystemBriefingCard";
+import SecondOpinionsCard from "@/components/SecondOpinionsCard";
 import YoutubeMonitorCard from "@/components/YoutubeMonitorCard";
 import { getYoutubeMonitorConfig } from "@/lib/youtubeMonitorContext";
 import LeverageMapCard from "@/components/LeverageMapCard";
@@ -796,14 +796,22 @@ export default async function Home({
                       <NewsRiskPanel initialNews={highImpactNews} initialNewsAnalysis={latestNewsAnalysis} />
                     ),
                     "signal-review": <SignalReviewCard initialSnapshot={latestSignalReview} />,
-                    escalation: (
-                      <EscalationCard initialTriggers={escalationTriggers} initialSnapshot={latestEscalation} />
+                    "second-opinions": (
+                      <SecondOpinionsCard
+                        tradeDebate={
+                          <TradeDebateCard initialSnapshot={latestTradeDebate} initialMtfDots={mtfDots} />
+                        }
+                        escalation={
+                          <EscalationCard initialTriggers={escalationTriggers} initialSnapshot={latestEscalation} />
+                        }
+                      />
                     ),
-                    "trade-debate": (
-                      <TradeDebateCard initialSnapshot={latestTradeDebate} initialMtfDots={mtfDots} />
+                    "system-briefing": (
+                      <SystemBriefingCard
+                        initialSnapshot={latestSystemBriefing}
+                        initialCustomQueries={latestCustomQueries}
+                      />
                     ),
-                    "custom-query": <CustomQueryCard initialRuns={latestCustomQueries} />,
-                    "system-briefing": <SystemBriefingCard initialSnapshot={latestSystemBriefing} />,
                     "youtube-monitor": (
                       <YoutubeMonitorCard
                         initialAnalyses={latestYoutubeAnalyses}

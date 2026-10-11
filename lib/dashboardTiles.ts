@@ -65,9 +65,10 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   // zusaetzlicher AI-Aufruf noetig, da System-Briefing denselben
   // 14-Faktoren-Kontext bereits laedt.
   { id: "signal-review", title: "Periodischer Rückblick (KI)" },
-  { id: "escalation", title: "Eskalation: Zweitmeinungen (KI)" },
-  { id: "trade-debate", title: "Trade-Debate (KI)" },
-  { id: "custom-query", title: "Freie Anfrage (KI)" },
+  // Eskalation + Trade-Debate seit 11.10.2026 in einer Kachel gebuendelt,
+  // "Freie Anfrage" ist seither ein Abschnitt im System-Briefing (siehe
+  // NEXUS-STRUKTUR-KONZEPT Abschnitt 8).
+  { id: "second-opinions", title: "Zweitmeinungen (KI)" },
   { id: "youtube-monitor", title: "Krypto-YouTube-Monitor (KI)" },
   // Umsetzungsplan Phase 4 (18.09.2026): fusioniert Regelwerk+alle berechneten
   // Nexus-Faktoren zu einer Synthese -- fullWidth, da vier Abschnitte in
