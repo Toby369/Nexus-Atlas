@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { fetchPaged } from "./fetchPaged";
 import { detectFractalSwings, emaSeries, findPivots, type FractalSwingResult } from "./swingDetection";
 import { isTrendingRegime } from "./marketRegime";
 import type { MarketRegime } from "./types";
@@ -537,21 +538,28 @@ async function computeCvdFootprint(base: TradingIndicatorsBaseData): Promise<Cvd
     return { higherTf: "1h", latestDelta: null, latestCumulative: null, trend: null, divergence: null, dataAsOf: lastCandle?.openTime ?? null };
   }
 
-  const { data: minuteRows, error } = await supabase
-    .from("candles")
-    .select("open_time, volume, taker_buy_base_vol")
-    .eq("exchange", "binance")
-    .eq("symbol", "BTCUSDT")
-    .eq("interval", "1m")
-    .gte("open_time", candles1h[0].openTime)
-    .order("open_time", { ascending: true })
-    .limit(CVD_HIGHER_TF_LOOKBACK * 60 + 200);
+  // Bis zu ~3000 Minuten-Kerzen -- mehr als der 1000-Zeilen-Deckel von
+  // PostgREST, daher seitenweise. Mit einem einzigen .limit() kaemen bei
+  // aufsteigender Sortierung nur die aeltesten ~16h an.
+  const { rows: minuteRows, error } = await fetchPaged(
+    (from, to) =>
+      supabase
+        .from("candles")
+        .select("open_time, volume, taker_buy_base_vol")
+        .eq("exchange", "binance")
+        .eq("symbol", "BTCUSDT")
+        .eq("interval", "1m")
+        .gte("open_time", candles1h[0].openTime)
+        .order("open_time", { ascending: true })
+        .range(from, to),
+    CVD_HIGHER_TF_LOOKBACK * 60 + 200
+  );
 
   if (error) {
-    console.error("tradingIndicatorsContext: Fehler beim Laden der 1m-Kerzen fuer CVD:", error.message);
+    console.error("tradingIndicatorsContext: Fehler beim Laden der 1m-Kerzen fuer CVD:", error);
   }
 
-  const rows = (minuteRows ?? []).map((r) => ({
+  const rows = minuteRows.map((r) => ({
     open_time: r.open_time as string,
     volume: Number(r.volume),
     taker_buy_base_vol: r.taker_buy_base_vol === null ? null : Number(r.taker_buy_base_vol),
