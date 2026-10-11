@@ -39,12 +39,11 @@ export const DASHBOARD_TABS: DashboardTabMeta[] = [
   },
   // Bewertende KI-Analysen und aktiv bediente Werkzeuge/Lernen in einem
   // Reiter -- nach dem Buendeln der wenig genutzten KI-Kacheln sind es nur
-  // noch fuenf Kacheln.
+  // noch vier Kacheln (System-Briefing steht im Lagebild).
   {
     id: "ki-tools",
     label: "KI & Tools",
     tileIds: [
-      "system-briefing",
       "second-opinions",
       "signal-review",
       "youtube-monitor",

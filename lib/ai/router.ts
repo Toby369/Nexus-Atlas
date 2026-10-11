@@ -105,6 +105,7 @@ export async function runTileAnalysis<T = unknown>(
         // einen anderen Vendor zurueck, soll der dessen eigenen Default
         // nutzen statt mit einem fremden Modellnamen zu scheitern.
         model: providerId === primaryProviderId ? tileConfig.aiModel : undefined,
+        timeoutMs: tileConfig.timeoutMs,
       });
 
       if (profile.validate) {

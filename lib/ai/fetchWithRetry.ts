@@ -12,17 +12,22 @@ const RETRY_DELAYS_MS = [1000, 2500];
 // auswich. 12s war zu knapp (Gratis-Modelle brauchen unter Last 15-25s).
 // Budget mit 20s: max. zwei echte Provider je Kette, drei System-Briefing-
 // Teile laufen parallel (schlimmster Fall 2*20s=40s), danach eine kurze
-// Synthese -- bleibt mit Puffer unter 60s.
+// Synthese -- bleibt mit Puffer unter 60s. Kacheln mit hoeherem
+// maxDuration duerfen per TileAIConfig.timeoutMs laenger warten.
 export const PROVIDER_TIMEOUT_MS = 20000;
 
-export async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+export async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number = PROVIDER_TIMEOUT_MS
+): Promise<Response> {
   let res: Response;
   for (let attempt = 0; ; attempt++) {
     try {
-      res = await fetch(url, { ...init, signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS) });
+      res = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
     } catch (err) {
       if (err instanceof Error && err.name === "TimeoutError") {
-        throw new Error(`Zeitueberschreitung nach ${PROVIDER_TIMEOUT_MS / 1000}s (keine Antwort).`);
+        throw new Error(`Zeitueberschreitung nach ${timeoutMs / 1000}s (keine Antwort).`);
       }
       throw err;
     }

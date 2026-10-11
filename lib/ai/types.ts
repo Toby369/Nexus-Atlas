@@ -23,6 +23,8 @@ export interface AIGenerateOptions {
   maxTokens?: number;
   /** Zusaetzliche System-Instruktion, wird mit dem Prompt-Profile-Prompt kombiniert. */
   systemPrompt?: string;
+  /** Zeitlimit je Provider-Versuch in ms, sonst PROVIDER_TIMEOUT_MS. */
+  timeoutMs?: number;
 }
 
 export interface AIUsage {
@@ -96,4 +98,6 @@ export interface TileAIConfig {
   promptProfile: string;
   /** Reihenfolge der Fallback-Provider, falls der primaere Provider fehlschlaegt. */
   fallbackProviders?: AIProviderId[];
+  /** Optional: Zeitlimit je Provider-Versuch in ms, sonst PROVIDER_TIMEOUT_MS. */
+  timeoutMs?: number;
 }

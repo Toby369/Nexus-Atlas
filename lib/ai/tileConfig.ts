@@ -18,6 +18,10 @@ import type { TileAIConfig } from "./types";
 // aus, schlaegt sie deshalb fehl statt bezahlt auszuweichen -- bewusst.
 // eines bezahlten Fallbacks -- bewusst in Kauf genommen.
 
+// 3 Provider je Kette * 40s = 120s fuer die parallelen Teile, dasselbe fuer
+// die Synthese -- 240s, unter maxDuration=300 der Briefing-Route.
+const BRIEFING_TIMEOUT_MS = 40_000;
+
 export const tileConfigs: Record<string, TileAIConfig> = {
   // Explizit Google statt "auto" (-> Perplexity, nie konfiguriert):
   // buildNewsAnalysisContext() liefert nur bereits gesammelte Schlagzeilen
@@ -48,18 +52,24 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   //   stummen 20s-Timeouts. Deshalb laufen die DREI PARALLELEN Teil-Aufrufe
   //   auf drei verschiedenen Vendors (Regelwerk=Google, Chart=Groq,
   //   Trigger=Mistral); die Synthese laeuft danach sequenziell auf Google.
+  // - Gratis-Modelle brauchten fuer diese Teile regelmaessig >20s; mit dem
+  //   Standard-Zeitlimit scheiterte jeder Versuch. Daher eigenes Limit
+  //   (BRIEFING_TIMEOUT_MS) und maxDuration=300 in der Route.
+  // - DeepSeek ist nicht konfiguriert und steht deshalb in keiner Kette.
   "system-briefing-regelwerk": {
     tileId: "system-briefing-regelwerk",
     aiProvider: "google",
     aiModel: "gemini-3.7-flash",
     promptProfile: "system-briefing-regelwerk",
-    fallbackProviders: ["openrouter", "deepseek"],
+    fallbackProviders: ["openrouter", "groq"],
+    timeoutMs: BRIEFING_TIMEOUT_MS,
   },
   "system-briefing-chart": {
     tileId: "system-briefing-chart",
     aiProvider: "groq",
     promptProfile: "system-briefing-chart",
     fallbackProviders: ["google", "openrouter"],
+    timeoutMs: BRIEFING_TIMEOUT_MS,
   },
   // Trigger primaer auf Mistral (statt OpenRouter): OpenRouter hing bei
   // dieser Kachel reproduzierbar bis zum 20s-Zeitlimit ohne Antwort --
@@ -73,13 +83,15 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     aiProvider: "mistral",
     promptProfile: "system-briefing-trigger",
     fallbackProviders: ["groq", "google"],
+    timeoutMs: BRIEFING_TIMEOUT_MS,
   },
   "system-briefing-synthese": {
     tileId: "system-briefing-synthese",
     aiProvider: "google",
     aiModel: "gemini-3.7-flash",
     promptProfile: "system-briefing-synthese",
-    fallbackProviders: ["openrouter", "deepseek"],
+    fallbackProviders: ["mistral", "openrouter"],
+    timeoutMs: BRIEFING_TIMEOUT_MS,
   },
   // Eskalation: aiProvider ist nur ein Platzhalter --
   // app/api/escalation/generate/route.ts ruft runTileAnalysis() mehrfach mit

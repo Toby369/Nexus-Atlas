@@ -34,7 +34,12 @@ import type { SystemBriefingResult, SystemBriefingTrigger } from "@/lib/types";
 // antworten kann). Daher parallel, mit den drei Teilen auf verschiedenen
 // Vendors, damit Google nicht mehrfach gleichzeitig belastet wird (siehe
 // lib/ai/tileConfig.ts).
-export const maxDuration = 60;
+//
+// 300s statt 60s: mit Fluid Compute erlaubt auch der Hobby-Plan 300s. Das
+// 60s-Limit zwang die Provider auf 20s, was Gratis-Modelle fuer diese Teile
+// regelmaessig rissen -- jeder Versuch scheiterte (Zeitbudget siehe
+// BRIEFING_TIMEOUT_MS in lib/ai/tileConfig.ts).
+export const maxDuration = 300;
 
 const RATE_LIMIT_WINDOW_MINUTES = 20;
 const RATE_LIMIT_MAX_REQUESTS = 5;
