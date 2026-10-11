@@ -3,14 +3,18 @@
 import { useEffect, useState } from "react";
 import PanelInfo from "@/components/PanelInfo";
 import TimeSeriesChart from "@/components/TimeSeriesChart";
+import CvdComparisonChart from "@/components/CvdComparisonChart";
 import { supabase } from "@/lib/supabase";
 import { clockTimeLabel } from "@/lib/livePriceFormat";
 import { coinbasePremiumInfo, spotPerpFlowInfo } from "@/lib/panelInfo";
+import type { SpotPressurePoint } from "@/lib/types";
 import {
+  buildCvdComparison,
   compareSpotPerpFlow,
   perpIntervalFor,
   type FlowDirection,
   type PerpCandleRow,
+  type PerpFlowPoint,
   type SpotPerpTone,
 } from "@/lib/spotPerpFlow";
 import type { PremiumLevel, PremiumSummary } from "@/lib/coinbasePremium";
@@ -45,10 +49,12 @@ function formatSigned(value: number | null, digits: number) {
   return `${value >= 0 ? "+" : ""}${value.toFixed(digits)} %`;
 }
 
-async function fetchPerpRows(sinceIso: string, interval: string): Promise<PerpCandleRow[]> {
+type PerpRowWithTime = PerpCandleRow & { open_time: string };
+
+async function fetchPerpRows(sinceIso: string, interval: string): Promise<PerpRowWithTime[]> {
   const { data, error } = await supabase
     .from("candles")
-    .select("volume, taker_buy_base_vol")
+    .select("open_time, volume, taker_buy_base_vol")
     .eq("exchange", "binance")
     .eq("symbol", "BTCUSDT")
     .eq("interval", interval)
@@ -60,6 +66,7 @@ async function fetchPerpRows(sinceIso: string, interval: string): Promise<PerpCa
     return [];
   }
   return (data ?? []).map((r) => ({
+    open_time: r.open_time as string,
     volume: Number(r.volume),
     taker_buy_base_vol: r.taker_buy_base_vol === null ? null : Number(r.taker_buy_base_vol),
   }));
@@ -84,7 +91,7 @@ export function useSpotPerpSummary({
   spotSell: number | null;
 }) {
   const { interval, minutes } = perpIntervalFor(windowMinutes);
-  const [perpRows, setPerpRows] = useState<PerpCandleRow[] | null>(null);
+  const [perpRows, setPerpRows] = useState<PerpRowWithTime[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,17 +113,30 @@ export function useSpotPerpSummary({
     perpRows: perpRows ?? [],
     expectedPerpCandles: Math.max(1, Math.floor(windowMinutes / minutes)),
   });
-  return { result, loading: perpRows === null };
+  const perpPoints: PerpFlowPoint[] = (perpRows ?? []).map((r) => ({
+    t: new Date(r.open_time).getTime(),
+    volume: r.volume,
+    takerBuy: r.taker_buy_base_vol,
+  }));
+  // Spot-Kerzen sind 5-Minuten-Kerzen -- feiner zu buendeln waere nur Treppe.
+  const bucketMinutes = Math.max(minutes, 5);
+  return { result, perpPoints, bucketMinutes, loading: perpRows === null };
 }
 
 export default function SpotPerpFlowPanel({
   tfLabel,
   result,
   loading,
+  spotSeries,
+  perpPoints,
+  bucketMinutes,
 }: {
   tfLabel: string;
   result: ReturnType<typeof compareSpotPerpFlow>;
   loading: boolean;
+  spotSeries: SpotPressurePoint[];
+  perpPoints: PerpFlowPoint[];
+  bucketMinutes: number;
 }) {
   const [premium, setPremium] = useState<PremiumResponse | null>(null);
 
@@ -140,6 +160,11 @@ export default function SpotPerpFlowPanel({
   }, []);
 
   const summary = premium?.success ? premium.summary : undefined;
+  const cvdPoints = buildCvdComparison(
+    spotSeries.map((p) => ({ t: new Date(p.timestamp_utc).getTime(), buy: p.taker_buy_vol, sell: p.taker_sell_vol })),
+    perpPoints,
+    bucketMinutes * 60_000
+  );
 
   return (
     <div className="mt-3 space-y-4">
@@ -171,6 +196,9 @@ export default function SpotPerpFlowPanel({
                 </p>
                 <p className="text-xs text-text-faint mt-0.5">Perp- zu Spot-Volumen</p>
               </div>
+            </div>
+            <div className="mt-3">
+              <CvdComparisonChart points={cvdPoints} />
             </div>
             {result.verdict ? (
               <div className="mt-3">

@@ -303,6 +303,8 @@ Schwellen: Spot gilt ab ±5 % als kaufend oder verkaufend (wie Spot Pressure), P
 
 Wie du es nutzt: Spot kauft, Perp flach = organische Nachfrage, tendenziell nachhaltig. Spot flach, Perp kauft = hebelgetrieben, fragil. Spot verkauft, Perp kauft = Warnsignal für gefangene Longs. Das sind Tendenzen, keine validierten Signale. Binance-Spot zeigt nicht die US-Nachfrage; dafür steht darunter die Coinbase-Premium.
 
+Verlauf: Der Chart zeigt Spot-CVD und Perp-CVD kumuliert über den Zeitraum, jeweils in % des eigenen Volumens. So sind beide trotz des etwa zehnfach höheren Perp-Volumens vergleichbar, und die Linien enden genau bei den Werten oben. Divergenz = Spot minus Perp: Steigt sie, kauft Spot relativ stärker als die Perps (eher organisch); fällt sie, treiben die Perps.
+
 Quelle: Binance Spot (5-Min-Kerzen) und Binance Futures (Kerzen aus collect-candles), jeweils mit echtem Taker-Kauf-Anteil.`;
 }
 

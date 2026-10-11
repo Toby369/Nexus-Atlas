@@ -317,7 +317,14 @@ export default function MarketContextCard({
             {spotPerp.result.verdict?.label ?? "—"}
           </span>
         </summary>
-        <SpotPerpFlowPanel tfLabel={tf.label} result={spotPerp.result} loading={spotPerp.loading} />
+        <SpotPerpFlowPanel
+          tfLabel={tf.label}
+          result={spotPerp.result}
+          loading={spotPerp.loading}
+          spotSeries={spotSeries}
+          perpPoints={spotPerp.perpPoints}
+          bucketMinutes={spotPerp.bucketMinutes}
+        />
       </details>
     </section>
   );
