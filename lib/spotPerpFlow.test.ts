@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyFlow, compareSpotPerpFlow, perpIntervalFor, perpNetFlow } from "./spotPerpFlow";
+import { buildCvdComparison, classifyFlow, compareSpotPerpFlow, perpIntervalFor, perpNetFlow } from "./spotPerpFlow";
 
 const rows = (n: number, buyShare: number) =>
   Array.from({ length: n }, () => ({ volume: 100, taker_buy_base_vol: 100 * buyShare }));
@@ -58,5 +58,43 @@ describe("compareSpotPerpFlow", () => {
   it("Volumenverhaeltnis Perp zu Spot", () => {
     const r = compareSpotPerpFlow({ spotBuy: 50, spotSell: 50, perpRows: rows(10, 0.5), expectedPerpCandles: 10 });
     expect(r.perpToSpotVolume).toBe(10);
+  });
+});
+
+describe("buildCvdComparison", () => {
+  const H = 60 * 60 * 1000;
+  it("kumuliert und normiert je Markt, Endpunkt = Netto-Flow", () => {
+    const spot = [
+      { t: 0, buy: 60, sell: 40 },
+      { t: H, buy: 30, sell: 70 },
+    ];
+    const perp = [
+      { t: 0, volume: 1000, takerBuy: 500 },
+      { t: H, volume: 1000, takerBuy: 600 },
+    ];
+    const series = buildCvdComparison(spot, perp, H);
+    expect(series).toHaveLength(2);
+    // Spot: +20 dann -40 bei Gesamtvolumen 200 -> +10 %, -10 %
+    expect(series[0].spot).toBeCloseTo(10);
+    expect(series[1].spot).toBeCloseTo(-10);
+    // Perp: 0 dann +200 bei Gesamtvolumen 2000 -> 0 %, +10 %
+    expect(series[1].perp).toBeCloseTo(10);
+    expect(series[1].divergence).toBeCloseTo(-20);
+  });
+
+  it("startet erst, wenn beide Maerkte Daten haben", () => {
+    const spot = [{ t: 2 * H, buy: 10, sell: 0 }];
+    const perp = [
+      { t: 0, volume: 10, takerBuy: 10 },
+      { t: 2 * H, volume: 10, takerBuy: 0 },
+    ];
+    const series = buildCvdComparison(spot, perp, H);
+    expect(series.map((p) => p.t)).toEqual([2 * H]);
+    expect(series[0].perp).toBeCloseTo(0);
+  });
+
+  it("liefert nichts ohne Daten eines Marktes", () => {
+    expect(buildCvdComparison([], [{ t: 0, volume: 1, takerBuy: 1 }], H)).toEqual([]);
+    expect(buildCvdComparison([{ t: 0, buy: null, sell: null }], [{ t: 0, volume: 1, takerBuy: 1 }], H)).toEqual([]);
   });
 });

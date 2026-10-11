@@ -147,3 +147,78 @@ export function compareSpotPerpFlow(input: {
     verdict: key ? { key, ...VERDICTS[key] } : null,
   };
 }
+
+// --- Verlauf: Spot-CVD gegen Perp-CVD -------------------------------------
+// Kumulierter Netto-Taker-Flow je Markt, normiert auf dessen Gesamtvolumen im
+// Fenster -- dadurch sind Spot und Perp trotz ~10x Volumenunterschied auf
+// einer Achse vergleichbar, und der letzte Punkt entspricht dem Netto-Flow
+// oben in der Anzeige. Divergenz = Spot minus Perp: positiv, wenn Spot
+// relativ staerker kauft als die Perps.
+
+export interface SpotFlowPoint {
+  t: number; // ms
+  buy: number | null;
+  sell: number | null;
+}
+
+export interface PerpFlowPoint {
+  t: number; // ms
+  volume: number;
+  takerBuy: number | null;
+}
+
+export interface CvdComparisonPoint {
+  t: number;
+  spot: number;
+  perp: number;
+  divergence: number;
+}
+
+export function buildCvdComparison(
+  spot: SpotFlowPoint[],
+  perp: PerpFlowPoint[],
+  bucketMs: number
+): CvdComparisonPoint[] {
+  const spotBuckets = new Map<number, { delta: number; volume: number }>();
+  for (const p of spot) {
+    if (p.buy === null || p.sell === null) continue;
+    const key = Math.floor(p.t / bucketMs) * bucketMs;
+    const b = spotBuckets.get(key) ?? { delta: 0, volume: 0 };
+    b.delta += p.buy - p.sell;
+    b.volume += p.buy + p.sell;
+    spotBuckets.set(key, b);
+  }
+  const perpBuckets = new Map<number, { delta: number; volume: number }>();
+  for (const p of perp) {
+    if (p.takerBuy === null || !Number.isFinite(p.volume)) continue;
+    const key = Math.floor(p.t / bucketMs) * bucketMs;
+    const b = perpBuckets.get(key) ?? { delta: 0, volume: 0 };
+    b.delta += 2 * p.takerBuy - p.volume;
+    b.volume += p.volume;
+    perpBuckets.set(key, b);
+  }
+  if (spotBuckets.size === 0 || perpBuckets.size === 0) return [];
+
+  const sum = (m: Map<number, { volume: number }>) => [...m.values()].reduce((a, b) => a + b.volume, 0);
+  const spotTotal = sum(spotBuckets);
+  const perpTotal = sum(perpBuckets);
+  if (spotTotal <= 0 || perpTotal <= 0) return [];
+
+  // Erst ab dem Bucket, in dem beide Maerkte Daten haben -- sonst startet eine
+  // Linie scheinbar bei 0, waehrend die andere schon laeuft.
+  const start = Math.max(Math.min(...spotBuckets.keys()), Math.min(...perpBuckets.keys()));
+  const keys = [...new Set([...spotBuckets.keys(), ...perpBuckets.keys()])].sort((a, b) => a - b);
+
+  let spotCum = 0;
+  let perpCum = 0;
+  const out: CvdComparisonPoint[] = [];
+  for (const k of keys) {
+    spotCum += spotBuckets.get(k)?.delta ?? 0;
+    perpCum += perpBuckets.get(k)?.delta ?? 0;
+    if (k < start) continue;
+    const s = (spotCum / spotTotal) * 100;
+    const p = (perpCum / perpTotal) * 100;
+    out.push({ t: k, spot: s, perp: p, divergence: s - p });
+  }
+  return out;
+}
