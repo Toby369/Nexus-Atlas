@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import type {
   DashboardPollBundle,
@@ -62,7 +61,7 @@ import TimeframeSelector from "@/components/TimeframeSelector";
 import DashboardTabNav from "@/components/DashboardTabNav";
 import DashboardPollProvider from "@/components/DashboardPollProvider";
 import HeroHeader from "@/components/HeroHeader";
-import LogoutButton from "@/components/LogoutButton";
+import { AppFooter, AppHeader } from "@/components/AppHeader";
 import RefreshButton from "@/components/RefreshButton";
 
 export const revalidate = 0;
@@ -695,41 +694,18 @@ export default async function Home({
 
   return (
     <main className="flex-1 flex flex-col">
-      <header className="border-b border-border px-6 py-5 flex items-baseline justify-between">
-        <div>
-          <p className="text-xs tracking-[0.2em] text-text-faint uppercase">
-            Nexus Atlas
-          </p>
-          <h1 className="text-lg font-semibold text-text mt-1">
-            BTC Marktüberwachung
-          </h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <RefreshButton />
-          <Link
-            href="/reports"
-            className="text-xs text-text-faint hover:text-text-muted underline decoration-dotted"
-          >
-            AI Reports
-          </Link>
-          <Link
-            href="/lernen"
-            className="text-xs text-text-faint hover:text-text-muted underline decoration-dotted"
-          >
-            Lernen
-          </Link>
-          <Link
-            href="/account"
-            className="text-xs text-text-faint hover:text-text-muted underline decoration-dotted"
-          >
-            Konto
-          </Link>
-          <p className="text-xs text-text-faint hidden sm:block">
-            Datentakt: alle 5&nbsp;Minuten · Referenz: Bybit
-          </p>
-          <LogoutButton />
-        </div>
-      </header>
+      <AppHeader
+        title="BTC Marktüberwachung"
+        current="dashboard"
+        actions={
+          <>
+            <p className="text-xs text-text-faint hidden md:block">
+              Datentakt: alle 5&nbsp;Minuten · Referenz: Bybit
+            </p>
+            <RefreshButton />
+          </>
+        }
+      />
 
       <section className="flex-1 px-4 sm:px-6 py-8 max-w-3xl lg:max-w-[1600px] w-full mx-auto">
         <div className="space-y-4">
@@ -842,9 +818,7 @@ export default async function Home({
         </div>
       </section>
 
-      <footer className="border-t border-border px-6 py-4 text-xs text-text-faint">
-        NEXUS Atlas · Persönliches Marktüberwachungs-Tool, keine Anlageberatung
-      </footer>
+      <AppFooter />
     </main>
   );
 }

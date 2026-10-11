@@ -1,8 +1,7 @@
-import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import type { ChecklistRun, QuizCard, QuizProgressRow } from "@/lib/types";
 import LernenDashboard from "@/components/LernenDashboard";
-import LogoutButton from "@/components/LogoutButton";
+import { AppFooter, AppHeader } from "@/components/AppHeader";
 import { getKnowledgeBase } from "@/lib/knowledgeBaseContext";
 import { getMeinSystemChecklistData } from "@/lib/meinSystemContext";
 import { getTradingIndicatorsData } from "@/lib/tradingIndicatorsContext";
@@ -85,27 +84,7 @@ export default async function LernenPage() {
 
   return (
     <main className="flex-1 flex flex-col">
-      <header className="border-b border-border px-6 py-5 flex items-baseline justify-between">
-        <div>
-          <p className="text-xs tracking-[0.2em] text-text-faint uppercase">Nexus Atlas</p>
-          <h1 className="text-lg font-semibold text-text mt-1">Lernplattform</h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <Link
-            href="/"
-            className="text-xs text-text-faint hover:text-text-muted underline decoration-dotted"
-          >
-            ← Dashboard
-          </Link>
-          <Link
-            href="/account"
-            className="text-xs text-text-faint hover:text-text-muted underline decoration-dotted"
-          >
-            Konto
-          </Link>
-          <LogoutButton />
-        </div>
-      </header>
+      <AppHeader title="Lernplattform" current="lernen" />
 
       <section className="flex-1 px-4 sm:px-6 py-8 max-w-3xl w-full mx-auto">
         <LernenDashboard
@@ -122,9 +101,7 @@ export default async function LernenPage() {
         />
       </section>
 
-      <footer className="border-t border-border px-6 py-4 text-xs text-text-faint">
-        NEXUS Atlas · Persönliches Marktüberwachungs-Tool, keine Anlageberatung
-      </footer>
+      <AppFooter />
     </main>
   );
 }

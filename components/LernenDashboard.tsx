@@ -91,6 +91,10 @@ export default function LernenDashboard({
   const [cards, setCards] = useState(initialCards);
   const [progressRows, setProgressRows] = useState(initialProgress);
   const [tab, setTab] = useState<Tab>("lernen");
+  // Referenzzeitpunkt fuer "faellig" -- einmal beim Mounten gesetzt und nach
+  // jeder Lernsitzung (refetch) erneuert, statt Date.now() bei jedem Render
+  // neu aufzurufen (react-hooks/purity).
+  const [now, setNow] = useState(() => Date.now());
 
   async function refetch() {
     const [{ data: c }, { data: p }] = await Promise.all([
@@ -99,6 +103,7 @@ export default function LernenDashboard({
     ]);
     if (c) setCards(c);
     if (p) setProgressRows(p);
+    setNow(Date.now());
   }
 
   const progressByCard = useMemo(
@@ -111,7 +116,6 @@ export default function LernenDashboard({
     [cards, progressByCard]
   );
 
-  const now = Date.now();
   const activeEntries = entries.filter((e) => e.card.active);
   const dueEntries = activeEntries.filter((e) => isDue(now, e.progress));
   const boxes = boxDistribution(activeEntries.map((e) => ({ box: e.progress?.box ?? 1 })));

@@ -8,7 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 //
 // Braucht einen Service-Role-Client (die Tabelle hat bewusst keine RLS-
 // Policy fuer Anon-Zugriff, siehe Migration). Bewusst OHNE "server-only"
-// (im Unterschied zu supabaseAdmin.ts/supabaseAuthServer.ts): diese
+// (im Unterschied zu supabaseAdmin.ts): diese
 // Funktion liest weder process.env noch next/headers direkt, sondern nimmt
 // einen bereits fertigen SupabaseClient als Parameter entgegen -- ein
 // versehentlicher Client-Import waere hier toter Code, kein Secret-Leck.
