@@ -1,6 +1,5 @@
-// Handelszeiten-Gate (Umsetzungsplan Phase 1, 05.09.2026) -- portiert das
-// Konzept aus shared/handelszeiten.js im Crypto-Trading-Journal (Toby's
-// Freund, siehe Chat) auf Nexus' Datenbasis. Beantwortet fuer Tobys reale
+// Handelszeiten-Gate -- portiert das Konzept aus shared/handelszeiten.js im
+// Crypto-Trading-Journal auf Nexus' Datenbasis. Beantwortet fuer Tobys reale
 // 15m/5m-Einstiege die Frage "ist JETZT eine schlechte Zeit zum Handeln,
 // und was kommt als Naechstes" -- unabhaengig von der STRUKTUR-Frage (die
 // mittlerweile ausschliesslich der Setup-Score per Trend-Konfirmation-
@@ -81,13 +80,12 @@ const MARKS: MarkDef[] = [
   { id: "cmePause", zone: ZONE_US, zeit: "17:00", bis: "18:00", spanne: true, tage: [1, 2, 3, 4] },
 ];
 
-// 12.09.2026 -- vorMin fuer macro/fomc von 2 auf 15 angehoben (Recherche zu
-// institutioneller Praxis: uebliche Regel ist ein Entry-Verbot ~10 Min vor
-// Hochrisiko-Terminen; 15 Min gewaehlt, weil die Push-Benachrichtigung in
+// vorMin fuer macro/fomc = 15: institutionell ueblich ist ein Entry-Verbot
+// ~10 Min vor Hochrisiko-Terminen; 15 Min, weil die Push-Benachrichtigung in
 // send-state-change-push per 15-Minuten-Cron laeuft und ein kuerzeres
 // Vorlauf-Fenster riskiert, dass der Cron das Fenster erst NACH Terminbeginn
-// zum ersten Mal sieht). Betrifft sowohl die Kachel (TradingHoursBadge) als
-// auch die neue Push-Vorwarnung, siehe supabase/functions/
+// zum ersten Mal sieht. Betrifft sowohl die Kachel (TradingHoursBadge) als
+// auch die Push-Vorwarnung, siehe supabase/functions/
 // send-state-change-push.
 const WARNINGS: WarningDef[] = [
   { id: "opening", mark: "cashOpen", vorMin: 5, nachMin: 15, level: "high" },
@@ -133,7 +131,7 @@ export interface TradingHoursState {
 }
 
 /** Wanduhrzeit `HH:mm` an `dateStr` (`YYYY-MM-DD`) in `zone` -> UTC-Millisekunden.
- *  Exportiert (Nutzer-Wunsch 03.10.2026, Head-Kachel zeigt den naechsten
+ *  Exportiert (das Lagebild zeigt den naechsten
  *  Wirtschaftstermin): wird von lib/economicCalendar.ts wiederverwendet statt
  *  dort erneut dupliziert zu werden -- anders als bei den Supabase Edge
  *  Functions (eigene Deno-Runtime, kann dieses Repo nicht importieren) laeuft

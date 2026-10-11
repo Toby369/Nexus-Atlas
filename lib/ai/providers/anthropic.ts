@@ -41,13 +41,11 @@ async function callMessages(
     },
     body: JSON.stringify({
       model,
-      // 1024 war zu knapp: bei adaptivem Thinking (siehe Kommentar unten)
-      // kann der Thinking-Block allein das gesamte Budget verbrauchen, ohne
-      // dass ueberhaupt ein Text-Block entsteht -- live beobachtet
-      // (15.09.2026) bei der Gesamteinschaetzung-Zusammenfassung: "kein
-      // text-Block gefunden, Typen: thinking". Kein Aufrufer setzt
-      // maxTokens explizit (weder runTileAnalysis noch runReportAnalysis),
-      // dieser Default gilt also praktisch immer.
+      // 1024 war zu knapp: bei adaptivem Thinking (siehe unten) kann der
+      // Thinking-Block allein das Budget verbrauchen, ohne dass ein
+      // Text-Block entsteht ("kein text-Block gefunden, Typen: thinking").
+      // Kein Aufrufer setzt maxTokens explizit, dieser Default gilt also
+      // praktisch immer.
       max_tokens: options?.maxTokens ?? 4096,
       temperature: options?.temperature,
       system: systemPrompt,
@@ -61,12 +59,9 @@ async function callMessages(
   }
 
   const json = await res.json();
-  // NICHT content[0] annehmen: Claude Sonnet 5 laeuft standardmaessig mit
-  // adaptivem "Thinking" (kein expliziter thinking-Parameter noetig), das
-  // steht in der Antwort als eigener Block VOR dem Text-Block -- content[0]
-  // waere dann der thinking-Block (kein .text-Feld), nicht der Text
-  // (Bug gefunden 07.09.2026, sichtbar erst nach Fix des Router-Fallback-
-  // Fehlerschluckens). Robust: den ersten Block mit type "text" suchen.
+  // NICHT content[0] annehmen: Claude laeuft standardmaessig mit adaptivem
+  // "Thinking", das als eigener Block VOR dem Text-Block steht. Robust: den
+  // ersten Block mit type "text" suchen.
   const textBlock = Array.isArray(json?.content)
     ? json.content.find((block: { type?: string }) => block?.type === "text")
     : undefined;

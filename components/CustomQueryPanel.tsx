@@ -5,14 +5,11 @@ import type { CustomQueryRun } from "@/lib/types";
 import { FullDateTime, StaleBadge } from "@/components/ClientTimestamp";
 import PanelInfo from "@/components/PanelInfo";
 
-// Freie Anfrage (Nutzer-Wunsch 08.09.2026: "kann ich eine Kachel haben, in
-// der ich KI konkreter Auftrag geben kann?"). Seit 11.10.2026 keine eigene
-// Kachel mehr, sondern aufklappbarer Abschnitt "Rueckfrage stellen" im
-// System-Briefing (SystemBriefingCard.tsx). Du formulierst eine
-// beliebige Aufgabe/Frage, die KI beantwortet sie ausschliesslich anhand des
-// echten, strukturierten Nexus-Marktkontexts (siehe lib/customQueryContext.ts)
-// -- nie mit erfundenen Zahlen. Provider: Google primaer, OpenRouter/Groq als
-// Fallback (kostenlose Kette).
+// Freie Anfrage (aufklappbarer Abschnitt im System-Briefing): eine beliebige
+// Aufgabe/Frage, die die KI ausschliesslich anhand des strukturierten
+// Nexus-Marktkontexts beantwortet (lib/customQueryContext.ts) -- nie mit
+// erfundenen Zahlen. Provider: Google primaer, OpenRouter/Groq als Fallback
+// (kostenlose Kette).
 
 const INFO_TEXT = [
   "Was das ist: du stellst der KI eine frei formulierte Aufgabe oder Frage (z.B. 'Ist X gerade ein guter Einstieg unter Beruecksichtigung von Y?'). Anders als die anderen KI-Kacheln hat diese keinen festen Zweck -- deine Eingabe bestimmt die Aufgabe.",

@@ -3,12 +3,9 @@ import type { KeyLevel, KeyLevelConfirmation } from "./chartStructureContext";
 import { fetchMtfDots, type MtfDotStatus } from "./mtfSignal";
 import { PATTERN_DIRECTION } from "./patternDirection";
 
-// Level-Struktur-Kachel (Nutzer-Wunsch 03.10.2026, siehe Chat-Verlauf: Toby
-// las den Wochen-Pivot bei 82'828.7 manuell aus dem Chart -- "keine hoeheren
-// Hochs" waehrend der Widerstand haelt, nach dem Bruch "keine tieferen
-// Tiefs" als bullische Bestaetigung, inkl. des ehrlichen Gegenbeispiels vom
-// 28.9. -- "so moechte ich das angezeigt bekommen!"). Portiert genau diese
-// manuelle Analyse in eine wiederverwendbare, automatische Berechnung:
+// Level-Struktur: automatisiert die manuelle Chart-Lesart "keine hoeheren
+// Hochs", solange ein Widerstand haelt, und nach dem Bruch "keine tieferen
+// Tiefs" als bullische Bestaetigung -- inkl. ehrlicher Gegenbeispiele:
 //
 // 1) interpretLevelStructure() -- reine Funktion, baut aus Kerzen +
 //    market_features.swing_type-Historie die Phase (haelt die Zone noch,

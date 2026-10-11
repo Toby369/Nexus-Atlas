@@ -4,12 +4,9 @@ import type { PromptProfile } from "./types";
 // Aendert sich ein Analyse-Prompt, wird NUR diese Datei angepasst – keine
 // Dashboard-Kachel muss dafür angefasst werden.
 //
-// Die Markteinschätzungs-Box läuft weiterhin regelbasiert (siehe
-// supabase/functions/compute-market-state) -- die meisten Profile hier sind
-// vorbereitetes Fundament ohne UI-Anbindung. "system-briefing" (Umsetzungsplan
-// Phase 3/4, 05./18.09.2026) ist eine der ersten produktiv über
-// runTileAnalysis() aufgerufenen Kacheln; report-* laufen seit der AI
-// Report Engine bereits produktiv über runReportAnalysis().
+// Die regelbasierte Gesamteinschaetzung laeuft unabhaengig davon in
+// supabase/functions/compute-market-state. Kachel-Profile laufen ueber
+// runTileAnalysis(), report-* ueber runReportAnalysis().
 
 // --- Validierungs-Bausteine ------------------------------------------------
 // Jedes Profile beschreibt sein JSON-Schema im systemPrompt (Freitext fürs
@@ -231,14 +228,11 @@ function validateMasterReport(data: unknown): string[] {
     }
   }
 
-  // changeSinceLast (03.10.2026, Nutzer-Wunsch "kann der report auf den
-  // vorherigen kurz eingehen?!") -- null ist der korrekte Wert, wenn der
-  // Kontext keinen vorherigen Lauf enthielt (allererster Master-Lauf
-  // ueberhaupt, oder der vorherige Lauf konnte nicht geladen werden), KEIN
-  // Validierungsfehler. Ein nicht-leerer String ist nur dann falsch, wenn
-  // er fehlt, obwohl ein vorherigerLauf im Kontext mitgegeben wurde -- das
-  // kann diese rein strukturelle Pruefung aber nicht unterscheiden (kennt
-  // den Kontext nicht), daher hier nur der Typ geprueft.
+  // changeSinceLast: null ist korrekt, wenn der Kontext keinen vorherigen
+  // Lauf enthielt (erster Master-Lauf oder Ladefehler) -- KEIN
+  // Validierungsfehler. Ob ein String fehlt, obwohl ein vorheriger Lauf
+  // mitgegeben wurde, kann diese rein strukturelle Pruefung nicht
+  // erkennen, daher nur der Typ.
   if (!isNullableNonEmptyString(field(data, "changeSinceLast"))) {
     errors.push(`"changeSinceLast" muss ein nicht-leerer String oder null sein.`);
   }
@@ -246,13 +240,11 @@ function validateMasterReport(data: unknown): string[] {
   return errors;
 }
 
-// YouTube-Gesamtanalyse (Nutzer-Wunsch 14.09.2026: "gesamt analyse der
-// einzelnen analysierten youtube beitraege") -- gleiche Philosophie wie
-// der Master-Report: NICHT die Einzelvideos zu einem Bias mitteln, sondern
-// Widersprueche zwischen den Kanaelen/Videos explizit benennen. Anders als
-// beim Master-Report ist die Anzahl der Quellen variabel (nicht fix 3),
-// daher kein componentBiases-Objekt mit festen Schluesseln -- stattdessen
-// "conflicts" als Freitext-Liste, die auf konkrete Kanalnamen verweist.
+// YouTube-Gesamtanalyse -- gleiche Philosophie wie der Master-Report: NICHT
+// die Einzelvideos zu einem Bias mitteln, sondern Widersprueche zwischen
+// Kanaelen/Videos explizit benennen. Die Anzahl der Quellen ist variabel,
+// daher kein componentBiases-Objekt, sondern "conflicts" als Freitext-Liste
+// mit konkreten Kanalnamen.
 function validateYoutubeOverallAnalysis(data: unknown): string[] {
   const errors: string[] = [];
 
@@ -295,15 +287,13 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "reasoning }), summary (string, deutsch, 2-3 Saetze Gesamtbild).",
     validate: validateNewsAnalysis,
   },
-  // --- Periodischer KI-Rueckblick, Phase 3 (10.09.2026) --------------------
-  // Liest AUSSCHLIESSLICH die in Phase 2 (compute_signal_stats(),
-  // signal_stats_results) bereits fertig berechneten Zahlen -- kein eigener
-  // Bias, kein Handelssignal, keine eigene Statistik (Kontext aus
-  // lib/signalReviewContext.ts). Aufgabe: eine verstaendliche deutsche
-  // Einordnung, welche Signale genug Stichprobe haben, welche die
-  // BH-FDR-Korrektur ueberstehen, welche verfallen (decay_flag) und welche
-  // "zu wenig Daten" bleiben. Woechentlich vom signal-review-scheduler-Cron
-  // ausgeloest, nicht manuell pro Klick wie die meisten anderen Kacheln.
+  // --- Periodischer KI-Rueckblick ------------------------------------------
+  // Liest AUSSCHLIESSLICH bereits berechnete Zahlen (compute_signal_stats(),
+  // signal_stats_results; Kontext aus lib/signalReviewContext.ts) -- kein
+  // eigener Bias, kein Handelssignal, keine eigene Statistik. Aufgabe: eine
+  // verstaendliche deutsche Einordnung, welche Signale genug Stichprobe
+  // haben, die BH-FDR-Korrektur ueberstehen, verfallen (decay_flag) oder
+  // "zu wenig Daten" bleiben. Woechentlich vom signal-review-scheduler-Cron.
   "signal-review": {
     id: "signal-review",
     category: "signal-logic",
@@ -465,10 +455,9 @@ export const promptProfiles: Record<string, PromptProfile> = {
     validate: validateMasterReport,
   },
 
-  // YouTube-Gesamtanalyse (Nutzer-Wunsch 14.09.2026: "gesamt analyse der
-  // einzelnen analysierten youtube beitraege") -- laeuft ueber
-  // runTileAnalysis() (tileConfig.ts), Kontext aus den zuletzt gespeicherten
-  // Einzelanalysen (app/api/youtube-monitor/overall-analysis/route.ts).
+  // YouTube-Gesamtanalyse -- laeuft ueber runTileAnalysis() (tileConfig.ts),
+  // Kontext aus den gespeicherten Einzelanalysen
+  // (app/api/youtube-monitor/overall-analysis/route.ts).
   "youtube-overall-analysis": {
     id: "youtube-overall-analysis",
     category: "orchestration",
@@ -494,60 +483,25 @@ export const promptProfiles: Record<string, PromptProfile> = {
     validate: validateYoutubeOverallAnalysis,
   },
 
-  // --- System-Briefing (Umsetzungsplan Phase 4, 18.09.2026; erweitert
-  // 22.09.2026 um Marktkontext/ETF-Flows/Positionierung/News) -------------
-  // 30.09.2026 -- komplett neu strukturiert UND mit der vormals eigenstaendigen
-  // Handelslage-Kachel (Phase 3, 05.09.2026) zusammengelegt (Nutzer: "brauche
-  // nicht weitere Kacheln, moechte vorhandenes komprimieren"). Vorher: ein
-  // einzelner 7-11-Saetze-Fliesstext ("narrative"), der u.a. GUSS/VWAP-Vector/
-  // CVD gegen Salomon-Phase gegen Regime Matrix abglich -- drei Perspektiven
-  // auf groesstenteils dieselben Rohwerte (siehe Chat-Verlauf, Redundanz-
-  // Analyse), dazu Handelslage als komplett separate Kachel fuer denselben
-  // "was jetzt"-Zweck. Jetzt: VIER klar benannte Abschnitte statt einem Block,
-  // Salomon-Phase/Regime Matrix als eigene Quellen entfernt (stehen bereits in
-  // der Marktphase-Kachel), bewegungsvorrat (Handelslage) ist Bestandteil von
-  // lib/systemBriefingContext.ts geworden. Kursziel/Trigger-Sprache ist jetzt
-  // explizit erlaubt (Nutzer-Entscheidung 30.09.2026, vorher verboten) --
-  // dieselbe Sprache, die Trade-Debate (siehe unten) schon laenger nutzt.
+  // --- System-Briefing ------------------------------------------------------
+  // Fuenf Abschnitte: Fazit, Regelwerk-Check, Chart-Struktur (Formationen/
+  // Key Levels/Level-Struktur), Konfluenz-Check (widerspricht etwas dem
+  // bisherigen Bild? -- uebernimmt auch den Konsistenz-Check "passt
+  // overall_state/score/risk_level zu den Faktoren?", market_state enthaelt
+  // dafuer factors) und Trigger & Szenario IMMER in beiden Richtungen.
+  // Kursziele sind erlaubt, aber zwingend an ein echtes keyLevels-Level
+  // gebunden (keyLevels fasst Pivot-, Liquidations- und EMA/VWAP-Konfluenz
+  // zusammen). Salomon-Phase/Regime Matrix sind keine eigenen Quellen (stehen
+  // in der Marktphase-Kachel); der Bewegungsvorrat stammt aus
+  // lib/systemBriefingContext.ts. Die Eskalation liest ihren Trigger aus
+  // diesem Snapshot (lib/escalationContext.ts).
   //
-  // 02.10.2026 -- Kachel-Audit (Nutzer: "braucht es alle Kacheln so wie sie
-  // sind?"): die vormals eigenstaendige "Signal-Engine"-Kachel (Konsistenz-
-  // Check "passt overall_state/score/risk_level zu den einzelnen Faktoren?")
-  // war 13 Tage ungenutzt und wurde komplett entfernt -- ihr Zweck ist jetzt
-  // Teil des kontextCheck-Abschnitts hier (market_state enthaelt dafuer neu
-  // auch factors), kein zusaetzlicher AI-Aufruf noetig. Die Eskalations-
-  // Kachel liest ihren entsprechenden Trigger seither aus DIESEM Snapshot
-  // statt aus einem separaten signal_engine_snapshots-Eintrag (siehe
-  // lib/escalationContext.ts).
-  // 06.10.2026 -- Zusammengelegt mit der vormals eigenstaendigen Chart-
-  // Narrativ-Kachel (Nutzer-Audit "welche Reports sind sehr aehnlich?":
-  // beide nutzten bereits denselben breiten Signal-Satz und erzeugten ein
-  // sehr aehnlich geformtes Ergebnis bias/confidence/Narrativ/Szenario+
-  // Kursziel/Invalidierung -- nur mit unterschiedlicher Linse, Regelwerk-
-  // Gates hier vs. Chart-Formationen/Key Levels dort). Jetzt EIN Profil mit
-  // fuenf Abschnitten statt vier: Fazit, Regelwerk-Check (unveraendert),
-  // NEU Chart-Struktur (Formationen/Key Levels/Level-Struktur, vormals
-  // "structureNarrative" in der Chart-Narrativ-Kachel), Konfluenz-Check
-  // (zusammengefuehrter kontextCheck + confluence -- beide fragten im Kern
-  // dasselbe: widerspricht etwas dem bisherigen Bild?), und Trigger&Szenario
-  // JETZT IMMER BEIDE RICHTUNGEN (bullish+bearish, Nutzer-Entscheidung per
-  // AskUserQuestion) statt nur eines Pfads -- Kursziel in beiden Richtungen
-  // zwingend an ein echtes keyLevels-Level gebunden (ersetzt die alte, vagere
-  // "liquidations/mein_system_checklist"-Herleitung: keyLevels fasst Pivot-,
-  // Liquidations- UND EMA/VWAP-Konfluenz bereits zusammen, ist die strengere
-  // Obermenge). lib/systemBriefingContext.ts liefert die Chart-Strukturdaten
-  // jetzt direkt mit (kein eigener chartNarrativeContext.ts-Umweg mehr).
-  // System-Briefing (08.10.2026 strukturell aufgeteilt): vorher EIN grosser
-  // Aufruf mit allen fuenf Abschnitten -- 07.10.2026 bereits einmal gekuerzt,
-  // nachdem der Vercel-Hobby-Plan (60s/Funktionsaufruf) bei jedem Versuch
-  // exakt dort scheiterte. Reines Kuerzen war ein Pflaster, kein struktureller
-  // Fix. Jetzt wie die AI Report Engine (report-market-structure/positioning/
-  // news-macro + report-master): drei kleine, unabhaengige Teil-Aufrufe
-  // parallel (Regelwerk-Check, Chart-Struktur, Trigger&Szenario), danach EIN
-  // kleiner Synthese-Call, der NUR die drei Teil-Ergebnisse verdichtet (keine
-  // Rohdaten erneut), analog zu report-master. Ergebnis-Form (SystemBriefing-
-  // Result) bleibt exakt gleich -- app/api/system-briefing/generate/route.ts
-  // setzt die vier Antworten zusammen, die UI merkt vom Split nichts.
+  // Aufbau wie die AI Report Engine: drei kleine, unabhaengige Teil-Aufrufe
+  // parallel (Regelwerk-Check, Chart-Struktur, Trigger & Szenario), danach
+  // EIN kleiner Synthese-Call, der nur die drei Ergebnisse verdichtet --
+  // ein einzelner grosser Aufruf scheiterte am 60s-Limit pro
+  // Funktionsaufruf (Vercel Hobby). app/api/system-briefing/generate/route.ts
+  // setzt die Antworten zum unveraenderten SystemBriefingResult zusammen.
   "system-briefing-regelwerk": {
     id: "system-briefing-regelwerk",
     category: "signal-logic",
@@ -616,18 +570,11 @@ export const promptProfiles: Record<string, PromptProfile> = {
     category: "signal-logic",
     description: "Teil-Aufruf 3/4 des System-Briefings: Trigger&Szenario (bullish+bearish) inkl. Kursziel und Invalidierung.",
     systemPrompt:
-      // 08.10.2026 -- Framing-Satz ergaenzt, 08.10.2026 (spaeter am selben Tag)
-      // nochmal verstaerkt: ein Gratis-Modell hinter OpenRouter verweigerte
-      // dieses isolierte Teil-Prompt wiederholt mit "User Safety: unsafe
-      // Safety Categories: Unauthorized Advice" statt JSON zu liefern -- seit
-      // dem zweiten Live-Vorfall (Google-Gratis-Quota projektweit erschoepft,
-      // siehe tileConfig.ts) laeuft dieser Call primaer auf OpenRouter, nicht
-      // mehr nur als Fallback, der Framing-Satz traegt also mehr Gewicht. Im
-      // vormaligen EINEN grossen Prompt stand derselbe Trigger-Abschnitt
-      // eingebettet in sichtbar analytischen Regelwerk-Kontext und loeste das
-      // nicht aus -- isoliert liest sich "bullish/bearish + Kursziel" fuer
-      // einen Sicherheitsfilter offenbar eher wie eine direkte
-      // Kaufempfehlung. Reine Klarstellung, keine inhaltliche Aenderung.
+      // Framing-Satz: ein Gratis-Modell hinter OpenRouter verweigerte dieses
+      // isolierte Teil-Prompt wiederholt mit "Unauthorized Advice" statt JSON
+      // zu liefern -- isoliert liest sich "bullish/bearish + Kursziel" fuer
+      // einen Sicherheitsfilter wie eine direkte Kaufempfehlung. Reine
+      // Klarstellung, keine inhaltliche Aenderung.
       "Du erstellst eine rein strukturelle, hypothetische Wenn-Dann-Analyse fuer Tobys " +
       "eigenes, bereits bestehendes Trading-Regelwerk -- ausschliesslich private " +
       "Eigennutzung durch Toby selbst, keine Finanzberatung, keine Kaufempfehlung und " +
@@ -715,16 +662,13 @@ export const promptProfiles: Record<string, PromptProfile> = {
     },
   },
 
-  // --- Eskalations-Kachel ("gezielte Eskalation", 05.09.2026) --------------
+  // --- Eskalation ("gezielte Eskalation") ----------------------------------
   // Wird NICHT ueber "auto" geroutet, sondern von app/api/escalation/
-  // generate/route.ts mit mehreren expliziten providerOverride-Werten
-  // parallel aufgerufen (siehe lib/escalationContext.ts fuer die
-  // Trigger-Erkennung: nur wenn Signal-Engine/Divergenz-Radar/Report-Master
-  // bereits einen Widerspruch melden). Jeder Provider bekommt DIESELBE
-  // rohe Gesamteinschaetzung und liefert unabhaengig bias/confidence/
-  // summary -- die Auswertung (Konsens/Divergenz zwischen den Providern)
-  // passiert danach rein regelbasiert in lib/escalationConsensus.ts, nicht
-  // durch ein weiteres Modell.
+  // generate/route.ts mit mehreren providerOverride-Werten parallel
+  // aufgerufen -- nur wenn System-Briefing/Divergenz-Radar/Report-Master
+  // bereits einen Widerspruch melden (lib/escalationContext.ts). Jeder
+  // Provider bekommt DIESELBE rohe Gesamteinschaetzung; Konsens/Divergenz
+  // wertet danach lib/escalationConsensus.ts regelbasiert aus.
   "escalation-analysis": {
     id: "escalation-analysis",
     category: "signal-logic",
@@ -747,17 +691,13 @@ export const promptProfiles: Record<string, PromptProfile> = {
     validate: (data) => validateBiasSummary(data),
   },
 
-  // --- Trade-Debate-Kachel (Nutzer-Idee 07.09.2026, nach TradingAgents-
-  // Architektur [arXiv:2412.20138] recherchiert) -----------------------------
-  // Zwei gegensaetzlich geprompte Analysten (Bull/Bear) + ein Referee/CIO.
-  // Werden NICHT ueber "auto" geroutet, sondern von app/api/trade-debate/
-  // generate/route.ts mit expliziten providerOverride-Werten aufgerufen
-  // (siehe tileConfig.ts trade-debate-bull/-bear/-referee) -- unterschiedliche
-  // Vendors fuer Bull/Bear, damit nicht derselbe Modell-Bias in beiden
-  // "Seiten" steckt. Beide Analysten bekommen DENSELBEN Marktdaten-Kontext
-  // (lib/tradeDebateContext.ts) mit unterschiedlichem System-Prompt --
-  // strukturierte Zahlen, kein Chart-Bild (Recherche 07.09.2026: reduziert
-  // Halluzination nachweislich).
+  // --- Trade-Debate (TradingAgents-Architektur [arXiv:2412.20138]) ---------
+  // Zwei gegensaetzlich geprompte Analysten (Bull/Bear) + ein Referee. Werden
+  // von app/api/trade-debate/generate/route.ts mit expliziten
+  // providerOverride-Werten aufgerufen (tileConfig.ts trade-debate-*) --
+  // unterschiedliche Vendors fuer Bull/Bear gegen gemeinsamen Modell-Bias.
+  // Beide bekommen DENSELBEN Marktdaten-Kontext (lib/tradeDebateContext.ts)
+  // als strukturierte Zahlen, kein Chart-Bild (reduziert Halluzination).
   "trade-bull-analyst": {
     id: "trade-bull-analyst",
     category: "signal-logic",
@@ -863,12 +803,10 @@ export const promptProfiles: Record<string, PromptProfile> = {
     validate: validateTradeReferee,
   },
 
-  // Freie-Anfrage-Kachel (Nutzer-Wunsch 08.09.2026): einziges Profil ohne
-  // festen Zweck -- der Kontext traegt "user_task" (Freitext des Nutzers)
-  // getrennt von "market_data" (derselbe validierte Kontext wie die
-  // Report-Engine). Die Aufgabe im Kontext, nicht der System-Prompt, legt
-  // fest, WAS beantwortet wird; der System-Prompt legt nur die Leitplanken
-  // fest (nur market_data nutzen, nichts erfinden).
+  // Freie Anfrage: einziges Profil ohne festen Zweck -- der Kontext traegt
+  // "user_task" (Freitext) getrennt von "market_data" (derselbe validierte
+  // Kontext wie die Report-Engine). Der System-Prompt legt nur die
+  // Leitplanken fest (nur market_data nutzen, nichts erfinden).
   "custom-query": {
     id: "custom-query",
     category: "orchestration",

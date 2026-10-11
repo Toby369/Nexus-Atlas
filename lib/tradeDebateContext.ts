@@ -1,8 +1,7 @@
-// Kontext-Builder fuer die Trade-Debate-Kachel (Nutzer-Idee 07.09.2026,
-// nach TradingAgents-Architektur [arXiv:2412.20138] recherchiert und
-// optimiert): zwei gegensaetzlich geprompte KI-Analysten (Bull/Bear) +
+// Kontext-Builder fuer die Trade-Debate (TradingAgents-Architektur
+// [arXiv:2412.20138]): zwei gegensaetzlich geprompte KI-Analysten (Bull/Bear) +
 // ein Referee/CIO bekommen GENAU DIESEN einen strukturierten Kontext --
-// niemals einen Chart als Bild (siehe Recherche 07.09.2026: strukturierte,
+// niemals einen Chart als Bild (strukturierte,
 // vorab berechnete Zahlen statt Bild-Interpretation reduziert Halluzination
 // nachweislich). Alle Werte kommen aus bereits bestehenden RPCs/Tabellen,
 // keine Neuberechnung/zweite Definition bestehender Kennzahlen.
@@ -51,7 +50,7 @@ export interface TradeDebateTimeframeSnapshot {
   ema_100: number | null;
   ema_200: number | null;
   // Community-/Nischen-Heuristik, KEIN etablierter institutioneller
-  // Standard wie EMA20/50/200 (siehe Recherche 07.09.2026) -- absichtlich
+  // Standard wie EMA20/50/200 -- absichtlich
   // trotzdem mitgegeben, da vom Nutzer explizit gewuenscht.
   ema_800: number | null;
   rsi_14: number | null;

@@ -50,23 +50,14 @@ export function spotPressureInfo(tfLabel: string): string {
 So entsteht der Wert: Datenbasis ist ausschliesslich Binance Spot BTC/USDT im 5-Minuten-Takt über ${tfLabel} – die einzige öffentliche Route mit echtem Taker-Buy/Sell-Split, keine Schätzung. Berechnet wird (Taker-Kaufvolumen − Taker-Verkaufsvolumen) / Gesamtvolumen über alle Kerzen im Fenster; ab ±5 % gilt BUYING bzw. SELLING PRESSURE, sonst NEUTRAL.`;
 }
 
-// Spot-Volumen-Profil (02.10.2026, Nutzer-Wunsch: "spot Volumen möchte ich
-// bei spot pressure angezeigt haben") -- nutzt dieselbe get_spot_volume_
-// profile-RPC wie die Key Levels in der Struktur-Kachel (lib/
-// chartStructureContext.ts), hier aber als eigene Grafik statt nur als
-// Bestaetigungs-Tag an einzelnen Levels. Anders als der Chart direkt
-// darueber (zeitlicher Verlauf, WANN gekauft/verkauft wurde) zeigt dieses
-// Profil, BEI WELCHEM PREIS gekauft/verkauft wurde.
+// Spot-Volumen-Profil -- nutzt dieselbe get_spot_volume_profile-RPC wie die
+// Key Levels in der Struktur-Kachel, hier als eigene Grafik. Anders als der
+// Chart darueber (WANN gekauft/verkauft wurde) zeigt es, BEI WELCHEM PREIS.
 export function spotVolumeProfileInfo(tfLabel: string): string {
   return `So liest du das: Je Preis-Bucket ($200-Schritte) ein grüner Balken nach rechts (Kaufvolumen) und ein roter Balken nach links (Verkaufsvolumen) -- gespiegelt an der Nulllinie, wie ein klassisches Volume Profile. Ein Bucket mit deutlich mehr Kauf- als Verkaufsvolumen ist ein Hinweis auf eine mögliche Unterstützung (dort wurde bereits aktiv gekauft), deutlich mehr Verkaufsvolumen auf einen möglichen Widerstand (dort wurde bereits aktiv verkauft) -- eine Beobachtungshilfe, kein geprüftes/validiertes Signal und keine Anlageberatung.
 
 So entsteht der Wert: Binance Spot BTC/USDT Aggregated-Trades (echte Taker-Buy/Sell-Klassifikation, keine Schätzung), lückenlos per Cursor erfasst (alle 5 Minuten) und direkt beim Erfassen in $200-Preis-Buckets aggregiert. Zeitraum: derselbe ${tfLabel}, der oben im Dashboard gewählt ist. Dieselben Preis-Buckets fliessen auch als Bestätigung in die Key Levels der Struktur-Kachel ein (Seite "Lernen" → Mein System).`;
 }
-
-// positioningRatiosInfo/takerFlowInfo/positioningAssessmentInfo (PanelInfo-
-// Texte der ehemaligen "Positionierung"-Kachel) entfernt 21.09.2026 mit
-// components/PositioningPanel.tsx -- der zugrundeliegende Faktor bleibt Teil
-// der 14-Faktoren-Engine und wird weiterhin in HeroHeader gezeigt.
 
 export const liquidationsInfo = `Unterschied zur Liquidations-/Hebelkarte: hier stehen tatsächlich bereits PASSIERTE Liquidations-Events (Echtzeit-Stream von Binance/Bybit) — dort werden PROJIZIERTE Levels aus der Open-Interest-Historie geschätzt, wo es als Nächstes passieren könnte. Zwei unterschiedliche Fragen ("was ist geschehen" vs. "wo könnte es als Nächstes knallen"), keine doppelte Darstellung derselben Daten.
 
@@ -261,15 +252,14 @@ export const cvdFootprintInfo = `So liest du das: Zeigt die tatsächliche Käufe
 
 So entsteht der Wert: Alle 1-Minuten-Kerzen innerhalb der letzten 48 Stunden werden ihrer jeweiligen 1H-Kerze zugeordnet und dort aufsummiert (2×Taker-Buy-Volumen − Gesamtvolumen je Minute – echte Binance-Aggressor-Daten, keine Schätzung). Divergenz-Check über Preis-Pivots mit Lookback 10 (wie Mo's Original-Skript). Bei jedem Seitenaufruf neu berechnet.`;
 
-// Momentum-Divergenz-Warnhinweis (Prototyp, 19.09.2026, siehe
-// lib/momentumDivergence.ts) -- reine Anzeige-Ableitung, keine neue
-// Berechnung/Query, keine Aenderung an compute-market-state.
+// Momentum-Divergenz-Warnhinweis (Prototyp, siehe lib/momentumDivergence.ts)
+// -- reine Anzeige-Ableitung, keine neue Berechnung/Query.
 export const momentumDivergenceInfo = `So liest du das: Erscheint, wenn die Gesamteinschätzung (Bullisch/Bärisch) von einem bereits etablierten Trend (ADX ≥ 25) getragen wird, das Momentum (MACD-Histogramm) diesem Trend aber inzwischen widerspricht – ein klassisches Warnzeichen für nachlassenden Schwung VOR einer möglichen Trendwende. Eine erste Rückblick-Auswertung (19.09.2026, Stand ~3,5 Wochen Historie) zeigte für Bullisch-Aufrufe: mit bestätigendem Momentum 58,8% Trefferquote (n=17) über 24h, bei widersprechendem Momentum dagegen 0 von 8 Treffern (Ø −2,8%). Das Muster ist durchgängig und mechanistisch plausibel, aber die Stichprobe ist noch klein – deshalb ausdrücklich nur ein Hinweis, keine bewiesene Regel und kein Handelssignal. Ändert nichts an der gespeicherten Gesamteinschätzung selbst.
 
 So entsteht der Wert: Rein clientseitig aus den ohnehin bereits geladenen 14-Faktoren-Rohwerten abgeleitet (ADX aus "Trend-Stärke", MACD-Histogramm aus "Momentum") – keine zusätzliche Datenbankabfrage, keine neue Berechnung in compute-market-state.`;
 
-// Struktur: Key Levels, AVWAP, Trendlinien, Muster (Nutzer-Idee 24.09.2026,
-// siehe lib/chartStructureContext.ts) -- reine Berechnung, kein KI-Aufruf.
+// Struktur: Key Levels, AVWAP, Trendlinien, Muster (siehe
+// lib/chartStructureContext.ts) -- reine Berechnung, kein KI-Aufruf.
 export const chartStructureInfo = `So liest du das: Sechs eigenständige, rein rechnerisch (keine KI) ermittelte Struktur-Bausteine, die meisten auf den letzten 300 1H-Kerzen – Key Levels bilden davon die Ausnahme (siehe unten, vier Zeitrahmen gleichzeitig).
 
 Kerzenmuster: klassische Umkehrformationen (Doji, Hammer/Hanging Man, Engulfing, Morning/Evening Star) nach Stefan Salomons Definitionen – ein Rückblick-Backtest fand dafür KEINE statistisch signifikante Edge (nach BH-FDR-Korrektur), rein informativ.

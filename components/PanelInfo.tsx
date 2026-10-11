@@ -43,12 +43,9 @@ export default function PanelInfo({
   const [desktopPosition, setDesktopPosition] = useState<{ top: number; left: number } | null>(
     null
   );
-  // Bugfix 22.09.2026 (Nutzer-Meldung: Infokachel-Text nicht vollstaendig
-  // lesbar): das Popover hatte keine Hoehenbegrenzung/Scroll -- bei Content,
-  // der laenger ist als der verbleibende Platz unter dem Button (bzw. unter
-  // dem Viewport auf Mobile), lief der Text einfach ueber den Bildschirmrand
-  // hinaus, ohne Moeglichkeit zu scrollen. maxHeight wird jetzt aus dem
-  // tatsaechlich verfuegbaren Platz berechnet, der Rest per Scroll erreichbar.
+  // maxHeight aus dem tatsaechlich verfuegbaren Platz unter dem Button bzw.
+  // im Viewport berechnet, der Rest per Scroll erreichbar -- sonst liefe
+  // langer Text ueber den Bildschirmrand.
   const [maxHeight, setMaxHeight] = useState<number | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -64,14 +61,9 @@ export default function PanelInfo({
       }
       // Popover oeffnet unterhalb, linksbuendig mit dem Button -- geklemmt
       // auf den Viewport, damit es nie ueber den rechten ODER linken Rand
-      // hinausragt. Bugfix 09.09.2026 (Nutzer-Meldung: Tooltip am linken
-      // Bildschirmrand abgeschnitten): die vorherige rechts-verankerte
-      // Berechnung (Popover haengt vom Button aus nach LINKS) ergab bei
-      // Buttons, die nicht nah am rechten Bildschirmrand sitzen, eine
-      // rechnerisch negative linke Kante -- die Klemmung griff nur auf den
-      // rechten Rand, nicht auf ein Abrutschen nach links. Eine direkte
-      // links-Position ist robust per Konstruktion: sie kann per Definition
-      // nie kleiner als VIEWPORT_MARGIN werden.
+      // hinausragt. Eine direkte links-Position kann per Konstruktion nie
+      // kleiner als VIEWPORT_MARGIN werden (eine rechts-verankerte Berechnung
+      // konnte am linken Rand abschneiden).
       const rect = buttonRef.current.getBoundingClientRect();
       const maxLeft = Math.max(VIEWPORT_MARGIN, window.innerWidth - POPOVER_WIDTH - VIEWPORT_MARGIN);
       const left = Math.min(Math.max(rect.left, VIEWPORT_MARGIN), maxLeft);

@@ -1,13 +1,12 @@
 import { supabase } from "./supabase";
 import type { MarketState } from "./types";
 
-// Live-Kopplung fuer die "Mein Trading System"-Checkliste (Nutzer-Wunsch
-// 15.09.2026: "meine trading regeln/Setup in nexus integrieren", Umsetzungs-
-// Entscheidung 4: Funding/OI-Delta kommen 1:1 aus dem neuesten market_states-
+// Live-Kopplung fuer die "Mein Trading System"-Checkliste: Funding/OI-Delta
+// kommen 1:1 aus dem neuesten market_states-
 // Eintrag, kein neuer Request/keine neue Datenquelle noetig).
 //
 // EMA13 wird bewusst NICHT als neue Spalte in market_features/compute-
-// market-state ergaenzt (siehe Entscheidung 3 im Umsetzungsplan) -- Tobys
+// market-state ergaenzt -- Tobys
 // persoenliches EMA-Framework (13/50/200) ist unabhaengig von NEXUS'
 // produktivem Trend-Regime (reines EMA50/200), jede Aenderung an der Live-
 // Scoring-Engine haette hier ein eigenes Backtesting-Protokoll verdient wie

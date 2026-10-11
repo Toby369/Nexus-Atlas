@@ -7,16 +7,12 @@ import { computeYoutubeConsensus } from "@/lib/youtubeConsensus";
 import { RelativeTime, FullDateTime } from "@/components/ClientTimestamp";
 import PanelInfo from "@/components/PanelInfo";
 
-// Krypto-YouTube-Monitor, Thema KI (05.09.2026) -- findet neue BTC/Krypto-
-// relevante YouTube-Videos (YouTube Data API v3, kostenloses Tages-
-// kontingent) und laesst sie per Gemini direkt per Video-URL analysieren
-// (Google-Free-Tier, siehe lib/ai/youtubeVideoAnalysis.ts). Zeigt
-// ausschliesslich bereits gespeicherte Analysen an -- ein neuer Suchlauf
-// passiert nur auf Klick.
-//
-// Nutzer-Wunsch (05.09.2026: "kann ich dort hinterlegen was angesehen
-// werden soll?") -- Freitext-Suche UND konkrete Kanaele sind konfigurierbar
-// (siehe lib/youtubeMonitorContext.ts + app/api/youtube-monitor/config).
+// Krypto-YouTube-Monitor: findet neue BTC/Krypto-relevante YouTube-Videos
+// (YouTube Data API v3, kostenloses Tageskontingent) und laesst sie per
+// Gemini direkt per Video-URL analysieren (Google-Free-Tier, siehe
+// lib/ai/youtubeVideoAnalysis.ts). Zeigt nur gespeicherte Analysen -- ein
+// neuer Suchlauf passiert nur auf Klick. Freitext-Suche und konkrete Kanaele
+// sind konfigurierbar (lib/youtubeMonitorContext.ts, /api/youtube-monitor/config).
 
 const INFO_TEXT = [
   "Was das ist: prueft konfigurierte YouTube-Kanaele auf neue Uploads UND/ODER eine Freitext-Suche (beides einstellbar, siehe 'Einstellungen' unten) -- letzte 24h, neue Videos werden per Gemini direkt anhand der Video-URL ausgewertet (Bild+Ton, kein Transkript-Umweg).",
@@ -53,12 +49,10 @@ const AGREEMENT_LABELS: Record<string, string> = {
   gespalten: "Gespalten",
 };
 
-// 13.09.2026 -- Farbe des "Einig"/"Mehrheitlich"/"Gespalten"-Badges kommt
-// jetzt von der tatsaechlichen Mehrheitsmeinung (consensus.majorityBias),
-// nicht mehr vom Einigkeitsgrad selbst: "einig" bei durchgehend bearish
-// sah bisher gruen aus wie ein bullisches Signal. Nutzt dieselbe
-// BIAS_STYLES-Palette wie die einzelnen Kanal-Badges (bullish=gruen,
-// bearish=rot, neutral/kein Mehrheits-Lager bei "gespalten"=grau).
+// Die Farbe des "Einig"/"Mehrheitlich"/"Gespalten"-Badges folgt der
+// Mehrheitsmeinung (consensus.majorityBias), nicht dem Einigkeitsgrad --
+// "einig bearish" darf nicht gruen aussehen. Gleiche BIAS_STYLES-Palette wie
+// die Kanal-Badges.
 
 // Videoliste bleibt uebersichtlich (juengste zuerst); der Kanal-Vergleich
 // (weiter unten) nutzt trotzdem den vollen, ungekuerzten `analyses`-State,

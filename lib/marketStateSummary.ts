@@ -1,19 +1,8 @@
 import type { MarketRegime, MarketState } from "./types";
 
 // Kompakte Ein-Satz-Textdarstellung der NEXUS-Assessment-SSOT (market_states,
-// compute-market-state) -- einziger Verwender ist HeroHeader.tsx (Ebene 0,
-// ganz oben auf der Seite). Die vormalige, eigene "Kurznotiz"-Kachel im
-// Marktkontext-Tab nutzte dieselbe Funktion fuer denselben Satz ein zweites
-// Mal -- entfernt (13.09.2026), kein Datenverlust, da HeroHeader ihn
-// bereits ganz oben zeigt. Bewusst NICHT zusaetzlich in MarketStateCard
-// gerendert (naheliegender erster Versuch, aber MarketStateCard sitzt
-// direkt unter HeroHeader -- derselbe Satz waere dann zweimal
-// untereinander zu sehen statt einmal entfernt).
-//
-// Ersetzt die vorher eigenstaendige, regelbasierte Kurznotiz-Generierung
-// (collect-btc's frueherer "Markteinschaetzung"-Block, nur Bybit-Preis/OI/
-// Funding, eigene feste Schwellenwerte, market_commentary-Tabelle) --
-// diese Funktion erzeugt KEINE eigene Einschaetzung, sie fasst nur die
+// compute-market-state) -- einziger Verwender ist HeroHeader.tsx (Lagebild).
+// Diese Funktion erzeugt KEINE eigene Einschaetzung, sie fasst nur die
 // bereits vorhandenen 14-Faktoren-Werte aus market_states in einem Satz
 // zusammen. Ein einziger Rechenweg fuer "wie steht der Markt gerade da".
 
@@ -65,8 +54,7 @@ export function buildCompactMarketStateSummary(state: MarketState): string {
 
   // Verlässlichkeit, Datenabdeckung und Risk bewusst NICHT hier -- die
   // stehen bereits unten in "Gesamteinschätzung im Detail" (Datenqualität/
-  // Marktlage). Nutzer-Feedback (04.10.2026): derselbe Satz oben wiederholte
-  // dieselben drei Werte ein zweites Mal.
+  // Marktlage) und sollen nicht doppelt erscheinen.
   let text = `Marktzustand ${stateText}.`;
   if (topPattern) {
     text += ` Muster: „${topPattern}".`;

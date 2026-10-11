@@ -105,13 +105,9 @@ export default function MarketContextCard({
       ? "text-down"
       : "text-text";
 
-  // 13.09.2026 -- ehemals eigene "Spot Pressure"-Kachel daneben: beide
-  // nutzten denselben Binance-Spot-Taker-Netto-Flow ueber denselben
-  // Zeitraum, Marktkontext nur als EINEN von 3 Inputs (Preis+OI+Spot-Flow),
-  // Spot Pressure als eigenstaendiges Detail-Verdikt zum Spot-Flow allein.
-  // Zusammengefuehrt statt nebeneinander doppelt zu zeigen -- Detail jetzt
-  // als Aufklapper hier, kein Datenverlust (gleiches Muster wie "Signale im
-  // Detail" beim Setup-Score).
+  // Spot Pressure als Aufklapper: Marktkontext nutzt denselben Binance-Spot-
+  // Taker-Netto-Flow als einen von 3 Inputs (Preis+OI+Spot-Flow), Spot
+  // Pressure ist das Detail-Verdikt zu diesem einen Input.
   const spotSummary = bundle.spot_summary;
   const spotSeries = bundle.spot_series;
   const sumBuy = spotSummary?.sum_taker_buy_vol ?? null;

@@ -1,10 +1,8 @@
 import type { ReactNode } from "react";
 
-// "Zweitmeinungen (KI)" -- buendelt Eskalation und Trade-Debate in einer
-// Kachel (Aufraeumrunde 11.10.2026, siehe NEXUS-STRUKTUR-KONZEPT Abschnitt
-// 8): beide holen per Klick zusaetzliche KI-Meinungen zur aktuellen Lage ein
-// und wurden einzeln kaum genutzt. Funktion und API-Routen bleiben
-// unveraendert, nur die Darstellung ist zusammengelegt.
+// "Zweitmeinungen (KI)" -- buendelt Eskalation und Trade-Debate: beide holen
+// per Klick zusaetzliche KI-Meinungen zur aktuellen Lage ein. Funktion und
+// API-Routen sind unveraendert, nur die Darstellung ist zusammengelegt.
 export default function SecondOpinionsCard({
   escalation,
   tradeDebate,

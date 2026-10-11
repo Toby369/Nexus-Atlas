@@ -7,20 +7,17 @@ import PanelInfo from "@/components/PanelInfo";
 import { fetchMtfDots, type MtfTimeframeDot } from "@/lib/mtfSignal";
 import MtfDotsRow from "@/components/MtfDotsRow";
 
-// MTF-Ampel-Refresh (22.09.2026): dieselbe 5-Minuten-Kadenz wie
-// RegimeMatrixCard/HeroHeader (siehe lib/mtfSignal.ts), unabhaengig von der
-// eigentlichen Bull/Bear-Analyse unten (die bleibt bewusst click-triggered,
-// kein Auto-Refresh -- siehe INFO_TEXT) -- die Ampel ist reiner Live-
-// Kontext neben dem zuletzt generierten Snapshot, kein Teil davon.
+// MTF-Ampel-Refresh im selben 5-Minuten-Takt wie HeroHeader/RegimeMatrixCard
+// -- reiner Live-Kontext neben dem zuletzt generierten Snapshot. Die
+// Bull/Bear-Analyse selbst bleibt bewusst click-triggered.
 const MTF_REFRESH_MS = 5 * 60_000;
 
-// Trade-Debate-Kachel (Nutzer-Idee 07.09.2026, TradingAgents-Architektur
-// [arXiv:2412.20138] recherchiert und fuer Einzelnutzer verkleinert): ein
-// BULLISHER und ein BAERISCHER Analyst suchen unabhaengig voneinander
-// (versch. primaere Provider, siehe lib/ai/tileConfig.ts) nach einem
-// Long-/Short-Setup anhand strukturierter TA- + Nexus-Derivatedaten. Ein
-// dritter Referee/CIO prueft beide Reports und faellt die finale
-// Entscheidung inkl. WAIT als vollwertigem Ergebnis.
+// Trade-Debate (TradingAgents-Architektur [arXiv:2412.20138], fuer
+// Einzelnutzer verkleinert): ein bullisher und ein baerischer Analyst suchen
+// unabhaengig voneinander (verschiedene Provider, siehe lib/ai/tileConfig.ts)
+// nach einem Long-/Short-Setup anhand strukturierter TA- und Nexus-
+// Derivatedaten. Ein dritter Referee prueft beide und faellt die finale
+// Entscheidung, WAIT ist ein vollwertiges Ergebnis.
 
 const INFO_TEXT = [
   "Was das ist: zwei gegensaetzlich geprompte KI-Analysten (nicht dieselbe Frage zweimal, sondern bewusst ein Long- und ein Short-Suchauftrag) analysieren unabhaengig voneinander denselben strukturierten Datensatz (EMAs 20/50/100/200/800, Weekly-/Monthly-/Swing-VWAP, Pivot-Punkte, plus Nexus-Funding/OI/Liquidations-Cluster/14-Faktoren-Zustand) -- kein Chart-Bild, nur Zahlen (reduziert Halluzination).",
@@ -28,7 +25,7 @@ const INFO_TEXT = [
   "EMA800 ist eine in der Krypto-Szene gebraeuchliche, aber KEINE etablierte institutionelle Kennzahl wie EMA50/200 -- wird trotzdem mitgegeben, aber von den Analysten niedriger gewichtet.",
   "Wird NICHT automatisch aktualisiert -- jeder Lauf macht 3 KI-Aufrufe (Bull, Bear, Referee), alle ueber kostenlose Gratis-Tiers (Google, OpenRouter, Groq), und entsteht nur per Klick.",
   "Kein Handelssignal, keine Anlageberatung -- eine strukturierte Analysehilfe, die eigene Entscheidung bleibt bei dir.",
-  "Die MTF-Ampel oben neben dem Titel (22.09.2026) ist reiner Live-Kontext, unabhaengig vom letzten Analyse-Lauf -- je ein Punkt fuer 15M/1H/4H/1D/1W (gruen/rot = bestaetigter Trend, gold = Trendbildung, grau = neutral, ausgegraut = keine Daten). Wird alle 5 Minuten aktualisiert, auch ohne neue Analyse.",
+  "Die MTF-Ampel oben neben dem Titel ist reiner Live-Kontext, unabhaengig vom letzten Analyse-Lauf -- je ein Punkt fuer 15M/1H/4H/1D/1W (gruen/rot = bestaetigter Trend, gold = Trendbildung, grau = neutral, ausgegraut = keine Daten). Wird alle 5 Minuten aktualisiert, auch ohne neue Analyse.",
 ].join("\n\n");
 
 const VERDICT_STYLES: Record<string, string> = {
@@ -57,8 +54,7 @@ export default function TradeDebateCard({
   initialMtfDots,
 }: {
   initialSnapshot: TradeDebateSnapshot | null;
-  // MTF-Ampel (22.09.2026, siehe lib/mtfSignal.ts) -- reiner Live-Kontext
-  // neben der Analyse, siehe MTF_REFRESH_MS oben.
+  // MTF-Ampel (lib/mtfSignal.ts) -- reiner Live-Kontext, siehe MTF_REFRESH_MS.
   initialMtfDots: MtfTimeframeDot[];
 }) {
   const [snapshot, setSnapshot] = useState(initialSnapshot);

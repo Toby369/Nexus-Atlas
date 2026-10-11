@@ -21,8 +21,7 @@ export default function LoginForm({ next }: { next: string }) {
   // etabliert daraus im Erfolgsfall eine Session -- ohne diesen Listener
   // wuerde ein neu eingeladener Nutzer trotzdem auf dem leeren Login-
   // Formular haengen bleiben, weil nichts die neue Session bemerkt und
-  // weiterleitet (siehe Bug-Report 01.09.2026: Freund landete nach Klick
-  // auf "Accept invitation" unveraendert auf /login).
+  // weiterleitet.
   //
   // type=invite/recovery bekommt bewusst ein anderes Ziel als ein
   // normaler Login: der Nutzer hat noch KEIN Passwort gesetzt (Invite)

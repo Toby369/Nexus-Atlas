@@ -13,44 +13,27 @@ import type { SystemBriefingResult, SystemBriefingTrigger } from "@/lib/types";
 
 // POST /api/system-briefing/generate
 //
-// Umsetzungsplan Phase 4 (18.09.2026): erzeugt einen neuen System-Briefing-
-// Snapshot (lib/systemBriefingContext.ts -> runTileAnalysis() -> Speichern in
-// system_briefings). 1:1 dasselbe Prinzip wie bei den anderen manuell
-// ausgeloesten KI-Kacheln -- nur ein expliziter Klick loest einen bezahlten
-// AI-Aufruf aus, das Lesen der Kachel liest ausschliesslich den
-// zwischengespeicherten letzten Stand.
+// Erzeugt einen neuen System-Briefing-Snapshot (lib/systemBriefingContext.ts
+// -> KI-Aufrufe -> Speichern in system_briefings). Nur ein expliziter Klick
+// (oder der Auto-Refresh des Lagebilds) loest KI-Aufrufe aus; das Lesen der
+// Kachel liest nur den gespeicherten Stand.
 //
 // Auth: proxy.ts sperrt diese Route wie jede andere /api/*-Route hinter eine
 // Login-Session -- keine eigene Pruefung noetig.
 //
-// 08.10.2026 -- struktureller Umbau (Nutzer-Beobachtung "sollten Master-
-// Report und System-Briefing nicht effizienter laufen, 3 verschiedene KI-
-// Aufrufe nutzen?"): vorher EIN grosser runTileAnalysis()-Aufruf mit allen
-// fuenf Abschnitten. Nach der Zusammenlegung mit Chart-Narrativ (06.10.2026)
-// riss dieser EINE Aufruf die Route bei jedem Versuch exakt bei Vercels
-// 60s-Limit (Hobby-Plan) ab; reines Kuerzen des Prompts (07.10.2026) war nur
-// ein Pflaster. Jetzt wie die AI Report Engine (report-market-structure/
-// positioning/news-macro + report-master): drei kleine, unabhaengige
-// Teil-Aufrufe PARALLEL (Regelwerk-Check, Chart-Struktur, Trigger&Szenario),
-// danach EIN kleiner Synthese-Call, der nur die drei Teil-Ergebnisse
-// verdichtet (keine Rohdaten erneut) -- siehe lib/ai/promptProfiles.ts
-// ("system-briefing-*") und lib/systemBriefingContext.ts (sliceFor*). Die
-// gespeicherte SystemBriefingResult-Form bleibt exakt gleich, die Kachel
-// merkt vom Split nichts.
+// Aufbau wie die AI Report Engine: drei kleine, unabhaengige Teil-Aufrufe
+// PARALLEL (Regelwerk-Check, Chart-Struktur, Trigger & Szenario), danach EIN
+// kleiner Synthese-Call, der nur die drei Ergebnisse verdichtet -- siehe
+// lib/ai/promptProfiles.ts ("system-briefing-*") und
+// lib/systemBriefingContext.ts (sliceFor*). Die gespeicherte
+// SystemBriefingResult-Form ist unveraendert.
 //
-// Noch am selben Tag zwei Live-Vorfaelle, beide behoben: (1) alle vier
-// Teil-Aufrufe liefen per "auto" auf Google -> 4x Quota-Verbrauch je
-// Generierung riss die geteilte Google-Gratis-Quota (429) -- siehe
-// lib/ai/tileConfig.ts, jetzt auf zwei Provider verteilt (je 2x Google/
-// OpenRouter primaer). (2) Der naheliegende Gegenzug "dann eben
-// NACHEINANDER statt parallel" fuehrte prompt zum naechsten Vorfall:
-// vier sequenzielle Aufrufe rissen zusammen wieder die 60s-Grenze
-// (clientseitig als "Failed to fetch" sichtbar -- die Funktion wird von
-// Vercel hart gekillt, bevor sie antworten kann, kein JSON-Fehler mehr
-// moeglich). PARALLEL ist daher bewusst beibehalten -- die
-// Provider-Verteilung allein reduziert die gleichzeitige Google-Last
-// bereits von 4x auf 2x (Regelwerk + Trigger), ohne Geschwindigkeit zu
-// kosten.
+// Warum so: ein einzelner grosser Aufruf riss bei jedem Versuch Vercels
+// 60s-Limit (Hobby-Plan). Vier SEQUENZIELLE Aufrufe rissen es ebenfalls
+// (clientseitig "Failed to fetch" -- Vercel killt die Funktion, bevor sie
+// antworten kann). Daher parallel, mit den drei Teilen auf verschiedenen
+// Vendors, damit Google nicht mehrfach gleichzeitig belastet wird (siehe
+// lib/ai/tileConfig.ts).
 export const maxDuration = 60;
 
 const RATE_LIMIT_WINDOW_MINUTES = 20;
@@ -81,16 +64,11 @@ export async function POST() {
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 
-  // 08.10.2026 -- Live-Vorfall: Client zeigte "Unexpected token 'A', \"An
-  // error o\"..." -- ein Hinweis darauf, dass die Route keine saubere JSON-
-  // Antwort mehr lieferte, sondern eine rohe Plattform-Fehlerseite. Im
-  // Unterschied zu getSupabaseAdmin() direkt oberhalb und dem Hauptblock
-  // weiter unten war dieser Aufruf NICHT abgesichert: checkAndRecordRateLimit
-  // faengt Supabase-FEHLERANTWORTEN selbst ab (siehe rateLimit.ts), aber ein
-  // echter Netzwerkfehler beim Fetch an Supabase wirft eine Exception, die
-  // hier ungefangen durchschlug -- Vercel liefert dafuer keine JSON-, sondern
-  // eine HTML/Text-Fehlerseite, die der Client dann vergeblich als JSON
-  // parsen wollte.
+  // Abgesichert, weil ein echter Netzwerkfehler beim Fetch an Supabase eine
+  // Exception wirft (Supabase-FEHLERANTWORTEN faengt
+  // checkAndRecordRateLimit selbst ab). Ungefangen liefert Vercel eine
+  // HTML/Text-Fehlerseite statt JSON, die der Client vergeblich parsen
+  // wuerde ("Unexpected token 'A'...").
   let rateLimit: Awaited<ReturnType<typeof checkAndRecordRateLimit>>;
   try {
     rateLimit = await checkAndRecordRateLimit(

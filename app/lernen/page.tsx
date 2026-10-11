@@ -71,7 +71,7 @@ export default async function LernenPage() {
     { label: "vwap_swing_low", price: tradingIndicators.vwapVector.swingLowVwap },
   ]);
 
-  // Level-Struktur (Nutzer-Wunsch 03.10.2026): baut auf den bereits mit
+  // Level-Struktur: baut auf den bereits mit
   // EMA50/Swing-VWAP angereicherten Key Levels oben auf (chartStructureEnriched
   // .keyLevels liefert direkt confirmedBy fuer die Konfluenz-Stufe, kein
   // zweiter Fetch) + dem bereits geladenen CVD-Trend -- eigener Fetch nur

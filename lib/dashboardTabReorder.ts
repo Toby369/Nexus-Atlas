@@ -1,7 +1,6 @@
 // Reine Hilfsfunktionen fuer Tab-gescopte Drag-/Pfeil-Reorder-Operationen
-// in components/DashboardLayout.tsx (09.09.2026, Tab-Navigation). Die
-// vollstaendige Kachel-Reihenfolge bleibt EIN globales, in localStorage
-// persistiertes Array (unveraendert gegenueber vor der Tab-Einfuehrung) --
+// in components/DashboardLayout.tsx. Die vollstaendige Kachel-Reihenfolge
+// bleibt EIN globales, in localStorage persistiertes Array --
 // aber Drag-Handle und Pfeil-Buttons duerfen jeweils nur innerhalb der
 // Kacheln des gerade sichtbaren Tabs verschieben, da ein Nachbar aus einem
 // anderen Tab in der sichtbaren Liste gar nicht angezeigt wird und daher nie

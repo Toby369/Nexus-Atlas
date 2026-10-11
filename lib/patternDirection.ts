@@ -1,8 +1,6 @@
 // Richtung je benanntem Warn-Muster (compute-market-state Edge Function,
-// market_states.patterns) -- ausgelagert aus components/HeroHeader.tsx
-// (03.10.2026), wo diese Zuordnung urspruenglich stand, weil
-// lib/levelStructureContext.ts dieselbe Zuordnung fuer den Signal-Abgleich
-// braucht. Beide liegen im selben Next.js-Repo (kein Cross-Runtime-Grund
+// market_states.patterns) -- gemeinsam genutzt von components/HeroHeader.tsx
+// und lib/levelStructureContext.ts (Signal-Abgleich). Beide liegen im selben Next.js-Repo (kein Cross-Runtime-Grund
 // fuer eine Kopie wie bei den Supabase Edge Functions) -- ein gemeinsamer
 // Import statt einer zweiten Kopie.
 //

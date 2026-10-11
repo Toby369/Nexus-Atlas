@@ -11,12 +11,10 @@ const REFRESH_INTERVAL_MS = 60_000;
 const NEWS_LIMIT = 5;
 const NEWS_LOOKBACK_HOURS = 72;
 
-// 20.09.2026 -- vormals eigene Kachel "News-Einordnung (KI)": deckte
-// dieselben Schlagzeilen ab wie dieses Panel (siehe eigener Info-Text
-// unten: "keine zweite, unabhaengige Nachrichtenquelle und kein Ersatz").
-// Aufgeklappter Abschnitt statt eigener Kachel -- eine Kachel weniger,
+// Die KI-News-Einordnung ist ein Aufklapper in diesem Panel, da sie dieselben
+// Schlagzeilen abdeckt (siehe Info-Text: keine zweite Nachrichtenquelle).
 // Backend/API (/api/news-analysis/generate, news_analysis_snapshots)
-// unveraendert.
+// eigenstaendig.
 const NEWS_ANALYSIS_INFO_TEXT = [
   "Was das ist: eine KI-Einordnung derselben Schlagzeilen oben -- keine zweite, unabhaengige Nachrichtenquelle und kein Ersatz fuer die regelbasierte Liste.",
   "Primaerer Provider ist Google Gemini, Fallback Groq -- beide ordnen ausschliesslich die bereits gesammelten Schlagzeilen oben ein (keine Live-Web-Suche), das Modell darf dabei ausdruecklich keine Nachrichten erfinden, die nicht in der Liste stehen.",

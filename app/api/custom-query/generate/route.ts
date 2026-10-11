@@ -6,8 +6,7 @@ import { checkAndRecordRateLimit } from "@/lib/rateLimit";
 
 // POST /api/custom-query/generate
 //
-// Freie-Anfrage-Kachel (Nutzer-Wunsch 08.09.2026: "kann ich eine Kachel
-// haben, in der ich KI konkreter Auftrag geben kann?"). Der Nutzer schreibt
+// Freie Anfrage (Abschnitt im System-Briefing): der Nutzer schreibt
 // eine frei formulierte Aufgabe/Frage, die KI beantwortet sie ausschliesslich
 // anhand des echten, strukturierten Nexus-Marktkontexts (siehe
 // lib/customQueryContext.ts) -- nie mit erfundenen Zahlen.

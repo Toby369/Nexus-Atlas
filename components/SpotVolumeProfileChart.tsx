@@ -35,14 +35,9 @@ function formatBtc(value: number): string {
 }
 
 // Preis-Volumen-Profil (horizontal, gestapelt): je Preis-Bucket EIN Balken,
-// dessen Laenge das Gesamtvolumen zeigt und der intern nach Kauf-/
-// Verkaufsanteil gruen/rot eingefaerbt ist -- bewusst NICHT gespiegelt
-// (Nutzer-Feedback 04.10.2026: die vorherige Links/Rechts-Spiegelung an
-// einer Nulllinie liess sich nicht auf Anhieb lesen, weil das
-// Gesamtvolumen je Preisstufe erst durch gedankliches Addieren von rot und
-// gruen sichtbar wurde). So ist die Balkenlaenge direkt zwischen allen
-// Preisstufen vergleichbar, das Farbverhaeltnis zeigt trotzdem, wer
-// dominiert hat.
+// dessen Laenge das Gesamtvolumen zeigt, intern nach Kauf-/Verkaufsanteil
+// gruen/rot eingefaerbt -- bewusst NICHT an einer Nulllinie gespiegelt, damit
+// die Balkenlaenge direkt zwischen Preisstufen vergleichbar ist.
 export default function SpotVolumeProfileChart({
   buckets,
   height = 220,

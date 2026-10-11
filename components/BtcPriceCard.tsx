@@ -7,10 +7,8 @@ import { RelativeTime, ClockTime } from "@/components/ClientTimestamp";
 import { btcPriceInfo } from "@/lib/panelInfo";
 import { formatUsd, clockTimeLabel } from "@/lib/livePriceFormat";
 
-// Aus der ehemaligen LivePricePanel.tsx herausgeloest (Nutzer-Feedback
-// 05.09.2026, siehe LivePriceDataProvider.tsx) -- Live-Status-Zeile +
-// grosse Preis-Anzeige + Preis-Chart. Datenquelle ist der gemeinsame
-// LivePriceDataProvider (siehe app/page.tsx).
+// Live-Status-Zeile + grosse Preis-Anzeige + Preis-Chart. Datenquelle ist
+// der gemeinsame LivePriceDataProvider (siehe app/page.tsx).
 
 export default function BtcPriceCard() {
   const { latest, priceChange, isUp, priceSeries, isStale, lastSyncOk } = useLivePriceData();

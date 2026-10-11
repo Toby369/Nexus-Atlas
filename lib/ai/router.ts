@@ -23,12 +23,8 @@ import { getTileConfig } from "./tileConfig";
 // Entspricht der Rollen-Doku (Abschnitt 12), ist aber austauschbar, ohne
 // dass tileConfig.ts oder die Kacheln selbst angepasst werden muessten.
 //
-// "signal-logic" -> google (Nutzer-Entscheidung 07.09.2026, nach einem
-// Anthropic-Ausfall am selben Tag). Anthropic wurde am 15.09.2026 komplett
-// aus allen Fallback-Ketten entfernt (Nutzer-Bedingung: durchgehend
-// kostenlos -- Anthropic ist kostenpflichtig, siehe Kommentar in
-// tileConfig.ts), ist also fuer keine Kachel hier mehr auch nur als letzter
-// Fallback im Spiel.
+// "signal-logic" -> google. Anthropic steht in keiner Kette (die App soll
+// durchgehend kostenlos bleiben, siehe Kommentar in tileConfig.ts).
 const AUTO_CATEGORY_PROVIDER: Record<PromptProfileCategory, AIProviderId> = {
   "market-mechanics": "xai", // Grok: Krypto-/Marktmechanik
   research: "perplexity", // Web Research, News, externe Quellen
@@ -85,8 +81,7 @@ export async function runTileAnalysis<T = unknown>(
   const attempted: AIProviderId[] = [];
   // Ein Fehler PRO Provider, nicht nur der letzte -- sonst verdeckt z.B. ein
   // "deepseek: nicht konfiguriert"-Fallback-Fehler den eigentlich
-  // interessanten Fehler des primaeren Providers (Bug gefunden 07.09.2026:
-  // Anthropic-Ausfaelle waren dadurch fuer den Nutzer unsichtbar).
+  // interessanten Fehler des primaeren Providers.
   const errors: string[] = [];
 
   for (const providerId of providerChain) {
@@ -98,14 +93,9 @@ export async function runTileAnalysis<T = unknown>(
       continue;
     }
 
-    // 08.10.2026 -- Live-Vorfall (System-Briefing "Regelwerk"-Kachel):
-    // Google UND OpenRouter liefen wiederholt exakt bis zum konfigurierten
-    // Zeitlimit (erst 12s, dann 20s) ohne jede Antwort aus -- bei einem nur
-    // ~5KB kleinen Kontext kein Last-/Groessenproblem. Ohne Zeitmessung pro
-    // Versuch liess sich nicht unterscheiden, OB ein Provider ueberhaupt
-    // etwas tat, bevor das Zeitlimit griff. Jetzt wird jeder Versuch mit
-    // Dauer geloggt (Vercel Runtime Logs) -- naechster Vorfall liefert damit
-    // echte Daten statt einer weiteren Vermutung.
+    // Jeder Versuch wird mit Dauer geloggt (Vercel Runtime Logs): Provider
+    // liefen schon wiederholt ohne jede Antwort bis zum Zeitlimit -- erst die
+    // Messung zeigt, ob ein Provider ueberhaupt etwas tat.
     const attemptStart = Date.now();
     try {
       const result = await provider.generateStructured<T>(options.context, {

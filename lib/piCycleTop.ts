@@ -1,4 +1,4 @@
-// Pi-Cycle-Top-Indikator (Umsetzungsplan Phase 5, 05.09.2026) -- Konzept
+// Pi-Cycle-Top-Indikator -- Konzept
 // aus der Marktradar-Kachel "picycle" im Crypto-Trading-Journal. Vergleicht
 // den 111-Tage- mit dem verdoppelten 350-Tage-gleitenden-Durchschnitt der
 // taeglichen Schlusskurse: kreuzt der 111DMA von unten ueber den 2x350DMA,

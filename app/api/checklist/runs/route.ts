@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
-// Snapshot-Protokoll der Wissens-Checklisten (Nutzer-Wunsch 15.09.2026,
-// siehe Migration create_checklist_runs_table). Gleiches Muster wie
+// Snapshot-Protokoll der Wissens-Checklisten (siehe Migration
+// create_checklist_runs_table). Gleiches Muster wie
 // /api/quiz/cards: Lesen laeuft direkt ueber den Anon-Key aus den
 // Client-Komponenten (Public read access, siehe LernenDashboard.tsx),
 // Schreiben ausschliesslich hier ueber den Service-Role-Client -- deshalb

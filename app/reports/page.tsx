@@ -29,9 +29,8 @@ const PROVIDER_LABELS: Record<AIProviderId, string> = {
 // einfache, client-sichere Daten (Boolean) an die Dashboard-Komponente
 // gereicht -- kein Key verlaesst je den Server (Vorgabe Teil V).
 //
-// 14.09.2026 -- nur noch Gratis-Tier-Provider (siehe lib/ai/reportProviders.ts):
-// "muss kostenlos sein, gesamte AI report!" -- OpenAI/Anthropic/xAI/
-// Perplexity/DeepSeek stehen bewusst nicht mehr zur Auswahl.
+// Nur Gratis-Tier-Provider (siehe lib/ai/reportProviders.ts) -- OpenAI/
+// Anthropic/xAI/Perplexity/DeepSeek stehen bewusst nicht zur Auswahl.
 function getProviderOptions(): ProviderOption[] {
   return (Object.keys(providerRegistry) as AIProviderId[])
     .filter((id) => FREE_TIER_REPORT_PROVIDERS.includes(id))

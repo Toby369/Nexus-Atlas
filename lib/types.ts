@@ -212,14 +212,12 @@ export interface ReportConfig {
   provider: string;
   model: string | null;
   timeframe: string;
-  // 14.09.2026 -- ersetzt das vormalige einzelne schedule_time: bis zu 3
-  // taegliche Uhrzeiten (HH:MM, UTC) je Slot, siehe report-scheduler.
+  // Bis zu 3 taegliche Uhrzeiten (HH:MM, UTC) je Slot, siehe report-scheduler.
   schedule_times: string[] | null;
   active: boolean;
   email_enabled: boolean;
-  // 14.09.2026 -- "zusaetzlich zum email, eine push benachrichtigung" +
-  // "frei waehlbar wie email!": eigener Toggle je Slot, spiegelt
-  // email_enabled exakt (kein globaler Schalter).
+  // Push-Benachrichtigung je Slot, spiegelt email_enabled (kein globaler
+  // Schalter).
   push_enabled: boolean;
   created_at: string;
   updated_at: string;
@@ -361,10 +359,8 @@ export interface MarketStateMatrix {
   created_at: string;
 }
 
-// MTF-Ampel (22.09.2026, siehe lib/mtfSignal.ts) -- minimaler market_features-
-// Ausschnitt, nur die Spalten, die die Ampel braucht. Kein vollstaendiges
-// Interface fuer die ganze Tabelle: die Pipeline-Seite (collect-candles)
-// braucht die uebrigen Spalten im Frontend nicht.
+// MTF-Ampel (lib/mtfSignal.ts) -- minimaler market_features-Ausschnitt, nur
+// die Spalten, die die Ampel braucht.
 export interface MarketFeaturesMtfRow {
   interval: string;
   candle_open_time: string;
@@ -372,13 +368,11 @@ export interface MarketFeaturesMtfRow {
   adx_14: number | null;
 }
 
-// Kurzfristiger Seitwaerts-Check (20.09.2026, siehe get_short_term_range_check()
-// RPC) -- die 1h-Regime-Engine oben kann nach einem abgeschlossenen
-// Trendimpuls mehrere Stunden "nachlaufen" (ADX/Regressionssteigung bleiben
-// von der vorherigen Bewegung erhoeht, obwohl der Kurs bereits seitwaerts
-// laeuft). Dieser Check liest NUR die letzten `lookback_bars` 15m-Kerzen +
-// den aktuellen 15m-ADX, unabhaengig von der 1h-Engine -- reiner Read, keine
-// Historie/kein Cron.
+// Kurzfristiger Seitwaerts-Check (RPC get_short_term_range_check()) -- die
+// 1h-Regime-Engine kann nach einem abgeschlossenen Trendimpuls mehrere
+// Stunden "nachlaufen" (ADX/Regressionssteigung bleiben erhoeht, obwohl der
+// Kurs seitwaerts laeuft). Dieser Check liest NUR die letzten `lookback_bars`
+// 15m-Kerzen + den aktuellen 15m-ADX, unabhaengig von der 1h-Engine.
 export interface ShortTermRangeCheck {
   as_of: string | null;
   interval: string;
@@ -401,32 +395,21 @@ export interface EconomicCalendarEvent {
   updated_at: string;
 }
 
-// System-Briefing (Umsetzungsplan Phase 4, 18.09.2026; erweitert 22.09.2026
-// um Marktkontext/ETF-Flows/Positionierung/News -- ersetzt seither das
-// entfernte "market-state-narrative"-Profil, siehe lib/ai/promptProfiles.ts):
-// fusioniert Tobys eigenes Regelwerk (knowledge_base) + Nexus' berechnete
-// Faktoren (14-Faktoren-Engine, GUSS/VWAP-Vector/CVD, Liquidations-Cluster,
-// Marktkontext, ETF-Flows, Positionierung, News) zu EINER Synthese.
-//
-// 30.09.2026 -- komplett neu strukturiert (Nutzer-Feedback "zu lang,
-// unstrukturiert", siehe Chat-Verlauf): ersetzt sowohl das vorherige
-// "narrative" (ein langer Fliesstext-Absatz) als auch die eigenstaendige
-// Handelslage-Kachel (HandelslageResult/-Snapshot, jetzt entfernt) --
-// bewegungsvorrat ist seither Teil des System-Briefing-Kontexts
-// (lib/systemBriefingContext.ts). Vier klar getrennte Abschnitte statt
-// einem Block; Trigger enthaelt jetzt explizit ein Kursziel (Nutzer-
-// Entscheidung 30.09.2026: "konkrete Kursziele erlauben", vorher verboten --
-// dieselbe Sprache wie schon laenger bei Trade-Debate ueblich).
+// System-Briefing: fusioniert Tobys eigenes Regelwerk (knowledge_base) +
+// Nexus' berechnete Faktoren (14-Faktoren-Engine, GUSS/VWAP-Vector/CVD,
+// Liquidations-Cluster, Marktkontext, ETF-Flows, Positionierung, News,
+// Bewegungsvorrat) zu EINER Synthese in klar getrennten Abschnitten (siehe
+// lib/systemBriefingContext.ts, lib/ai/promptProfiles.ts "system-briefing").
+// Trigger enthaelt explizit ein Kursziel.
 export interface SystemBriefingFazit {
   bias: "bullish" | "bearish" | "neutral";
   confidence: number;
   kernaussage: string;
 }
 
-// Trigger&Szenario liefert seit der Zusammenlegung mit der vormaligen
-// Chart-Narrativ-Kachel (06.10.2026) IMMER beide Richtungen -- kursziel
-// MUSS einem echten keyLevels-Preis entsprechen oder null sein (siehe
-// promptProfiles.ts "system-briefing").
+// Trigger & Szenario liefert IMMER beide Richtungen -- kursziel MUSS einem
+// echten keyLevels-Preis entsprechen oder null sein (siehe promptProfiles.ts
+// "system-briefing").
 export interface SystemBriefingScenario {
   bedingungen: string[];
   kursziel: number | null;
@@ -441,8 +424,7 @@ export interface SystemBriefingTrigger {
 export interface SystemBriefingResult {
   fazit: SystemBriefingFazit;
   regelwerkCheck: string;
-  // Chart-Formationen/Key Levels/Level-Struktur -- aus der 06.10.2026
-  // zusammengelegten Chart-Narrativ-Kachel (vormals "structureNarrative").
+  // Chart-Formationen/Key Levels/Level-Struktur.
   chartStruktur: string;
   // null, wenn weder Marktkontext/ETF/Positionierung/News NOCH Chart-
   // Struktur dem Regelwerk-Check widersprechen -- bewusst weggelassen statt
@@ -529,19 +511,16 @@ export interface OrderbookWallSnapshot {
   ask_wall_usd: number | null;
   // Kumulierte Bid-/Ask-Tiefe (USD) innerhalb eines ±0.5%-Bandes um den
   // Mid-Preis (siehe collect-orderbook, DEPTH_RANGE_PCT) -- die Summe ALLER
-  // Level auf der jeweiligen Seite, nicht nur der groessten einzelnen Wand.
-  // War schon immer erfasst (Basis von depth_imbalance), bisher aber nirgends
-  // angezeigt (Nutzer-Wunsch 16.09.2026: "kumulierte Anzeige, bid&ask").
+  // Level je Seite, Basis von depth_imbalance.
   bid_depth_usd: number | null;
   ask_depth_usd: number | null;
   status: string;
 }
 
-// KI-Einordnung bereits regelbasiert als markbewegend eingestufter News
-// (News-Kachel, KI-Ergaenzung 05.09.2026, erster mit Perplexity aktivierter
-// Slot) -- siehe lib/newsAnalysisContext.ts + lib/ai/promptProfiles.ts
-// ("news-analysis"). "items" bewusst auf die von Nexus bereits gelieferten
-// Schlagzeilen beschraenkt (Prompt untersagt dem Modell, neue zu erfinden).
+// KI-Einordnung bereits regelbasiert als markbewegend eingestufter News --
+// siehe lib/newsAnalysisContext.ts + lib/ai/promptProfiles.ts
+// ("news-analysis"). "items" bewusst auf die von Nexus gelieferten
+// Schlagzeilen beschraenkt (Prompt untersagt, neue zu erfinden).
 export interface NewsAnalysisItem {
   headline: string;
   impact: "high" | "medium" | "low";
@@ -563,10 +542,9 @@ export interface NewsAnalysisSnapshot {
   error: string | null;
 }
 
-// Periodischer KI-Rueckblick, Phase 3 (10.09.2026) -- liest ausschliesslich
-// die in Phase 2 (signal_stats_results) fertig berechneten Zahlen, kein
-// eigener Bias, kein Handelssignal. Siehe lib/signalReviewContext.ts +
-// lib/ai/promptProfiles.ts ("signal-review").
+// Periodischer KI-Rueckblick -- liest ausschliesslich fertig berechnete Zahlen
+// (signal_stats_results), kein eigener Bias, kein Handelssignal. Siehe
+// lib/signalReviewContext.ts + lib/ai/promptProfiles.ts ("signal-review").
 export interface SignalReviewResult {
   summary: string;
   robust_findings: string[];
@@ -584,13 +562,10 @@ export interface SignalReviewSnapshot {
   error: string | null;
 }
 
-// Eskalations-Kachel (Thema KI, "gezielte Eskalation", 05.09.2026) -- kein
-// Dauerbetrieb mehrerer Provider, sondern eine gezielte Zweit-/Drittmeinung
-// nur wenn eines der bestehenden Mechanismen (System-Briefing-Kontext-
-// Check, Divergenz-Radar, Report-Master) bereits einen Widerspruch/eine
-// Divergenz meldet.
-// Siehe lib/escalationContext.ts (Trigger-Erkennung) + lib/
-// escalationConsensus.ts (reine Konsens-Logik) + lib/ai/promptProfiles.ts
+// Eskalation ("gezielte Eskalation"): eine Zweit-/Drittmeinung nur, wenn
+// System-Briefing-Konfluenz-Check, Divergenz-Radar oder Report-Master bereits
+// einen Widerspruch melden. Siehe lib/escalationContext.ts (Trigger),
+// lib/escalationConsensus.ts (Konsens-Logik), lib/ai/promptProfiles.ts
 // ("escalation-analysis").
 export interface EscalationTriggerRecord {
   source: "system-briefing" | "divergence-radar" | "report-master";
@@ -617,10 +592,10 @@ export interface EscalationSnapshot {
   error: string | null;
 }
 
-// Trade-Debate-Kachel (Nutzer-Idee 07.09.2026, TradingAgents-Architektur
-// [arXiv:2412.20138]): zwei gegensaetzlich geprompte Analysten (Bull/Bear)
-// + ein Referee/CIO, siehe lib/ai/promptProfiles.ts "trade-bull-analyst"/
-// "trade-bear-analyst"/"trade-referee" fuer die genauen Schemata.
+// Trade-Debate (TradingAgents-Architektur [arXiv:2412.20138]): zwei
+// gegensaetzlich geprompte Analysten (Bull/Bear) + ein Referee, Schemata in
+// lib/ai/promptProfiles.ts "trade-bull-analyst"/"trade-bear-analyst"/
+// "trade-referee".
 export interface TradeDebateAnalystResult {
   bias: "long" | "short";
   entry_price: number;
@@ -657,11 +632,10 @@ export interface TradeDebateSnapshot {
   error: string | null;
 }
 
-// Krypto-YouTube-Monitor (Thema KI, 05.09.2026) -- findet neue BTC/Krypto-
-// relevante YouTube-Videos (YouTube Data API v3, kostenloses Tageskontingent)
-// und laesst sie per Gemini direkt per Video-URL analysieren (Google-
-// Free-Tier). Siehe lib/youtubeMonitorContext.ts (Suche) + lib/ai/
-// youtubeVideoAnalysis.ts (Analyse).
+// Krypto-YouTube-Monitor -- findet neue BTC/Krypto-relevante YouTube-Videos
+// (YouTube Data API v3, kostenloses Tageskontingent) und laesst sie per
+// Gemini direkt per Video-URL analysieren (Google-Free-Tier). Siehe
+// lib/youtubeMonitorContext.ts (Suche) + lib/ai/youtubeVideoAnalysis.ts.
 export interface YoutubeVideoAnalysisResult {
   bias: "bullish" | "bearish" | "neutral";
   confidence: number;

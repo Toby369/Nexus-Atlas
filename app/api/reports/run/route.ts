@@ -41,14 +41,10 @@ const RATE_LIMIT_ENDPOINT = "reports_run";
 // konfiguriert oder schlaegt der Versand fehl, bleibt der Report-Lauf selbst
 // trotzdem erfolgreich; nur report_runs.email_sent bleibt dann false.
 //
-// 14.09.2026 -- analog dazu report_configs.push_enabled (Nutzer-Wunsch:
-// "zusaetzlich zum email, eine push benachrichtigung ... frei waehlbar wie
-// email!"): sendReportPush() (lib/push/index.ts) ruft dieselbe
-// send-state-change-push Edge Function wie die uebrigen Push-Trigger auf,
-// mit url: "/reports" -- Antippen der Benachrichtigung oeffnet die AI
-// Reports Seite, wo der generierte Text (Bias/Summary) direkt unter dem
-// jeweiligen Slot sichtbar ist. Ebenfalls nie blockierend fuer den
-// Report-Lauf selbst; nur report_runs.push_sent bleibt dann false.
+// Analog dazu report_configs.push_enabled: sendReportPush()
+// (lib/push/index.ts) ruft die send-state-change-push Edge Function auf;
+// Antippen der Benachrichtigung oeffnet den Slot auf der AI-Reports-Seite.
+// Ebenfalls nie blockierend; nur report_runs.push_sent bleibt dann false.
 
 const PROMPT_PROFILE_BY_TYPE: Record<ReportType, string> = {
   market_structure: "report-market-structure",
@@ -64,17 +60,12 @@ const REPORT_TYPE_LABEL: Record<ReportType, string> = {
   master: "Master",
 };
 
-// Nutzer-Feedback 14.09.2026 ("email geht schoener! oder?", Screenshot
-// zeigte den rohen JSON.stringify-Dump in einem <pre>-Block): baut
-// stattdessen dieselben Felder, die das Dashboard (LastRunView in
-// ReportEngineDashboard.tsx) bereits anzeigt, als lesbar formatiertes
-// HTML -- Bias/Confidence als farbiges Badge, Zusammenfassung als
-// Fliesstext, Faktoren/Widersprueche als Liste. Alle AI-generierten
-// Strings MUESSEN escapeHtml() durchlaufen: sie landen direkt im
-// HTML-Body, ein von der KI (oder theoretisch injizierten Rohdaten)
-// erzeugter String wie "<img src=x onerror=...>" waere sonst im
-// Mail-Client als Markup interpretierbar -- der bisherige <pre>-Ansatz
-// hatte dieselbe Luecke, da <pre> weiterhin HTML parst.
+// Baut dieselben Felder, die das Dashboard (LastRunView in
+// ReportEngineDashboard.tsx) zeigt, als lesbares HTML: Bias/Confidence als
+// Badge, Zusammenfassung als Fliesstext, Faktoren/Widersprueche als Liste.
+// Alle AI-generierten Strings MUESSEN escapeHtml() durchlaufen: ein String wie
+// "<img src=x onerror=...>" waere im Mail-Client sonst als Markup
+// interpretierbar.
 function escapeHtml(value: unknown): string {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -132,8 +123,8 @@ function buildReportEmailHtml(config: ReportConfig, timeframe: string, resultDat
 
   const confidence = typeof data.confidence === "number" ? Math.round(data.confidence) : undefined;
   const summary = typeof data.summary === "string" ? data.summary : "";
-  // changeSinceLast (03.10.2026) -- nur beim Master-Report vorhanden, siehe
-  // Prompt-Profil "report-master" in lib/ai/promptProfiles.ts.
+  // changeSinceLast -- nur beim Master-Report vorhanden, siehe Prompt-Profil
+  // "report-master" in lib/ai/promptProfiles.ts.
   const changeSinceLast = typeof data.changeSinceLast === "string" ? data.changeSinceLast : undefined;
   const keyFactors = stringArray(data.keyFactors);
   const riskLevel = typeof data.riskLevel === "string" ? data.riskLevel : undefined;
@@ -328,12 +319,10 @@ export async function POST(req: NextRequest) {
       getLatestSuccessfulRun("market_structure"),
       getLatestSuccessfulRun("positioning"),
       getLatestSuccessfulRun("news_macro"),
-      // Nutzer-Wunsch 03.10.2026 ("kann der report auf den vorherigen kurz
-      // eingehen?!"): anders als marketStructureRun/positioningRun/
-      // newsMacroRun oben ist ein fehlender vorheriger Master-Lauf KEIN
-      // Fehler (erster Lauf ueberhaupt) -- siehe previousMasterReport unten,
-      // bleibt dann schlicht null, der Prompt (report-master) weiss das zu
-      // behandeln.
+      // Anders als marketStructureRun/positioningRun/newsMacroRun oben ist ein
+      // fehlender vorheriger Master-Lauf KEIN Fehler (erster Lauf) --
+      // previousMasterReport bleibt dann null, der Prompt (report-master)
+      // behandelt das.
       getLatestSuccessfulRun("master"),
     ]);
 
@@ -404,13 +393,9 @@ export async function POST(req: NextRequest) {
       model: config.model ?? undefined,
       promptProfile,
       context: JSON.stringify(contextPayload),
-      // 14.09.2026 -- Bugfix (Nutzer-Report: mistral HTTP 429 liess den
-      // gesamten Report-Lauf ohne jeden Fallback scheitern): vorher wurde
-      // hier gar keine fallbackProviders-Kette uebergeben, obwohl
-      // runReportAnalysis() sie unterstuetzt. Faellt der vom Nutzer
-      // gewaehlte Provider aus (Rate-Limit, Ausfall), springt die Kette auf
-      // die uebrigen Gratis-Tier-Provider -- bleibt damit im Rahmen von
-      // "muss kostenlos sein, gesamte AI report!" (lib/ai/reportProviders.ts).
+      // Fallback-Kette: faellt der gewaehlte Provider aus (Rate-Limit,
+      // Ausfall), springt runReportAnalysis() auf die uebrigen Gratis-Tier-
+      // Provider (lib/ai/reportProviders.ts) -- bleibt damit kostenlos.
       fallbackProviders: FREE_TIER_REPORT_PROVIDERS,
     });
 
@@ -482,11 +467,9 @@ export async function POST(req: NextRequest) {
       const pushResult = await sendReportPush({
         title: `NEXUS Atlas · ${REPORT_TYPE_LABEL[config.report_type]}-Report`,
         body: summary && summary.length > 0 ? summary : "Neuer Report verfuegbar.",
-        // 14.09.2026 -- Deep-Link direkt zum Slot (statt nur "/reports"):
-        // Nutzer-Report "moechte diese generierte nachricht lesen koennen",
-        // die Reports-Seite scrollt beim Laden per Anchor automatisch zur
-        // richtigen Kachel (siehe id={`slot-${config.slot}`} in
-        // ReportEngineDashboard.tsx), kein manuelles Suchen unter 4 Slots.
+        // Deep-Link direkt zum Slot: die Reports-Seite scrollt per Anchor zur
+        // richtigen Kachel (id={`slot-${config.slot}`} in
+        // ReportEngineDashboard.tsx).
         url: `/reports#slot-${config.slot}`,
       });
 

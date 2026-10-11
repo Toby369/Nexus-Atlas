@@ -9,15 +9,9 @@ import { formatSignedPct } from "@/lib/livePriceFormat";
 import { SERIES_EXCHANGES, type SeriesExchangeId } from "@/lib/exchanges";
 import type { OiChangeByExchange } from "@/lib/types";
 
-// Aus der ehemaligen LivePricePanel.tsx herausgeloest (Nutzer-Feedback
-// 05.09.2026, siehe LivePriceDataProvider.tsx) -- OI Change%/BTC Change%
-// samt Boersen-Auswahl und der Preis/OI-Vergleichschart.
-//
-// 13.09.2026 -- ehemals eigene "OI je Börse"-Kachel daneben: laut eigenem
-// Code-Kommentar dort explizit der Detail-Blick auf dieselbe OI-Change%-
-// Zahl, die hier schon als Headline (mit Boersen-Selector) steht. Gleiches
-// Muster wie Marktkontext/Spot-Pressure -- als Aufklapper zusammengefuehrt
-// statt zwei Kacheln fuer dieselbe Metrik, kein Datenverlust.
+// OI Change%/BTC Change% samt Boersen-Auswahl und Preis/OI-Vergleichschart.
+// Die Aufschluesselung "OI je Boerse" steckt als Aufklapper hier, da sie
+// dieselbe OI-Change%-Zahl im Detail zeigt.
 
 const COMPARE_EXCHANGES = ["bybit", "binance", "okx", "bitget", "bitunix", "pionex"];
 const EXCHANGE_LABELS: Record<string, string> = {

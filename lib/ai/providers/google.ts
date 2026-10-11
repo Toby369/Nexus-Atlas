@@ -9,13 +9,10 @@ import { extractJson } from "../extractJson";
 // Env-Vars: GOOGLE_API_KEY, GOOGLE_MODEL (z.B. "gemini-..." – aktuelles
 // Modell zum Zeitpunkt der Aktivierung eintragen, kein Default hier).
 //
-// Free-Tier, kein Billing-Konto verknuepft (vom Nutzer am 16.09.2026 in
-// Google AI Studio bestaetigt) -- Anfragen ueber dem Gratis-Kontingent
-// werden abgelehnt, nicht abgerechnet. Damit in derselben Kategorie wie
-// groq.ts/mistral.ts/openrouter.ts: dieser Provider ist Teil der bewusst
-// kostenlos gehaltenen Kacheln (siehe Kommentar in tileConfig.ts) und darf
-// nicht durch einen kostenpflichtigen Anbieter (z.B. Anthropic) ersetzt
-// werden, ohne das explizit mit dem Nutzer abzuklaeren.
+// Free-Tier, kein Billing-Konto verknuepft -- Anfragen ueber dem
+// Gratis-Kontingent werden abgelehnt, nicht abgerechnet. Teil der bewusst
+// kostenlos gehaltenen Kacheln (siehe tileConfig.ts) und darf nicht ohne
+// Absprache durch einen kostenpflichtigen Anbieter ersetzt werden.
 
 async function callGenerateContent(
   systemPrompt: string | undefined,
@@ -38,13 +35,10 @@ async function callGenerateContent(
 
   const contents = [{ role: "user", parts: [{ text: userPrompt }] }];
 
-  // Siehe openaiCompatible.ts (gleicher Fund, 08.10.2026): AbortSignal.
-  // timeout() in fetchWithRetry() gilt fuer die GESAMTE Fetch-Lebensdauer
-  // inkl. res.json(), nicht nur fuer den Verbindungsaufbau -- ein try/catch
-  // nur um fetchWithRetry() (vorherige Version) liess einen waehrend
-  // res.json() ausloesenden Timeout ungefangen durch (roher, unpraefixierter
-  // DOMException-Text statt "google: Zeitueberschreitung..."). Jetzt
-  // umschliesst EIN try/catch den gesamten Ablauf.
+  // Siehe openaiCompatible.ts: AbortSignal.timeout() in fetchWithRetry() gilt
+  // fuer die GESAMTE Fetch-Lebensdauer inkl. res.json() -- EIN try/catch um
+  // den gesamten Ablauf, damit auch ein Timeout beim Body-Lesen sauber als
+  // "google: Zeitueberschreitung..." gemeldet wird.
   try {
     const res = await fetchWithRetry(url, {
       method: "POST",

@@ -3,21 +3,17 @@ import { type EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Serverseitiger Bestaetigungs-Endpoint fuer Einladungs-/Passwort-Reset-
-// Mails -- offizielles Supabase-Muster fuer genau diesen Stack (Next.js +
-// @supabase/ssr + serverseitiges Auth-Gate in proxy.ts), siehe Supabase-
-// Doku "Build a User Management App with Next.js". Ersetzt den Versuch,
-// die Session clientseitig aus einem URL-FRAGMENT zu lesen (LoginForm.tsx,
-// 01.09.2026): Supabase haengt bei diesem Ablauf token_hash + type als
-// QUERY-PARAMETER an (nicht als Fragment), die -- anders als ein Fragment
-// -- tatsaechlich beim Server ankommen und daher hier server-seitig
-// verifiziert werden koennen, ohne auf Client-JS-Timing angewiesen zu sein.
+// Mails -- offizielles Supabase-Muster fuer diesen Stack (Next.js +
+// @supabase/ssr + serverseitiges Auth-Gate in proxy.ts), siehe Supabase-Doku
+// "Build a User Management App with Next.js". token_hash + type kommen als
+// QUERY-PARAMETER (anders als ein Fragment beim Server sichtbar) und werden
+// hier verifiziert, ohne auf Client-JS-Timing angewiesen zu sein.
 //
 // Voraussetzung: die Supabase-Mail-Templates (Einladung/Passwort-Reset)
 // muessen im Dashboard auf
 //   {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite
-// bzw. "...&type=recovery" umgestellt werden (Standard-Template verwendet
-// noch {{ .ConfirmationURL }}, das auf einen anderen, GoTrue-gehosteten
-// Ablauf zeigt) -- siehe Vorgabe/Nutzer-Report vom 01.09.2026.
+// bzw. "...&type=recovery" zeigen (das Standard-Template nutzt
+// {{ .ConfirmationURL }}, einen anderen, GoTrue-gehosteten Ablauf).
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const tokenHash = searchParams.get("token_hash");

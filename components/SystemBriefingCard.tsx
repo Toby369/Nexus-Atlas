@@ -6,50 +6,22 @@ import { FullDateTime, StaleBadge } from "@/components/ClientTimestamp";
 import PanelInfo from "@/components/PanelInfo";
 import CustomQueryPanel from "@/components/CustomQueryPanel";
 
-// Umsetzungsplan Phase 4 (18.09.2026): "kombinierte Entscheidungsunter-
-// stuetzungs-Kachel" -- fusioniert Tobys eigenes Regelwerk (Welz/Salomon +
-// "Mein Trading System"-Checkliste) + Nexus' eigene berechnete Faktoren
-// (14-Faktoren-Engine, GUSS/VWAP-Vector/CVD, Liquidations-Cluster) zu EINER
-// Synthese, siehe lib/systemBriefingContext.ts + Prompt-Profil
-// "system-briefing".
+// System-Briefing: fusioniert Tobys eigenes Regelwerk (Welz/Salomon + "Mein
+// Trading System"-Checkliste) mit Nexus' berechneten Faktoren (14-Faktoren-
+// Engine, GUSS/VWAP-Vector/CVD, Liquidations-Cluster, Marktkontext, ETF-Flows,
+// Positionierung, News, Handelslage) zu EINER Synthese -- siehe
+// lib/systemBriefingContext.ts und Prompt-Profil "system-briefing".
 //
-// 30.09.2026 -- komplett neu strukturiert UND mit der vormals eigenstaendigen
-// Handelslage-Kachel zusammengelegt (Nutzer: "brauche nicht weitere
-// Kacheln, moechte vorhandenes komprimieren"). Vier klar benannte
-// Abschnitte statt einem langen Fliesstext-Block: Fazit (bias/confidence/
-// Kernaussage), Regelwerk-Check, optionaler Kontext-Check (nur bei
-// Widerspruch) und Trigger&Szenario -- letzterer jetzt inkl. konkretem
-// Kursziel (Nutzer-Entscheidung 30.09.2026: "konkrete Kursziele erlauben",
-// vorher verboten -- dieselbe Sprache wie schon laenger bei Trade-Debate).
+// Abschnitte: Fazit (bias/confidence/Kernaussage), Regelwerk-Check (max. 4
+// gelabelte Zeilen, siehe parseRegelwerkLines), Chart-Struktur, optionaler
+// Konfluenz-Check (nur bei Widerspruch) und Trigger & Szenario mit beiden
+// Richtungen inkl. konkretem Kursziel. GUSS erscheint im Regelwerk-Check nur,
+// wenn die Regime-Engine tatsaechlich einen Trend erkennt.
 //
-// Erweitert 22.09.2026 um Marktkontext/ETF-Flows/Positionierung/News --
-// ersetzt seither die vormals separate "Zusammenfassung"-Kachel in
-// HeroHeader (eigener AI-Aufruf/eigene Route fuer eine inhaltlich stark
-// ueberlappende Frage). HeroHeader zeigt seither nur noch das Fazit
-// DIESES Snapshots (siehe HeroHeader.tsx, "Kurze Einordnung").
-//
-// Auto-Refresh (23.09.2026): HeroHeader loest ab NARRATIVE_AUTO_REFRESH_HOURS
-// (dort definiert) selbststaendig einen neuen Stand aus, wenn der zuletzt
-// angezeigte zu alt ist -- diese Kachel liest denselben system_briefings-
-// Snapshot und zeigt den dadurch aktualisierten Stand automatisch mit,
-// zusaetzlich zum weiterhin verfuegbaren manuellen "Neu generieren".
-//
-// 01.10.2026 -- Nutzer-Feedback nach Review eines Live-Snapshots: Regelwerk-
-// Check als ein dichter Fliesstext-Satz war "ueberhaupt nicht verstaendlich".
-// Jetzt max. 4 gelabelte Zeilen (Gates/Orderflow/Bewegungsvorrat/Liquidation,
-// \n-getrennt im Prompt-Profil, siehe lib/ai/promptProfiles.ts) statt eines
-// Blocks -- parseRegelwerkLines() splittet dafuer. GUSS wird in der
-// Orderflow-Zeile nur noch erwaehnt, wenn Nexus' Regime-Engine tatsaechlich
-// einen Trend erkennt (sonst ist GUSS schlicht nicht anwendbar) -- vorher
-// stand dort oft nur Rauschen wie "GUSS aktiv=false (Regime ...)".
-//
-// 06.10.2026 -- Zusammengelegt mit der vormals eigenstaendigen Chart-
-// Narrativ-Kachel (Nutzer-Audit "welche Reports sind sehr aehnlich?" --
-// beide nutzten bereits denselben breiten Signal-Satz). Zwei Abschnitte
-// kamen dazu (Chart-Struktur, vormals "structureNarrative"), zwei wurden
-// zusammengefuehrt (kontextCheck + confluence -> konfluenzCheck), und
-// Trigger&Szenario zeigt jetzt IMMER beide Richtungen (bullish+bearish,
-// Nutzer-Entscheidung) statt nur eines Pfads -- siehe ScenarioBlock unten.
+// Das Fazit erscheint zusaetzlich als KI-Einordnung im Lagebild (HeroHeader),
+// das ab NARRATIVE_AUTO_REFRESH_HOURS selbststaendig einen neuen Stand
+// ausloest; diese Kachel zeigt denselben Snapshot und bietet weiterhin
+// "Neu generieren" per Klick.
 
 const INFO_TEXT = [
   "Was das ist: eine KI-Synthese, die dein eigenes Regelwerk (Welz/Salomon-Methodik + \"Mein Trading System\"-Checkliste) UND die algorithmisch berechnete Chart-Struktur (Formationen, Key Levels, Level-Struktur) auf den aktuellen Stand von Nexus' berechneten Faktoren anwendet -- Bewegungsvorrat, 14-Faktoren-Engine, VWAP-Vector/CVD, Liquidations-Cluster, Marktkontext, ETF-Flows, Positionierung, News.",
@@ -107,11 +79,9 @@ function ScenarioBlock({
   );
 }
 
-// regelwerkCheck kommt seit 01.10.2026 als max. 4 Zeilen ("Label: Befund"),
-// durch \n getrennt, statt als ein dichter Fliesstext-Block (Nutzer-
-// Feedback: "für mich ist der text ueberhaupt nicht verstaendlich") --
-// hier je Zeile in Label/Rest gesplittet, damit das Label fett vom Befund
-// abgesetzt werden kann statt in einem einzigen Satz unterzugehen.
+// regelwerkCheck kommt als max. 4 Zeilen ("Label: Befund", durch \n
+// getrennt) -- hier je Zeile in Label/Rest gesplittet, damit das Label fett
+// vom Befund abgesetzt werden kann.
 function parseRegelwerkLines(text: string): { label: string; detail: string }[] {
   return text
     .split("\n")
@@ -124,11 +94,9 @@ function parseRegelwerkLines(text: string): { label: string; detail: string }[] 
     });
 }
 
-// Schutz gegen Alt-Format-Snapshots (vor der Fusion mit Handelslage am
-// 30.09.2026 hatten result-Spalten noch die Form { narrative: string },
-// vor der Zusammenlegung mit Chart-Narrativ am 06.10.2026 fehlten
-// chartStruktur/trigger.bullish/trigger.bearish) -- ohne diesen Guard wirft
-// der Render unten und reisst die ganze Seite mit runter.
+// Schutz gegen Snapshots in aelteren Formaten (z.B. { narrative: string }
+// oder ohne chartStruktur/trigger.bullish/trigger.bearish) -- ohne diesen
+// Guard wuerde der Render unten die ganze Seite mitreissen.
 function isValidResult(result: unknown): result is SystemBriefingResult {
   if (!result || typeof result !== "object") return false;
   const r = result as Partial<SystemBriefingResult>;
@@ -202,15 +170,10 @@ export default function SystemBriefingCard({
         <p className="text-xs text-text-faint">Noch kein System-Briefing generiert.</p>
       )}
 
-      {/* 08.10.2026 -- Bugfix (Live-Vorfall, Screenshot zeigte zwei
-          widerspruechliche Fehlermeldungen gleichzeitig): `error` (dieser
-          Klick) und `snapshot.error` (zuletzt GESPEICHERTER Lauf, z.B. vom
-          Seitenaufruf) sind zwei unabhaengige Quellen -- schlaegt ein Klick
-          fehl, bleibt `snapshot` unveraendert (siehe handleGenerate(), kein
-          setSnapshot() im Fehlerfall), der veraltete DB-Fehler stand also
-          weiterhin parallel zum frischen `error` da. `error` ist bei einem
-          erneuten Klick-Fehlschlag immer die aktuellere der beiden -- bei
-          `error` also den DB-Fehler ausblenden statt beide zu zeigen. */}
+      {/* `error` (dieser Klick) und `snapshot.error` (zuletzt gespeicherter
+          Lauf) sind zwei unabhaengige Quellen; ein fehlgeschlagener Klick
+          laesst `snapshot` unveraendert. `error` ist dann immer die aktuellere
+          Meldung -- den gespeicherten Fehler daneben ausblenden. */}
       {!error && snapshot && snapshot.status === "error" && (
         <p className="text-xs text-down">{snapshot.error ?? "Unbekannter Fehler."}</p>
       )}
@@ -277,9 +240,8 @@ export default function SystemBriefingCard({
         </div>
       )}
 
-      {/* Vormals eigene Kachel "Freie Anfrage (KI)" -- seit 11.10.2026 hier
-          eingeklappt, da sie auf demselben Marktkontext arbeitet. Offen,
-          sobald juengste Anfragen vorliegen. */}
+      {/* Freie Anfrage: arbeitet auf demselben Marktkontext, daher hier
+          eingeklappt. Offen, sobald juengste Anfragen vorliegen. */}
       <details className="pt-2 border-t border-border/60" open={initialCustomQueries.length > 0}>
         <summary className="text-xs text-text-muted hover:text-text cursor-pointer select-none">
           Rückfrage an die KI stellen

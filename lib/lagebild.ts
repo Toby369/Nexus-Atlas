@@ -3,8 +3,7 @@ import type { MtfTimeframeDot } from "./mtfSignal";
 import type { ConfluenceScoreResult, ConfluenceScoreTier } from "./confluenceScoreContext";
 import type { RegimeScoreResult } from "./regimeScoreContext";
 
-// Lagebild (Phase 3 der Aufraeumrunde, Entwurf von Toby am 11.10.2026
-// freigegeben): reine Logik fuer den verdichteten Kopfbereich in
+// Lagebild: reine Logik fuer den verdichteten Kopfbereich in
 // HeroHeader.tsx -- Fazit-Satz, MTF-Widerspruchs-Warnung und die
 // Kurzfassungen von Setup-/Regime-Score. Regelbasiert, kein KI-Aufruf.
 
@@ -31,8 +30,7 @@ export function countMtfDirections(dots: MtfTimeframeDot[]): MtfDirectionCounts 
   return counts;
 }
 
-// Backlog-Punkt "MTF-Ampel ohne Divergenz-Check gegen die
-// Gesamteinschaetzung" (10.10.2026): Warnung, sobald die Gesamteinschaetzung
+// MTF-Widerspruch: Warnung, sobald die Gesamteinschaetzung
 // eine Richtung anzeigt, aber mindestens so viele Zeitrahmen in die
 // Gegenrichtung zeigen. Bei unterdrueckter Richtung ("Unklar") gibt es
 // nichts, dem widersprochen werden koennte.

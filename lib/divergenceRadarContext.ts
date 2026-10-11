@@ -1,4 +1,4 @@
-// Datenbeschaffung fuer die Divergenz-Radar-Kachel (05.09.2026) -- reines
+// Datenbeschaffung fuer das Divergenz-Radar -- reines
 // Lesen, kein Schreiben, keine AI. Buendelt die in der Recherche "bei
 // welchen Paaren koennen Divergenzen entstehen" identifizierten, technisch
 // umsetzbaren Luecken (siehe lib/divergenceRadar.ts fuer die reine Logik).
@@ -59,14 +59,10 @@ export interface DivergenceRadarResult {
   spotPressureVsPrice: SpotPressureVsPriceDivergence;
   spotPressureVsOrderbook: SpotPressureVsOrderbookDivergence;
   cycleVsMomentum: DivergenceStatus;
-  // 30.09.2026: Handelslage (vormals eigene Kachel/Tabelle) wurde in
-  // System-Briefing aufgenommen -- das bias-Feld kommt seither aus
-  // system_briefings.result.fazit.bias statt handelslage_snapshots. Der
-  // Feldname blieb hier bewusst NICHT "handelslageVsState" stehen (das
-  // waere nach dem Merge irrefuehrend); nur die DB-Spalten in
-  // divergence_radar_snapshots (handelslage_vs_state/handelslage_bias)
-  // blieben unveraendert, um keine Migration fuer eine reine Umbenennung
-  // zu brauchen -- siehe Mapping-Kommentar in
+  // Das bias-Feld kommt aus system_briefings.result.fazit.bias. Die
+  // DB-Spalten in divergence_radar_snapshots heissen aus historischen
+  // Gruenden weiter handelslage_vs_state/handelslage_bias (keine Migration
+  // fuer eine reine Umbenennung) -- siehe Mapping-Kommentar in
   // app/api/divergence-radar/snapshot/route.ts.
   systemBriefingVsState: DivergenceStatus;
   tradingViewVsState: DivergenceStatus;
@@ -74,13 +70,10 @@ export interface DivergenceRadarResult {
   onchainVsPrice: OnchainDivergence;
   wallPersistence: WallPersistenceRow[];
   liquidationCorroborations: LiquidationCorroboration[];
-  // Periodischer KI-Rueckblick Phase 5 (10.09.2026): zusaetzlich zu den
-  // bereits oben berechneten AGGREGIERTEN Status-Werten auch die
-  // ROHWERTE, aus denen sie entstanden sind -- fuer die Snapshot-
-  // Persistenz (divergence_radar_snapshots) noetig, damit spaetere
-  // Detection-Erweiterungen (z.B. cycleVsMomentum/handelslageVsState)
-  // ohne Schema-Aenderung nachgezogen werden koennen, statt nur das
-  // fertige AGREEMENT/DIVERGENCE-Label zu speichern.
+  // Zusaetzlich zu den AGGREGIERTEN Status-Werten oben auch die ROHWERTE,
+  // aus denen sie entstanden -- fuer die Snapshot-Persistenz
+  // (divergence_radar_snapshots), damit spaetere Detection-Erweiterungen
+  // ohne Schema-Aenderung nachgezogen werden koennen.
   price: number | null;
   overallState: MarketState["overall_state"] | null;
   rsiMacdDivergenceDirection: "bullish" | "bearish" | null;
@@ -103,9 +96,8 @@ async function getLatestMarketState(): Promise<MarketState | null> {
   return data;
 }
 
-// 30.09.2026: liest system_briefings statt der entfernten
-// handelslage_snapshots (siehe DivergenceRadarResult-Kommentar oben) --
-// dasselbe bias-Vergleichsziel, jetzt aus fazit.bias des System-Briefings.
+// Liest das bias-Vergleichsziel aus fazit.bias des System-Briefings (siehe
+// DivergenceRadarResult-Kommentar oben).
 async function getLatestSystemBriefingSnapshot(): Promise<SystemBriefingSnapshot | null> {
   const { data, error } = await supabase
     .from("system_briefings")

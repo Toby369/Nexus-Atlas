@@ -22,21 +22,14 @@ import {
   type SeriesExchangeId,
 } from "@/lib/exchanges";
 
-// Gemeinsamer State/Polling fuer die aus der ehemaligen LivePricePanel.tsx
-// hervorgegangenen Kacheln (BtcPriceCard, OiChangeCard, KurznotizCard,
-// OiByExchangeCard, FundingRateCard) -- Nutzer-Feedback 05.09.2026: "ich
-// kann noch nicht alle Kacheln individuell Groesse einstellen und
-// verschieben", konkret die vormals als EINE fullWidth-Kachel gebuendelten
-// Preis-/OI-/Funding-Abschnitte. Diese Datei traegt exakt dieselbe Logik
-// wie die alte LivePricePanel (unveraendert uebernommen), nur als Context
-// statt als eine einzelne Komponente -- jede der 5 Kacheln liest per
-// useLivePriceData() nur den Ausschnitt, den sie braucht, bleibt dabei aber
-// unabhaengig verschieb-/groessenbar (siehe DashboardLayout.tsx).
+// Gemeinsamer State/Polling fuer die Preis-Kacheln (BtcPriceCard,
+// OiChangeCard, FundingRateCard) und den Live-Preis im Lagebild: jede
+// Komponente liest per useLivePriceData() nur den Ausschnitt, den sie
+// braucht, und bleibt unabhaengig verschieb-/groessenbar (DashboardLayout).
 //
-// Gleiches Prinzip wie DashboardPollProvider.tsx, absichtlich ein EIGENER
-// Provider statt Anbindung an dessen 30s-Bundle: die Boersen-Auswahl hier
-// ist Nutzer-gesteuert (nicht immer DEFAULT_SERIES_EXCHANGE), siehe
-// DashboardPollProvider.tsx-Kommentar zur selben Abwaegung.
+// Absichtlich ein EIGENER Provider statt Anbindung an das 30s-Bundle von
+// DashboardPollProvider.tsx: die Boersen-Auswahl hier ist nutzergesteuert
+// (nicht immer DEFAULT_SERIES_EXCHANGE).
 
 const REFRESH_INTERVAL_MS = 30_000;
 const HISTORY_LIMIT = 180; // ~15 Std bei 5-Min-Takt

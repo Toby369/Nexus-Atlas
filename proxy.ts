@@ -34,9 +34,7 @@ export async function proxy(request: NextRequest) {
   // Server-zu-Server-Aufrufe (report-scheduler, youtube-monitor-scheduler)
   // duerfen sich statt einer Nutzer-Session mit CRON_SECRET als Bearer-Token
   // ausweisen -- siehe lib/authGate.ts fuer die vollstaendige Begruendung
-  // (Audit-Fund 05.09.2026, korrigiert 09.09.2026: vorher wurde faelschlich
-  // SUPABASE_SERVICE_ROLE_KEY wiederverwendet, was in Produktion nie
-  // zuverlaessig funktioniert hat).
+  // (bewusst NICHT der SUPABASE_SERVICE_ROLE_KEY).
   if (
     isAuthorizedServiceRoleRequest(
       pathname,

@@ -1,5 +1,5 @@
-// Kontext-Builder fuer die KI-Rueckblick-Kachel (Periodischer KI-Rueckblick,
-// Phase 3, 10.09.2026) -- liest AUSSCHLIESSLICH die in Phase 2
+// Kontext-Builder fuer den Periodischen KI-Rueckblick -- liest AUSSCHLIESSLICH
+// die
 // (compute_signal_stats(), signal_stats_results) bereits fertig berechneten
 // Zahlen. Keine eigene Statistik hier, mit EINER bewussten Ausnahme: das
 // decay_flag je Zelle ist ein einfacher, regelbasierter Vergleich

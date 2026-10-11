@@ -7,22 +7,15 @@ import { FullDateTime, StaleBadge } from "@/components/ClientTimestamp";
 import PanelInfo from "@/components/PanelInfo";
 import { computeMasterReportVsEnginesDivergence } from "@/lib/divergenceRadar";
 
-// Master-Report in der Head-Kachel (Nutzer-Wunsch 03.10.2026, Screenshot der
-// Master-Report-E-Mail: "den moechte ich 3x/tag in head kachel angezeigt
-// bekommen, so formuliert."). Zeigt denselben report_runs-Datensatz (Slot 4,
-// report_type='master'), den auch /reports und die E-Mail
-// (app/api/reports/run/route.ts::buildReportEmailHtml) anzeigen -- dieselben
-// Felder (overallBias/confidence/summary/conflicts/componentBiases), hier
-// im App-Theme statt als E-Mail-HTML gerendert. "3x/Tag" kommt NICHT aus
-// einer Anzeige-Beschraenkung hier, sondern daraus, dass report_configs
-// (Slot 1-4) jetzt je 3 taegliche schedule_times haben (vorher nur 1) --
-// diese Kachel zeigt einfach immer den zuletzt generierten Lauf, der sich
-// dadurch von selbst 3x/Tag aendert.
+// Master-Report im Lagebild-Aufklapper: derselbe report_runs-Datensatz
+// (Slot 4, report_type='master') wie /reports und die Report-E-Mail
+// (app/api/reports/run/route.ts::buildReportEmailHtml), hier im App-Theme.
+// Zeigt immer den zuletzt generierten Lauf (report_configs plant 3 Laeufe
+// pro Tag).
 //
-// Eigene kleine Komponente statt weiterer Logik in der bereits sehr grossen
-// HeroHeader.tsx -- gleiches Muster wie TradingHoursBadge/EconomicHeroBadge
-// (eigener Fetch/Poll). Poll-Intervall bewusst grosszuegig (5 Min): der
-// zugrunde liegende Lauf aendert sich nur alle paar Stunden.
+// Eigene Komponente mit eigenem Poll, um HeroHeader schlank zu halten.
+// Intervall bewusst grosszuegig (5 Min): der Lauf aendert sich nur alle paar
+// Stunden.
 const POLL_MS = 5 * 60_000;
 
 const BIAS_LABEL: Record<string, string> = {
@@ -49,7 +42,7 @@ const COMPONENT_LABEL: Record<string, string> = {
 const INFO_TEXT = [
   "Was das ist: der Master-Report der AI Report Engine (Seite \"AI Reports\", Slot 4) -- fasst die drei Einzelreports (Market Structure, Positioning, News/Macro) zusammen und benennt Widersprüche zwischen ihnen explizit, statt sie zu einem Bias zu verwischen. Eigenständige KI-Engine, unabhängig von der regelbasierten Gesamteinschätzung oben UND von der \"KI-Einordnung\" (dein eigenes Regelwerk) -- drei unterschiedliche Blickwinkel auf denselben Markt.",
   "Aktualisierung: automatisch 3x täglich (siehe /reports, Slot 4 für die genauen Uhrzeiten). Diese Kachel zeigt immer den zuletzt generierten Lauf, kein eigener Button hier -- dadurch kann er bis zu ~8h älter sein als die beiden live-orientierten Engines oben.",
-  "Widerspruchs-Warnung (08.10.2026): erscheint, wenn die 14-Faktoren-Gesamteinschätzung und die Kurze Einordnung sich einig sind, dieser Report aber eine andere Richtung zeigt -- meist, weil er stärker auf Positioning/Makro (träger, nachlaufend) statt auf Live-Struktur/Momentum setzt, oder weil die Live-Engines auf eine Bewegung reagiert haben, die erst NACH diesem Lauf passiert ist.",
+  "Widerspruchs-Warnung: erscheint, wenn die 14-Faktoren-Gesamteinschätzung und die KI-Einordnung sich einig sind, dieser Report aber eine andere Richtung zeigt -- meist, weil er stärker auf Positioning/Makro (träger, nachlaufend) statt auf Live-Struktur/Momentum setzt, oder weil die Live-Engines auf eine Bewegung reagiert haben, die erst NACH diesem Lauf passiert ist.",
 ].join("\n\n");
 
 interface MasterReportResult {
@@ -58,9 +51,8 @@ interface MasterReportResult {
   confidence?: number;
   overallBias?: "bullish" | "bearish" | "neutral";
   componentBiases?: Record<string, string>;
-  // 03.10.2026 (Nutzer-Wunsch "kann der report auf den vorherigen kurz
-  // eingehen?!") -- null, wenn kein vorheriger Lauf im Kontext war (siehe
-  // Prompt-Profil "report-master"), string wenn verglichen wurde.
+  // null, wenn kein vorheriger Lauf im Kontext war (siehe Prompt-Profil
+  // "report-master"), sonst der Vergleich zum vorherigen Report.
   changeSinceLast?: string | null;
 }
 
@@ -85,11 +77,9 @@ export default function MasterReportHeroCard({
   overallState,
   briefingBias,
 }: {
-  // 08.10.2026 (Nutzer-Beobachtung "master report und system briefing/head
-  // kachel sind ja sehr widerspruechlich"): fuer die Divergenz-Warnung unten
-  // -- beide bereits in HeroHeader geladen (state/narrativeSnapshot), kein
-  // zusaetzlicher Fetch hier noetig, gleiches Prinzip wie briefingDivergence
-  // dort.
+  // Fuer die Divergenz-Warnung unten -- beide Werte sind in HeroHeader
+  // bereits geladen, kein zusaetzlicher Fetch (gleiches Prinzip wie
+  // briefingDivergence dort).
   overallState: MarketState["overall_state"] | null;
   briefingBias: "bullish" | "bearish" | "neutral" | undefined;
 }) {
@@ -117,7 +107,7 @@ export default function MasterReportHeroCard({
   const conflicts = data.conflicts ?? [];
   const componentBiases = data.componentBiases ?? {};
   // Nur eine Aussage, wenn die beiden anderen Engines (14-Faktoren +
-  // Kurze Einordnung) sich einig sind -- siehe
+  // KI-Einordnung) sich einig sind -- siehe
   // computeMasterReportVsEnginesDivergence. Steht dieser Report (bis zu 8h
   // alt, Positioning/Makro-lastig) dem entgegen, ist das ein echter
   // Widerspruch, kein Darstellungsfehler.

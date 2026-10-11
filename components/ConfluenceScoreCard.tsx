@@ -7,32 +7,20 @@ import type {
 } from "@/lib/confluenceScoreContext";
 import PanelInfo from "@/components/PanelInfo";
 
-// Setup-Score (12.09.2026, umbenannt von "Confluence-Score" am selben Tag --
-// siehe docs/research/NEXUS-STRUKTUR-KONZEPT_2026-09-12.md Abschnitt 4) --
-// die Setup-Parameter stehen bewusst im Namen, damit die Bindung an genau
-// dieses eine, getestete Setup nie mit einer allgemeinen Marktbewertung
-// verwechselt wird (siehe Gesamteinschaetzung daneben, die noch nicht nach
-// demselben Massstab validiert ist). Zeigt den vierfach
-// out-of-sample validierten Weight-of-Evidence-Score aus dem
-// Confluence-Score-Protokoll (docs/research/CONFLUENCE-SCORE-PROTOCOL_2026-09-11.md +
-// CONFLUENCE-SCORE-PHASE3-RESULTS_2026-09-11.md Abschnitt 6c). Zeigt bewusst
-// nur den VORAB-Score (4 Leading-Faktoren: Trend-Konfirmation, Fear & Greed,
-// Makro-Regime, Orderbuch-Imbalance) -- der Momentum-Faktor ist ein
-// Confirming-Signal und erst bekannt, sobald ein laufendes Setup die
-// 0,25%-Marge erreicht, also fuer eine "wie sieht's gerade aus"-Kachel ohne
-// aktiven Trade nicht verfuegbar (siehe research_confluence_score_live()).
+// Setup-Score (vormals "Confluence-Score", siehe NEXUS-STRUKTUR-KONZEPT
+// Abschnitt 4) -- die Setup-Parameter stehen bewusst im Namen, damit die
+// Bindung an genau dieses getestete Setup nie mit einer allgemeinen
+// Marktbewertung verwechselt wird. Zeigt den out-of-sample validierten
+// Weight-of-Evidence-Score aus dem Confluence-Score-Protokoll
+// (docs/research/CONFLUENCE-SCORE-PROTOCOL_2026-09-11.md +
+// CONFLUENCE-SCORE-PHASE3-RESULTS_2026-09-11.md Abschnitt 6c), und zwar nur
+// den VORAB-Score (4 Leading-Faktoren: Trend-Konfirmation, Fear & Greed,
+// Makro-Regime, Orderbuch-Imbalance) -- der Momentum-Faktor ist erst bei
+// einem laufenden Setup bekannt (siehe research_confluence_score_live()).
 //
-// Farbe folgt der STUFE (Hoch/Mittel/Niedrig), nicht der Richtung -- LONG
-// und SHORT stehen bereits als Zeilen-Label da, eine richtungsbasierte
-// Einfaerbung des Tier-Badges wuerde faelschlich "Preis steigt/faellt"
-// suggerieren statt "dieses Setup ist aktuell gut/schlecht".
-//
-// 13.09.2026 -- Tier-Badge deshalb bewusst NICHT in up/down (gruen/rot)
-// gefaerbt: "Hoch" bei SHORT sah sonst gruen aus wie ein bullisches Signal
-// (Nexus-weite Farbkonvention: gruen=bullisch/rot=baerisch/grau=keine
-// Daten). Konfidenz-Stufe ist eine von der Richtung unabhaengige Achse --
-// jetzt neutrale accent-Skala. Die Richtung selbst steht im Zeilen-Label
-// (LONG/SHORT), das den passenden up/down-Ton traegt (siehe ScoreRow).
+// Farbe folgt der STUFE (Hoch/Mittel/Niedrig), nicht der Richtung: "Hoch"
+// bei SHORT saehe in gruen sonst bullisch aus. Die Richtung traegt das
+// Zeilen-Label (LONG/SHORT) im passenden up/down-Ton (siehe ScoreRow).
 const TIER_STYLES: Record<ConfluenceScoreTier, string> = {
   Hoch: "border-accent/50 bg-accent/10 text-accent",
   Mittel: "border-border bg-surface-raised text-text-muted",
@@ -48,22 +36,14 @@ const INFO_TEXT = [
   "Grenzen: Dezile (feinere Abstufung als 3 Stufen) wurden bewusst NICHT umgesetzt -- bei aktueller Datenmenge (~7.200 Setups je Richtung) sind viele Dezile statistisch nicht zuverlaessig unterscheidbar (Standardfehler ±3-4 Prozentpunkte). Kein Handelssignal, keine Erfolgsgarantie.",
 ].join("\n\n");
 
-// Nutzer-Wunsch 14.09.2026 ("dieselbe Antipp-Beschreibung auch beim
-// Setup-Score einbauen", analog zur bereits umgesetzten Regime-Score-
-// Variante in RegimeScoreCard.tsx): Kurzbeschreibung je Einzelsignal aus
-// der "Signale im Detail"-Liste, aufklappbar per Antippen (siehe
-// SignalDetailList unten). 13 der 15 Signale sind laut Protokoll
-// (docs/research/CONFLUENCE-SCORE-PROTOCOL_2026-09-11.md: "identische 31
-// Signalgeber wie im Confluence-Score-Protokoll") dieselbe Basis, die auch
-// der Regime-Score verwendet -- Texte 1:1 uebernommen, nur LONG/SHORT statt
-// UP/DOWN benannt. Zwei Signale sind Sonderfaelle, siehe
-// docs/research/CONFLUENCE-SCORE-PHASE3-RESULTS_2026-09-11.md Abschnitt
-// "2 von 15 Signalen eingefroren": "Positionierung (Divergence-Engine-
-// Score)" und "Divergenz-Radar: Onchain vs Preis" wurden in Phase 3 ueber
-// eine Ad-hoc-Formel klassifiziert, die sich nachtraeglich nicht mehr
-// sicher rekonstruieren liess -- bewusst als eingefroren/deskriptiv
-// gekennzeichnet statt eine praezise Schwelle vorzutaeuschen, die es so
-// nicht mehr (nachweisbar) gibt.
+// Kurzbeschreibung je Einzelsignal (aufklappbar per Antippen, siehe
+// SignalDetailList), analog zu RegimeScoreCard.tsx. 13 der 15 Signale teilen
+// die Basis mit dem Regime-Score (Texte uebernommen, LONG/SHORT statt
+// UP/DOWN). Zwei Signale sind eingefroren (CONFLUENCE-SCORE-PHASE3-RESULTS,
+// "2 von 15 Signalen eingefroren"): "Positionierung (Divergence-Engine-
+// Score)" und "Divergenz-Radar: Onchain vs Preis" wurden ueber eine nicht
+// mehr sicher rekonstruierbare Ad-hoc-Formel klassifiziert -- bewusst als
+// deskriptiv gekennzeichnet statt eine praezise Schwelle vorzutaeuschen.
 const SIGNAL_DESCRIPTIONS: Record<string, string | { long?: string; short?: string }> = {
   "CVD-Richtung": {
     long: "Cumulative Volume Delta (Orderflow) auf 15m-Basis steigend – mehr aggressive Käufe als Verkäufe.",
@@ -137,13 +117,9 @@ function FactorLine({ label, active }: { label: string; active: boolean }) {
   );
 }
 
-// Nutzer-Wunsch (12.09.2026): "beim tippen sehen weshalb (welches Signal)
-// der befund so ist" -- die verdichtete "Trend-Konfirmation (X/9)"-Zeile
-// verriet bisher nur die Summe, nicht welche der 9 Struktur-/Trend-Signale
-// gerade aktiv sind. Antippen klappt jetzt genau diese 9 Einzelsignale auf
-// (research_confluence_score_live() liefert sie jetzt einzeln mit, siehe
-// Migration add_trend_signal_breakdown_to_confluence_live) -- dieselbe
-// Zahlen-Basis wie zuvor, nur zusaetzlich einzeln sichtbar.
+// Antippen der "Trend-Konfirmation (X/9)"-Zeile zeigt, welche der 9
+// Struktur-/Trend-Signale gerade aktiv sind (research_confluence_score_live()
+// liefert sie einzeln mit) -- dieselbe Zahlenbasis, nur aufgeschluesselt.
 function TrendConfirmationLine({ trendCount, trendSignals }: { trendCount: number; trendSignals: TrendSignalState[] }) {
   const active = trendCount >= 2;
   return (
@@ -164,13 +140,9 @@ function TrendConfirmationLine({ trendCount, trendSignals }: { trendCount: numbe
   );
 }
 
-// Nutzer-Wunsch (04.10.2026: "Kachel klein machen, anzeigen badge von up
-// und down, bei antippen wird gross wie aktuell"): Kachel ist jetzt ein
-// <details>, standardmaessig zu -- im <summary> nur Titel + ein Mini-Badge
-// je Richtung (Stufe + Trefferquote, im passenden LONG/SHORT-Ton), der
-// komplette bisherige Inhalt steckt im aufklappbaren Teil. Dieselbe native
-// <details>-Technik wie bereits bei "Signale im Detail" weiter unten --
-// bleibt ein Server-Component, kein Client-State noetig.
+// Kachel als <details>, standardmaessig zu: im <summary> Titel + Mini-Badge
+// je Richtung, der vollstaendige Inhalt im aufklappbaren Teil -- bleibt
+// ein Server-Component ohne Client-State.
 function ScoreBadge({ row, label, tone }: { row: ConfluenceScoreRow | null; label: string; tone: "up" | "down" }) {
   const toneClass = tone === "up" ? "text-up border-up/40 bg-up/10" : "text-down border-down/40 bg-down/10";
   return (

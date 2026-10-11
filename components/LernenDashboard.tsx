@@ -188,10 +188,8 @@ function SessionPanel({
   const [explanationOpen, setExplanationOpen] = useState(false);
   const [summary, setSummary] = useState<{ correct: number; hard: number; wrong: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  // Nutzer-Wunsch 15.09.2026 ("waere es sinnvoll, wenn ich bei der Frage
-  // eine Antwort schreiben koennte?"): reines Aktiv-Abruf-Feld vor "Antwort
-  // zeigen" -- bewusst OHNE automatische Bewertung/Speicherung (Freitext-
-  // Vergleich waere fehleranfaellig, siehe Chat-Begruendung). Die eigentliche
+  // Aktiv-Abruf-Feld vor "Antwort zeigen" -- bewusst OHNE automatische
+  // Bewertung/Speicherung (Freitext-Vergleich waere fehleranfaellig). Die
   // Bewertung bleibt bei den 4 Leitner-Buttons.
   const [draftAnswer, setDraftAnswer] = useState("");
 
@@ -562,11 +560,9 @@ function StatsPanel({
 }
 
 // --- Wissen (Welz/Salomon/Mein System) -------------------------------------
-// Nutzer-Wunsch 15.09.2026: "welz und salomon integrieren, meine trading
-// regeln in nexus integrieren". Reine Nachschlage-Sektion aus knowledge_base
-// (statischer Text, siehe lib/knowledgeBaseContext.ts) + drei Checklisten.
-// Checkbox-Zustand ist bewusst NUR lokaler React-State (keine Persistenz) --
-// eine Momentaufnahme je Aufruf, siehe Umsetzungsplan Entscheidung 4.
+// Nachschlage-Sektion aus knowledge_base (statischer Text, siehe
+// lib/knowledgeBaseContext.ts) + drei Checklisten. Der Checkbox-Zustand ist
+// bewusst nur lokaler React-State -- eine Momentaufnahme je Aufruf.
 
 type WissenModule = "welz" | "salomon" | "mein_system" | "playbook";
 
@@ -593,12 +589,10 @@ const MEIN_SYSTEM_MANUAL_CHECKLIST = [
   "RSI/StochRSI-Divergenz-Check auf 4H",
 ];
 
-// Nutzer-Wunsch 15.09.2026 ("leichtgewichtige Snapshot-Protokollierung"):
-// der Haken-Zustand selbst bleibt lokaler State (kein Autosave pro Klick),
-// aber ein "Fertig"-Klick schreibt einen Snapshot nach checklist_runs --
-// siehe Migration create_checklist_runs_table + /api/checklist/runs. Kein
-// Trade-Bezug, nur "wann wie vollstaendig durchgegangen" -- bewusst kein
-// vollwertiges Trade-Journal (waere ein eigenes, groesseres Feature).
+// Der Haken-Zustand bleibt lokaler State (kein Autosave pro Klick); ein
+// "Fertig"-Klick schreibt einen Snapshot nach checklist_runs (siehe
+// /api/checklist/runs). Nur "wann wie vollstaendig durchgegangen" -- bewusst
+// kein Trade-Journal.
 function ChecklistBlock({
   title,
   items,
@@ -752,12 +746,9 @@ function MeinSystemLiveValues({ data }: { data: MeinSystemChecklistData }) {
   );
 }
 
-// --- Institutional Playbook (vormals eigene Kachel) ------------------------
-// 20.09.2026 -- Cleanup-Entscheidung: reines Nachschlagewerk/Glossar ohne
-// Live-Daten, passt inhaltlich besser zur Lernen-Kachel als zu den
-// KI-Einschaetzungen (System-Briefing bleibt dort eigenstaendig, da es eine
-// LIVE-Synthese ist, kein statischer Leitfaden). Inhalt 1:1 aus der
-// ehemaligen components/InstitutionalPlaybookCard.tsx uebernommen.
+// --- Institutional Playbook ------------------------------------------------
+// Reines Nachschlagewerk ohne Live-Daten, daher hier statt bei den
+// KI-Einschaetzungen.
 
 type PlaybookTabId = "routine" | "matrix" | "patterns";
 

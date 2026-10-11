@@ -3,13 +3,10 @@ import type { SpotPressureVerdict } from "./spotPressure";
 import type { MarketScenario } from "./marketContext";
 import { DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD } from "./marketStateSummary";
 
-// Hero-Verdikt (Ebene 0/1 der neuen Dashboard-Hierarchie, Nutzer-Feedback
-// vom 31.08.2026): "kompaktere App mit einem Hinweis, wohin der Kurs geht".
-// Bewusst KEIN neuer Blend-Score -- nur ein Vorzeichen-Vergleich zwischen
-// bereits vorhandenen, unabhaengig berechneten Richtungsaussagen. Jede
-// Sparte behaelt ihre eigene Bedeutung; hier wird lediglich gezaehlt, wie
-// viele davon mit der primaeren Richtung (14-Faktoren-Assessment)
-// uebereinstimmen -- keine neue Gewichtung, keine neue Formel.
+// Bestaetigungszaehlung fuer das Lagebild -- bewusst KEIN neuer Blend-Score,
+// nur ein Vorzeichen-Vergleich zwischen bereits vorhandenen, unabhaengig
+// berechneten Richtungsaussagen: wie viele stimmen mit der primaeren
+// Richtung (14-Faktoren-Assessment) ueberein? Keine neue Gewichtung.
 export type SignalDirection = "bullish" | "bearish" | "not_comparable";
 
 export interface ConfirmationSignal {
@@ -18,11 +15,9 @@ export interface ConfirmationSignal {
 }
 
 // Regime Matrix -> Richtung. Die vier gerichteten Trend-Regimes (volle
-// Trendausweitung UND die seit 21.09.2026 schwaechere Trendbildung, ADX
-// 20-25 mit uebereinstimmender Richtung) zaehlen als Richtungsaussage --
-// dieselbe Konvention wie lib/marketRegime.ts::computeEngineDivergence
-// (Squeeze/Reversion/Unresolved sind nicht gerichtet, also nicht
-// vergleichbar).
+// Trendausweitung UND schwaechere Trendbildung, ADX 20-25 mit
+// uebereinstimmender Richtung) zaehlen als Richtungsaussage -- dieselbe
+// Konvention wie lib/marketRegime.ts::computeEngineDivergence.
 export function regimeDirection(regime: MarketRegime | null): SignalDirection {
   if (regime === "TREND_EXPANSION_BULLISH" || regime === "TREND_FORMING_BULLISH") return "bullish";
   if (regime === "TREND_EXPANSION_BEARISH" || regime === "TREND_FORMING_BEARISH") return "bearish";
@@ -83,9 +78,8 @@ export function summarizeConfirmation(
   };
 }
 
-// --- Ebene-0-Statuszeilen (Nutzer-Feedback vom 31.08.2026: "am Ende jeder
-// Sparte noch ein Pfeil... oben gruen bullisch, unten rot baerisch, rechts
-// neutral, und ein Zeichen fuer nicht anzeigbar") --------------------------
+// --- Statuszeilen-Pfeile: oben gruen bullisch, unten rot baerisch, rechts
+// neutral, Strich fuer nicht anzeigbar ------------------------------------
 //
 // Bewusst ein EIGENER 4-Zustands-Typ statt einer Erweiterung von
 // SignalDirection oben: SignalDirection fasst jedes nicht gerichtete Regime

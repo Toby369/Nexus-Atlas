@@ -1,8 +1,7 @@
 import { supabase } from "./supabase";
 import type { MarketFeaturesMtfRow } from "./types";
 
-// MTF-Ampel (Multi-Timeframe-Signalzeile), Nutzer-Wunsch 22.09.2026:
-// "Nexus zeigt MTF Signale an, 15m/1h/4h/1D/1W, sinnvoll?" -- fasst je
+// MTF-Ampel (Multi-Timeframe-Signalzeile, 15M/1H/4H/1D/1W) -- fasst je
 // Zeitrahmen structure_trend (Swing-Struktur, market_features -- dieselbe
 // Quelle wie MTF-Alignment in der compute-market-state Edge Function) +
 // ADX-Schwelle (dieselbe 25er-Wilder-Schwelle wie TREND_EXPANSION_* vs.
@@ -11,13 +10,8 @@ import type { MarketFeaturesMtfRow } from "./types";
 // Status zusammen. Bewusst KEINE neue Berechnung/kein neuer Cron -- reine
 // Anzeige bereits vorhandener market_features-Spalten.
 //
-// 02.10.2026 -- 1W war bis dahin hart codiert immer "no_data" (collect-
-// candles sammelte nur 1m/15m/1h/4h/1d). Nutzer-Frage "mtf ampel 1w wird
-// nicht angezeigt weil nicht vorhanden?" bestaetigt: ja, bewusst leer, aber
-// Nutzer-Entscheidung "ja, umsetzen" -- collect-candles sammelt seither
-// zusaetzlich 1w (Binance Futures Klines, Backfill bis 2019 lief beim
-// ersten Deploy automatisch mit). 1W wird hier jetzt wie jedes andere
-// Intervall behandelt, kein Sonderfall mehr noetig.
+// 1W kommt wie alle anderen Intervalle aus collect-candles (Binance Futures
+// Klines, Backfill bis 2019) -- kein Sonderfall.
 
 export type MtfDotStatus =
   | "bullish_confirmed"
@@ -121,8 +115,7 @@ export const MTF_DOT_COLOR_CLASSES: Record<MtfDotStatus, string> = {
 };
 
 // Client-seitiger Fetch, gemeinsam genutzt von jeder Kachel mit eigenem
-// Live-Poll (RegimeMatrixCard, HeroHeader, TradeDebateCard, Nutzer-Wunsch
-// 22.09.2026: "auf alle Kacheln anwenden") -- eine Query je Zeitrahmen,
+// Live-Poll (RegimeMatrixCard, HeroHeader, TradeDebateCard) -- eine Query je Zeitrahmen,
 // analoges Muster wie mtf_alignment in der compute-market-state Edge
 // Function. An EINER Stelle statt pro Kachel dupliziert, weil ab drei
 // Konsumenten derselben Query die Kopie mehr Pflegeaufwand als Nutzen

@@ -1,5 +1,4 @@
-// Reine Konsens-Logik fuer die Eskalations-Kachel (Thema KI, "gezielte
-// Eskalation", 05.09.2026) -- kein Netzwerk-/DB-Zugriff hier (siehe
+// Reine Konsens-Logik fuer die Eskalation ("gezielte Eskalation") -- kein Netzwerk-/DB-Zugriff hier (siehe
 // lib/escalationContext.ts fuer die Datenbeschaffung/Trigger-Erkennung und
 // app/api/escalation/generate/route.ts fuer die tatsaechlichen AI-Aufrufe).
 //

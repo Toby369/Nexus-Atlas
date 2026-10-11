@@ -1,30 +1,10 @@
 import { DASHBOARD_TILE_IDS } from "./dashboardTiles";
 
-// Tab-Navigation (09.09.2026, Nutzer-Feedback: "laptop ansicht von nexus zu
-// unuebersichtlich" + Referenz-Screenshot eines anderen Trading-Journals mit
-// fester Tab-Leiste oben). Loest das Problem staerker als eine reine
-// Abschnitts-Gliederung auf einer einzigen langen Seite: pro Tab sind nur
-// die Kacheln EINES Themas gleichzeitig sichtbar, der Rest ist ausgeblendet
-// statt nur optisch getrennt.
-//
-// Ersetzt den bisherigen "Alle Details anzeigen"-Toggle (DetailsToggle) --
-// die Tabs uebernehmen dessen Aufgabe (Standardansicht kompakt halten)
-// gruendlicher, ein zusaetzlicher Klick zum Aufklappen ist damit nicht mehr
-// noetig.
-//
-// 12.09.2026 -- von 5 auf 3 Reiter konsolidiert (NEXUS-STRUKTUR-KONZEPT
-// Abschnitt 3: "einheitlicher, leichter lesbar"). Urspruenglich als 1:1-
-// Abbildung der 3 Ebenen (Bewertung/Signale im Detail/Beobachtung) geplant --
-// bei der Umsetzung zeigte sich, dass Ebene 1 (Setup-Score, Gesamteinschaetzung,
-// Gesamteinschaetzung-Score) ohnehin schon fest OBERHALB dieser Tabs sitzt
-// (siehe app/page.tsx, lib/dashboardTiles.ts-Kommentar) und Ebene 2 keine
-// eigenen Kacheln mehr hat (die validierten/unbestaetigten Signale stecken
-// als Aufklapper IN der Setup-Score-Kachel, nicht in eigenen Tiles -- siehe
-// GESAMTEINSCHAETZUNG-SCORE-PHASE1-RESULTS_2026-09-12.md-Korrektur). Ein
-// dritter, redundanter "Ebene 2"-Tab ohne eigenen Inhalt haette nur verwirrt.
-// Die 3 Reiter gruppieren stattdessen die bestehenden Kacheln inhaltlich neu
-// (statt 5 feinere Themen) -- weniger Klicks, gleiche Kacheln, kein
-// Datenverlust.
+// Reiter-Navigation: pro Reiter sind nur die Kacheln EINES Themas sichtbar,
+// der Rest ist ausgeblendet statt nur optisch getrennt. Ebene 1 (Lagebild mit
+// Setup-/Regime-Score) steht fest oberhalb der Reiter, Ebene 2 steckt als
+// Aufklapper in den Score-Karten -- die Reiter gruppieren also nur die
+// Ebene-3-Kacheln thematisch (siehe NEXUS-STRUKTUR-KONZEPT).
 export interface DashboardTabMeta {
   id: string;
   label: string;
@@ -57,10 +37,9 @@ export const DASHBOARD_TABS: DashboardTabMeta[] = [
       "news-risk",
     ],
   },
-  // 11.10.2026 -- "KI-Einschaetzungen" und "Tools & Lernen" wieder zu einem
-  // Reiter zusammengelegt (Aufraeumrunde, NEXUS-STRUKTUR-KONZEPT Abschnitt
-  // 8): nach dem Buendeln der wenig genutzten KI-Kacheln blieben nur noch
-  // fuenf Kacheln uebrig, zwei Reiter dafuer waeren ein Klick zu viel.
+  // Bewertende KI-Analysen und aktiv bediente Werkzeuge/Lernen in einem
+  // Reiter -- nach dem Buendeln der wenig genutzten KI-Kacheln sind es nur
+  // noch fuenf Kacheln.
   {
     id: "ki-tools",
     label: "KI & Tools",

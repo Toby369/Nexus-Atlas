@@ -10,7 +10,7 @@ import type { EscalationRead } from "@/lib/types";
 
 // POST /api/escalation/generate
 //
-// "Gezielte Eskalation" (Thema KI, 05.09.2026): statt einer dauerhaften
+// "Gezielte Eskalation": statt einer dauerhaften
 // 2-4-fach-Kachel (verworfen -- Modell-Uneinigkeit auf denselben Rohdaten
 // spiegelt meist Modellrauschen statt echter Markt-Ambiguitaet), holt diese
 // Route mehrere unabhaengige AI-Meinungen NUR ein, wenn Nexus intern bereits
@@ -83,9 +83,8 @@ export async function POST() {
   const reads: EscalationRead[] = [];
   const failedProviders: string[] = [];
   // Nur fuer die Fehlermeldung unten -- failed_providers (DB-Spalte/UI-
-  // Badge) bleibt bewusst eine reine Provider-ID-Liste, der Grund landet
-  // separat im "error"-Freitext (07.09.2026: sonst verschwindet der
-  // eigentliche Fehlergrund wie bei runTileAnalysis() zuvor).
+  // Badge) bleibt eine reine Provider-ID-Liste, der Grund landet separat im
+  // "error"-Freitext, damit er nicht verschwindet.
   const failureReasons: string[] = [];
 
   settled.forEach((outcome, i) => {

@@ -4,7 +4,7 @@ import { buildDivergenceRadar } from "@/lib/divergenceRadarContext";
 
 // POST /api/divergence-radar/snapshot
 //
-// Periodischer KI-Rueckblick, Phase 5 (10.09.2026) -- persistiert einen
+// Persistiert einen
 // Snapshot des bereits bestehenden, live berechneten Divergenz-Radars
 // (lib/divergenceRadarContext.ts::buildDivergenceRadar) nach
 // divergence_radar_snapshots. Kein AI-Aufruf, keine Kosten -- rein
@@ -44,9 +44,8 @@ export async function POST() {
     spot_pressure_vs_orderbook: radar.spotPressureVsOrderbook,
     cycle_vs_momentum: radar.cycleVsMomentum,
     cycle_band_label: radar.cycleBandLabel,
-    // Spaltennamen bewusst unveraendert gelassen (30.09.2026, Handelslage in
-    // System-Briefing aufgegangen, siehe divergenceRadarContext.ts) -- eine
-    // reine Umbenennung haette eine Migration gebraucht, ohne echten Nutzen.
+    // Spaltennamen bewusst unveraendert (siehe divergenceRadarContext.ts) --
+    // eine reine Umbenennung haette eine Migration gebraucht, ohne Nutzen.
     handelslage_vs_state: radar.systemBriefingVsState,
     handelslage_bias: radar.systemBriefingBias ?? null,
     tradingview_vs_state: radar.tradingViewVsState,

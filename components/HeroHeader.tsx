@@ -69,12 +69,10 @@ import MtfDotsRow from "@/components/MtfDotsRow";
 
 const CUMULATIVE_ETF_DAYS = 5;
 
-// Nutzer-Vorgabe (23.09.2026): die "Kurze Einordnung" soll nach 6 Std. nicht
-// nur ausgeblendet, sondern automatisch neu generiert werden (ein einziger
-// AI-Aufruf pro veraltet erkanntem Snapshot, siehe Effect weiter unten) --
-// bewusst enger als der allgemeine STALE_HOURS_THRESHOLD (12h,
-// ClientTimestamp.tsx), der nur fuer reine Anzeige-Badges ohne eigene
-// Aktion gilt.
+// Ab diesem Alter wird die KI-Einordnung nicht nur ausgeblendet, sondern
+// automatisch EINMAL neu generiert (siehe Effect unten) -- bewusst enger als
+// der allgemeine STALE_HOURS_THRESHOLD (12h, ClientTimestamp.tsx), der nur
+// fuer reine Anzeige-Badges ohne eigene Aktion gilt.
 const NARRATIVE_AUTO_REFRESH_HOURS = 6;
 
 function formatSignedPct(value: number | null) {
@@ -82,12 +80,9 @@ function formatSignedPct(value: number | null) {
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
 
-// Kurze Einordnung (22.09.2026, 30.09.2026 angepasst, 06.10.2026 um Chart-
-// Struktur erweitert): zeigt das FAZIT (kernaussage) des System-Briefing-
-// Snapshots -- seit der Umstrukturierung auf fuenf Abschnitte (siehe
-// lib/types.ts::SystemBriefingResult) ist das bereits die kurze, 1-2-
-// saetzige Zusammenfassung, keine clientseitige Kuerzung eines langen
-// Fliesstexts mehr noetig.
+// Die KI-Einordnung zeigt das FAZIT (kernaussage) des System-Briefing-
+// Snapshots -- das ist bereits die kurze 1-2-saetzige Zusammenfassung
+// (siehe lib/types.ts::SystemBriefingResult), keine clientseitige Kuerzung.
 const SHORT_NARRATIVE_INFO_TEXT = [
   "Was das ist: das Fazit der System-Briefing-Einordnung (Regelwerk + Nexus-Faktoren) als schneller Überblick direkt hier oben -- dieselbe Analyse wie unten in der System-Briefing-Kachel, nicht extra generiert.",
   "Andere Engine als das grosse Badge oben: das Badge ist die regelbasierte 14-Faktoren-Gesamteinschätzung, diese Box wendet dein eigenes Regelwerk (Welz/Salomon/\"Mein Trading System\") AUF diese Einschätzung an -- beide können unterschiedlicher Meinung sein. Weicht der aktuelle Stand tatsächlich ab, erscheint hier ein Warnhinweis (⚠) statt zwei stillschweigend widersprüchlichen Badges.",
@@ -101,35 +96,17 @@ function formatUsdM(value: number) {
   return `${sign}$${abs.toFixed(1)}M`;
 }
 
-// Ebene 0/1 der Dashboard-Hierarchie (Nutzer-Feedback vom 31.08.2026,
-// "Grundidee: kompakte App mit einem Hinweis, wohin der Kurs geht").
+// Lagebild: fest platzierte Synthese ganz oben auf dem Dashboard. Ein Poll
+// auf market_states liefert Zustand, Fazit-Satz und Detail; Setup-/Regime-
+// Score, MTF-Ampel und Marktphase stehen als Kennzahlen daneben. Alles
+// Weitere (Statuszeilen, 14 Faktoren, Muster, Risikofaktoren, Master-Report,
+// vollstaendige Score-Karten) liegt im Aufklapper "Warum?".
 //
-// 13.09.2026 -- verschmolzen mit der vormals separaten MarketStateCard
-// ("Gesamteinschätzung"): beide zeigten dieselbe market_states-Zeile mit
-// eigenem, unabhaengigem 60s-Poll -- Badge+Zeitstempel und die
-// Verlaesslichkeits-Zahl standen dadurch zweimal direkt untereinander auf
-// der Seite (per Screenshot entdeckt, nachdem ein erster Versuch nur den
-// Kurzsatz dedupliziert hatte). Jetzt EIN Poll, EINE Sektion: oben die
-// Kurzuebersicht (Badge, Kurzsatz, Handelszeiten, Bestaetigung,
-// Status-Zeilen aller Sparten), unten als Fortsetzung derselben Box das
-// Gesamteinschaetzung-spezifische Detail (Konfidenz-Aufschluesselung,
-// Muster, Risk-Faktoren, 14-Faktoren-Aufklapper) -- kein Datenverlust,
-// keine Kachel weniger nur aus Marketing-Gruenden, sondern weil es
-// tatsaechlich derselbe Rechenweg war.
-//
-// 02.10.2026 -- Nutzer-Feedback "verstaendlicher, klarer, strukturierter":
-// (1) MTF-Alignment-% (nur 1H/4H/1D) entfernt -- live nachgewiesen, dass sie
-// einen echten 15M-Gegentrend verdecken konnte (100% Alignment trotz
-// bestaetigt baerischem 15M, weil die Prozentzahl 15M/1W gar nicht erfasst);
-// die MTF-Ampel (5 Zeitrahmen, mit ADX-Nuance) bleibt alleinige Quelle. (2)
-// "Kurze Einordnung" (System-Briefing) jetzt als eigener, umrandeter Block
-// mit explizitem Hinweis "andere Engine" + automatischer Divergenz-Warnung
-// (briefingDivergence), statt stillschweigend ein zweites, potenziell
-// widerspruechliches Bullisch/Baerisch-Badge unter dem oberen zu zeigen. (3)
-// Die Confidence-/Risk-Detailzeile in "Datenqualitaet" vs. "Marktlage"
-// gruppiert statt einer flachen 5-6-Werte-Zeile. (4) Die vormals separat
-// schwebende "X von Y Signalen bestaetigen"-Zeile ist jetzt Teil von
-// StatusLineSummary selbst (✓/✗ direkt an der jeweiligen Zeile, siehe dort).
+// Die MTF-Ampel (5 Zeitrahmen, mit ADX-Nuance) ist die einzige Quelle fuer
+// die Zeitrahmen-Lage -- die alte MTF-Alignment-% (nur 1H/4H/1D) konnte einen
+// echten 15M-Gegentrend verdecken. Die KI-Einordnung stammt aus einer
+// anderen Engine (dein Regelwerk) und wird bei Abweichung explizit gewarnt
+// (briefingDivergence) statt stillschweigend widerspruechlich zu wirken.
 
 const MARKET_STATE_REFRESH_MS = 60_000;
 // Regime aendert sich hoechstens stuendlich (1H-Kerzen-Raster, siehe
@@ -170,31 +147,12 @@ const RISK_FACTOR_LABELS: Record<string, string> = {
   elevated_volatility: "erhöhte Volatilität",
 };
 
-// 02.10.2026 -- Nutzer-Feedback: "warnmuster: soll zusaetzlich angezeigt
-// werden welches." Vorher bewusst ein Meta-Signal-Badge ohne Namen (siehe
-// Git-Historie) -- WELCHES der Muster vorliegt stand nur in den separaten
-// Pattern-Badges darueber, Nutzer musste beide Badge-Reihen gedanklich
-// verknuepfen. Jetzt steht der/die Mustername(n) direkt im Badge-Text
-// selbst, aus demselben state.patterns, das die Pattern-Badges oben schon
-// anzeigen -- keine neue Datenquelle.
-//
-// Nachtrag (gleicher Tag) -- Nutzer-Wunsch "inkl deren Richtung, im
-// gleichen Badge": Richtung je Pattern + die Namensmenge, die den
-// "warning_pattern"-Risk-Factor ausloest (identisch zu
-// RISK_ELEVATING_PATTERNS in compute-market-state). Seit 03.10.2026 in
-// lib/patternDirection.ts ausgelagert (lib/levelStructureContext.ts braucht
-// dieselbe Zuordnung fuer den Signal-Abgleich, kein Grund fuer eine zweite
-// Kopie im selben Repo).
-//
-// Zweiter Nachtrag (gleicher Tag, Nutzer-Frage "warnmuster nun doppelt
-// angezeigt?"): ja, war es -- die obere Pattern-Badge-Reihe zeigte denselben
-// Namen nochmal neben dem jetzt bereits vollstaendigen Warn-Muster-Badge.
-// RISK_ELEVATING_PATTERN_NAMES filtert diese Namen aus der oberen Reihe,
-// sie bleiben aber (inkl. Begruendung) vollstaendig im Warn-Muster-Badge/
-// dessen Erklaerungstext erhalten -- kein Informationsverlust, nur keine
-// doppelte Darstellung mehr. "Bullish Confirmation" ist NICHT in dieser
-// Menge und bleibt dadurch weiterhin oben sichtbar (kein Risk-Factor, hat
-// also kein eigenes Badge weiter unten).
+// Der Warn-Muster-Badge nennt Muster und Richtung direkt im Text (aus
+// state.patterns, Richtung aus lib/patternDirection.ts). Muster, die den
+// "warning_pattern"-Risk-Factor ausloesen (RISK_ELEVATING_PATTERN_NAMES,
+// identisch zu compute-market-state), werden deshalb aus der allgemeinen
+// Muster-Reihe herausgefiltert, damit sie nicht doppelt erscheinen.
+// "Bullish Confirmation" ist kein Risk-Factor und bleibt in der Muster-Reihe.
 
 function riskFactorLabel(factor: string, patterns: { name: string }[]): string {
   if (factor === "warning_pattern" && patterns.length > 0) {
@@ -407,18 +365,14 @@ export default function HeroHeader({
   // rechnet rein clientseitig gegen die Systemzeit weiter, braucht also
   // keinen eigenen Live-Poll dieser sich ohnehin selten aendernden Termine.
   upcomingEconomicEvents: EconomicCalendarEvent[];
-  // Kurze Einordnung (22.09.2026, vormals eigene "Zusammenfassung"-Kachel
-  // mit eigenem AI-Aufruf/Route -- siehe Kommentar bei der Render-Stelle
-  // unten): zeigt nur noch einen Auszug des ohnehin schon vorhandenen
-  // System-Briefing-Snapshots, kein eigener Fetch/Poll/Button hier.
+  // Auszug des ohnehin vorhandenen System-Briefing-Snapshots fuer die
+  // KI-Einordnung, kein eigener Fetch/Poll/Button hier.
   initialSystemBriefing: SystemBriefingSnapshot | null;
-  // MTF-Ampel (22.09.2026, siehe lib/mtfSignal.ts) -- unabhaengig vom
-  // gewichteten mtf_alignment-Feld in state (das deckt nur 1H/4H/1D ohne
-  // ADX-Nuance ab); die Ampel ergaenzt 15M/1H/4H/1D/1W mit Trend-vs-
-  // Trendbildung-Unterscheidung.
+  // MTF-Ampel (lib/mtfSignal.ts) -- 15M/1H/4H/1D/1W mit Trend-vs-
+  // Trendbildung-Unterscheidung, unabhaengig vom mtf_alignment-Feld in state.
   initialMtfDots: MtfTimeframeDot[];
-  // Lagebild (11.10.2026): Setup-/Regime-Score als Kennzahlen oben, die
-  // vollstaendigen Karten (scoreDetails) im Aufklapper "Warum?".
+  // Setup-/Regime-Score als Kennzahlen oben, die vollstaendigen Karten
+  // (scoreDetails) im Aufklapper "Warum?".
   setupScore: ConfluenceScoreResult;
   regimeScore: RegimeScoreResult;
   scoreDetails: ReactNode;
@@ -456,21 +410,14 @@ export default function HeroHeader({
     return () => clearInterval(interval);
   }, []);
 
-  // Nutzer-Feedback (23.09.2026): eine veraltete "Kurze Einordnung" darf
-  // hier nie als aktueller Zustand lesbar sein (siehe bereits einmal
-  // aufgetretener Bug mit einem laengst ueberholten Preis im Fliesstext).
-  // Ab NARRATIVE_AUTO_REFRESH_HOURS wird der veraltete Text nicht nur
-  // ausgeblendet, sondern automatisch EIN neuer System-Briefing-Snapshot
-  // angefordert (dieselbe Route wie der "Neu generieren"-Button in
-  // SystemBriefingCard.tsx, inkl. deren serverseitigem Rate-Limit) --
-  // narrativeAutoRefreshAttemptedRef sorgt dafuer, dass pro Mount hoechstens
-  // ein Versuch ausgeloest wird (kein Nachhaemmern des Endpoints, falls die
-  // Anfrage fehlschlaegt). Start bewusst bei "unknown" (kein Text, kein
-  // Hinweis) statt sofort den Narrativ-Text zu zeigen: vermeidet jedes --
-  // und sei es nur kurze -- Anzeigen eines potenziell veralteten Snapshots
-  // vor der ersten, Date.now()-abhaengigen Berechnung im Effect (gleiche
-  // Hydration-Begruendung wie bei FullDateTime/StaleBadge in
-  // ClientTimestamp.tsx).
+  // Eine veraltete KI-Einordnung darf nie als aktueller Zustand lesbar sein
+  // (Preise im Fliesstext stammen vom Generierungszeitpunkt). Ab
+  // NARRATIVE_AUTO_REFRESH_HOURS wird automatisch EIN neuer Snapshot
+  // angefordert (dieselbe Route wie "Neu generieren" in SystemBriefingCard,
+  // inkl. deren Rate-Limit); narrativeAutoRefreshAttemptedRef begrenzt das
+  // auf einen Versuch pro Mount. Start bei "unknown" (kein Text), damit vor
+  // der ersten Date.now()-abhaengigen Berechnung nie ein potenziell
+  // veralteter Text aufblitzt (Hydration, vgl. ClientTimestamp.tsx).
   const [narrativeSnapshot, setNarrativeSnapshot] = useState(initialSystemBriefing);
   const [narrativeFreshness, setNarrativeFreshness] = useState<"unknown" | "fresh" | "stale">("unknown");
   const [narrativeHoursOld, setNarrativeHoursOld] = useState<number | null>(null);
@@ -553,17 +500,10 @@ export default function HeroHeader({
     return undefined;
   }
 
-  // Ebene-0-Statuszeilen: eine Zeile je Sparte mit ihrem eigenen, bereits
-  // vorhandenen Wert + Pfeil (siehe lib/heroSummary.ts fuer die 4-Zustands-
-  // Logik). Beschraenkt auf die 5 Sparten mit einer echten, dokumentierten
-  // Richtungsaussage (Marktkontext, Marktphase, Spot Pressure, Preis & OI,
-  // ETF-Flows) -- Positionierung, Liquidationen und News wurden entfernt
-  // (Nutzer-Feedback 23.09.2026): sie hatten laut ihrer eigenen Panel-Texte
-  // ausdruecklich keine Kursprognose/Richtungsaussage, zeigten hier immer
-  // nur "nicht anzeigbar" und flossen auch nicht in die "X von Y bestaetigen"-
-  // Konfirmationslogik ein -- bleiben als Rohdaten weiterhin in ihren
-  // eigenen Detail-Kacheln (LiquidationPanel/PositioningPanel/NewsRiskPanel)
-  // sichtbar.
+  // Statuszeilen: eine Zeile je Sparte mit eigenem Wert + Pfeil (4-Zustands-
+  // Logik siehe lib/heroSummary.ts). Nur Sparten mit einer echten,
+  // dokumentierten Richtungsaussage -- Positionierung, Liquidationen und News
+  // haben laut eigener Panel-Texte keine und stehen nur in ihren Kacheln.
   const regimeSuppressed = regime !== null && shouldSuppressRegimeDirectionalLabel(regime, state.confidence);
   const regimeLabelText = regime === null
     ? "—"
@@ -619,14 +559,10 @@ export default function HeroHeader({
   const confidenceBreakdown = computeConfidenceBreakdown(state);
   const salomonInterpretation = getSalomonInterpretation(patterns, mtf);
   const momentumDivergence = detectMomentumDivergence(state);
-  // Zwei-Engines-Trennung (Nutzer-Feedback: Kopf-Kachel "verstaendlicher,
-  // klarer, strukturierter" -- das Bullisch/Baerisch-Badge oben (14-
-  // Faktoren-Engine) und das Fazit unten in "Kurze Einordnung" (System-
-  // Briefing, wendet Tobys eigenes Regelwerk an) sind ZWEI unabhaengige
-  // Einschaetzungen, die bisher ohne jede Kennzeichnung als Widerspruch
-  // untereinander standen. Gleiche Berechnung wie Divergenz-Radar
-  // (systemBriefingVsState), hier direkt aus den ohnehin schon geladenen
-  // state/narrativeSnapshot-Werten, kein zusaetzlicher Fetch.
+  // Zwei unabhaengige Einschaetzungen: Zustand oben (14-Faktoren-Engine) und
+  // KI-Einordnung (System-Briefing, wendet Tobys Regelwerk an). Gleiche
+  // Berechnung wie Divergenz-Radar (systemBriefingVsState), direkt aus den
+  // bereits geladenen state/narrativeSnapshot-Werten.
   const briefingDivergence = computeSystemBriefingVsStateDivergence(
     narrativeSnapshot?.result?.fazit?.bias,
     state.overall_state
@@ -649,9 +585,8 @@ export default function HeroHeader({
 
   return (
     <section className="rounded-lg border border-accent/40 bg-surface-raised p-5 sm:p-6 space-y-4">
-      {/* Lagebild (Entwurf von Toby am 11.10.2026 freigegeben, siehe
-          NEXUS-STRUKTUR-KONZEPT Abschnitt 8): oben Aussage + vier
-          Kennzahlen, alles Weitere im Aufklapper "Warum?". */}
+      {/* Oben Aussage + vier Kennzahlen, alles Weitere im Aufklapper "Warum?"
+          (siehe NEXUS-STRUKTUR-KONZEPT Abschnitt 8). */}
       <div className="flex items-start justify-between flex-wrap gap-x-6 gap-y-2">
         <div className="space-y-1">
           <span className="flex items-center gap-1.5">
@@ -763,9 +698,9 @@ export default function HeroHeader({
         </div>
       </div>
 
-      {/* KI-Einordnung (vormals "Kurze Einordnung"): Fazit des System-
-          Briefings mit Zeitstempel daneben. Ab NARRATIVE_AUTO_REFRESH_HOURS
-          wird automatisch EIN neuer Snapshot angefordert (siehe Effect oben). */}
+      {/* KI-Einordnung: Fazit des System-Briefings mit Zeitstempel. Ab
+          NARRATIVE_AUTO_REFRESH_HOURS wird automatisch EIN neuer Snapshot
+          angefordert (siehe Effect oben). */}
       <div className="pt-3 border-t border-border/60 space-y-1.5">
         <div className="flex items-center gap-x-2.5 gap-y-1 flex-wrap text-xs">
           <span className="text-text-muted">KI-Einordnung (System-Briefing)</span>

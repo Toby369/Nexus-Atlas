@@ -6,8 +6,7 @@ import PanelInfo from "@/components/PanelInfo";
 import { fundingRateInfo } from "@/lib/panelInfo";
 import { formatPercent, clockTimeLabel } from "@/lib/livePriceFormat";
 
-// Aus der ehemaligen LivePricePanel.tsx herausgeloest (Nutzer-Feedback
-// 05.09.2026, siehe LivePriceDataProvider.tsx).
+// Datenquelle: gemeinsamer LivePriceDataProvider.
 
 export default function FundingRateCard() {
   const { latest, fundingSeries } = useLivePriceData();

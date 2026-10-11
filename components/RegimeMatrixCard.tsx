@@ -81,9 +81,8 @@ async function fetchLatestMatrix(): Promise<{ data: MarketStateMatrix | null; ok
   return { data, ok: true };
 }
 
-// 20.09.2026: kurzfristiger Seitwaerts-Check (siehe lib/types.ts::
-// ShortTermRangeCheck) -- eigener RPC-Read, unabhaengig von der 1h-Matrix
-// oben, daher eigene Fetch-Funktion statt Wiederverwendung.
+// Kurzfristiger Seitwaerts-Check (siehe lib/types.ts::ShortTermRangeCheck) --
+// eigener RPC-Read, unabhaengig von der 1h-Matrix, daher eigene Fetch-Funktion.
 async function fetchShortTermRangeCheck(): Promise<ShortTermRangeCheck | null> {
   const { data, error } = await supabase.rpc("get_short_term_range_check");
   if (error) {
@@ -124,13 +123,11 @@ export default function RegimeMatrixCard({
   initialTradingViewSignal,
 }: {
   initialMatrix: MarketStateMatrix | null;
-  // MTF-Ampel (22.09.2026, siehe lib/mtfSignal.ts) -- unabhaengig von
-  // initialMatrix (das ist ausschliesslich die 1H-Regime-Engine), deckt
-  // 15M/1H/4H/1D/1W ab (seit 02.10.2026 inkl. 1W, siehe buildMtfDots()).
+  // MTF-Ampel (lib/mtfSignal.ts) -- unabhaengig von initialMatrix (nur die
+  // 1H-Regime-Engine), deckt 15M/1H/4H/1D/1W ab.
   initialMtfDots: MtfTimeframeDot[];
-  // Kurzfristiger Seitwaerts-Check (20.09.2026, siehe fetchShortTermRangeCheck
-  // oben) -- unabhaengig von initialMatrix, kann null sein (z.B. zu wenig
-  // 15m-Historie fuer die letzten 16 Bars).
+  // Kurzfristiger Seitwaerts-Check -- unabhaengig von initialMatrix, kann null
+  // sein (z.B. zu wenig 15m-Historie fuer die letzten 16 Bars).
   initialShortTermRangeCheck: ShortTermRangeCheck | null;
   // Fuer die Confidence-Sperre (siehe unten) -- dieselbe market_states-Zeile,
   // die MarketStateCard bereits erhaelt, kein Zusatz-Query.
@@ -213,12 +210,9 @@ export default function RegimeMatrixCard({
         ? "bärisch"
         : null;
 
-  // Kurzfristiger Seitwaerts-Check (20.09.2026): nur relevant, wenn die 1h-
-  // Engine gerade eine gerichtete Trendausweitung zeigt UND diese
-  // Richtungsaussage nicht schon durch die Confidence-Sperre unterdrueckt
-  // wird (suppressDirectional) -- sonst wuerde hier ein "Trend evtl.
-  // nachlaufend"-Hinweis zu einer Richtung erscheinen, die ohnehin schon als
-  // "Unklar" angezeigt wird.
+  // Seitwaerts-Hinweis nur, wenn die 1h-Engine gerade eine gerichtete
+  // Trendausweitung zeigt UND diese nicht schon durch die Confidence-Sperre
+  // als "Unklar" angezeigt wird (suppressDirectional).
   const showStaleTrendHint =
     !suppressDirectional && isTrendingRegime(matrix.regime) && shortTermRangeCheck?.is_ranging === true;
 
@@ -274,11 +268,10 @@ export default function RegimeMatrixCard({
         </p>
       )}
 
-      {/* 13.09.2026 -- DIVERGENCE faerbt bewusst accent (gold) statt down/rot:
-          die beiden Engines widersprechen sich, das sagt nichts ueber
-          bullisch/baerisch aus, nur "geringere Aussagekraft". AGREEMENT hat
-          dagegen eine echte, bekannte Richtung (marketStateDirectionLabel) --
-          faerbt deshalb tatsaechlich nach up/down statt pauschal gruen. */}
+      {/* DIVERGENCE faerbt bewusst accent (gold) statt rot: ein Widerspruch
+          der Engines sagt nichts ueber bullisch/baerisch, nur "geringere
+          Aussagekraft". AGREEMENT hat eine echte Richtung
+          (marketStateDirectionLabel) und faerbt deshalb nach up/down. */}
       {engineDivergence === "DIVERGENCE" && marketStateDirectionLabel && (
         <div className="space-y-1">
           <span className="inline-block text-[11px] px-2 py-0.5 rounded-full border border-accent/40 text-accent font-semibold uppercase tracking-wide">
@@ -298,12 +291,10 @@ export default function RegimeMatrixCard({
         </p>
       )}
 
-      {/* 20.09.2026 -- Nutzer-Beobachtung: die 1h-Engine kann nach einem
-          abgeschlossenen Trendimpuls mehrere Stunden "nachlaufen" (ADX/
-          Regressionssteigung bleiben erhoeht, obwohl der Kurs bereits
-          seitwaerts laeuft) -- siehe get_short_term_range_check() RPC.
-          Bewusst nur als Hinweis, nicht als eigenes Regime/eigene Kachel:
-          reine Zusatzinformation zur bestehenden 1h-Aussage oben. */}
+      {/* Die 1h-Engine kann nach einem abgeschlossenen Trendimpuls mehrere
+          Stunden "nachlaufen" (ADX/Regressionssteigung bleiben erhoeht,
+          obwohl der Kurs seitwaerts laeuft) -- siehe get_short_term_range_check().
+          Bewusst nur ein Hinweis zur bestehenden 1h-Aussage. */}
       {showStaleTrendHint && shortTermRangeCheck && (
         <p className="text-xs text-accent">
           Kurzfristig (15m, letzte {shortTermRangeCheck.lookback_bars / 4}h) bereits seitwärts (ADX{" "}
@@ -448,9 +439,9 @@ export default function RegimeMatrixCard({
             <span className="text-text">{fmtPct(matrix.oi_change_pct)}</span>
             <PanelInfo title="OI-Δ (6h)" content={REGIME_MATRIX_METRIC_INFO.oiChange} className="ml-1" />
           </div>
-          {/* OI/Preis-Quadrant hier seit 11.10.2026 nicht mehr angezeigt: die
-              DB-Variante hat keine Mindestbewegung und widersprach dadurch oft
-              der Marktkontext-Kachel, die jetzt die einzige Anzeige ist (siehe
+          {/* Kein OI/Preis-Quadrant hier: die DB-Variante hat keine
+              Mindestbewegung und widersprach dadurch oft der Marktkontext-
+              Kachel, die ihn allein anzeigt (siehe
               docs/research/OI-PREIS-QUADRANT-VERGLEICH_2026-10-11.md). Die
               Spalte bleibt fuer die Regime-Score-Forschung bestehen. */}
 

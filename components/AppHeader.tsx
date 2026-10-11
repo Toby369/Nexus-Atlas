@@ -2,11 +2,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import LogoutButton from "@/components/LogoutButton";
 
-// Gemeinsamer Seitenkopf fuer Dashboard, AI Reports, Lernen und Konto
-// (Aufraeumung 11.10.2026): vorher hatte jede Seite ihren eigenen,
-// leicht abweichenden Header -- von /lernen aus gab es z.B. keinen Link zu
-// /reports und umgekehrt, und nirgends war erkennbar, auf welcher Seite man
-// gerade ist. Jetzt dieselbe Navigation ueberall, aktive Seite hervorgehoben.
+// Gemeinsamer Seitenkopf fuer Dashboard, AI Reports, Lernen und Konto:
+// dieselbe Navigation ueberall, aktive Seite hervorgehoben.
 export type AppPage = "dashboard" | "reports" | "lernen" | "account";
 
 const NAV_ITEMS: { id: AppPage; href: string; label: string }[] = [

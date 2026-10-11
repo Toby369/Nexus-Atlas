@@ -5,13 +5,12 @@ import type { EscalationSnapshot, EscalationTriggerRecord } from "@/lib/types";
 import { FullDateTime, StaleBadge } from "@/components/ClientTimestamp";
 import PanelInfo from "@/components/PanelInfo";
 
-// Eskalations-Kachel ("gezielte Eskalation" statt Dauerbetrieb mehrerer KIs,
-// 05.09.2026) -- holt mehrere unabhaengige AI-Meinungen (siehe
-// lib/ai/tileConfig.ts ESCALATION_PROVIDER_ENSEMBLE) NUR ein, wenn Nexus
-// intern bereits eine Divergenz/einen Widerspruch erkannt hat. initialTriggers kommt aus einer kostenlosen
-// DB-Pruefung (lib/escalationContext.ts::detectEscalationTriggers, reine
-// Reads, kein AI-Aufruf) -- der Button ist nur aktiv, wenn mindestens ein
-// Trigger aktiv ist.
+// Eskalation ("gezielte Eskalation" statt Dauerbetrieb mehrerer KIs): holt
+// mehrere unabhaengige KI-Meinungen (lib/ai/tileConfig.ts
+// ESCALATION_PROVIDER_ENSEMBLE) NUR ein, wenn Nexus intern bereits einen
+// Widerspruch erkannt hat. initialTriggers stammt aus einer kostenlosen
+// DB-Pruefung (lib/escalationContext.ts::detectEscalationTriggers) -- der
+// Button ist nur bei mindestens einem aktiven Trigger aktiv.
 
 const INFO_TEXT = [
   "Was das ist: statt einer dauerhaften Kachel mit 2-4 parallelen KI-Meinungen (verworfen -- Modell-Uneinigkeit auf denselben Rohdaten spiegelt meist Modellrauschen statt echter Markt-Ambiguitaet) holt Nexus mehrere unabhaengige Meinungen NUR ein, wenn eines der bestehenden Pruefmechanismen bereits eine Divergenz/einen Widerspruch meldet: Signal-Engine (Konsistenz der Gesamteinschaetzung), Divergenz-Radar (unabhaengige Datenquellen) oder Report-Master (widerspruechliche Einzelreports).",
@@ -33,12 +32,9 @@ const BIAS_LABELS: Record<string, string> = {
   neutral: "Neutral",
 };
 
-// 13.09.2026 -- AGREEMENT faerbte bisher pauschal gruen, auch wenn sich
-// alle 3 KIs auf "bearish" einig waren. Faerbt jetzt nach dem tatsaechlich
-// geteilten Bias (reads[0], da AGREEMENT per Definition gleicher bias bei
-// allen bedeutet -- siehe computeConsensusBadgeStyle). DIVERGENCE hat
-// keinen einzelnen Bias mehr (die KIs widersprechen sich ja gerade) --
-// accent statt rot, INCONCLUSIVE bleibt grau.
+// AGREEMENT faerbt nach dem gemeinsamen Bias (reads[0] -- bei AGREEMENT
+// haben alle denselben), damit "einig bearish" nicht gruen aussieht.
+// DIVERGENCE hat keinen einzelnen Bias (accent), INCONCLUSIVE bleibt grau.
 function computeConsensusBadgeStyle(snapshot: EscalationSnapshot): string {
   if (snapshot.consensus === "AGREEMENT") {
     return BIAS_STYLES[snapshot.reads[0]?.bias ?? "neutral"];

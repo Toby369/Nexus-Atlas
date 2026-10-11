@@ -4,11 +4,9 @@ import type { ChartStructureData } from "@/lib/chartStructureContext";
 import PanelInfo from "@/components/PanelInfo";
 import { chartStructureInfo } from "@/lib/panelInfo";
 
-// UI-Karte fuer "Struktur: Key Levels, AVWAP, Trendlinien, Muster"
-// (Nutzer-Idee 24.09.2026) -- gleicher Anzeige-Stil wie GussSignalCard/
-// VwapVectorCard/CvdFootprintCard in TradingIndicatorsCards.tsx, hier
-// ausgelagert, da die vier Struktur-Bausteine thematisch eigenstaendig
-// sind und die Datei sonst zu unuebersichtlich wuerde.
+// UI-Karte fuer "Struktur: Key Levels, AVWAP, Trendlinien, Muster" -- gleicher
+// Anzeige-Stil wie die Karten in TradingIndicatorsCards.tsx, ausgelagert, da
+// die vier Struktur-Bausteine thematisch eigenstaendig sind.
 
 function formatPrice(value: number): string {
   return `$${value.toLocaleString("de-CH", { maximumFractionDigits: 0 })}`;
@@ -138,7 +136,7 @@ function formatBtcCompact(value: number): string {
 
 // Spot-Volume-Tag zeigt bewusst Kauf/Verkauf statt nur "Spot-Volumen" --
 // das ist die eigentliche Aussage (Kauf-Uebergewicht = Support-Hinweis,
-// Verkaufs-Uebergewicht = Widerstand-Hinweis, Toby-Idee 30.09.2026).
+// Verkaufs-Uebergewicht = Widerstand-Hinweis).
 function spotVolumeLabel(spotVolume: NonNullable<ChartStructureData["keyLevels"][number]["spotVolume"]>): string {
   const dominant = spotVolume.buyVolumeBtc >= spotVolume.sellVolumeBtc ? "Kauf" : "Verkauf";
   const dominantVolume = Math.max(spotVolume.buyVolumeBtc, spotVolume.sellVolumeBtc);
