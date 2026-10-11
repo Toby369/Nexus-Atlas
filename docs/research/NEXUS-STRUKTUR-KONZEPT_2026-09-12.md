@@ -203,3 +203,16 @@ Jede Phase = eigener Commit, vor jedem Push `tsc`, `eslint`, `npm test`, `next b
 
 Damit entfällt Phase 4 (Lernen-Seite) für diese Runde; Phase 5 beschränkt sich auf
 Verlaufs-Kommentare und das Zerlegen grosser Komponenten ohne Verhaltensänderung.
+
+### Nachtrag: System-Briefing ins Lagebild (11.10.2026)
+
+**Freigegeben (Toby):** Die Kachel "System-Briefing (KI)" entfällt als eigene Kachel. Ihr
+Fazit stand schon als KI-Einordnung im Lagebild; die Details (Regelwerk-Check,
+Chart-Struktur, Konfluenz-Check, Trigger & Szenario) sind jetzt ein Aufklapper darunter
+(`components/SystemBriefingDetails.tsx`). "Neu generieren" und "Rückfrage stellen" (Freie
+Anfrage) sitzen ebenfalls dort. Reiter "KI & Tools" hat damit vier Kacheln. Keine Daten
+entfernt, `system_briefings` und Route bleiben.
+
+Anlass: Seit dem Umbau auf vier Teil-Aufrufe (08.10.) scheiterte jeder Lauf am harten
+20s-Limit je Provider. Behoben über ein Zeitlimit je Kachel (`TileAIConfig.timeoutMs`, 40s
+für die Briefing-Teile) und `maxDuration = 300` der Briefing-Route.
