@@ -7,8 +7,8 @@ export interface DashboardTileMeta {
   id: string;
   title: string;
   // Ab lg: (3-spaltiges Grid, siehe DashboardLayout.tsx) spannt diese Kachel
-  // alle 3 Spalten -- fuer "system-briefing" gesetzt, dessen Fliesstext in
-  // einer 1/3-Spalte zu eng waere.
+  // alle 3 Spalten -- fuer Kacheln mit Fliesstext, der in einer 1/3-Spalte
+  // zu eng waere.
   fullWidth?: boolean;
   // "compact" markiert reine Kennzahl-Kacheln (ein-zwei Zeilen, keine
   // Listen/Charts), die DashboardLayout.tsx in einer eigenen, einheitlichen
@@ -31,15 +31,12 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "orderbook-walls", title: "Orderbuch-Wände", size: "compact" },
   { id: "divergence-radar", title: "Divergenz-Radar" },
   // News-Einordnung (KI) ist ein Aufklapper in "news-risk", der Konsistenz-
-  // Check der frueheren Signal Engine steckt im System-Briefing.
+  // Check der frueheren Signal Engine steckt im System-Briefing (Lagebild).
   { id: "signal-review", title: "Periodischer Rückblick (KI)" },
-  // Buendelt Eskalation + Trade-Debate. Die Freie Anfrage ist ein Abschnitt
-  // im System-Briefing (siehe NEXUS-STRUKTUR-KONZEPT Abschnitt 8).
+  // Buendelt Eskalation + Trade-Debate. System-Briefing und Freie Anfrage
+  // stehen im Lagebild (HeroHeader), nicht als eigene Kachel.
   { id: "second-opinions", title: "Zweitmeinungen (KI)" },
   { id: "youtube-monitor", title: "Krypto-YouTube-Monitor (KI)" },
-  // Fusioniert Regelwerk, alle berechneten Nexus-Faktoren und die
-  // Handelslage zu einer Synthese (siehe lib/systemBriefingContext.ts).
-  { id: "system-briefing", title: "System-Briefing (KI)", fullWidth: true },
   { id: "liquidations", title: "Liquidationen" },
   { id: "etf-flow", title: "ETF-Flows & Makro" },
   { id: "news-risk", title: "News & Risiko" },

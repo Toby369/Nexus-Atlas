@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import type {
+  CustomQueryRun,
   EconomicCalendarEvent,
   EtfFlowDay,
   MarketRegime,
@@ -58,6 +59,8 @@ import TradingHoursBadge from "@/components/TradingHoursBadge";
 import EconomicHeroBadge from "@/components/EconomicHeroBadge";
 import MasterReportHeroCard from "@/components/MasterReportHeroCard";
 import PanelInfo from "@/components/PanelInfo";
+import SystemBriefingDetails, { isValidSystemBriefingResult } from "@/components/SystemBriefingDetails";
+import CustomQueryPanel from "@/components/CustomQueryPanel";
 import { marketStateInfo, MARKET_STATE_FACTOR_INFO, momentumDivergenceInfo } from "@/lib/panelInfo";
 import { fetchMtfDots, type MtfTimeframeDot } from "@/lib/mtfSignal";
 import { RISK_ELEVATING_PATTERN_NAMES } from "@/lib/patternDirection";
@@ -91,9 +94,10 @@ function formatSignedPct(value: number | null) {
 // Snapshots -- das ist bereits die kurze 1-2-saetzige Zusammenfassung
 // (siehe lib/types.ts::SystemBriefingResult), keine clientseitige Kuerzung.
 const SHORT_NARRATIVE_INFO_TEXT = [
-  "Was das ist: das Fazit der System-Briefing-Einordnung (Regelwerk + Nexus-Faktoren) als schneller Überblick direkt hier oben -- dieselbe Analyse wie unten in der System-Briefing-Kachel, nicht extra generiert.",
+  "Was das ist: das Fazit des System-Briefings -- eine KI-Synthese, die dein eigenes Regelwerk (Welz/Salomon-Methodik + \"Mein Trading System\"-Checkliste) und die berechnete Chart-Struktur auf den aktuellen Stand von Nexus' Faktoren anwendet (Bewegungsvorrat, 14-Faktoren-Engine, VWAP-Vector/CVD, Liquidations-Cluster, Marktkontext, ETF-Flows, Positionierung, News).",
+  "Im Aufklapper darunter: Regelwerk-Check, Chart-Struktur, Konfluenz-Check (nur bei echtem Widerspruch) und Trigger & Szenario mit beiden Richtungen -- jedes Kursziel entspricht einem echten Key Level, nie einer frei geschätzten Zahl. Entscheidungsunterstützung, keine Anlageberatung.",
   "Andere Engine als das grosse Badge oben: das Badge ist die regelbasierte 14-Faktoren-Gesamteinschätzung, diese Box wendet dein eigenes Regelwerk (Welz/Salomon/\"Mein Trading System\") AUF diese Einschätzung an -- beide können unterschiedlicher Meinung sein. Weicht der aktuelle Stand tatsächlich ab, erscheint hier ein Warnhinweis (⚠) statt zwei stillschweigend widersprüchlichen Badges.",
-  `Automatische Aktualisierung: ist der zuletzt generierte Stand älter als ${NARRATIVE_AUTO_REFRESH_HOURS} Std., löst diese Kachel automatisch EINEN neuen System-Briefing-Aufruf aus (kostenloses Gratis-Tier, wie jede andere KI-Kachel) -- bis dahin wird kein veralteter Text angezeigt. Ein manueller Klick auf "Neu generieren" auf der System-Briefing-Kachel (Reiter "KI & Tools") funktioniert weiterhin unabhängig davon.`,
+  `Automatische Aktualisierung: ist der zuletzt generierte Stand älter als ${NARRATIVE_AUTO_REFRESH_HOURS} Std., löst das Lagebild automatisch EINEN neuen System-Briefing-Aufruf aus (kostenloses Gratis-Tier, wie jede andere KI-Kachel) -- bis dahin wird kein veralteter Text angezeigt. "Neu generieren" stösst jederzeit manuell einen neuen Lauf an.`,
   "Wichtig: Preis-/EMA-/sonstige Zahlen IM TEXT sind der Stand zum Generierungszeitpunkt (siehe Zeitstempel darunter), keine Live-Werte. Für den Live-Preis immer die BTC-Preis-Kachel nutzen.",
 ].join("\n\n");
 
@@ -164,6 +168,7 @@ export default function HeroHeader({
   recentEtfFlows,
   upcomingEconomicEvents,
   initialSystemBriefing,
+  initialCustomQueries,
   initialMtfDots,
   setupScore,
   regimeScore,
@@ -187,6 +192,8 @@ export default function HeroHeader({
   // Auszug des ohnehin vorhandenen System-Briefing-Snapshots fuer die
   // KI-Einordnung, kein eigener Fetch/Poll/Button hier.
   initialSystemBriefing: SystemBriefingSnapshot | null;
+  // Juengste freie Anfragen (custom_query_runs) fuer "Rückfrage an die KI".
+  initialCustomQueries: CustomQueryRun[];
   // MTF-Ampel (lib/mtfSignal.ts) -- 15M/1H/4H/1D/1W mit Trend-vs-
   // Trendbildung-Unterscheidung, unabhaengig vom mtf_alignment-Feld in state.
   initialMtfDots: MtfTimeframeDot[];
@@ -232,8 +239,8 @@ export default function HeroHeader({
   // Eine veraltete KI-Einordnung darf nie als aktueller Zustand lesbar sein
   // (Preise im Fliesstext stammen vom Generierungszeitpunkt). Ab
   // NARRATIVE_AUTO_REFRESH_HOURS wird automatisch EIN neuer Snapshot
-  // angefordert (dieselbe Route wie "Neu generieren" in SystemBriefingCard,
-  // inkl. deren Rate-Limit); narrativeAutoRefreshAttemptedRef begrenzt das
+  // angefordert (dieselbe Route wie "Neu generieren" unten, inkl. deren
+  // Rate-Limit); narrativeAutoRefreshAttemptedRef begrenzt das
   // auf einen Versuch pro Mount. Start bei "unknown" (kein Text), damit vor
   // der ersten Date.now()-abhaengigen Berechnung nie ein potenziell
   // veralteter Text aufblitzt (Hydration, vgl. ClientTimestamp.tsx).
@@ -243,6 +250,21 @@ export default function HeroHeader({
   const [narrativeRefreshing, setNarrativeRefreshing] = useState(false);
   const [narrativeRefreshError, setNarrativeRefreshError] = useState<string | null>(null);
   const narrativeAutoRefreshAttemptedRef = useRef(false);
+
+  async function generateBriefing() {
+    setNarrativeRefreshing(true);
+    setNarrativeRefreshError(null);
+    try {
+      const res = await fetch("/api/system-briefing/generate", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error ?? `HTTP ${res.status}`);
+      setNarrativeSnapshot(json.snapshot as SystemBriefingSnapshot);
+    } catch (err) {
+      setNarrativeRefreshError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setNarrativeRefreshing(false);
+    }
+  }
 
   useEffect(() => {
     if (!narrativeSnapshot?.result?.fazit?.kernaussage) return;
@@ -256,18 +278,7 @@ export default function HeroHeader({
       setNarrativeFreshness("stale");
       if (narrativeAutoRefreshAttemptedRef.current) return;
       narrativeAutoRefreshAttemptedRef.current = true;
-      setNarrativeRefreshing(true);
-      setNarrativeRefreshError(null);
-      try {
-        const res = await fetch("/api/system-briefing/generate", { method: "POST" });
-        const json = await res.json();
-        if (!res.ok || !json.success) throw new Error(json.error ?? `HTTP ${res.status}`);
-        setNarrativeSnapshot(json.snapshot as SystemBriefingSnapshot);
-      } catch (err) {
-        setNarrativeRefreshError(err instanceof Error ? err.message : String(err));
-      } finally {
-        setNarrativeRefreshing(false);
-      }
+      await generateBriefing();
     };
     update();
     const interval = setInterval(update, RELATIVE_REFRESH_MS);
@@ -400,6 +411,12 @@ export default function HeroHeader({
     regime: lean,
   });
   const fazit = narrativeSnapshot?.result?.fazit;
+  // Aeltere Snapshot-Formate (vor der Zusammenlegung mit Chart-Narrativ)
+  // haben kein vollstaendiges Ergebnis -- dann nur das Fazit, keine Details.
+  const briefingDetails =
+    narrativeSnapshot?.result && isValidSystemBriefingResult(narrativeSnapshot.result)
+      ? narrativeSnapshot.result
+      : null;
   const livePrice = latestSnapshot?.last_price ?? null;
 
   return (
@@ -543,6 +560,14 @@ export default function HeroHeader({
               )}
             </>
           )}
+          <button
+            type="button"
+            onClick={generateBriefing}
+            disabled={narrativeRefreshing}
+            className="ml-auto px-2.5 py-1 text-[11px] rounded-md border border-border text-text-muted hover:text-text disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {narrativeRefreshing ? "Generiert…" : "Neu generieren"}
+          </button>
         </div>
         {briefingDivergence === "DIVERGENCE" && narrativeFreshness === "fresh" && (
           <p className="text-xs text-down">
@@ -551,15 +576,18 @@ export default function HeroHeader({
           </p>
         )}
         {!fazit?.kernaussage ? (
-          <p className="text-xs text-text-faint">
-            Noch keine Einordnung generiert — siehe System-Briefing (Reiter &quot;KI &amp; Tools&quot;).
-          </p>
+          narrativeRefreshError ? (
+            <p className="text-xs text-down">Generierung fehlgeschlagen: {narrativeRefreshError}</p>
+          ) : (
+            <p className="text-xs text-text-faint">
+              {narrativeRefreshing ? "Einordnung wird generiert…" : "Noch keine Einordnung generiert."}
+            </p>
+          )
         ) : narrativeFreshness === "stale" ? (
           narrativeRefreshError ? (
             <p className="text-xs text-down">
-              Einordnung ist veraltet (Stand vor {narrativeHoursOld} Std.), automatische Aktualisierung
-              fehlgeschlagen ({narrativeRefreshError}) — im System-Briefing (Reiter &quot;KI &amp;
-              Tools&quot;) manuell neu generieren.
+              Einordnung ist veraltet (Stand vor {narrativeHoursOld} Std.), Aktualisierung fehlgeschlagen (
+              {narrativeRefreshError}).
             </p>
           ) : (
             <p className="text-xs text-text-faint">
@@ -568,8 +596,35 @@ export default function HeroHeader({
             </p>
           )
         ) : narrativeFreshness === "fresh" ? (
-          <p className="text-sm text-text-muted leading-relaxed">{fazit.kernaussage}</p>
+          <>
+            {narrativeRefreshError && (
+              <p className="text-xs text-down">Neu generieren fehlgeschlagen: {narrativeRefreshError}</p>
+            )}
+            <p className="text-sm text-text-muted leading-relaxed">{fazit.kernaussage}</p>
+          </>
         ) : null}
+
+        {briefingDetails && narrativeFreshness === "fresh" && (
+          <details className="pt-1">
+            <summary className="text-xs text-text-muted hover:text-text cursor-pointer select-none">
+              Regelwerk-Check, Chart-Struktur &amp; Szenarien
+            </summary>
+            <div className="pt-2">
+              <SystemBriefingDetails result={briefingDetails} />
+            </div>
+          </details>
+        )}
+
+        {/* Freie Anfrage arbeitet auf demselben Marktkontext. Offen, sobald
+            juengste Anfragen vorliegen. */}
+        <details className="pt-1" open={initialCustomQueries.length > 0}>
+          <summary className="text-xs text-text-muted hover:text-text cursor-pointer select-none">
+            Rückfrage an die KI stellen
+          </summary>
+          <div className="pt-2">
+            <CustomQueryPanel initialRuns={initialCustomQueries} />
+          </div>
+        </details>
       </div>
 
       <details className="pt-3 border-t border-border/60">

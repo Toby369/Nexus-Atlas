@@ -51,7 +51,6 @@ import RegimeScoreCard from "@/components/RegimeScoreCard";
 import SignalReviewCard from "@/components/SignalReviewCard";
 import EscalationCard from "@/components/EscalationCard";
 import TradeDebateCard from "@/components/TradeDebateCard";
-import SystemBriefingCard from "@/components/SystemBriefingCard";
 import SecondOpinionsCard from "@/components/SecondOpinionsCard";
 import YoutubeMonitorCard from "@/components/YoutubeMonitorCard";
 import { getYoutubeMonitorConfig } from "@/lib/youtubeMonitorContext";
@@ -423,13 +422,16 @@ async function getUpcomingEconomicEvents(): Promise<EconomicCalendarEvent[]> {
 }
 
 // System-Briefing (Kontext siehe lib/systemBriefingContext.ts): letzter
-// gespeicherter Stand. Reines Lesen -- ein neuer Lauf nur ueber POST
-// /api/system-briefing/generate. Das Fazit erscheint zusaetzlich als
-// KI-Einordnung im Lagebild (HeroHeader).
+// ERFOLGREICHER Stand, angezeigt im Lagebild (HeroHeader). Ein
+// fehlgeschlagener juengerer Lauf soll das letzte gute Fazit nicht
+// verdraengen -- das Lagebild markiert es ohnehin als veraltet und stoesst
+// neu an. Reines Lesen -- ein neuer Lauf nur ueber POST
+// /api/system-briefing/generate.
 async function getLatestSystemBriefing(): Promise<SystemBriefingSnapshot | null> {
   const { data, error } = await supabase
     .from("system_briefings")
     .select("*")
+    .eq("status", "ok")
     .order("generated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -712,6 +714,7 @@ export default async function Home({
                   timeframe={timeframe}
                   recentEtfFlows={recentEtfFlows}
                   initialSystemBriefing={latestSystemBriefing}
+                  initialCustomQueries={latestCustomQueries}
                   upcomingEconomicEvents={upcomingEconomicEvents}
                   initialMtfDots={mtfDots}
                   setupScore={confluenceScore}
@@ -765,12 +768,6 @@ export default async function Home({
                         escalation={
                           <EscalationCard initialTriggers={escalationTriggers} initialSnapshot={latestEscalation} />
                         }
-                      />
-                    ),
-                    "system-briefing": (
-                      <SystemBriefingCard
-                        initialSnapshot={latestSystemBriefing}
-                        initialCustomQueries={latestCustomQueries}
                       />
                     ),
                     "youtube-monitor": (
