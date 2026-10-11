@@ -43,6 +43,7 @@ export function createOpenAiCompatibleProvider(
     }
 
     const model = options?.model ?? defaultModel();
+    const timeoutMs = options?.timeoutMs ?? PROVIDER_TIMEOUT_MS;
     if (!model) {
       throw new Error(
         `${config.id}: kein Modell konfiguriert. Bitte ${config.modelEnvVar} setzen oder options.model uebergeben.`
@@ -67,7 +68,7 @@ export function createOpenAiCompatibleProvider(
           temperature: options?.temperature,
           max_tokens: options?.maxTokens,
         }),
-        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+        signal: AbortSignal.timeout(timeoutMs),
       });
 
       if (!res.ok) {
@@ -94,7 +95,7 @@ export function createOpenAiCompatibleProvider(
     } catch (err) {
       if (err instanceof Error && err.name === "TimeoutError") {
         throw new Error(
-          `${config.id}: Zeitueberschreitung nach ${PROVIDER_TIMEOUT_MS / 1000}s (keine Antwort).`
+          `${config.id}: Zeitueberschreitung nach ${timeoutMs / 1000}s (keine Antwort).`
         );
       }
       throw err;

@@ -34,6 +34,7 @@ async function callGenerateContent(
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
 
   const contents = [{ role: "user", parts: [{ text: userPrompt }] }];
+  const timeoutMs = options?.timeoutMs ?? PROVIDER_TIMEOUT_MS;
 
   // Siehe openaiCompatible.ts: AbortSignal.timeout() in fetchWithRetry() gilt
   // fuer die GESAMTE Fetch-Lebensdauer inkl. res.json() -- EIN try/catch um
@@ -53,7 +54,7 @@ async function callGenerateContent(
           maxOutputTokens: options?.maxTokens,
         },
       }),
-    });
+    }, timeoutMs);
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
@@ -69,7 +70,7 @@ async function callGenerateContent(
     return { content, model };
   } catch (err) {
     if (err instanceof Error && err.name === "TimeoutError") {
-      throw new Error(`google: Zeitueberschreitung nach ${PROVIDER_TIMEOUT_MS / 1000}s (keine Antwort).`);
+      throw new Error(`google: Zeitueberschreitung nach ${timeoutMs / 1000}s (keine Antwort).`);
     }
     throw err;
   }
