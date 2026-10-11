@@ -1,6 +1,6 @@
 # Mo's Momentum Radar — Bestandsaufnahme, Code-Review & Plan — 2026-10-11
 
-**STATUS: Phase 1 umgesetzt (Pine-Fixes), Phase 2 (Backtest) in Arbeit.** Keine Production-Änderung. Grundlage:
+**STATUS: Phase 1 (Pine-Fixes) und Phase 2 (Backtest große Punkte) abgeschlossen. Ergebnis NO_EDGE, siehe `MOMENTUM-RADAR-BACKTEST_2026-10-11.md`.** Keine Production-Änderung. Grundlage:
 `momentum_radar.pine` (Pine v5, 1011 Zeilen) und `Anleitung_Mos_Momentum_Radar.pdf`,
 beide von Toby am 11.10.2026 geliefert.
 
@@ -210,3 +210,9 @@ Pine-Editor Fehler meldet.
 **Konsequenz für Phase 2:** Primäre Hypothese ist H2/H3 (großer Punkt) je 15m/1h/4h, Long und Short
 getrennt. H1 (kleiner Punkt) und das Wave-Anchor-Kreuz laufen als Vergleichsbasis mit. H4–H6 sind
 sekundär. H8 (Spot/Futures) entfällt vorerst, weil `candles` nur ein Binance-Symbol enthält.
+
+**Phase 2 erledigt (11.10.2026):** `MOMENTUM-RADAR-BACKTEST_2026-10-11.md`. Große Punkte auf
+15m/1h: **NO_EDGE** (TP-Rate 20–23 % gegen 25 % Gewinnschwelle, nicht besser als kleine Punkte,
+nicht besser als "immer im Markt"). Auf 4h treten große Punkte praktisch nie auf (1 in 4 Jahren).
+Der Trendfilter lässt fast keine großen Punkte übrig, was Befund 4 bestätigt. Phase 3
+(Nexus-Integration) entfällt damit für die großen Punkte.
