@@ -11,6 +11,9 @@ export interface MtfDirectionCounts {
   bullish: number;
   bearish: number;
   neutral: number;
+  /** Davon erst in Trendbildung (ADX < 25), in bullish/bearish enthalten. */
+  bullishForming: number;
+  bearishForming: number;
 }
 
 function dotDirection(dot: MtfTimeframeDot): 1 | -1 | 0 {
@@ -20,8 +23,10 @@ function dotDirection(dot: MtfTimeframeDot): 1 | -1 | 0 {
 }
 
 export function countMtfDirections(dots: MtfTimeframeDot[]): MtfDirectionCounts {
-  const counts = { bullish: 0, bearish: 0, neutral: 0 };
+  const counts = { bullish: 0, bearish: 0, neutral: 0, bullishForming: 0, bearishForming: 0 };
   for (const dot of dots) {
+    if (dot.status === "bullish_forming") counts.bullishForming++;
+    if (dot.status === "bearish_forming") counts.bearishForming++;
     const dir = dotDirection(dot);
     if (dir > 0) counts.bullish++;
     else if (dir < 0) counts.bearish++;

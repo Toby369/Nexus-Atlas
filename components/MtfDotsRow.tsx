@@ -11,7 +11,7 @@ export default function MtfDotsRow({ dots }: { dots: MtfTimeframeDot[] }) {
     <div className="flex items-center gap-2">
       {dots.map((dot) => (
         <div key={dot.timeframe} className="flex flex-col items-center gap-1" title={dot.detail}>
-          <span className={`w-2 h-2 rounded-full ${MTF_DOT_COLOR_CLASSES[dot.status]}`} />
+          <span className={`w-2.5 h-2.5 rounded-full ${MTF_DOT_COLOR_CLASSES[dot.status]}`} />
           <span className="tabular text-[11px] leading-none font-medium text-text">{dot.timeframe}</span>
         </div>
       ))}

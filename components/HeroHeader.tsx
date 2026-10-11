@@ -520,7 +520,9 @@ export default function HeroHeader({
           <p className="text-[11px] uppercase tracking-[0.12em] text-text-faint">MTF-Ampel</p>
           <MtfDotsRow dots={mtfDots} />
           <p className="text-xs text-text-faint">
-            {mtfCounts.bullish} bullisch · {mtfCounts.bearish} bärisch · {mtfCounts.neutral} neutral
+            {mtfCounts.bullish} bullisch
+            {mtfCounts.bullishForming > 0 && ` (${mtfCounts.bullishForming} in Bildung)`} · {mtfCounts.bearish} bärisch
+            {mtfCounts.bearishForming > 0 && ` (${mtfCounts.bearishForming} in Bildung)`} · {mtfCounts.neutral} neutral
           </p>
         </div>
         <div className="rounded-md border border-border bg-surface p-3 space-y-1">

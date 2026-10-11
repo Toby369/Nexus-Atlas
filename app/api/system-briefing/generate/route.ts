@@ -31,9 +31,8 @@ import type { SystemBriefingResult, SystemBriefingTrigger } from "@/lib/types";
 // Warum so: ein einzelner grosser Aufruf riss bei jedem Versuch Vercels
 // 60s-Limit (Hobby-Plan). Vier SEQUENZIELLE Aufrufe rissen es ebenfalls
 // (clientseitig "Failed to fetch" -- Vercel killt die Funktion, bevor sie
-// antworten kann). Daher parallel, mit den drei Teilen auf verschiedenen
-// Vendors, damit Google nicht mehrfach gleichzeitig belastet wird (siehe
-// lib/ai/tileConfig.ts).
+// antworten kann). Daher parallel; Provider-Wahl je Teil siehe
+// lib/ai/tileConfig.ts.
 //
 // 300s statt 60s: mit Fluid Compute erlaubt auch der Hobby-Plan 300s. Das
 // 60s-Limit zwang die Provider auf 20s, was Gratis-Modelle fuer diese Teile
@@ -106,10 +105,7 @@ export async function POST() {
     // jeder bekommt nur seinen eigenen Daten-Ausschnitt (sliceFor*), daher
     // deutlich kleinerer Prompt je Call als vorher der eine grosse. Bewusst
     // Promise.all (nicht nacheinander, siehe Datei-Kopfkommentar fuer den
-    // Vorfall mit der sequenziellen Zwischenversion): tileConfig.ts verteilt
-    // die vier Teil-Aufrufe bereits auf zwei Provider, dadurch treffen hier
-    // ohnehin nur zwei (Regelwerk + Trigger) gleichzeitig auf Google, nicht
-    // alle drei/vier wie vorher.
+    // Vorfall mit der sequenziellen Zwischenversion).
     const [regelwerkResult, chartResult, triggerResult] = await Promise.all([
       runTileAnalysis<RegelwerkResult>("system-briefing-regelwerk", {
         context: JSON.stringify(sliceForRegelwerk(context)),

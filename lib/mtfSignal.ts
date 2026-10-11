@@ -107,9 +107,12 @@ export function buildMtfDots(rowsByInterval: Record<string, MarketFeaturesMtfRow
 
 export const MTF_DOT_COLOR_CLASSES: Record<MtfDotStatus, string> = {
   bullish_confirmed: "bg-up",
-  bullish_forming: "bg-accent",
+  // Trendbildung als hohler Ring in der Richtungsfarbe -- ein gemeinsames
+  // Gold fuer beide Richtungen liess die Richtung nicht erkennen, obwohl
+  // sie in die Bullisch/Bärisch-Zaehlung einfliesst.
+  bullish_forming: "border-2 border-up",
   bearish_confirmed: "bg-down",
-  bearish_forming: "bg-accent",
+  bearish_forming: "border-2 border-down",
   neutral: "bg-text-faint",
   no_data: "bg-surface-raised border border-border",
 };
