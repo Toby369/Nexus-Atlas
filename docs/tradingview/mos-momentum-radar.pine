@@ -1,0 +1,1113 @@
+//@version=5
+// =====================================================================================
+//  Mo's Momentum Radar
+//  Timing-Indikator: Momentum auf sechs Zeitebenen, gegengeprueft mit dem Geldfluss.
+//
+//  AUFBAU
+//  1) WELLE - ein RSI-aehnlicher Momentum-Oszillator (WaveTrend). Er zeigt, wie weit
+//     der Kurs von seinem eigenen Mittel entfernt ist und wann er zurueckdreht.
+//  2) GELDFLUSS - gruene/rote Flaeche, gewichtet mit dem Volumen. Ein gruener Kerzen-
+//     koerper zaehlt als Zufluss, ein roter als Abfluss - je groesser der Koerper im
+//     Verhaeltnis zur Spanne, desto staerker (Cipher-B-Formel, Fix F4).
+//     Steigt die Flaeche waehrend der Kurs faellt, sammelt jemand ein (moeglicher Pump).
+//     VIOLETT = die Futures machen gerade deutlich mehr Umsatz als sonst. Dann laeuft
+//     die Bewegung auf Hebel statt auf echten Kaeufen - sie traegt meist nicht weit.
+//     Die WEISSE LINIE darueber ist der Spotmarkt: laeuft sie unter der Flaeche, sind
+//     die Futures vorausgelaufen. Das Panel zeigt beide Zahlen zum Ablesen.
+//  3) PUNKTE auf der Welle - das Signal der Chart-Zeitebene. Gruen = Long suchen,
+//     rot = Short suchen. Grosser Punkt = die hoeheren Zeitebenen stuetzen.
+//  4) SCHIENEN - zwei feste Linien am oberen und unteren Panelrand. Dort erscheinen
+//     die Signale der Zeitebenen UEBER der des Charts. Groesse = Staerke.
+//  5) RAUTE - Extrem-Signal: die Welle laeuft ueber die Extrem-Linie bei +/-100 hinaus.
+//  6) DIVERGENZ-LINIEN - durchgezogen auf der Welle (deine Zeitebene), gestrichelt
+//     auf den Schienen (hoehere Zeitebene). Beide mit "DIV" beschriftet.
+//  7) PANEL - zwei Modi: SWING liest Tag/4h/1h, DAY liest 15m/5m. Dazu Kontext
+//     (Wochen- und Monats-VWAP) und Struktur (BOS + EMA50). Das "?" am rechten Rand
+//     klappt per Maus die ganze Zeichenerklaerung auf.
+//
+//  REPAINT-SCHUTZ: Hoehere Zeitebenen werden ab Werk nur ueber GESCHLOSSENE Kerzen
+//  gelesen (Versatz [1] + lookahead_on). Historie und Echtzeit zeigen dadurch exakt
+//  dasselbe. Abschaltbar in Gruppe 6 - dann schneller, aber die Historie luegt.
+//
+//  Der Indikator liefert KEINEN Einstiegskurs - nur das Timing. Das Level kommt von
+//  VWAP / Anker (Mo's VWAP Vector).
+//
+//  Einstellungen: nur Anzeige und Farben. Das Rechenwerk steht als Konstanten weiter
+//  unten - wer daran dreht, aendert die Aussage des Indikators, nicht sein Aussehen.
+//
+//  NEXUS-FIXES (11.10.2026, siehe docs/research/MOMENTUM-RADAR-PLAN_2026-10-11.md
+//  Abschnitt 3; Original unveraendert unter reference/mos-momentum-radar_original.pine):
+//  F1  Schienen-Divergenz prueft jetzt auch die WELLE der hoeheren Zeitebene, nicht nur
+//      den Preis - vorher wurde "DIV" schon bei einem tieferen Preistief gezogen.
+//  F2  Schienen-Divergenz-Fenster in Kerzen der JEWEILIGEN Zeitebene (DIV_MAX), statt
+//      fest 320 Chart-Kerzen - im 15m-Chart erschienen Tages-Divergenzen sonst nie.
+//  F3  Preis-Extrem der hoeheren Zeitebene direkt auf dieser Zeitebene gerechnet (keine
+//      500-Kerzen-Deckelung mehr, die den Wochen-Rueckblick auf ~5 Tage stutzte).
+//  F4  Geldfluss-Beschreibung an die tatsaechliche (Cipher-B-)Formel angeglichen:
+//      Kerzenkoerper relativ zur Spanne, nicht "wo schliesst die Kerze".
+//  F5  Neue Alarme: Divergenz (Chart-Zeitebene + Schiene), Geldfluss-Preis-Divergenz.
+//      Divergenzen werden unabhaengig von der Anzeige erkannt (Alarm auch bei
+//      ausgeblendeten Linien).
+//  F6  Neu: Geldfluss-Preis-Divergenz ("Fluss steigt, Kurs faellt") wird gerechnet und
+//      markiert - laut Anleitung die wichtigste Beobachtung, vorher nur visuell.
+//  F7  Optionaler Trendfilter (Gruppe 5, ab Werk AUS = Originalverhalten): grosse Punkte
+//      und Kopfzeile nur in Richtung 4h-EMA50 bzw. letztem 4h-Strukturbruch.
+// =====================================================================================
+indicator("Mo's Momentum Radar", shorttitle = "Momentum Radar", overlay = false, max_lines_count = 500, max_labels_count = 500)
+
+G1 = "1 · Welle"
+G2 = "2 · Geldfluss"
+G3 = "3 · Geldfluss – Experten"
+G4 = "4 · Divergenzen"
+G5 = "5 · Panel"
+G6 = "6 · Schienen & Linien der hoeheren Timeframes"
+G7 = "7 · Farben"
+G8 = "8 · Alarm - Zeitebenen"
+
+// ---------------------------------------------------------------------------- 1 Welle
+showWave = input.bool(true, "Welle anzeigen", group = G1, tooltip = "Die blaue Welle ist ein Momentum-Oszillator vom Typ WaveTrend - verwandt mit dem RSI, aber glatter. Sie misst, wie weit der Kurs von seinem eigenen Mittel entfernt ist. Ueber +50 ueberkauft, unter -50 ueberverkauft, jenseits +/-100 ausgereizt. AUS blendet Welle, Schatten und Signallinie aus - dann siehst du nur den Geldfluss.")
+
+// ------------------------------------------------------------------------- 2 Geldfluss
+showMf  = input.bool(true,  "Geldfluss-Flaeche anzeigen", group = G2, tooltip = "Die gruen/rote Flaeche hinter der Welle. Sie misst den Kerzenkoerper im Verhaeltnis zur Spanne (Schluss minus Eroeffnung, geteilt durch Hoch minus Tief), gewichtet mit dem Volumen: gruen = Geld fliesst rein, rot = raus.\n\nACHTUNG: An diesem Schalter haengt auch die weisse Spot-Linie. Ist er aus, siehst du im Panel gar nichts mehr.")
+mfFixed = input.bool(false, "Geldfluss immer vom 4h-Chart nehmen", group = G2, tooltip = "AN = der Geldfluss wird IMMER auf dem 4h-Chart gerechnet, egal welchen du offen hast. So siehst du auch im 5m-Chart, wohin das grosse Geld fliesst.\n\nAUS = Geldfluss der Zeitebene, die du gerade offen hast.")
+showBar = input.bool(true,  "Geldfluss-Farbleiste am unteren Rand", group = G2, tooltip = "Ein schmaler Streifen ganz unten im Panel. Er zeigt den Geldfluss EINER festen Zeitebene als reine Farbe - gruen oder rot. Praktisch als Dauerkontrolle, waehrend du oben auf der Welle arbeitest.")
+barTf   = input.timeframe("240", "Farbleiste: Zeitebene", group = G2, tooltip = "Welche Zeitebene die Farbleiste anzeigt. Standard 4h - unabhaengig davon, welchen Chart du offen hast.")
+
+// --------------------------------------------------------------- 3 Geldfluss – Experten
+sfOn    = input.bool(true,  "Spot gegen Futures pruefen (violette Warnung)", group = G3, tooltip = "Vergleicht das echte VOLUMEN von Spotmarkt und Perpetual.\n\nSCHALTET DREI DINGE FREI:\n1. Die Flaeche wird VIOLETT, wenn die Futures gerade deutlich mehr Umsatz machen als sonst.\n2. Eine duenne WEISSE LINIE zeigt den Geldfluss des Spotmarkts.\n3. Im Panel steht in der Zeile 'Herkunft' die Aufteilung des Volumens plus ein Urteil.\n\nWeil Perp-Volumen fast immer groesser ist als Spot, zaehlt nicht der absolute Anteil, sondern die Abweichung vom Normalmass der letzten 200 Kerzen.")
+volSrc  = input.string("Futures", "Geldfluss rechnen auf", options = ["Futures", "Spot", "Beide"], group = G3, tooltip = "Welcher Markt die gruen/rote Flaeche speist.\n\n'Futures' = der Chart selbst (Perpetual). 'Spot' = der echte Spotmarkt - ruhiger und ehrlicher, aber traeger. 'Beide' = Mittelwert.\n\nAchtung: 'Beide' mittelt die zwei Maerkte und verwischt damit genau den Unterschied. Wenn du wissen willst, WER treibt, nimm 'Futures' - den Spot-Vergleich holt sich die Pruefung darueber ohnehin selbst.")
+spotSym = input.symbol("", "Spot-Symbol (leer = automatisch)", group = G3, tooltip = "Leer lassen: der Indikator haengt einfach das '.P' vom Chart-Symbol ab, aus BTCUSDT.P wird BTCUSDT. Nur ausfuellen, wenn das nicht passt.\n\nFindet TradingView das Symbol nicht, nennt das Panel das versuchte Symbol - dann traegst du es hier von Hand ein.")
+
+// ------------------------------------------------------------------------ 4 Divergenzen
+showDiv = input.bool(true, "Divergenz-Linien auf der Welle", group = G4, tooltip = "Verbindet zwei gleichfarbige Punkte NUR dann, wenn Preis und Welle auseinanderlaufen.\n\nRot: der Preis macht ein hoeheres Hoch, die Welle aber ein tieferes - die Bewegung traegt nicht mehr. Gruen: der Preis macht ein tieferes Tief, die Welle ein hoeheres - der Verkaufsdruck laesst nach.\n\nEine Divergenz ist KEIN Einstieg. Sie zeigt nachlassende Kraft, nicht den Wendepunkt.")
+divPrev = input.bool(true, "Hohle Kreise: Signal der laufenden Kerze", group = G4, tooltip = "Zeigt ein Signal schon waehrend der noch offenen Kerze als HOHLEN Kreis.\n\nSchliesst die Kerze und es haelt, wird ein voller Punkt daraus. Haelt es nicht, verschwindet der Kreis wieder - deshalb hohl: noch nicht verlassen. Niemals auf einen hohlen Kreis hin handeln.")
+divKeep = input.bool(true, "Alle alten Divergenzen stehen lassen", group = G4, tooltip = "AUS = nur die juengsten Linien bleiben stehen, der Chart bleibt aufgeraeumt. AN = die ganze Historie, gut zum Zurueckschauen.")
+mfDivOn = input.bool(true, "Geldfluss-Divergenz markieren (\"MF\")", group = G4, tooltip = "NEXUS-ERGAENZUNG (Fix F6). Markiert die Beobachtung, die die Anleitung die wichtigste nennt: der Kurs macht ein tieferes Tief, der Geldfluss aber ein hoeheres (gruenes 'MF' unten) - es wird eingesammelt. Spiegelbildlich oben: hoeheres Hoch im Kurs, tieferes im Geldfluss (rotes 'MF').\n\nGemessen an bestaetigten Kurs-Pivots (5 Kerzen links/rechts). Das Zeichen erscheint deshalb erst 5 Kerzen nach dem Tief - dafuer verschwindet es nie wieder.\n\nKein Einstieg. Wie jede Divergenz zeigt sie nachlassende Kraft, nicht den Wendepunkt.")
+divExtr = input.bool(true, "Raute bei Extremwert (jenseits +/-100)", group = G4, tooltip = "Eine orange Raute erscheint, wenn die Welle ueber die Extrem-Linie bei +/-100 hinauslaeuft - ein Extremwert, wie er nur selten vorkommt.\n\nKein Einstieg, sondern eine Warnung: Hier ist die Bewegung ausgereizt. Wer im Trade ist, denkt ueber Teilgewinne nach; wer draussen ist, springt jetzt nicht mehr auf.")
+
+// ------------------------------------------------------------------------------ 5 Panel
+showPanel  = input.bool(true, "Info-Panel anzeigen", group = G5, tooltip = "Die Tabelle mit Status, Setups, VWAP-Lage und den Zeitebenen. Das ist die Kurzfassung des ganzen Indikators - steht dort ABWARTEN, machst du nichts.")
+panelView = input.string("Ausfuehrlich", "Panel: Umfang", options = ["Ausfuehrlich", "Kompakt", "Handy"], group = G5, tooltip = "AUSFUEHRLICH = alles: Kopfzeile, die beiden Setup-Zeilen, Herkunft, VWAP-Lage, Struktur und die Zeitebenen.\n\nKOMPAKT = nur Kopfzeile und Zeitebenen.\n\nHANDY = zwei Zeilen. Die Kopfzeile, darunter jede Zeitebene als kleine Kachel mit Pfeil, dazu der Geldfluss. Ausserdem faellt die Farbleiste weg und die Schienen ruecken naeher zusammen - dadurch bleibt fuer die Welle rund doppelt so viel Platz wie sonst.\n\nTradingView kann die Bildschirmgroesse nicht melden, du musst also selbst umschalten. Am einfachsten: auf dem Handy eine eigene Indikator-Vorlage speichern, die auf HANDY steht.")
+showCtx   = input.bool(true,  "VWAP- und Strukturzeile im Panel", group = G5, tooltip = "Zwei zusaetzliche Zeilen: Steht der Kurs ueber oder unter dem Wochen- und Monats-VWAP? Und was macht die Struktur - BOS oder CHoCH mit dem gebrochenen Level und dem Alter, dazu die Lage zur EMA50.\n\nDer Momentum Radar sagt WANN. Diese Zeilen sagen, ob das Umfeld dazu passt.")
+showLegend = input.bool(true, "Legende als \"?\" im Chart", group = G5, tooltip = "Setzt ein kleines '?' an den rechten Rand des Panels. Faehrst du mit der Maus darueber, klappt die komplette Zeichenerklaerung auf: welcher Punkt was heisst, wofuer die Raute steht, was die Farben der Flaeche bedeuten.\n\nKostet keinen Platz im Chart - deshalb ab Werk an.")
+panelOnly  = input.bool(false, "Nur das Panel zeigen", group = G5, tooltip = "Blendet ALLES Gezeichnete aus - Welle, Geldfluss, Punkte, Schienen, Divergenzen, Farbleiste und das \"?\". Uebrig bleibt nur die Tabelle.\n\nWOFUER: Fuege den Indikator ein ZWEITES Mal hinzu und setze dort diesen Haken. Dann hast du zwei Eintraege in der Indikator-Liste, und das Augen-Symbol neben dem zweiten ist dein Panel-Schalter - ein Klick an, ein Klick aus, ohne Einstellungsdialog.\n\nZiehst du die zweite Instanz in eine eigene schmale Scheibe, verdeckt das Panel nie mehr die Welle.")
+panelMode  = input.string("Auto (nach Chart-Zeitebene)", "Modus: Swing oder Day", options = ["Auto (nach Chart-Zeitebene)", "Swing", "Day"], group = G5, tooltip = "SWING liest Tag/4h/1h und sucht Bewegungen ueber mehrere Tage. DAY liest 15m/5m fuer Intraday.\n\n'Auto' waehlt anhand der Chart-Zeitebene: bis einschliesslich 15m Day, darueber Swing. Fest vorgeben lohnt sich, wenn du im 5m-Chart einsteigst, aber die Swing-Lage im Blick behalten willst.")
+panelPos   = input.string("Oben rechts", "Panel: Ecke", options = ["Oben rechts", "Oben links", "Unten rechts", "Unten links"], group = G5)
+panelSize  = input.string("Normal", "Panel: Textgroesse", options = ["Klein", "Normal", "Gross"], group = G5)
+needWeek   = input.bool(false, "Nur Setups, bei denen der Wochenchart mitzieht", group = G5, tooltip = "AN = ein Setup gilt nur, wenn auch der Wochenchart in diese Richtung zeigt.\n\nEin harter Filter: deutlich weniger Signale, dafuer deutlich sauberere Phasen. Fuer Swing-Trader oft die beste Einstellung.")
+only15     = input.bool(true, "15m nur anzeigen, nicht mitzaehlen", group = G5, tooltip = "AN = die 15m-Zeitebene steht im Panel, zaehlt aber NICHT bei der Punktstaerke mit.\n\nKleine Zeitebenen wackeln zu viel, um ein Setup zu bewerten - sie wuerden jeden Punkt gross erscheinen lassen.")
+only5      = input.bool(true, "5m nur anzeigen, nicht mitzaehlen",  group = G5, tooltip = "Dasselbe fuer die 5m-Zeitebene.")
+trendFlt   = input.string("Aus", "Trendfilter fuer grosse Punkte", options = ["Aus", "EMA50 (4h)", "Struktur (4h)"], group = G5, tooltip = "NEXUS-ERGAENZUNG (Fix F7). AUS = Originalverhalten.\n\nWARUM: Ein grosser Punkt heisst im Original 'die hoeheren Zeitebenen sind AUCH ueberverkauft'. In einem starken Abverkauf ist genau das der Fall - dann werden die Long-Punkte gross und die Kopfzeile zeigt LONG SUCHEN, obwohl der Trend klar nach unten zeigt.\n\nEMA50 (4h) = grosse Long-Punkte und LONG SUCHEN nur, wenn der 4h-Kurs ueber der EMA50 liegt (Short spiegelbildlich).\nStruktur (4h) = nur in Richtung des letzten 4h-Strukturbruchs (BOS/CHoCH aus der Strukturzeile).\n\nKleine Punkte bleiben unveraendert. Ob der Filter wirklich hilft, klaert der Nexus-Backtest - bis dahin ist er eine Option, keine Empfehlung.")
+
+// --------------------------------------------------- 6 Schienen & Linien hoeherer TFs
+htfClosed = input.bool(true, "Hoehere Zeitebenen erst nach Kerzenschluss lesen", group = G6, tooltip = "AN (Standard) = jede hoehere Zeitebene wird erst gelesen, wenn ihre Kerze GESCHLOSSEN ist. Historie und Echtzeit zeigen dann exakt dasselbe - kein Repainting. Der Preis: Ein Tages-Signal erscheint erst zum Tagesschluss, ein 4h-Signal zum 4h-Schluss.\n\nAUS = die laufende hoehere Kerze wird mitgelesen. Schneller, aber die Signale koennen sich bis zum Kerzenschluss noch aendern - und die Historie sieht besser aus, als es live war.")
+showRail  = input.bool(true, "Signale hoeherer Zeitebenen auf den Schienen", group = G6, tooltip = "Dreht eine hoehere Zeitebene, erscheint ein Punkt auf einer der beiden waagerechten Linien am Panelrand. Je hoeher die Zeitebene, desto groesser der Punkt.\n\nEin Punkt auf der WELLE wird gross, wenn mindestens 60 % der mitzaehlenden Zeitebenen (plus Geldfluss) zustimmen - dadurch gilt dieselbe Huerde auf jedem Chart.\n\nZeitebenen, die nicht ECHT ueber der des Charts liegen, werden weggelassen - die Chart-Zeitebene steht ja schon als Punkt auf der Welle. Im 4h-Chart bleiben also nur Tag und Woche uebrig.")
+railLo    = input.bool(true, "Untere Schiene: Long-Signale von oben",  group = G6, tooltip = "Die Linie am unteren Panelrand. Dort sammeln sich die Long-Signale der hoeheren Zeitebenen.\n\nEin Punkt hier kurz vor deinem eigenen gruenen Punkt ist das beste, was dir passieren kann: Eine groessere Zeitebene hat bereits gedreht und du steigst frueh ein.")
+railHi    = input.bool(true, "Obere Schiene: Short-Signale von oben",  group = G6, tooltip = "Dasselbe oben fuer Short-Signale der hoeheren Zeitebenen.")
+htfDiv    = input.bool(true, "Divergenzen auch zwischen Schienen-Punkten", group = G6, tooltip = "Zieht Divergenz-Linien auch zwischen den Punkten auf den Schienen.\n\nEine Divergenz im 4h- oder Tageschart wiegt deutlich schwerer als eine auf deiner Chart-Zeitebene - das ist das schwerste Signal, das dieser Indikator kennt.")
+lineStyle = input.string("Gestrichelt", "Schienen-Linien: Stil", options = ["Gestrichelt", "Durchgezogen", "Gepunktet"], group = G6, tooltip = "Gilt NUR fuer die Linien auf den Schienen. Die Divergenzen deiner eigenen Chart-Zeitebene sind immer durchgezogen.\n\nSo erkennst du auf einen Blick, woher eine Linie kommt: durchgezogen = deine Zeitebene, gestrichelt = eine hoehere.")
+htfKeep   = input.bool(false, "Alte Schienen-Linien stehen lassen", group = G6, tooltip = "Betrifft nur die Schienen-Linien. AUS = nur die juengsten bleiben stehen. Die Divergenzen deiner Chart-Zeitebene haben ihren eigenen Schalter in Gruppe 4.")
+divEnds   = input.bool(true,  "Endpunkte der Divergenz-Linien markieren", group = G6, tooltip = "Setzt an beide Enden jeder Divergenz-Linie einen dicken Punkt. Macht auf einen Blick klar, WELCHE zwei Signale hier miteinander verglichen werden.")
+divLabel  = input.bool(true,  "Beschriftung \"DIV\" an der Linie", group = G6, tooltip = "Schreibt 'DIV' in die Mitte jeder Divergenz-Linie. Bei vielen Linien im Chart hilft das, sie von deinen eigenen Trendlinien zu unterscheiden.")
+tfColored = input.bool(false, "Linien in der Farbe ihrer Zeitebene", group = G6, tooltip = "AN = jede Zeitebene faerbt ihre Linie selbst (1h orange, 4h violett, Tag weiss, Woche gelb) statt gruen/rot.\n\nHilfreich, wenn mehrere Zeitebenen gleichzeitig Divergenzen zeigen und du wissen willst, welche zu welcher gehoert.")
+cDivL     = input.color(#4caf50, "Long-Divergenz",  inline = "dv", group = G6)
+cDivS     = input.color(#ef5350, "Short-Divergenz", inline = "dv", group = G6)
+useW      = input.bool(false, "W",  inline = "tw", group = G6, tooltip = "Diese vier Zeilen bestimmen, welche hoeheren Zeitebenen auf den Schienen erscheinen und in welcher Farbe. Haekchen = mitzaehlen, daneben die Farbe.\n\nJe hoeher die Zeitebene, desto groesser der Punkt auf der Schiene: 1h klein, Wochenchart am groessten.\n\nDer Wochenchart ist ab Werk aus - er dreht so selten, dass er meist nur das Panel fuellt. AB DEM TAGESCHART schaltet er sich automatisch zu, sonst bliebe dort gar keine hoehere Zeitebene uebrig.")
+cTfW      = input.color(#ffd54f, "", inline = "tw", group = G6)
+useD      = input.bool(true,  "D",  inline = "td", group = G6)
+cTfD      = input.color(#ffffff, "", inline = "td", group = G6)
+use4      = input.bool(true,  "4h", inline = "t4", group = G6)
+cTf4      = input.color(#ba68c8, "", inline = "t4", group = G6)
+use1      = input.bool(true,  "1h", inline = "t1", group = G6)
+cTf1      = input.color(#ffa726, "", inline = "t1", group = G6)
+
+// ------------------------------------------------------------------------------ 7 Farben
+cWave  = input.color(#6fa8ff, "Welle hell (Flaeche + Linie)", group = G7, tooltip = "Die Flaeche bekommt diese Farbe mit Transparenz, die Linie voll deckend. Ueber den Deckkraft-Regler im Farbwaehler stellst du ein, wie leuchtend die Welle wirkt.")
+cShade = input.color(#1f3a8a, "Welle Schatten (dunkel)",      group = G7)
+cSig   = input.color(#3d63d6, "Signallinie",                  group = G7)
+cMfIn  = input.color(#4caf50, "Geldfluss rein (gruen)",       group = G7)
+cMfOut = input.color(#c62828, "Geldfluss raus (rot)",         group = G7)
+cMfFut = input.color(#8e6cef, "Geldfluss Futures-getrieben (violett)", group = G7)
+cLong  = input.color(#4caf50, "Long-Punkt",                   group = G7)
+cShort = input.color(#ef5350, "Short-Punkt",                  group = G7)
+cLongS = input.color(#00e676, "Starker Long-Punkt",           group = G7)
+cShrtS = input.color(#ff1744, "Starker Short-Punkt",          group = G7)
+cOver  = input.color(#e0e0e0, "Extrem-Linie (+/-100)",        group = G7)
+cExtr  = input.color(#ffa726, "Extrem-Signal (Raute)",        group = G7)
+
+// ---------------------------------------------------------------- 8 Alarm - Zeitebenen
+maOn1  = input.bool(true,  "Zeitebene 1", inline = "a1", group = G8, tooltip = "MULTI-ALARM: Ein einziger Alarm prueft bis zu vier Zeitebenen gleichzeitig und meldet, sobald auf EINER davon ein Punkt entsteht - mit Angabe, auf welcher.\n\nSO RICHTEST DU IHN EIN:\n1. Hier Haekchen setzen und die Zeitebenen waehlen, z. B. 4h und 15m.\n2. Alarm anlegen: Bedingung 'Momentum Radar', darunter 'Beliebiger alert()-Funktionsaufruf'.\n3. Intervall waehlen: so grob wie moeglich, aber KLEINER ODER GLEICH der kleinsten gewaehlten Zeitebene - bei 4h und 15m also 15m. Mit dem Ausloeser 'Sofort' (unten) kommt die Meldung dann ohne Verzoegerung; ein feineres Intervall bringt nichts und kostet nur Rechenlast.\n\nWICHTIG: Eine Zeitebene, die feiner ist als das Intervall, wird uebersprungen - sie waere nicht zuverlaessig lesbar.\n\nGelesen werden nur GESCHLOSSENE Kerzen. Ein 4h-Punkt kommt also zum 4h-Schluss, nie mittendrin.")
+maTf1  = input.timeframe("240", "", inline = "a1", group = G8)
+maOn2  = input.bool(true,  "Zeitebene 2", inline = "a2", group = G8)
+maTf2  = input.timeframe("15",  "", inline = "a2", group = G8)
+maOn3  = input.bool(false, "Zeitebene 3", inline = "a3", group = G8)
+maTf3  = input.timeframe("60",  "", inline = "a3", group = G8)
+maOn4  = input.bool(false, "Zeitebene 4", inline = "a4", group = G8)
+maTf4  = input.timeframe("D",   "", inline = "a4", group = G8)
+maKind = input.string("Nur grosse Punkte", "Welche Punkte melden", options = ["Nur grosse Punkte", "Alle Punkte"], group = G8, tooltip = "NUR GROSSE PUNKTE = auf der gewaehlten Zeitebene muss die Mehrheit der hoeheren Zeitebenen plus Geldfluss zustimmen (mindestens 60 %). Gezaehlt werden nur Zeitebenen, die ECHT ueber der gewaehlten liegen - fuer 4h also Tag (und Woche, wenn eingeschaltet).\n\nALLE PUNKTE = jeder bestaetigte Punkt, auch die kleinen. Deutlich lauter.")
+maTrig = input.string("Sofort", "Ausloeser", options = ["Sofort", "Zum Kerzenschluss"], group = G8, tooltip = "Bei einem alert()-Alarm zeigt der Alarm-Dialog keine eigene Zeile fuer den Ausloeser - er steht deshalb hier.\n\nSOFORT = die Meldung kommt in dem Moment, in dem die gewaehlte Zeitebene schliesst, ohne Wartezeit. Das ist sicher: Das Signal stammt aus einer bereits GESCHLOSSENEN Kerze und kann nicht mehr verschwinden.\n\nZUM KERZENSCHLUSS = die Meldung kommt erst, wenn die Chart-Kerze des Alarms schliesst - also bis zu ein Intervall spaeter. Nur noetig, falls du Doppelmeldungen beobachtest.")
+
+// =====================================================================================
+//  RECHENWERK - festverdrahtet
+//  Diese Werte bestimmen, WAS der Indikator sagt. Sie stehen absichtlich nicht im
+//  Dialog: einmal sauber eingestellt, gibt es keinen Grund mehr, daran zu drehen.
+// =====================================================================================
+WT_CH     = 9      // Kanal-Laenge der Welle
+WT_AVG    = 12     // Glaettung der Welle
+WT_SIG    = 3      // Signallinie (deren Kreuz loest die Punkte aus)
+OB_LVL    = 50.0   // ueberkauft = Short-Zone
+OS_LVL    = -50.0  // ueberverkauft = Long-Zone
+NEAR_PCT  = 70.0   // ab so viel Prozent der Zone meldet das Panel "fast ...-Zone"
+OV_LVL    = 100.0  // Extrem-Linie: dahinter erscheint die Raute
+DOT_LOOK  = 1      // Kerzen Rueckblick fuer den Zonentest beim Kreuz
+STR_PCT   = 0.6    // ab diesem Anteil der zaehlbaren Zeitebenen wird der Punkt gross
+EXT_LOOK  = 4      // Kerzen Rueckblick fuer die Raute - das Kreuz kommt NACH dem Extrem
+MF_LEN    = 60     // Glaettung des Geldflusses
+MF_NORM   = 200    // Fenster der Selbstskalierung
+MF_TARGET = 22.0   // Zielgroesse der Flaeche - so hoch laeuft sie typischerweise
+MF_OVER   = 60.0   // ab hier gilt der Geldfluss als extrem (Alarm)
+MF_MIN    = 5.0    // darunter ist der Fluss zu schwach fuer eine Herkunfts-Aussage
+MF_TF     = "240"  // Zeitebene fuer "Geldfluss vom 4h-Chart"
+SF_NORM   = 200    // Fenster fuer das Normalmass des Futures-Volumenanteils
+SF_EXCESS = 1.5    // Verhaeltnis Futures:Spot ist 1,5x so schief wie normal = Urteil
+SF_SHIFT  = math.log(SF_EXCESS)  // dasselbe im Logarithmus, siehe f_ratio
+SF_HOLD   = 3      // so viele Kerzen am Stueck muss die Herkunft kippen, bevor sie gilt
+DIV_MAX   = 80     // max. Kerzenabstand zwischen zwei Punkten einer Divergenz (in Kerzen der
+                   // jeweiligen Zeitebene - fuer Schienen-Divergenzen umgerechnet, Fix F2)
+DIV_LOOK  = 5      // Kerzen Rueckblick fuer das Preis-Extrem
+DIV_BARS_CAP = 9000 // Obergrenze in Chart-Kerzen fuer Schienen-Linien (Pine zeichnet keine
+                   // Linie, deren Startpunkt mehr als ~10000 Kerzen zurueckliegt)
+MFD_LEN   = 5      // Pivot-Breite fuer die Geldfluss-Preis-Divergenz (Fix F6)
+MFD_MIN   = 5      // min. Kerzenabstand zwischen zwei Pivots
+MFD_MAX   = 80     // max. Kerzenabstand zwischen zwei Pivots
+RAIL_LVL  = 115.0  // Hoehe der beiden Schienen
+WAVE_FILL = 55     // Transparenz der Wellenflaeche
+TF_W      = "W"
+TF_D      = "D"
+TF_4H     = "240"
+TF_1H     = "60"
+TF_15     = "15"
+TF_5      = "5"
+STRUCT_TF = "240"  // Zeitebene fuer Struktur, BOS und EMA
+BOS_LEN   = 5      // Pivot-Breite fuer den Struktur-Bruch
+EMA_LEN   = 50
+
+// =====================================================================================
+//  Berechnung
+// =====================================================================================
+f_wt() =>
+    src = hlc3
+    esa = ta.ema(src, WT_CH)
+    dev = ta.ema(math.abs(src - esa), WT_CH)
+    ci  = dev == 0 ? 0.0 : (src - esa) / (0.015 * dev)
+    w1  = ta.ema(ci, WT_AVG)
+    w2  = ta.sma(w1, WT_SIG)
+    [w1, w2]
+
+// Alle Funktionen, die per request.security auf eine hoehere Zeitebene geholt werden,
+// haben einen Parameter "off": 1 = die vorige (also die letzte GESCHLOSSENE) Kerze
+// liefern, 0 = die laufende. Zusammen mit lookahead_on ergibt off = 1 ein Bild, das auf
+// der Historie und in Echtzeit identisch ist - kein Repainting.
+
+// Geldfluss: Kerzenkoerper relativ zur Spanne, (close - open) / (high - low) - die
+// Formel aus VuManChu Cipher B. Gruener Koerper = Zufluss, roter = Abfluss. (Fix F4: die
+// fruehere Beschreibung "wo in ihrer Spanne schliesst die Kerze" waere der Close Location
+// Value ((C-L)-(H-C))/(H-L) - eine andere Groesse. Eine Kerze, die am Hoch oeffnet und in
+// der Mitte schliesst, ist hier Abfluss, beim CLV neutral. Formel bewusst unveraendert,
+// nur der Text korrigiert.)
+// GEWICHTET MIT VOLUMEN - eine Kerze, in der viel gehandelt wurde, zaehlt mehr als eine
+// duenne. Erst dadurch ist es wirklich ein Geldfluss und nicht nur eine Kerzenform.
+// Der Rohwert faellt auf hohen Zeitebenen ganz anders aus als auf kleinen, deshalb misst
+// er sich am eigenen Durchschnitt der letzten MF_NORM Kerzen - dadurch passt die Flaeche
+// auf JEDER Zeitebene zur Welle, ganz ohne Regler.
+f_mf(int off) =>
+    r   = high - low
+    v   = nz(volume)
+    pos = r == 0 ? 0.0 : (close - open) / r
+    num = ta.sma(pos * v, MF_LEN)
+    den = ta.sma(v, MF_LEN)
+    raw = den == 0 ? ta.sma(pos, MF_LEN) : num / den
+    // Normalmass: solange die 200 Kerzen fuer den Schnitt noch nicht da sind, wird der
+    // laufende Mittelwert seit Chartbeginn benutzt. Dadurch gibt es am linken Chartrand
+    // keinen Sprung mehr, wenn die Selbstskalierung einsetzt.
+    absRaw = math.abs(raw)
+    refSma = ta.sma(absRaw, MF_NORM)
+    cnt    = ta.cum(na(absRaw) ? 0.0 : 1.0)
+    refCum = cnt == 0 ? na : ta.cum(nz(absRaw)) / cnt
+    ref    = na(refSma) ? refCum : refSma
+    res    = na(ref) or ref == 0 ? 0.0 : raw / ref * MF_TARGET
+    res[off]
+
+// Reines Volumen einer Zeitebene - fuer den Spot/Futures-Vergleich
+f_vol(int off) =>
+    v = nz(volume)
+    v[off]
+
+// Das VERHAELTNIS Futures zu Spot, logarithmisch.
+// Warum nicht einfach der Prozent-Anteil? Weil ein Anteil bei 100 % gegen eine Wand
+// laeuft. Bei einer Muenze mit 90 % Normalmass laege eine Schwelle von 90 % x 1,15 bei
+// 103,5 % - unerreichbar, das Signal konnte dort NIE erscheinen. Das Verhaeltnis
+// (90 % entspricht "9 zu 1") hat keine Obergrenze und funktioniert ueberall gleich.
+// Der Logarithmus macht beide Richtungen gleich weit und daempft Ausreisser beim Mitteln.
+f_ratio(float s) =>
+    c = math.max(0.0001, math.min(0.9999, s))
+    math.log(c / (1 - c))
+
+// Signal einer fremden Zeitebene: Welle, Kreuz nach oben in der Zone, Kreuz nach unten in der Zone.
+// Dazu das Preis-Extrem der letzten DIV_LOOK Kerzen DIESER Zeitebene (Fix F3) - vorher
+// wurde es auf dem Chart mit umgerechneter, auf 500 gedeckelter Laenge geschaetzt.
+f_sig(int off) =>
+    [w1, w2] = f_wt()
+    u  = ta.crossover(w1, w2)  and w1 <= OS_LVL ? 1 : 0
+    d  = ta.crossunder(w1, w2) and w1 >= OB_LVL ? 1 : 0
+    hx = ta.highest(high, DIV_LOOK)
+    lx = ta.lowest(low, DIV_LOOK)
+    [w1[off], u[off], d[off], hx[off], lx[off]]
+
+// Nur die Welle, fuer die Zeitebenen die bloss im Panel stehen
+f_w1(int off) =>
+    [w1, w2] = f_wt()
+    w1[off]
+
+f_tfName(tf) =>
+    s = timeframe.in_seconds(tf)
+    s >= 604800 ? "W" : s >= 86400 ? "D" : s >= 3600 ? str.tostring(math.floor(s / 3600)) + "h" : str.tostring(math.floor(s / 60)) + "m"
+
+// Liegt sie ECHT ueber dem Chart? Nur solche gehoeren auf die Schienen - die
+// Chart-Zeitebene selbst steht ja schon als Punkt auf der Welle.
+f_above(tf) => timeframe.in_seconds(tf) > timeframe.in_seconds(timeframe.period)
+
+// Repaint-Schutz: Versatz und Lookahead fuer eine Zeitebene. Nur Zeitebenen UEBER dem
+// Chart brauchen das - auf gleicher oder kleinerer Ebene gibt es nichts zu repainten.
+f_off(tf) => htfClosed and f_above(tf) ? 1 : 0
+f_la(tf)  => htfClosed and f_above(tf) ? barmerge.lookahead_on : barmerge.lookahead_off
+
+// Zustand einer Zeitebene als Text und Richtung.
+// Auch Zeitebenen UNTER dem Chart bekommen hier ihren echten Zustand - die Werte werden
+// ohnehin geholt, und im 4h-Chart ist die 15m-Lage genau das, was den Einstieg timet.
+// Fuer die PUNKTSTAERKE zaehlen sie trotzdem nicht mit, das regelt f_above weiter unten.
+f_state(float w) =>
+    nearLo = OS_LVL * NEAR_PCT / 100
+    nearHi = OB_LVL * NEAR_PCT / 100
+    txt = "neutral"
+    dir = 0
+    if na(w)
+        txt := "—"
+    else if w <= OS_LVL
+        txt := "Long-Zone"
+        dir := 1
+    else if w >= OB_LVL
+        txt := "Short-Zone"
+        dir := -1
+    else if w <= nearLo
+        txt := "fast Long-Zone"
+        dir := 1
+    else if w >= nearHi
+        txt := "fast Short-Zone"
+        dir := -1
+    [txt, dir]
+
+isMobile  = panelView == "Handy"
+panelFull = panelView == "Ausfuehrlich"
+// Im Handy-Modus ruecken die Schienen naeher und die Farbleiste faellt weg. Die Skala
+// spannt dann 210 statt 248 Einheiten - die Welle selbst braucht nur +/-100.
+railLvl   = isMobile ? 105.0 : RAIL_LVL
+
+chartSec = timeframe.in_seconds(timeframe.period)
+
+[wt1, wt2] = f_wt()
+
+// --- Geldfluss, inkl. Spot/Futures ---
+// Spot-Symbol ableiten: ".P" und ein nachgestelltes "PERP" abschneiden. Findet
+// TradingView das Ergebnis nicht, meldet das Panel spaeter das versuchte Symbol.
+f_spotTicker() =>
+    b = str.replace(syminfo.ticker, ".P", "", 0)
+    n = str.length(b)
+    b := n >= 4 and str.substring(b, n - 4, n) == "PERP" ? str.substring(b, 0, n - 4) : b
+    syminfo.prefix + ":" + b
+
+spotTicker = spotSym != "" ? spotSym : f_spotTicker()
+
+// Bei "Geldfluss vom 4h-Chart" ist die Zielebene ggf. hoeher als der Chart -> Repaint-Schutz greift
+mfTfUse  = mfFixed ? MF_TF : timeframe.period
+mfOff    = mfFixed ? f_off(MF_TF) : 0
+mfLa     = mfFixed ? f_la(MF_TF)  : barmerge.lookahead_off
+
+float mfSelf = mfFixed ? request.security(syminfo.tickerid, mfTfUse, f_mf(mfOff), lookahead = mfLa) : f_mf(0)
+float mfSpot = sfOn or volSrc != "Futures" ? request.security(spotTicker, mfTfUse, f_mf(mfOff), ignore_invalid_symbol = true, lookahead = mfLa) : na
+
+mf = volSrc == "Spot" and not na(mfSpot) ? mfSpot : volSrc == "Beide" and not na(mfSpot) ? (mfSelf + mfSpot) / 2 : mfSelf
+
+// --- Spot gegen Futures: wer treibt die Bewegung? ---
+// Verglichen wird das echte VOLUMEN beider Maerkte. Da Perp-Volumen fast immer groesser
+// ist als Spot, hilft kein fester Prozentwert - gemessen wird gegen das eigene Normalmass
+// der letzten SF_NORM Kerzen. Liegt der Futures-Anteil deutlich darueber, laeuft die
+// Bewegung auf Hebel statt auf echten Kaeufen.
+float volFut  = sfOn ? request.security(syminfo.tickerid, mfTfUse, f_vol(mfOff), lookahead = mfLa) : na
+float volSpot = sfOn ? request.security(spotTicker, mfTfUse, f_vol(mfOff), ignore_invalid_symbol = true, lookahead = mfLa) : na
+
+float futShare = na(volFut) or na(volSpot) or volFut + volSpot == 0 ? na : volFut / (volFut + volSpot)
+float futRatio = na(futShare) ? na : f_ratio(futShare)
+// Eine einzelne Luecke im Spot-Volumen darf nicht 200 Kerzen lang das Normalmass
+// loeschen - deshalb wird der letzte gueltige Wert gehalten.
+var float frHold = na
+if not na(futRatio)
+    frHold := futRatio
+float ratioAvg = ta.sma(frHold, SF_NORM)
+
+// Der Staerketest haengt an mfSelf, nicht an mf: mf ist je nach Einstellung der Spot-
+// oder der gemittelte Fluss - fuer die Frage 'treiben die Futures?' zaehlt der Perp.
+futRaw  = sfOn and not na(ratioAvg) and not na(futRatio) and futRatio > ratioAvg + SF_SHIFT and math.abs(mfSelf) >= MF_MIN
+spotRaw = sfOn and not na(ratioAvg) and not na(futRatio) and futRatio < ratioAvg - SF_SHIFT and math.abs(mfSelf) >= MF_MIN
+
+// "Die Futures treiben gerade" ist ein ZUSTAND, der eine Weile anhaelt - kein Ereignis
+// einer einzelnen Kerze. Liegt das Verhaeltnis knapp an der Schwelle, kippt die
+// Rohbedingung sonst von Kerze zu Kerze hin und her, und die violette Faerbung wird zu
+// Sprenkeln statt zu einer erkennbaren Phase. Deshalb muss sie SF_HOLD Kerzen halten.
+var int futRun  = 0
+var int spotRun = 0
+futRun  := futRaw  ? futRun  + 1 : 0
+spotRun := spotRaw ? spotRun + 1 : 0
+futDriven  = futRun  >= SF_HOLD
+spotDriven = spotRun >= SF_HOLD
+
+mfCol = futDriven ? cMfFut : mf >= 0 ? cMfIn : cMfOut
+
+// --- Farbleiste ---
+mfBarV = request.security(syminfo.tickerid, barTf, f_mf(f_off(barTf)), lookahead = f_la(barTf))
+barCol = na(mfBarV) ? color.new(#787b86, 60) : mfBarV >= 0 ? cMfIn : cMfOut
+
+// --- Zeitebenen ---
+[wW,  uW, dW, pxHiW, pxLoW] = request.security(syminfo.tickerid, TF_W,  f_sig(f_off(TF_W)),  lookahead = f_la(TF_W))
+[wD,  uD, dD, pxHiD, pxLoD] = request.security(syminfo.tickerid, TF_D,  f_sig(f_off(TF_D)),  lookahead = f_la(TF_D))
+[w4,  u4, d4, pxHi4, pxLo4] = request.security(syminfo.tickerid, TF_4H, f_sig(f_off(TF_4H)), lookahead = f_la(TF_4H))
+[w1h, u1, d1, pxHi1, pxLo1] = request.security(syminfo.tickerid, TF_1H, f_sig(f_off(TF_1H)), lookahead = f_la(TF_1H))
+w15 = request.security(syminfo.tickerid, TF_15, f_w1(f_off(TF_15)), lookahead = f_la(TF_15))
+w05 = request.security(syminfo.tickerid, TF_5,  f_w1(f_off(TF_5)),  lookahead = f_la(TF_5))
+
+[txtW,  dirW]  = f_state(wW)
+[txtD,  dirD]  = f_state(wD)
+[txt4,  dir4]  = f_state(w4)
+[txt1,  dir1]  = f_state(w1h)
+[txt15, dir15] = f_state(w15)
+[txt05, dir05] = f_state(w05)
+
+// Ab dem Tageschart zaehlt der Wochenchart automatisch mit - sonst bliebe dort gar
+// keine hoehere Zeitebene uebrig und ein starker Punkt waere rechnerisch unmoeglich.
+useWeff = useW or chartSec >= 86400
+
+// Staerke: nur Zeitebenen ECHT UEBER dem Chart duerfen zaehlen. Die Chart-Zeitebene
+// selbst waere sonst eine Selbstbestaetigung - sie steht ja schon im Signal drin.
+c15 = only15 or not f_above(TF_15) ? 0 : 1
+c05 = only5  or not f_above(TF_5)  ? 0 : 1
+cW  = useWeff and f_above(TF_W)  ? 1 : 0
+cD  = useD    and f_above(TF_D)  ? 1 : 0
+c4  = use4    and f_above(TF_4H) ? 1 : 0
+c1  = use1    and f_above(TF_1H) ? 1 : 0
+
+// Wie viele Zeitebenen zaehlen ueberhaupt mit? Danach richtet sich die Schwelle fuer
+// einen starken Punkt - so funktioniert sie auf jedem Chart gleich. Das "+ 1" ist der
+// Geldfluss, der wie eine weitere Zeitebene zaehlt.
+nCount  = cW + cD + c4 + c1 + c15 + c05
+strNeed = math.max(1, math.ceil((nCount + 1) * STR_PCT))
+
+bullCnt = (dirW > 0 ? cW : 0) + (dirD > 0 ? cD : 0) + (dir4 > 0 ? c4 : 0) + (dir1 > 0 ? c1 : 0) + (dir15 > 0 ? c15 : 0) + (dir05 > 0 ? c05 : 0)
+bearCnt = (dirW < 0 ? cW : 0) + (dirD < 0 ? cD : 0) + (dir4 < 0 ? c4 : 0) + (dir1 < 0 ? c1 : 0) + (dir15 < 0 ? c15 : 0) + (dir05 < 0 ? c05 : 0)
+
+// =====================================================================================
+//  Kontext & Struktur
+// =====================================================================================
+// (Block steht seit Fix F7 VOR den Setups: der optionale Trendfilter braucht emaDir/bosDir.)
+wVwap = ta.vwap(hlc3, timeframe.change("W"))
+mVwap = ta.vwap(hlc3, timeframe.change("M"))
+
+// WICHTIG: Hier werden NUR rohe Werte ueber die Zeitebene geholt - keine var-Zustaende.
+// Ein Zustandsspeicher innerhalb einer Funktion, die per request.security laeuft, ist in
+// Pine unzuverlaessig; genau daran ist die alte Fassung gescheitert (sie meldete BOS,
+// wo keiner war). Die Zustandsmaschine laeuft deshalb unten auf der Chart-Ebene.
+f_piv(int off) =>
+    ph   = ta.pivothigh(high, BOS_LEN, BOS_LEN)
+    pl   = ta.pivotlow(low, BOS_LEN, BOS_LEN)
+    emaD = close > ta.ema(close, EMA_LEN) ? 1 : -1
+    [ph[off], pl[off], close[off], emaD[off]]
+
+[sPh, sPl, sClose, emaDir] = request.security(syminfo.tickerid, STRUCT_TF, f_piv(f_off(STRUCT_TF)), lookahead = f_la(STRUCT_TF))
+
+// Letztes bestaetigtes Swing-Hoch und -Tief mitfuehren
+var float lph = na
+var float lpl = na
+if not na(sPh)
+    lph := sPh
+if not na(sPl)
+    lpl := sPl
+
+// Ein Bruch zaehlt nur EINMAL - beim Ueberqueren des Levels, nicht solange der Kurs
+// jenseits davon bleibt. Bricht der Kurs spaeter ein NEUES Level, feuert es erneut.
+brokeUp = not na(lph) and sClose > lph and (na(sClose[1]) or sClose[1] <= lph)
+brokeDn = not na(lpl) and sClose < lpl and (na(sClose[1]) or sClose[1] >= lpl)
+
+var int   bosDir  = 0      //  1 = zuletzt nach oben gebrochen, -1 = nach unten
+var int   bosAge  = 0      //  Kerzen seit dem Bruch
+var float bosLvl  = na     //  das Level, das gebrochen wurde
+var bool  bosChoch = false //  true = Richtungswechsel (CHoCH), false = Fortsetzung (BOS)
+
+if brokeUp
+    bosChoch := bosDir == -1
+    bosDir   := 1
+    bosLvl   := lph
+    bosAge   := 0
+else if brokeDn
+    bosChoch := bosDir == 1
+    bosDir   := -1
+    bosLvl   := lpl
+    bosAge   := 0
+else
+    bosAge := bosAge + 1
+
+f_arrow(int d) => d > 0 ? "▲" : d < 0 ? "▼" : "•"
+
+ctxTxt = "W-VWAP " + f_arrow(close > wVwap ? 1 : -1) + " · M-VWAP " + f_arrow(close > mVwap ? 1 : -1)
+// CHoCH = Bruch GEGEN die bisherige Richtung, der Trend kippt.
+// BOS   = Bruch IN Trendrichtung, Fortsetzung. Das Level steht dabei, damit du es
+//         im Chart nachpruefen kannst.
+strTxt = bosDir == 0 or na(bosLvl) ? f_tfName(STRUCT_TF) + " · noch kein Bruch · EMA" + str.tostring(EMA_LEN) + " " + f_arrow(emaDir) : f_tfName(STRUCT_TF) + " · " + (bosChoch ? "CHoCH " : "BOS ") + f_arrow(bosDir) + " " + str.tostring(bosLvl, format.mintick) + " vor " + str.tostring(bosAge) + " · EMA" + str.tostring(EMA_LEN) + " " + f_arrow(emaDir)
+
+// --- Setups: SWING liest Tag/4h/1h, DAY liest 15m/5m ---
+// Beide urteilen auf JEDEM Chart aus denselben Zeitebenen. Sonst haette dieselbe
+// Marktlage im 4h-Chart eine andere SWING-Aussage als im 1h-Chart, nur weil dort die
+// 1h-Zeile stumm war. Das Panel beschreibt den Markt, nicht den offenen Chart.
+f_setup(int a, int b, int c) =>
+    n   = (a != 0 ? 1 : 0) + (b != 0 ? 1 : 0) + (c != 0 ? 1 : 0)
+    pos = (a > 0 ? 1 : 0) + (b > 0 ? 1 : 0) + (c > 0 ? 1 : 0)
+    neg = (a < 0 ? 1 : 0) + (b < 0 ? 1 : 0) + (c < 0 ? 1 : 0)
+    n >= 2 and pos == n ? 1 : n >= 2 and neg == n ? -1 : 0
+
+swingDir = f_setup(dirD, dir4, dir1)
+dayDir   = f_setup(dir15, dir05, 0)
+
+// Wochenfilter
+swingOk  = not needWeek or swingDir == 0 or (swingDir > 0 ? dirW > 0 : dirW < 0)
+dayOk    = not needWeek or dayDir   == 0 or (dayDir   > 0 ? dirW > 0 : dirW < 0)
+// Optionaler Trendfilter (Fix F7, ab Werk aus): Long nur mit 4h-Aufwaertslage, Short nur
+// mit 4h-Abwaertslage. emaDir/bosDir stammen aus GESCHLOSSENEN 4h-Kerzen (siehe f_piv).
+trendOkL = trendFlt == "Aus" or (trendFlt == "EMA50 (4h)" ? emaDir > 0 : bosDir > 0)
+trendOkS = trendFlt == "Aus" or (trendFlt == "EMA50 (4h)" ? emaDir < 0 : bosDir < 0)
+f_trendOk(int d) => d > 0 ? trendOkL : d < 0 ? trendOkS : true
+
+swingUse = swingOk and f_trendOk(swingDir) ? swingDir : 0
+dayUse   = dayOk   and f_trendOk(dayDir)   ? dayDir   : 0
+
+// Auto: bis einschliesslich 15m Day-Modus, alles darueber Swing
+isDay    = panelMode == "Day" ? true : panelMode == "Swing" ? false : chartSec <= 900
+status   = isDay ? dayUse : swingUse
+
+f_setupTxt(int d) => d > 0 ? "Long Setup" : d < 0 ? "Short Setup" : "kein Setup"
+
+// --- Signale der Chart-Zeitebene ---
+wtHi = ta.highest(wt1, DOT_LOOK)
+wtLo = ta.lowest(wt1, DOT_LOOK)
+
+bullRaw = ta.crossover(wt1, wt2)  and wtLo <= OS_LVL
+bearRaw = ta.crossunder(wt1, wt2) and wtHi >= OB_LVL
+
+// Der Geldfluss zaehlt wie eine weitere zustimmende Zeitebene
+bullStr = bullCnt + (mf > 0 ? 1 : 0)
+bearStr = bearCnt + (mf < 0 ? 1 : 0)
+
+bullDot = bullRaw and barstate.isconfirmed
+bearDot = bearRaw and barstate.isconfirmed
+bullPre = divPrev and bullRaw and not barstate.isconfirmed
+bearPre = divPrev and bearRaw and not barstate.isconfirmed
+
+bullBig = bullDot and nCount > 0 and bullStr >= strNeed and trendOkL
+bullSml = bullDot and not bullBig
+bearBig = bearDot and nCount > 0 and bearStr >= strNeed and trendOkS
+bearSml = bearDot and not bearBig
+
+// Extrem-Signal: die Welle laeuft ueber die Extrem-Linie bei +/-100 hinaus.
+// Eigener, laengerer Rueckblick als bei den Punkten - das Kreuz kommt immer erst ein
+// paar Kerzen NACH dem Wellenberg, wenn die Welle schon wieder unter 100 liegt.
+// Mit DOT_LOOK = 1 war die Bedingung praktisch nie erfuellbar.
+extHi = ta.highest(wt1, EXT_LOOK)
+extLo = ta.lowest(wt1, EXT_LOOK)
+extrHi = divExtr and barstate.isconfirmed and ta.crossunder(wt1, wt2) and extHi >=  OV_LVL
+extrLo = divExtr and barstate.isconfirmed and ta.crossover(wt1, wt2)  and extLo <= -OV_LVL
+
+// =====================================================================================
+//  Darstellung
+// =====================================================================================
+// "Nur das Panel": alles Gezeichnete faellt weg, die Tabelle bleibt stehen. Gedacht
+// fuer eine zweite Instanz, die du per Augen-Symbol ein- und ausblendest.
+vWave   = showWave and not panelOnly
+vMf     = showMf   and not panelOnly
+vBar    = showBar  and not panelOnly and not isMobile
+vRailLo = railLo   and not panelOnly
+vRailHi = railHi   and not panelOnly
+vDiv    = showDiv  and not panelOnly
+vLeg    = showLegend and not panelOnly
+vSig    = not panelOnly
+
+hline(panelOnly ? na : OV_LVL,  "Extrem-Linie oben",  color = color.new(cOver, 35),   linestyle = hline.style_solid)
+hline(panelOnly ? na : OB_LVL,  "Ueberkauft",      color = color.new(#ffffff, 25), linestyle = hline.style_solid, linewidth = 2)
+hline(panelOnly ? na : 0,       "Nulllinie",       color = color.new(#787b86, 45), linestyle = hline.style_dashed)
+hline(panelOnly ? na : OS_LVL,  "Ueberverkauft",   color = color.new(#ffffff, 25), linestyle = hline.style_solid, linewidth = 2)
+hline(panelOnly ? na : -OV_LVL, "Extrem-Linie unten", color = color.new(cOver, 35),   linestyle = hline.style_solid)
+hline(vRailLo ? -railLvl : na, "Untere Schiene (Long)", color = color.new(cLong,  55), linestyle = hline.style_solid)
+hline(vRailHi ?  railLvl : na, "Obere Schiene (Short)", color = color.new(cShort, 55), linestyle = hline.style_solid)
+
+// Reihenfolge macht die Optik: erst der dunkle Schatten (folgt der Signallinie, gibt
+// Tiefe), darueber die HELLE Wellenflaeche mit Transparenz - erst dadurch wird aus der
+// hellen Farbe auf dem dunklen Hintergrund das mittlere Blau. Dann der Geldfluss, ganz
+// oben die kraeftige Wellenlinie in derselben hellen Farbe.
+plot(vWave ? wt2 : na, "Welle Schatten", color = color.new(cShade, 15), style = plot.style_area, display = display.pane)
+plot(vWave ? wt1 : na, "Welle Flaeche",  color = color.new(cWave, WAVE_FILL), style = plot.style_area, display = display.pane)
+plot(vMf     ? mf  : na, "Geldfluss", color = color.new(mfCol, 5), style = plot.style_area)
+
+// Der Spotmarkt als eigene duenne Linie ueber der Flaeche. Erst dadurch SIEHT man ihn:
+// Laeuft die Linie unter der Flaeche, sind die Futures vorausgelaufen - der Spotmarkt
+// zieht nicht mit. Laeuft sie darueber, kaufen die Spot-Leute staerker als die Perps.
+// Erscheint nur, wenn die Spot/Futures-Pruefung in Gruppe 3 an ist.
+plot(sfOn and vMf and not na(mfSpot) ? mfSpot : na, "Geldfluss Spot", color = color.new(#ffffff, 15), linewidth = 1)
+
+plot(vWave ? wt1 : na, "Welle", color = cWave, linewidth = 2)
+plot(vWave ? wt2 : na, "Signallinie", color = color.new(cSig, 45), linewidth = 1)
+
+// Farbleiste am unteren Rand
+pTop = plot(vBar ? -railLvl - 8  : na, "Farbleiste oben",  color = na, display = display.none)
+pBot = plot(vBar ? -railLvl - 18 : na, "Farbleiste unten", color = na, display = display.none)
+fill(pTop, pBot, color = color.new(barCol, 25), title = "Farbleiste (Geldfluss)")
+
+// Punkte auf der Welle - zwei Staerken
+plot(bullSml and vSig ? wt1 : na, "Long-Punkt",          color = cLong,  style = plot.style_circles, linewidth = 4, display = display.pane)
+plot(bullBig and vSig ? wt1 : na, "Starker Long-Punkt",  color = cLongS, style = plot.style_circles, linewidth = 8, display = display.pane)
+plot(bearSml and vSig ? wt1 : na, "Short-Punkt",         color = cShort, style = plot.style_circles, linewidth = 4, display = display.pane)
+plot(bearBig and vSig ? wt1 : na, "Starker Short-Punkt", color = cShrtS, style = plot.style_circles, linewidth = 8, display = display.pane)
+
+// Vorschau: hohle Kreise fuer Unbestaetigtes
+plotchar(bullPre and vSig ? wt1 : na, "Vorschau Long",  "○", location.absolute, color = cLong,  size = size.tiny, display = display.pane)
+plotchar(bearPre and vSig ? wt1 : na, "Vorschau Short", "○", location.absolute, color = cShort, size = size.tiny, display = display.pane)
+
+// Extrem-Signal als Raute
+plotshape(extrLo and vSig ? wt1 : na, "Extrem Long",  style = shape.diamond, location = location.absolute, color = cExtr, size = size.tiny, display = display.pane)
+plotshape(extrHi and vSig ? wt1 : na, "Extrem Short", style = shape.diamond, location = location.absolute, color = cExtr, size = size.tiny, display = display.pane)
+
+// --- Schienen: Signale der hoeheren Zeitebenen ---
+// Nur Zeitebenen ECHT ueber dem Chart. Ein Signal gilt als neu, sobald die hoehere Kerze geschlossen hat.
+okW = showRail and useWeff and f_above(TF_W)
+okD = showRail and useD and f_above(TF_D)
+ok4 = showRail and use4 and f_above(TF_4H)
+ok1 = showRail and use1 and f_above(TF_1H)
+
+nWu = okW and uW == 1 and nz(uW[1]) != 1
+nDu = okD and uD == 1 and nz(uD[1]) != 1
+n4u = ok4 and u4 == 1 and nz(u4[1]) != 1
+n1u = ok1 and u1 == 1 and nz(u1[1]) != 1
+nWd = okW and dW == 1 and nz(dW[1]) != 1
+nDd = okD and dD == 1 and nz(dD[1]) != 1
+n4d = ok4 and d4 == 1 and nz(d4[1]) != 1
+n1d = ok1 and d1 == 1 and nz(d1[1]) != 1
+
+rLo = -railLvl
+rHi =  railLvl
+plot(vRailLo and n1u ? rLo : na, "Schiene 1h Long",  color = cTf1, style = plot.style_circles, linewidth = 3, display = display.pane)
+plot(vRailLo and n4u ? rLo : na, "Schiene 4h Long",  color = cTf4, style = plot.style_circles, linewidth = 5, display = display.pane)
+plot(vRailLo and nDu ? rLo : na, "Schiene D Long",   color = cTfD, style = plot.style_circles, linewidth = 7, display = display.pane)
+plot(vRailLo and nWu ? rLo : na, "Schiene W Long",   color = cTfW, style = plot.style_circles, linewidth = 9, display = display.pane)
+plot(vRailHi and n1d ? rHi : na, "Schiene 1h Short", color = cTf1, style = plot.style_circles, linewidth = 3, display = display.pane)
+plot(vRailHi and n4d ? rHi : na, "Schiene 4h Short", color = cTf4, style = plot.style_circles, linewidth = 5, display = display.pane)
+plot(vRailHi and nDd ? rHi : na, "Schiene D Short",  color = cTfD, style = plot.style_circles, linewidth = 7, display = display.pane)
+plot(vRailHi and nWd ? rHi : na, "Schiene W Short",  color = cTfW, style = plot.style_circles, linewidth = 9, display = display.pane)
+
+// =====================================================================================
+//  Divergenz-Linien
+// =====================================================================================
+lStyle = lineStyle == "Durchgezogen" ? line.style_solid : lineStyle == "Gepunktet" ? line.style_dotted : line.style_dashed
+pxHi   = ta.highest(high, DIV_LOOK)
+pxLo   = ta.lowest(low, DIV_LOOK)
+
+// Das Preis-Extrem der Schienen-Divergenzen (pxHiW/pxLoW ... pxHi1/pxLo1) kommt seit Fix F3
+// direkt aus f_sig, gerechnet auf der jeweiligen hoeheren Zeitebene selbst.
+
+// Chart-Zeitebene und hoehere Zeitebenen fuehren getrennte Speicher, damit
+// "Alte Linien behalten" auf der einen Seite die andere nicht mit aufraeumt.
+var line[]  dLines = array.new_line()
+var label[] dLabs  = array.new_label()
+var line[]  hLines = array.new_line()
+var label[] hLabs  = array.new_label()
+
+// sty: durchgezogen fuer die Chart-Zeitebene, der Stil aus Gruppe 6 fuer die Schienen
+f_draw(line[] lns, label[] lbs, int b1, float y1, int b2, float y2, color c, bool keep, string sty) =>
+    array.push(lns, line.new(b1, y1, b2, y2, color = c, width = 2, style = sty))
+    if divLabel
+        array.push(lbs, label.new(math.round(math.avg(b1, b2)), math.avg(y1, y2), "DIV", style = label.style_label_center, color = color.new(#000000, 100), textcolor = c, size = size.tiny))
+    if divEnds
+        array.push(lns, line.new(b1, y1, b1, y1, color = c, width = 4))
+        array.push(lns, line.new(b2, y2, b2, y2, color = c, width = 4))
+    if not keep
+        while array.size(lns) > 9
+            line.delete(array.shift(lns))
+        while array.size(lbs) > 3
+            label.delete(array.shift(lbs))
+
+// --- Chart-Zeitebene: immer durchgezogen ---
+var int   pBearBar = na
+var float pBearWt  = na
+var float pBearPx  = na
+var int   pBullBar = na
+var float pBullWt  = na
+var float pBullPx  = na
+
+// Erkennung unabhaengig von der Anzeige (Fix F5) - der Divergenz-Alarm soll auch feuern,
+// wenn die Linien ausgeblendet sind.
+divBear = false
+divBull = false
+
+if bearDot
+    divBear := not na(pBearBar) and bar_index - pBearBar <= DIV_MAX and pxHi > pBearPx and wt1 < pBearWt
+    if divBear and vDiv
+        f_draw(dLines, dLabs, pBearBar, pBearWt, bar_index, wt1, cDivS, divKeep, line.style_solid)
+    pBearBar := bar_index
+    pBearWt  := wt1
+    pBearPx  := pxHi
+
+if bullDot
+    divBull := not na(pBullBar) and bar_index - pBullBar <= DIV_MAX and pxLo < pBullPx and wt1 > pBullWt
+    if divBull and vDiv
+        f_draw(dLines, dLabs, pBullBar, pBullWt, bar_index, wt1, cDivL, divKeep, line.style_solid)
+    pBullBar := bar_index
+    pBullWt  := wt1
+    pBullPx  := pxLo
+
+// --- Hoehere Zeitebenen (auf den Schienen): Stil aus Gruppe 6 ---
+// Index 0..3 = Long fuer 1h/4h/D/W, 4..7 = Short
+var int[]   hBar = array.new_int(8, na)
+var float[] hPx  = array.new_float(8, na)
+var float[] hW   = array.new_float(8, na)
+var color[] htfCols = array.from(cTf1, cTf4, cTfD, cTfW, cTf1, cTf4, cTfD, cTfW)
+
+// Fix F1: eine Divergenz braucht BEIDES - Preis macht ein neues Extrem, die Welle der
+// hoeheren Zeitebene aber nicht (Long: tieferes Preistief bei hoeherem Wellentief). Das
+// Original verglich hier nur den Preis.
+// Fix F2: das Fenster sind DIV_MAX Kerzen DER HOEHEREN Zeitebene, umgerechnet in Chart-
+// Kerzen - wie auf der Chart-Zeitebene. Das Original nutzte fest DIV_MAX * 4 = 320 Chart-
+// Kerzen (im 15m-Chart nur 3,3 Tage, zwei Tagessignale lagen fast nie so nah).
+// Gibt zurueck, ob eine Divergenz entstanden ist (fuer den Alarm, Fix F5).
+f_htf(int idx, bool fired, bool isLong, float pHi, float pLo, float w, string tf) =>
+    bool isDiv = false
+    if fired
+        prevB = array.get(hBar, idx)
+        prevP = array.get(hPx, idx)
+        prevW = array.get(hW, idx)
+        maxBars = math.min(DIV_BARS_CAP, DIV_MAX * timeframe.in_seconds(tf) / chartSec)
+        if not na(prevB) and not na(prevW) and not na(w) and bar_index - prevB <= maxBars
+            isDiv := isLong ? (pLo < prevP and w > prevW) : (pHi > prevP and w < prevW)
+            if isDiv and htfDiv and vDiv
+                col = tfColored ? array.get(htfCols, idx) : isLong ? cDivL : cDivS
+                f_draw(hLines, hLabs, prevB, isLong ? rLo : rHi, bar_index, isLong ? rLo : rHi, col, htfKeep, lStyle)
+        array.set(hBar, idx, bar_index)
+        array.set(hPx,  idx, isLong ? pLo : pHi)
+        array.set(hW,   idx, w)
+    isDiv
+
+hd1u = f_htf(0, n1u, true,  pxHi1, pxLo1, w1h, TF_1H)
+hd4u = f_htf(1, n4u, true,  pxHi4, pxLo4, w4,  TF_4H)
+hdDu = f_htf(2, nDu, true,  pxHiD, pxLoD, wD,  TF_D)
+hdWu = f_htf(3, nWu, true,  pxHiW, pxLoW, wW,  TF_W)
+hd1d = f_htf(4, n1d, false, pxHi1, pxLo1, w1h, TF_1H)
+hd4d = f_htf(5, n4d, false, pxHi4, pxLo4, w4,  TF_4H)
+hdDd = f_htf(6, nDd, false, pxHiD, pxLoD, wD,  TF_D)
+hdWd = f_htf(7, nWd, false, pxHiW, pxLoW, wW,  TF_W)
+railDivBull = hd1u or hd4u or hdDu or hdWu
+railDivBear = hd1d or hd4d or hdDd or hdWd
+
+// --- Geldfluss-Preis-Divergenz (Fix F6) ---
+// Bestaetigte Kurs-Pivots (MFD_LEN links/rechts, kein Repainting, Signal MFD_LEN Kerzen
+// nach dem Extrem). Verglichen wird der Geldfluss AM Pivot mit dem am vorherigen Pivot.
+// Bullisch: tieferes Kurstief, hoeherer Geldfluss = es wird eingesammelt.
+// Baerisch: hoeheres Kurshoch, tieferer Geldfluss = es wird in die Staerke verkauft.
+mfPL = ta.pivotlow(low,  MFD_LEN, MFD_LEN)
+mfPH = ta.pivothigh(high, MFD_LEN, MFD_LEN)
+var int   mfPrevLBar = na
+var float mfPrevLPx  = na
+var float mfPrevLMf  = na
+var int   mfPrevHBar = na
+var float mfPrevHPx  = na
+var float mfPrevHMf  = na
+mfDivBull = false
+mfDivBear = false
+if not na(mfPL)
+    pivBar = bar_index - MFD_LEN
+    pivMf  = mf[MFD_LEN]
+    gap    = pivBar - nz(mfPrevLBar, pivBar)
+    mfDivBull := not na(mfPrevLBar) and gap >= MFD_MIN and gap <= MFD_MAX and mfPL < mfPrevLPx and pivMf > mfPrevLMf
+    mfPrevLBar := pivBar
+    mfPrevLPx  := mfPL
+    mfPrevLMf  := pivMf
+if not na(mfPH)
+    pivBar = bar_index - MFD_LEN
+    pivMf  = mf[MFD_LEN]
+    gap    = pivBar - nz(mfPrevHBar, pivBar)
+    mfDivBear := not na(mfPrevHBar) and gap >= MFD_MIN and gap <= MFD_MAX and mfPH > mfPrevHPx and pivMf < mfPrevHMf
+    mfPrevHBar := pivBar
+    mfPrevHPx  := mfPH
+    mfPrevHMf  := pivMf
+
+vMfDiv = mfDivOn and not panelOnly
+plotshape(vMfDiv and mfDivBull ? mf[MFD_LEN] : na, "Geldfluss-Divergenz Long",  style = shape.labelup,   location = location.absolute, color = color.new(cMfIn, 20),  text = "MF", textcolor = #ffffff, size = size.tiny, offset = -MFD_LEN, display = display.pane)
+plotshape(vMfDiv and mfDivBear ? mf[MFD_LEN] : na, "Geldfluss-Divergenz Short", style = shape.labeldown, location = location.absolute, color = color.new(cMfOut, 20), text = "MF", textcolor = #ffffff, size = size.tiny, offset = -MFD_LEN, display = display.pane)
+
+// =====================================================================================
+//  Panel
+// =====================================================================================
+// Das Panel liegt ueber dem Chart. Damit KEINE Schienen- und Divergenz-Linien
+// hindurchscheinen, ist jede Zelle deckend: statt mit Transparenz zu arbeiten, wird die
+// Farbe in den Panel-Hintergrund hineingemischt. Gleicher Look, aber blickdicht.
+PANEL_BG = #151a26
+f_mix(color c, float amt) => color.from_gradient(amt, 0, 1, PANEL_BG, c)
+
+statTxt = status > 0 ? "LONG SUCHEN" : status < 0 ? "SHORT SUCHEN" : "ABWARTEN"
+statCol = status > 0 ? f_mix(cLongS, 0.80) : status < 0 ? f_mix(cShrtS, 0.80) : f_mix(#9e9e9e, 0.45)
+
+// Herkunft des Geldflusses.
+// Die Zeile hat zwei Aufgaben, und jede bekommt ihre eigene Zelle:
+//   WAS ist los  -> die Aufteilung des Volumens, Futures + Spot = 100 %. Liest jeder.
+//   IST DAS VIEL -> das Urteil. Denn 91 % Futures sind bei manchen Muenzen voellig
+//                   normal - erst die Verschiebung gegen das eigene Mittel ist ein Signal.
+srcTxt = not sfOn ? "Pruefung aus" : na(futShare) ? "kein Spot-Symbol" : futDriven ? "Futures ungewoehnlich hoch" : spotDriven ? "Spot ungewoehnlich hoch" : "normale Aufteilung"
+srcCol = not sfOn or na(futShare) ? f_mix(#787b86, 0.25) : futDriven ? f_mix(cMfFut, 0.65) : spotDriven ? f_mix(cMfIn, 0.60) : f_mix(#787b86, 0.30)
+srcNum = not sfOn ? " Gruppe 3 einschalten " : na(futShare) ? " keine Daten fuer " + spotTicker + " " : " Fut " + str.tostring(futShare * 100, "#") + "% · Spot " + str.tostring(100 - futShare * 100, "#") + "% "
+srcTip = not sfOn ? "Schalte in Gruppe 3 'Spot gegen Futures pruefen' ein, dann steht hier, wer die Bewegung gerade treibt." : "Rechts die Aufteilung des Handelsvolumens: wie viel davon laeuft ueber die Perpetual Futures (Wetten mit Hebel) und wie viel ueber den echten Spotmarkt (jemand kauft die Muenze). Zusammen 100 %.\n\nLinks das Urteil. Es braucht es, weil der nackte Prozentwert nichts sagt: Bei BNB sind rund 91 % Futures voellig normal, bei anderen Muenzen liegt das Normalmass woanders.\n\nEin Signal ist erst die VERSCHIEBUNG gegen den Schnitt der letzten 200 Kerzen:\n'Futures ungewoehnlich hoch' = der Umsatz kommt ploetzlich fast nur noch von Hebel-Wetten, niemand kauft wirklich. Solche Bewegungen kippen oft zurueck.\n'Spot ungewoehnlich hoch' = echte Leute kaufen echte Muenzen. Das traegt.\n\nGemessen wird dabei nicht der Prozentwert selbst, sondern das VERHAELTNIS Futures zu Spot - 90 % heisst '9 zu 1'. Als ungewoehnlich gilt, wenn dieses Verhaeltnis 1,5-mal so schief ist wie im Schnitt der letzten 200 Kerzen - und zwar drei Kerzen am Stueck. Eine einzelne Kerze an der Schwelle reicht nicht, sonst flackert das Urteil. Ein Prozentwert kann bei 100 % nicht weiter steigen, ein Verhaeltnis schon - deshalb funktioniert die Schwelle auch bei Muenzen, die fast nur ueber Futures laufen."
+
+pPos = panelPos == "Oben links" ? position.top_left : panelPos == "Unten rechts" ? position.bottom_right : panelPos == "Unten links" ? position.bottom_left : position.top_right
+
+// Kopfzeile eine Stufe groesser als der Rest - beide haengen an "Panel: Textgroesse"
+pSzH = panelSize == "Klein" ? size.small : panelSize == "Gross" ? size.large  : size.normal
+pSzB = panelSize == "Klein" ? size.tiny  : panelSize == "Gross" ? size.normal : size.small
+
+// Die Erklaerungen, die frueher im "?" standen - jetzt dort, wo sie hingehoeren.
+tipSwing = "Liest Tag, 4h und 1h. Zeigen mindestens zwei davon in dieselbe Richtung und keine dagegen, steht hier ein Setup.\n\nDas Urteil faellt auf jedem Chart aus denselben drei Zeitebenen - es beschreibt den Markt, nicht den Chart, den du offen hast."
+tipDay   = "Dasselbe fuer 15m und 5m, also fuer den Handel innerhalb eines Tages.\n\nWelche der beiden Zeilen oben in der Kopfzeile landet, entscheidet 'Modus: Swing oder Day' in Gruppe 5."
+tipVwap  = "Steht der Kurs ueber oder unter dem Wochen- und dem Monats-VWAP? Das ist das Umfeld: Der Momentum Radar sagt WANN, diese Zeile sagt, ob das grosse Bild dazu passt.\n\nRechts der Geldflusswert als Zahl - dieselbe Groesse wie die gruen/rote Flaeche."
+tipStr   = "BOS = der Kurs bricht ein Hoch oder Tief IN Trendrichtung, die Bewegung geht weiter.\nCHoCH = der Bruch geht GEGEN die bisherige Richtung, der Trend kippt.\n\nDahinter steht das gebrochene Kursniveau, damit du es im Chart nachmessen kannst, und wie viele Kerzen der Bruch her ist (gezaehlt in Kerzen DEINES Charts, nicht in 4h-Kerzen). Gerechnet auf 4h mit Pivots der Breite 5."
+tipTf    = "Wo steht die Welle dieser Zeitebene gerade?\n\nLong-Zone = unter -50, Short-Zone = ueber +50, 'fast' = 70 % des Weges dorthin.\n\nZeitebenen UNTER deinem Chart stehen hier mit ihrem echten Zustand - im 4h-Chart siehst du also, wie 15m liegt. Fuer die Staerke eines Punktes zaehlen sie aber nicht mit, sonst wuerde der Chart sich selbst bestaetigen."
+
+f_dirCol(int d) => d > 0 ? f_mix(cLong, 0.55) : d < 0 ? f_mix(cShort, 0.55) : f_mix(#787b86, 0.28)
+
+f_tfRow(table t, int row, string name, color chip, string txt, int dir) =>
+    table.cell(t, 0, row, " " + name + " ", text_color = #000000, text_size = pSzB, bgcolor = chip, tooltip = tipTf)
+    table.cell(t, 1, row, " " + txt,        text_color = #ffffff, text_size = pSzB, bgcolor = f_dirCol(dir), tooltip = tipTf)
+    table.cell(t, 2, row, dir > 0 ? "▲ " : dir < 0 ? "▼ " : " ", text_color = #ffffff, text_size = pSzB, bgcolor = f_dirCol(dir), tooltip = tipTf)
+
+// EINE Tabelle fuer beide Layouts - Pine zeigt pro Position nur eine an, eine zweite
+// an derselben Ecke verdraengt die erste, auch wenn sie leer ist.
+// Sie bekommt GENAU so viele Spalten, wie das aktive Layout auch fuellt. Nie benutzte
+// Spalten stehen zu lassen hat dazu gefuehrt, dass die Tabelle gar nicht mehr erschien.
+nChip = (useWeff ? 1 : 0) + (useD ? 1 : 0) + (use4 ? 1 : 0) + (use1 ? 1 : 0) + 3
+nCols = isMobile ? nChip : 3
+nRows = isMobile ? 2 : 12
+var table tbl = table.new(pPos, nCols, nRows, border_width = 1, frame_width = 1, frame_color = f_mix(#787b86, 0.5))
+
+if showPanel and not isMobile and barstate.islast
+    table.clear(tbl, 0, 0, 2, 11)
+    r = 0
+    table.cell(tbl, 0, r, " ▶ " + statTxt + " · " + (isDay ? "Day" : "Swing") + " ", text_color = #ffffff, text_size = pSzH, bgcolor = statCol)
+    r += 1
+
+    if panelFull
+        table.cell(tbl, 0, r, " SWING ", text_color = #cfd3da, text_size = pSzB, bgcolor = PANEL_BG, tooltip = tipSwing)
+        table.cell(tbl, 1, r, " Tag/4h/1h ", text_color = #9aa3b2, text_size = pSzB, bgcolor = PANEL_BG, tooltip = tipSwing)
+        table.cell(tbl, 2, r, " " + f_setupTxt(swingUse) + " ", text_color = #ffffff, text_size = pSzB, bgcolor = f_dirCol(swingUse), tooltip = tipSwing)
+        r += 1
+        table.cell(tbl, 0, r, " DAY ", text_color = #cfd3da, text_size = pSzB, bgcolor = PANEL_BG, tooltip = tipDay)
+        table.cell(tbl, 1, r, " 15m/5m ", text_color = #9aa3b2, text_size = pSzB, bgcolor = PANEL_BG, tooltip = tipDay)
+        table.cell(tbl, 2, r, " " + f_setupTxt(dayUse) + " ", text_color = #ffffff, text_size = pSzB, bgcolor = f_dirCol(dayUse), tooltip = tipDay)
+        r += 1
+
+        table.cell(tbl, 0, r, " Herkunft ", text_color = #cfd3da, text_size = pSzB, bgcolor = PANEL_BG, tooltip = srcTip)
+        table.cell(tbl, 1, r, " " + srcTxt + " ", text_color = #ffffff, text_size = pSzB, bgcolor = srcCol, tooltip = srcTip)
+        table.cell(tbl, 2, r, srcNum, text_color = #e8eaed, text_size = pSzB, bgcolor = srcCol, tooltip = srcTip)
+        r += 1
+
+        if showCtx
+            table.cell(tbl, 0, r, " VWAP ", text_color = #cfd3da, text_size = pSzB, bgcolor = PANEL_BG, tooltip = tipVwap)
+            table.cell(tbl, 1, r, " " + ctxTxt + " ", text_color = #e8eaed, text_size = pSzB, bgcolor = PANEL_BG, tooltip = tipVwap)
+            table.cell(tbl, 2, r, " " + (mf >= 0 ? "+" : "") + str.tostring(mf, "#.#") + " ", text_color = #ffffff, text_size = pSzB, bgcolor = f_mix(mfCol, 0.55), tooltip = tipVwap)
+            r += 1
+            table.cell(tbl, 0, r, " Struktur ", text_color = #cfd3da, text_size = pSzB, bgcolor = PANEL_BG, tooltip = tipStr)
+            table.cell(tbl, 1, r, " " + strTxt + " ", text_color = #e8eaed, text_size = pSzB, bgcolor = PANEL_BG, tooltip = tipStr)
+            table.cell(tbl, 2, r, " ", bgcolor = PANEL_BG)
+            r += 1
+
+    // Zeitebenen, absteigend
+    if useWeff
+        f_tfRow(tbl, r, "W", cTfW, txtW, dirW)
+        r += 1
+    if useD
+        f_tfRow(tbl, r, "D", cTfD, txtD, dirD)
+        r += 1
+    if use4
+        f_tfRow(tbl, r, "4h", cTf4, txt4, dir4)
+        r += 1
+    if use1
+        f_tfRow(tbl, r, "1h", cTf1, txt1, dir1)
+        r += 1
+    f_tfRow(tbl, r, "15m", #bdbdbd, txt15, dir15)
+    r += 1
+    f_tfRow(tbl, r, "5m", #bdbdbd, txt05, dir05)
+
+    // Kopfzeile erst JETZT zusammenfassen, nachdem alle Zellen stehen. Wird mittendrin
+    // zusammengefasst und danach weiter in die Tabelle geschrieben, zeichnet Pine sie
+    // nicht - genau daran ist der Schreibtisch-Modus gescheitert, waehrend der
+    // Handy-Modus lief, weil er ohnehin zuletzt zusammenfasst.
+    table.merge_cells(tbl, 0, 0, 2, 0)
+
+// --- Handy-Panel: zwei Zeilen statt elf ---
+// Dieselbe Aussage, auf Daumengroesse gefaltet: oben das Urteil, darunter jede Zeitebene
+// als Kachel mit Pfeil und ganz rechts der Geldfluss. Setup-, VWAP- und Strukturzeile
+// fallen weg - die stecken als Kurzfassung ohnehin schon in der Kopfzeile.
+f_chip(table t, int col, string name, int dir) =>
+    table.cell(t, col, 1, " " + name + (dir > 0 ? "▲" : dir < 0 ? "▼" : "") + " ", text_color = #ffffff, text_size = pSzB, bgcolor = f_dirCol(dir), tooltip = tipTf)
+
+if showPanel and isMobile and barstate.islast
+    table.clear(tbl, 0, 0, nCols - 1, 1)
+    c = 0
+    if useWeff
+        f_chip(tbl, c, "W", dirW)
+        c += 1
+    if useD
+        f_chip(tbl, c, "D", dirD)
+        c += 1
+    if use4
+        f_chip(tbl, c, "4h", dir4)
+        c += 1
+    if use1
+        f_chip(tbl, c, "1h", dir1)
+        c += 1
+    f_chip(tbl, c, "15m", dir15)
+    c += 1
+    f_chip(tbl, c, "5m", dir05)
+    c += 1
+    table.cell(tbl, c, 1, " " + (mf >= 0 ? "+" : "") + str.tostring(mf, "#") + " ", text_color = #ffffff, text_size = pSzB, bgcolor = f_mix(mfCol, 0.55))
+    table.cell(tbl, 0, 0, " ▶ " + statTxt + " · " + (isDay ? "Day" : "Swing") + " ", text_color = #ffffff, text_size = pSzH, bgcolor = statCol)
+    table.merge_cells(tbl, 0, 0, c, 0)
+
+// --- Legende: die Zeichenerklaerung direkt im Chart ---
+// Kein Dauergast im Chart: nur ein kleines Fragezeichen am rechten Rand.
+// Nur noch die reine Zeichenlegende: Symbol -> Bedeutung. Die Erklaerungen stecken als
+// Tooltips auf den Panel-Zeilen, die sie betreffen. Grund: TradingView schneidet einen
+// Tooltip an der Scheibenkante ab und scrollt nicht - lang heisst hier unlesbar.
+LEGENDE =
+  "MOMENTUM RADAR – ZEICHEN\n" +
+  "\n" +
+  "PUNKTE AUF DER WELLE\n" +
+  "  gruen unten = Long suchen\n" +
+  "  rot oben = Short suchen\n" +
+  "  GROSS = hoehere Zeitebenen stuetzen\n" +
+  "  hohler Kreis = Vorschau, kann weg\n" +
+  "  orange Raute = ausgereizt\n" +
+  "\n" +
+  "FLAECHE = GELDFLUSS\n" +
+  "  gruen rein, rot raus\n" +
+  "  violett = nur Futures, auf Hebel\n" +
+  "  steigt bei fallendem Kurs:\n  da sammelt jemand ein\n" +
+  "  \"MF\"-Marke = genau das, gerechnet\n" +
+  "\n" +
+  "WEISSE LINIE = SPOTMARKT\n" +
+  "  unter der Flaeche = Futures voraus\n" +
+  "\n" +
+  "SCHIENEN = hoehere Zeitebenen\n" +
+  "  1h orange, 4h violett,\n  Tag weiss, Woche gelb\n" +
+  "\n" +
+  "LINIEN\n" +
+  "  durchgezogen = deine Zeitebene\n" +
+  "  gestrichelt = hoehere, wiegt mehr"
+
+var label legLbl = na
+if vLeg and barstate.islast
+    label.delete(legLbl)
+    legLbl := label.new(bar_index + 3, railHi ? railLvl : OB_LVL, "?", style = label.style_label_down, color = f_mix(#787b86, 0.45), textcolor = #ffffff, size = pSzB, tooltip = LEGENDE)
+
+// =====================================================================================
+//  Multi-Alarm: Punkte auf frei gewaehlten Zeitebenen
+// =====================================================================================
+// Ein Alarm, der mehrere Zeitebenen auf einmal abfragt. Der Alarm laeuft auf einem
+// Chart-Intervall, das nicht groeber ist als die kleinste gewaehlte Zeitebene; der
+// Indikator holt sich darin die gewaehlten Zeitebenen und meldet, sobald auf einer
+// davon ein Punkt entsteht.
+//
+// Gelesen wird nur die letzte GESCHLOSSENE Kerze der gewaehlten Zeitebene (Versatz [1],
+// lookahead_on) - so kann ein gemeldeter Punkt nie wieder verschwinden. Weil das Signal
+// schon bei der ERSTEN Aktualisierung der Chart-Kerze nach dem Schluss feststeht, kann
+// die Meldung sofort kommen; 'Zum Kerzenschluss' wartet dagegen ein ganzes Intervall.
+maAll = maKind == "Alle Punkte"
+
+f_ma(int off) =>
+    [w1, w2] = f_wt()
+    u = ta.crossover(w1, w2)  and w1 <= OS_LVL ? 1 : 0
+    d = ta.crossunder(w1, w2) and w1 >= OB_LVL ? 1 : 0
+    m = f_mf(off)
+    [u[off], d[off], m]
+
+// Wie viele der festen Zeitebenen liegen ECHT ueber der gewaehlten, und wie viele davon
+// zeigen in die Richtung sgn? Dieselbe Regel wie beim Punkt auf dem Chart: die gewaehlte
+// Zeitebene selbst und alles darunter wuerde sich sonst selbst bestaetigen.
+f_cnt(x, sgn) =>
+    xs = timeframe.in_seconds(x)
+    n = 0
+    a = 0
+    if (useW or xs >= 86400) and timeframe.in_seconds(TF_W) > xs
+        n += 1
+        a += (dirW == sgn ? 1 : 0)
+    if useD and timeframe.in_seconds(TF_D) > xs
+        n += 1
+        a += (dirD == sgn ? 1 : 0)
+    if use4 and timeframe.in_seconds(TF_4H) > xs
+        n += 1
+        a += (dir4 == sgn ? 1 : 0)
+    if use1 and timeframe.in_seconds(TF_1H) > xs
+        n += 1
+        a += (dir1 == sgn ? 1 : 0)
+    if not only15 and timeframe.in_seconds(TF_15) > xs
+        n += 1
+        a += (dir15 == sgn ? 1 : 0)
+    if not only5 and timeframe.in_seconds(TF_5) > xs
+        n += 1
+        a += (dir05 == sgn ? 1 : 0)
+    [n, a]
+
+// Long-Seite: Kreuz nach oben in der Zone, bei "grosse Punkte" zusaetzlich die Mehrheit
+f_maUp(x, aktiv, u, m) =>
+    [n, a] = f_cnt(x, 1)
+    need = math.max(1, math.ceil((n + 1) * STR_PCT))
+    big  = n > 0 and a + (nz(m) > 0 ? 1 : 0) >= need and trendOkL
+    aktiv and timeframe.in_seconds(x) >= chartSec and u == 1 and (maAll or big)
+
+f_maDn(x, aktiv, d, m) =>
+    [n, a] = f_cnt(x, -1)
+    need = math.max(1, math.ceil((n + 1) * STR_PCT))
+    big  = n > 0 and a + (nz(m) < 0 ? 1 : 0) >= need and trendOkS
+    aktiv and timeframe.in_seconds(x) >= chartSec and d == 1 and (maAll or big)
+
+[maU1, maD1, maM1] = request.security(syminfo.tickerid, maTf1, f_ma(1), lookahead = barmerge.lookahead_on)
+[maU2, maD2, maM2] = request.security(syminfo.tickerid, maTf2, f_ma(1), lookahead = barmerge.lookahead_on)
+[maU3, maD3, maM3] = request.security(syminfo.tickerid, maTf3, f_ma(1), lookahead = barmerge.lookahead_on)
+[maU4, maD4, maM4] = request.security(syminfo.tickerid, maTf4, f_ma(1), lookahead = barmerge.lookahead_on)
+
+ma1u = f_maUp(maTf1, maOn1, maU1, maM1)
+ma2u = f_maUp(maTf2, maOn2, maU2, maM2)
+ma3u = f_maUp(maTf3, maOn3, maU3, maM3)
+ma4u = f_maUp(maTf4, maOn4, maU4, maM4)
+ma1d = f_maDn(maTf1, maOn1, maD1, maM1)
+ma2d = f_maDn(maTf2, maOn2, maD2, maM2)
+ma3d = f_maDn(maTf3, maOn3, maD3, maM3)
+ma4d = f_maDn(maTf4, maOn4, maD4, maM4)
+
+// Das Signal der gewaehlten Zeitebene bleibt auf allen Chart-Kerzen bis zu deren naechstem
+// Schluss gleich - gemeldet wird deshalb nur die ERSTE Kerze, auf der es auftaucht.
+new1u = ma1u and not ma1u[1]
+new2u = ma2u and not ma2u[1]
+new3u = ma3u and not ma3u[1]
+new4u = ma4u and not ma4u[1]
+new1d = ma1d and not ma1d[1]
+new2d = ma2d and not ma2d[1]
+new3d = ma3d and not ma3d[1]
+new4d = ma4d and not ma4d[1]
+
+anyMaU = new1u or new2u or new3u or new4u
+anyMaD = new1d or new2d or new3d or new4d
+
+// Die Meldung nennt die Zeitebene - das kann ein alertcondition nicht (sein Text ist fest),
+// ein alert() schon. Treffen zwei Zeitebenen in derselben Kerze zu, steht beides in einer Meldung.
+f_msg(cur, feuer, was, tf) => feuer ? (cur == "" ? "" : cur + " | ") + was + " auf " + tf : cur
+
+maLong  = maAll ? "Long-Punkt"  : "grosser Long-Punkt"
+maShort = maAll ? "Short-Punkt" : "grosser Short-Punkt"
+
+maMsg = ""
+maMsg := f_msg(maMsg, new1u, maLong,  f_tfName(maTf1))
+maMsg := f_msg(maMsg, new1d, maShort, f_tfName(maTf1))
+maMsg := f_msg(maMsg, new2u, maLong,  f_tfName(maTf2))
+maMsg := f_msg(maMsg, new2d, maShort, f_tfName(maTf2))
+maMsg := f_msg(maMsg, new3u, maLong,  f_tfName(maTf3))
+maMsg := f_msg(maMsg, new3d, maShort, f_tfName(maTf3))
+maMsg := f_msg(maMsg, new4u, maLong,  f_tfName(maTf4))
+maMsg := f_msg(maMsg, new4d, maShort, f_tfName(maTf4))
+
+// Der Ausloeser steht hier, weil ein alert()-Alarm im Dialog keinen eigenen kennt.
+// "Sofort" = einmal pro Kerze, gemeldet bei der ersten Aktualisierung. Das ist sicher,
+// weil das Signal aus der geschlossenen Kerze der gewaehlten Zeitebene stammt und sich
+// innerhalb der Chart-Kerze nicht mehr aendert.
+maFreq = maTrig == "Sofort" ? alert.freq_once_per_bar : alert.freq_once_per_bar_close
+
+if maMsg != ""
+    alert("Momentum Radar " + syminfo.ticker + ": " + maMsg, maFreq)
+
+// =====================================================================================
+//  Alarme
+// =====================================================================================
+anyDiv  = bullDot or bearDot
+anyStr  = bullBig or bearBig
+anyExtr = extrLo or extrHi
+mfOverU = ta.crossover(mf, MF_OVER)
+mfOverD = ta.crossunder(mf, -MF_OVER)
+htfDot  = n1u or n4u or nDu or nWu or n1d or n4d or nDd or nWd
+
+// Die Reihenfolge hier ist die Reihenfolge im Alarm-Dialog. Oben steht, was man
+// taeglich braucht, unten das Laute. Jeder Name sagt, WAS man im Chart sehen wuerde.
+
+// --- die drei fuer den Alltag ---
+alertcondition(anyStr, "Grosser Punkt - starkes Setup",
+  "Momentum Radar: grosser Punkt. Die Mehrheit der hoeheren Zeitebenen stuetzt die Richtung.")
+alertcondition(anyStr or anyExtr, "Grosser Punkt ODER Raute",
+  "Momentum Radar: starkes Setup oder ausgereizte Bewegung - schau auf den Chart.")
+alertcondition(anyExtr, "Raute - Bewegung ausgereizt",
+  "Momentum Radar: Raute jenseits +/-100. Kein Einstieg, eher Teilgewinne.")
+
+// --- Multi-Alarm: mehrere Zeitebenen in einem Alarm ---
+// Die Zeitebenen waehlst du in Gruppe 8. Mit "Beliebiger alert()-Funktionsaufruf" steht in
+// der Meldung, AUF WELCHER Zeitebene der Punkt entstand. Diese drei hier taugen fuer
+// Watchlisten, deren Alarm-Dialog nur Bedingungen kennt - ihr Text ist fest.
+alertcondition(anyMaU or anyMaD, "Multi-Alarm: Punkt auf einer gewaehlten Zeitebene",
+  "Momentum Radar Multi-Alarm: Punkt auf einer der in Gruppe 8 gewaehlten Zeitebenen.")
+alertcondition(anyMaU, "Multi-Alarm: nur Long",
+  "Momentum Radar Multi-Alarm: Long-Punkt auf einer gewaehlten Zeitebene.")
+alertcondition(anyMaD, "Multi-Alarm: nur Short",
+  "Momentum Radar Multi-Alarm: Short-Punkt auf einer gewaehlten Zeitebene.")
+
+// --- Divergenzen (Nexus-Fix F5) ---
+alertcondition(divBull or divBear, "Divergenz auf der Welle (Chart-Zeitebene)",
+  "Momentum Radar: Divergenz zwischen Kurs und Welle - die Bewegung verliert Kraft. Kein Einstieg.")
+alertcondition(railDivBull or railDivBear, "Divergenz auf einer Schiene (hoehere Zeitebene)",
+  "Momentum Radar: Divergenz auf einer hoeheren Zeitebene - das schwerste Signal des Indikators.")
+alertcondition((railDivBull and bullBig) or (railDivBear and bearBig), "Staerkstes Setup: Schienen-Divergenz + grosser Punkt",
+  "Momentum Radar: Divergenz auf einer hoeheren Zeitebene UND grosser Punkt auf dem Chart.")
+alertcondition(mfDivBull or mfDivBear, "Geldfluss-Divergenz (MF)",
+  "Momentum Radar: Geldfluss laeuft gegen den Kurs - es wird eingesammelt bzw. in die Staerke verkauft.")
+
+// --- hoehere Zeitebenen ---
+alertcondition(htfDot, "Punkt auf einer Schiene (1h/4h/Tag/Woche)",
+  "Momentum Radar: eine hoehere Zeitebene dreht.")
+
+// --- Herkunft des Volumens ---
+alertcondition(futDriven and not futDriven[1], "Herkunft kippt: Futures ungewoehnlich hoch",
+  "Momentum Radar: die Futures treiben - die Bewegung laeuft auf Hebel.")
+alertcondition(spotDriven and not spotDriven[1], "Herkunft kippt: Spot ungewoehnlich hoch",
+  "Momentum Radar: der Spotmarkt traegt - echte Kaeufe statt Hebel.")
+alertcondition(mfOverU or mfOverD, "Geldfluss im Extrembereich",
+  "Momentum Radar: der Geldfluss ist extrem.")
+
+// --- Kopfzeile des Panels ---
+alertcondition(status != status[1] and status > 0,  "Kopfzeile wechselt auf LONG SUCHEN",
+  "Momentum Radar: Long suchen.")
+alertcondition(status != status[1] and status < 0,  "Kopfzeile wechselt auf SHORT SUCHEN",
+  "Momentum Radar: Short suchen.")
+alertcondition(status != status[1] and status == 0, "Kopfzeile wechselt auf ABWARTEN",
+  "Momentum Radar: Abwarten.")
+
+// --- die lauten: hier zaehlen auch die KLEINEN Punkte mit ---
+alertcondition(anyDiv, "Jeder Punkt, auch die kleinen",
+  "Momentum Radar: Punkt auf der Welle - Groesse nicht geprueft.")
+alertcondition(anyDiv or anyExtr, "Jeder Punkt oder Raute",
+  "Momentum Radar: Punkt oder Extremwert - Groesse nicht geprueft.")
+alertcondition(anyDiv or anyStr or anyExtr or mfOverU or mfOverD or htfDot or divBull or divBear or railDivBull or railDivBear or mfDivBull or mfDivBear, "Sammelalarm - alles zusammen",
+  "Momentum Radar: irgendein Signal.")

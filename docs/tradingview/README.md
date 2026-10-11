@@ -258,3 +258,32 @@ Kontext-Badge selbst funktioniert trotzdem unverändert weiter.
 beide inhaltlich bereits von Nexus intern abgedeckt (MTF-Alignment bzw.
 Futures-Orderflow/CVD-Faktor), würden nur redundante Badges ohne neue
 Information erzeugen.
+
+## Mo's Momentum Radar (11.10.2026) — Nexus-Fix-Version
+
+`mos-momentum-radar.pine` ist Mo's Momentum Radar (WaveTrend-Timing-Indikator mit
+Geldfluss, Spot/Futures-Vergleich und sechs Zeitebenen) mit sieben Nexus-Fixes. Das
+gelieferte Original liegt unverändert unter `reference/mos-momentum-radar_original.pine`.
+Bewertung, Code-Review und Backtest-Plan: `docs/research/MOMENTUM-RADAR-PLAN_2026-10-11.md`.
+
+**Anders als die 6 Nexus-Skripte oben:** Das Skript hat (noch) **keinen** Nexus-Webhook. Es
+verschickt nur Klartext-Alarme an TradingView selbst. Die Webhook-Anbindung folgt erst nach
+dem Backtest (Phase 3 im Plan). Dabei müssen die Klartext-`alert()`-Aufrufe des Multi-Alarms im
+Webhook-Modus abgeschaltet werden, sonst bekommt `webhook-tradingview` Nicht-JSON-Bodies.
+
+| Fix | Was |
+|---|---|
+| F1 | Schienen-Divergenz verlangt jetzt auch eine Wellen-Divergenz der höheren Zeitebene (vorher nur Preisvergleich) |
+| F2 | Schienen-Divergenz-Fenster = 80 Kerzen der jeweiligen Zeitebene (vorher fest 320 Chart-Kerzen) |
+| F3 | Preis-Extrem der höheren Zeitebene direkt dort gerechnet (vorher auf 500 Chart-Kerzen gedeckelt) |
+| F4 | Geldfluss-Beschreibung an die tatsächliche Cipher-B-Formel `(C-O)/(H-L)` angeglichen, Formel unverändert |
+| F5 | Neue Alarme: Divergenz Welle, Divergenz Schiene, "stärkstes Setup", Geldfluss-Divergenz |
+| F6 | Geldfluss-Preis-Divergenz wird gerechnet und als "MF" markiert (bestätigte Pivots, 5/5) |
+| F7 | Optionaler Trendfilter (4h-EMA50 oder 4h-Struktur) für große Punkte und Kopfzeile, ab Werk **aus** |
+
+Ohne Trendfilter verhalten sich Welle, Punkte (klein/groß), Raute, Geldfluss, Panel und
+Multi-Alarm exakt wie im Original. Geändert sind nur die Schienen-Divergenzen (F1–F3), und
+die MF-Marken (F6) sind neu.
+
+**Nach dem Einfügen:** Einstellungen → Standardwerte zurücksetzen (siehe Mo's Anleitung, Kapitel 1),
+weil neue Regler dazugekommen sind.

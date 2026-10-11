@@ -1,6 +1,6 @@
 # Mo's Momentum Radar — Bestandsaufnahme, Code-Review & Plan — 2026-10-11
 
-**STATUS: PLAN.** Noch nichts gebaut, keine Production-Änderung. Grundlage:
+**STATUS: Phase 1 umgesetzt (Pine-Fixes), Phase 2 (Backtest) in Arbeit.** Keine Production-Änderung. Grundlage:
 `momentum_radar.pine` (Pine v5, 1011 Zeilen) und `Anleitung_Mos_Momentum_Radar.pdf`,
 beide von Toby am 11.10.2026 geliefert.
 
@@ -190,3 +190,23 @@ Kontext-Badge, wie bei allen TradingView-Signalen.
 4. Chart-Symbol in TradingView (BINANCE:BTCUSDT.P oder BYBIT)? Wichtig für den Spot-Abgleich.
 5. Soll Phase 1 (Pine-Fixes) schon vor dem Backtest passieren?
 6. Webhook jetzt schon als reines Badge (Weg A), oder erst nach dem Backtest?
+
+## 6. Entscheidungen Toby (11.10.2026)
+
+| Frage | Antwort |
+|---|---|
+| Zeitebenen | 15m, 1h, 4h |
+| Signale | große Punkte |
+| Trade-Setup | wie bisher (20x, SL -0,5 % / TP +1,5 % Kursbewegung, max. 48 h, siehe `RSI-REVERSAL-TRIPLE-BARRIER_2026-09-14.md`) |
+| Symbol | BINANCE:BTCUSDT.P |
+| Reihenfolge | Fixes zuerst (Phase 1), dann Backtest |
+| Webhook | noch offen, frühestens nach dem Backtest |
+
+**Phase 1 erledigt:** `docs/tradingview/mos-momentum-radar.pine` (Fixes F1–F7, siehe Kopfkommentar
+und `docs/tradingview/README.md`), Original unter `docs/tradingview/reference/`. Nicht in
+TradingView kompiliert (kein Zugriff aus dem Container). Toby prüft beim Einfügen, ob der
+Pine-Editor Fehler meldet.
+
+**Konsequenz für Phase 2:** Primäre Hypothese ist H2/H3 (großer Punkt) je 15m/1h/4h, Long und Short
+getrennt. H1 (kleiner Punkt) und das Wave-Anchor-Kreuz laufen als Vergleichsbasis mit. H4–H6 sind
+sekundär. H8 (Spot/Futures) entfällt vorerst, weil `candles` nur ein Binance-Symbol enthält.
