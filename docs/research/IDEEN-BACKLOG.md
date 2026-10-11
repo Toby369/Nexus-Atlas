@@ -92,6 +92,10 @@ unterschiedlich ausfallen, weil..."-Kennzeichnung wie bei den anderen
 beiden Faellen versehen werden, oder (c) ein Divergenz-Radar-Paar dafuer
 ergaenzt wird (gleiche Machart wie `computeSystemBriefingVsStateDivergence`).
 
+**Erledigt (11.10.2026):** Variante (a) fuer die Anzeige -- Quadrant-Zeile aus der
+Marktphase-Kachel entfernt, Marktkontext ist die einzige Anzeige; die DB-Spalte bleibt als
+Forschungs-Input. Siehe `OI-PREIS-QUADRANT-VERGLEICH_2026-10-11.md`.
+
 ## "Ueberzeugungsgrad"-Label fuer vier unabhaengige KI-Einschaetzungen
 
 **Datum:** 10.10.2026

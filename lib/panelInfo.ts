@@ -111,7 +111,7 @@ So entsteht der Wert: RSI>55 UND MACD-Histogramm>0 → bullisch; RSI<45 UND MACD
 
 So entsteht der Wert: Direkt aus dem CVD-Trend (steigend/fallend/neutral), alle 15 Minuten aktualisiert.`,
 
-  oi_price: `So liest du das: Nur bei spürbarer OI-Bewegung (über 0,3%) überhaupt eine Aussage – die Richtung kommt dann vom Preis relativ zum 20er-EMA, nicht vom OI-Vorzeichen allein (steigendes wie fallendes OI können je nach Kontext beides bedeuten). Die feinere 4-Felder-Version derselben Idee steht als OI/Preis-Quadrant in der Marktphase-Kachel.
+  oi_price: `So liest du das: Nur bei spürbarer OI-Bewegung (über 0,3%) überhaupt eine Aussage – die Richtung kommt dann vom Preis relativ zum 20er-EMA, nicht vom OI-Vorzeichen allein (steigendes wie fallendes OI können je nach Kontext beides bedeuten). Die feinere 4-Felder-Version derselben Idee (Long-/Short-Aufbau, Short-Covering, Long-Abbau) zeigt die Marktkontext-Kachel.
 
 So entsteht der Wert: |OI-Δ| > 0,3% → (Preis>EMA20 ? bullisch : bärisch), sonst neutral; alle 15 Minuten aktualisiert.`,
 
@@ -217,17 +217,13 @@ So entsteht der Wert: Z-Score der Funding-Rate relativ zu ihrer eigenen jüngere
 
 So entsteht der Wert: Z-Score des CVD relativ zu seiner eigenen jüngeren Historie, alle 15 Minuten neu berechnet.`,
 
-  priceChange: `So liest du das: Prozentuale Preisänderung der letzten 6 Stunden, direkt ablesbar. Wird zusammen mit OI-Δ (6h) daneben zum OI/Preis-Quadranten kombiniert – für sich allein nur die halbe Information.
+  priceChange: `So liest du das: Prozentuale Preisänderung der letzten 6 Stunden, direkt ablesbar. Für sich allein nur die halbe Information – die Kombination mit der OI-Änderung zeigt die Marktkontext-Kachel.
 
 So entsteht der Wert: (aktueller Preis − Preis vor 6h) / Preis vor 6h, alle 15 Minuten neu berechnet.`,
 
-  oiChange: `So liest du das: Prozentuale Open-Interest-Änderung der letzten 6 Stunden. Bewusst ohne eigenes Richtungs-Badge – steigendes wie fallendes OI können beide bullisch oder bärisch sein, je nachdem ob gleichzeitig long oder short aufgebaut wird. Erst zusammen mit Preis-Δ (siehe OI/Preis-Quadrant darunter) aussagekräftig.
+  oiChange: `So liest du das: Prozentuale Open-Interest-Änderung der letzten 6 Stunden. Bewusst ohne eigenes Richtungs-Badge – steigendes wie fallendes OI können beide bullisch oder bärisch sein, je nachdem ob gleichzeitig long oder short aufgebaut wird. Erst zusammen mit Preis-Δ aussagekräftig – diese Kombination zeigt die Marktkontext-Kachel.
 
 So entsteht der Wert: (aktuelles OI − OI vor 6h) / OI vor 6h, alle 15 Minuten neu berechnet.`,
-
-  oiPriceQuadrant: `So liest du das: Kombiniert Preis-Δ und OI-Δ zu einem von vier Zuständen: Long-Aufbau (Preis↑, OI↑), Short-Aufbau (Preis↓, OI↑), Short-Covering (Preis↑, OI↓), Long-Abbau (Preis↓, OI↓). Long-Aufbau/Short-Covering gelten als eher bullisch, Short-Aufbau/Long-Abbau als eher bärisch – der eigentliche Mehrwert gegenüber den beiden Einzelwerten daneben.
-
-So entsteht der Wert: Vorzeichen-Kombination aus Preis-Δ und OI-Δ (6h), alle 15 Minuten neu berechnet.`,
 
   liqClusterDensity: `So liest du das: Wie dicht geschätzte Liquidations-Level aktuell um den Preis herum liegen, standardisiert. Ein hoher Wert bedeutet viele mögliche Liquidations-Trigger in der Nähe – potenziell schnellere/heftigere Bewegungen bei Erreichen dieser Level, aber ohne eigene Richtung. Reine Magnitude/Fragilitäts-Kennzahl, kein Richtungs-Badge.
 
@@ -246,7 +242,7 @@ export const economicCalendarInfo = `So liest du das: Deckt gezielt die vier fü
 
 So entsteht der Wert: CPI/PCE/NFP-Termine kommen direkt von FRED (St. Louis Fed, fred/release/dates), der FOMC-Termin aus dem offiziell veröffentlichten Fed-Sitzungskalender – einmal täglich aktualisiert, Kalendertermine ändern sich selten und meist mit Vorlauf. Das Ergebnis selbst stammt aus denselben FRED-Zeitreihen, die auch der Makro-Collector pflegt (CPIAUCSL/PCEPI/PAYEMS, für FOMC die effektive Fed Funds Rate DFF) – kein separater Forecast-/Konsens-Datenanbieter angebunden, der Vergleich erfolgt daher gegen den letzten bekannten Wert, nicht gegen eine Analysten-Erwartung.`;
 
-export const institutionalPlaybookInfo = `So liest du das: Ein reiner Lese-Leitfaden, keine eigene Datenquelle – zeigt, wie die bereits vorhandenen Kacheln (Gesamteinschätzung, Spot Pressure, OI Change, Liquidationen, Marktphase) sinnvoll zusammen gelesen werden können. Die Signal-Matrix greift dieselbe Long-Aufbau/Short-Aufbau/Short-Covering/Long-Abbau-Einteilung wieder auf, die auch in der Marktphasen-Kachel als „OI-Preis-Quadrant“ erscheint.
+export const institutionalPlaybookInfo = `So liest du das: Ein reiner Lese-Leitfaden, keine eigene Datenquelle – zeigt, wie die bereits vorhandenen Kacheln (Gesamteinschätzung, Spot Pressure, OI Change, Liquidationen, Marktphase) sinnvoll zusammen gelesen werden können. Die Signal-Matrix greift dieselbe Long-Aufbau/Short-Aufbau/Short-Covering/Long-Abbau-Einteilung wieder auf, die auch die Marktkontext-Kachel verwendet.
 
 So entsteht der Wert: Statischer, fest hinterlegter Text – kein KI-Modell, keine Berechnung, keine Aktualisierung nötig. Die vier Markt-Muster und die Tages-Routine sind Interpretationshilfen zur Orientierung, kein Handelssignal und keine Anlageberatung.`;
 

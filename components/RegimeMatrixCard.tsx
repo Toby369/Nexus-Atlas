@@ -26,7 +26,6 @@ import {
   signDirection,
   rsiDirection,
   bbPercentBDirection,
-  quadrantDirection,
   SIGNAL_DIRECTION_LABEL,
   SIGNAL_DIRECTION_COLOR,
   type SignalDirection,
@@ -45,14 +44,6 @@ import MtfDotsRow from "@/components/MtfDotsRow";
 // compute_market_state_matrix_series) -- kein 30s-Live-Takt noetig wie bei
 // Preis/Positioning, aehnliche Ueberlegung wie EtfFlowPanel.tsx.
 const REFRESH_INTERVAL_MS = 5 * 60_000;
-
-const QUADRANT_LABELS: Record<string, string> = {
-  long_buildup: "Long-Aufbau",
-  short_buildup: "Short-Aufbau",
-  short_covering: "Short-Covering",
-  long_unwind: "Long-Abbau",
-  neutral: "neutral",
-};
 
 function fmtNum(v: number | null, decimals = 2): string {
   return v !== null ? v.toFixed(decimals) : "—";
@@ -243,7 +234,6 @@ export default function RegimeMatrixCard({
   const fundingZDir = signDirection(matrix.funding_zscore, 0.25);
   const cvdZDir = signDirection(matrix.cvd_zscore, 0.25);
   const priceChangeDir = signDirection(matrix.price_change_pct);
-  const quadrantDir = quadrantDirection(matrix.oi_price_quadrant);
   const netTakerFlowDir = signDirection(matrix.net_taker_flow_ratio, 0.05);
 
   return (
@@ -458,16 +448,11 @@ export default function RegimeMatrixCard({
             <span className="text-text">{fmtPct(matrix.oi_change_pct)}</span>
             <PanelInfo title="OI-Δ (6h)" content={REGIME_MATRIX_METRIC_INFO.oiChange} className="ml-1" />
           </div>
-          <div className="col-span-2">
-            <span className="text-text-muted">OI/Preis-Quadrant: </span>
-            <span className="text-text">
-              {matrix.oi_price_quadrant
-                ? QUADRANT_LABELS[matrix.oi_price_quadrant] ?? matrix.oi_price_quadrant
-                : "—"}
-            </span>
-            <SignalBadge direction={quadrantDir} />
-            <PanelInfo title="OI/Preis-Quadrant" content={REGIME_MATRIX_METRIC_INFO.oiPriceQuadrant} className="ml-1" />
-          </div>
+          {/* OI/Preis-Quadrant hier seit 11.10.2026 nicht mehr angezeigt: die
+              DB-Variante hat keine Mindestbewegung und widersprach dadurch oft
+              der Marktkontext-Kachel, die jetzt die einzige Anzeige ist (siehe
+              docs/research/OI-PREIS-QUADRANT-VERGLEICH_2026-10-11.md). Die
+              Spalte bleibt fuer die Regime-Score-Forschung bestehen. */}
 
           <div className="col-span-2 text-text-faint uppercase tracking-[0.1em] text-[10px] mt-1">
             Makro/Sentiment

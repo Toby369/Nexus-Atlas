@@ -43,4 +43,5 @@ belastbare Aussage einstuft. Das erklärt, warum beide Kacheln oft Unterschiedli
 3. Alternative zu 1.: Zeile behalten, aber mit Hinweis "ohne Mindestbewegung, kann von der
    Marktkontext-Kachel abweichen" (Variante b aus dem Backlog).
 
-**Entscheidung offen — Toby.**
+**Entscheidung (Toby, 11.10.2026): Empfehlung 1+2 umgesetzt** — Zeile in der Marktphase-Kachel
+entfernt, Info-Texte angepasst, DB-Spalte unverändert.

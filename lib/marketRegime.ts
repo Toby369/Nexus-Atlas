@@ -1,4 +1,4 @@
-import type { MarketRegime, OiPriceQuadrant } from "@/lib/types";
+import type { MarketRegime } from "@/lib/types";
 import { DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD } from "@/lib/marketStateSummary";
 
 // Engine-Divergenz lebt in lib/marketStateSummary.ts (Institutional-Grade-
@@ -194,11 +194,3 @@ export function bbPercentBDirection(bbPercentB: number | null): SignalDirection 
   return "neutral";
 }
 
-// OI/Preis-Quadrant-Semantik (dieselbe Taxonomie wie InstitutionalPlaybook-
-// Card/QUADRANT_LABELS in RegimeMatrixCard.tsx): Long-Aufbau/Short-Covering
-// sind beide preistreibend nach oben, Short-Aufbau/Long-Abbau nach unten.
-export function quadrantDirection(quadrant: OiPriceQuadrant | null): SignalDirection {
-  if (quadrant === "long_buildup" || quadrant === "short_covering") return "up";
-  if (quadrant === "short_buildup" || quadrant === "long_unwind") return "down";
-  return "neutral";
-}
