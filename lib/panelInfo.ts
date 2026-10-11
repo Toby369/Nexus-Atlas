@@ -40,9 +40,19 @@ export function exchangeDivergenceInfo(tfLabel: string): string {
 So entsteht der Wert: Zeigt standardmässig den ungewichteten Durchschnitt der OI-Change % über alle Börsen mit vorhandenem Wert (Bitunix ausgenommen) – antippen zeigt jede Börse einzeln, macht sichtbar, welche tatsächlich in die „Aggregiert“-Summe der OI-Change-Kachel oben einfliessen. Berechnet wird pro Börse dieselbe (Wert − Referenzwert)/Referenzwert-Formel wie bei OI Change, nur separat statt summiert.`;
 }
 
-export const fundingRateInfo = `So liest du das: Ein positiver Wert bedeutet, dass Longs an Shorts zahlen (der Markt ist tendenziell long-lastig positioniert), ein negativer Wert das Gegenteil. Ein hoher positiver oder negativer Wert zeigt eine einseitige Positionierung, sagt aber allein noch nichts darüber, ob sich der Preis in dieselbe Richtung weiterbewegt. Funding ist deshalb kein eigenständiges Long-/Short-Signal, sondern nur im Zusammenspiel mit Preis, OI und Positionierung aussagekräftig.
+export const fundingRateInfo = `Was es misst: die Ausgleichszahlung zwischen Long- und Short-Positionen im BTC-Perpetual. Positiv heisst, Longs zahlen an Shorts; negativ heisst, Shorts zahlen an Longs.
 
-So entsteht der Wert: Zeigt die periodische Ausgleichszahlung zwischen Long- und Short-Positionen im BTC-Perpetual, wie sie von der jeweiligen Börse selbst berechnet und über deren API bereitgestellt wird – Nexus Atlas berechnet den Wert nicht selbst. Der Chart zeigt den Verlauf der letzten rund 15 Stunden auf Bybit als Referenzbörse; der aktuelle Wert je Börse steht zusätzlich im Börsenvergleich.`;
+Stufen pro 8 h:
+• bis 0,01 %: Neutral. Das ist der Standardwert der Börsen, etwa 11 % pro Jahr.
+• 0,01 bis 0,03 %: Erhöht, typisch in Aufwärtstrends.
+• 0,03 bis 0,05 %: Hoch, deutliches Long-Crowding.
+• ab 0,05 %: Extrem (dieselbe Schwelle wie in der Gesamteinschätzung), etwa 55 % pro Jahr.
+• ab 0,1 %: Euphorie, Ausnahmezustand.
+• unter −0,01 %: Negativ; ab −0,05 %: Extrem negativ, Shorts überfüllt.
+
+Wie du es nutzt: Hohes Funding allein ist kein Short-Signal, es kann im Aufwärtstrend wochenlang hoch bleiben. Gefährlich wird es, wenn Funding über mehrere Intervalle extrem ist, das Open Interest stark steigt und der Preis nicht mehr vorankommt. Die Stufen sind Faustregeln, im Backtest noch nicht validiert.
+
+Quelle: Wert von Bybit (Referenzbörse), von der Börse selbst berechnet. Der Chart zeigt die letzten rund 15 Stunden; der aktuelle Wert je Börse steht im Börsenvergleich.`;
 
 export function spotPressureInfo(tfLabel: string): string {
   return `So liest du das: Ordnet den Netto-Taker-Flow einem von vier Verdikten zu: BUYING PRESSURE, SELLING PRESSURE, NEUTRAL oder INSUFFICIENT DATA. Das misst eine Kauf-/Verkaufs-Imbalance im Taker-Orderflow, nicht ob am Spot-Markt tatsächlich netto mehr Coins gekauft als verkauft wurden. Deckt die Stichprobe weniger als 80 % der erwarteten Kerzen im Fenster ab, gilt das Ergebnis als PRELIMINARY, unter 20 % als INSUFFICIENT DATA.
@@ -285,3 +295,24 @@ Konfluenz-Stufe: Schwach = nur das Key-Level selbst, Mittel = zusätzlich EMA50 
 Andere Signale: zeigt, wie viele der aktuell laufenden Nexus-Signale (CVD-Trend, Warn-Muster, MTF-Ampel) gerade bullisch bzw. bärisch stehen – bewusst ungewichtet (einfache Zählung) und bewusst der AKTUELLE Stand, keine Rückrechnung, wie diese Signale zum Zeitpunkt der Ablehnung/des Bruchs selbst standen.
 
 So entsteht der Wert: Bruch-Erkennung über den Schlusskurs der letzten bis zu 270 Tage (1H-Kerzen), Gegentest-Erkennung über market_features.swing_type (dieselbe Swing-Hoch/-Tief-Klassifikation, die auch die MTF-Ampel/Markt-Struktur-Faktoren nutzen) – reine Berechnung, kein KI-Modell. Keine Anlageberatung.`;
+
+export function spotPerpFlowInfo(tfLabel: string): string {
+  return `Was es misst: den Netto-Taker-Flow (aggressive Käufe minus aggressive Verkäufe, in % des Volumens) über ${tfLabel}, getrennt für Binance Spot und Binance Perp. So siehst du, wer eine Bewegung trägt: echte Spot-Käufer oder Hebel-Trader.
+
+Schwellen: Spot gilt ab ±5 % als kaufend oder verkaufend (wie Spot Pressure), Perp ab ±2 %. Perp-Flow schwankt deutlich weniger; beide Schwellen liegen etwa beim typischen Tageswert der letzten 60 Tage.
+
+Wie du es nutzt: Spot kauft, Perp flach = organische Nachfrage, tendenziell nachhaltig. Spot flach, Perp kauft = hebelgetrieben, fragil. Spot verkauft, Perp kauft = Warnsignal für gefangene Longs. Das sind Tendenzen, keine validierten Signale. Binance-Spot zeigt nicht die US-Nachfrage; dafür steht darunter die Coinbase-Premium.
+
+Quelle: Binance Spot (5-Min-Kerzen) und Binance Futures (Kerzen aus collect-candles), jeweils mit echtem Taker-Kauf-Anteil.`;
+}
+
+export const coinbasePremiumInfo = `Was es misst: den Preisabstand von Coinbase (BTC-USD) zu Binance (BTC-USDT) in Prozent, über dieselben 5-Minuten-Kerzen verglichen. Coinbase ist die Hauptbörse der US-Institutionen und ETF-Verwahrer.
+
+Stufen:
+• unter ±0,03 %: Neutral (Rauschen aus Spread und USDT-Kurs)
+• ab +0,03 %: US-Kaufdruck; ab +0,1 %: stark
+• ab −0,03 %: US-Verkaufsdruck; ab −0,1 %: stark
+
+Wie du es nutzt: Zählt nur, wenn die Prämie über Stunden anhält. Eine positive Prämie bei steigendem Preis bestätigt US-Nachfrage; fällt der Preis trotz positiver Prämie, verkaufen andere Regionen oder die Perps. Die Stufen sind Faustregeln, nicht im Backtest geprüft.
+
+Quelle: Coinbase-Exchange-API (letzte 300 Kerzen = 25 h), Binance aus der Nexus-Datenbank. Weicht USDT leicht von 1 USD ab, steckt das in der Prämie.`;

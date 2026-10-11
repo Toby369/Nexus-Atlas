@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import type { MarketState } from "./types";
+import { FUNDING_EXTREME_PCT } from "./fundingLevels";
 
 // Live-Kopplung fuer die "Mein Trading System"-Checkliste: Funding/OI-Delta
 // kommen 1:1 aus dem neuesten market_states-
@@ -33,7 +34,7 @@ export interface MeinSystemChecklistData {
 // Gleicher Schwellenwert wie FUNDING_EXTREME_THRESHOLD in compute-market-
 // state (0.0005 = 0,05%) -- Tobys eigene Checkliste nutzt denselben Wert
 // (siehe knowledge_base 'mein_system'/'Rally-Nachhaltigkeit').
-const FUNDING_THRESHOLD_PCT = 0.05;
+const FUNDING_THRESHOLD_PCT = FUNDING_EXTREME_PCT;
 
 export function computeEma(closes: number[], period: number): number | null {
   if (closes.length < period) return null;

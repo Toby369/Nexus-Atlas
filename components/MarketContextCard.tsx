@@ -9,6 +9,7 @@ import { marktkontextInfo, spotPressureInfo, spotVolumeProfileInfo } from "@/lib
 import { useDashboardPoll } from "@/components/DashboardPollProvider";
 import SpotPressureChart from "@/components/SpotPressureChart";
 import SpotVolumeProfileChart, { type SpotVolumeBucket } from "@/components/SpotVolumeProfileChart";
+import SpotPerpFlowPanel, { useSpotPerpSummary } from "@/components/SpotPerpFlowPanel";
 import { supabase } from "@/lib/supabase";
 
 // Preis-Bucket-Breite fuer das Spot-Volumen-Profil -- dieselbe Breite wie
@@ -131,6 +132,21 @@ export default function MarketContextCard({
     candleCount: spotCandleCountDetail,
     expectedCandles: expectedSpotCandlesDetail,
   });
+  const spotPerp = useSpotPerpSummary({
+    sinceIso: fetchedSinceIso,
+    windowMinutes: tf.minutes,
+    spotBuy: sumBuy,
+    spotSell: sumSell,
+  });
+  const spotPerpColor =
+    spotPerp.result.verdict?.tone === "bullish"
+      ? "text-up"
+      : spotPerp.result.verdict?.tone === "bearish"
+      ? "text-down"
+      : spotPerp.result.verdict?.tone === "watch"
+      ? "text-accent"
+      : "text-text";
+
   const spotVerdictColor =
     spotVerdict.verdict === "BUYING_PRESSURE"
       ? "text-up"
@@ -286,10 +302,22 @@ export default function MarketContextCard({
           <p className="text-xs text-text-faint mt-3">
             Quelle: Binance Spot BTC/USDT, 5-Min-Kerzen — einzige oeffentliche
             Route mit echtem Taker-Buy/Sell-Split, keine Schaetzung. Zeigt nur den
-            Spot-Markt; ein Abgleich mit dem Futures-Markt (Positionierung, OI)
-            folgt in einer spaeteren Erweiterung.
+            Spot-Markt; den Abgleich mit dem Futures-Markt zeigt der Abschnitt
+            „Spot gegen Perp“ darunter.
           </p>
         </div>
+      </details>
+
+      <details className="mt-3 pt-3 border-t border-border/60">
+        <summary className="flex items-center justify-between gap-2 cursor-pointer select-none">
+          <span className="text-[11px] uppercase tracking-[0.12em] text-text-faint">
+            Wer treibt: Spot, Perp, Coinbase
+          </span>
+          <span className={`text-xs font-medium ${spotPerpColor}`}>
+            {spotPerp.result.verdict?.label ?? "—"}
+          </span>
+        </summary>
+        <SpotPerpFlowPanel tfLabel={tf.label} result={spotPerp.result} loading={spotPerp.loading} />
       </details>
     </section>
   );
