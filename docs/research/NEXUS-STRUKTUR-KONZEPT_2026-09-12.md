@@ -173,8 +173,33 @@ vs. MTF-Ampel).
 | 1 | Ziel festlegen (dieser Abschnitt) | ✅ erledigt (11.10.2026) |
 | 2 | KI-Kacheln zusammenlegen, OI/Preis-Quadrant auflösen — nach Besprechung der Entfernungsliste | offen |
 | 3 | Oberen Bereich verdichten (Gesamteinschätzung/Setup-Score/Regime-Score), Überzeugungsgrad-Labels, MTF-Divergenz-Warnung | offen |
-| 4 | Lernen-Seite entschlacken (Checklisten, Module) | offen |
+| 4 | Lernen-Seite entschlacken (Checklisten, Module) | zurückgestellt (Checklisten bleiben, Entscheid 11.10.2026) |
 | 5 | Code verschlanken: datierte Verlaufs-Kommentare raus (Historie steht in Git), HeroHeader/LernenDashboard zerlegen — ohne Verhaltensänderung | offen |
 | 6 | Abschluss: dieses Dokument + Backlog aktualisieren, PR | offen |
 
 Jede Phase = eigener Commit, vor jedem Push `tsc`, `eslint`, `npm test`, `next build`.
+
+### Entscheidungen zur Entfernungs-/Zusammenlegungsliste (11.10.2026)
+
+**Zusammenlegen (freigegeben, keine Funktion fällt weg):**
+- Eskalation + Trade-Debate → eine Kachel "Zweitmeinungen" mit beiden Auslösern.
+- Freie Anfrage → Eingabefeld "Rückfrage stellen" im System-Briefing statt eigener Kachel.
+- Reiter 4 → 3: "KI-Einschätzungen" und "Tools & Lernen" werden zu einem Reiter "KI & Tools".
+- YouTube-Monitor kompakter: Gesamtanalyse oben, Videoliste standardmäßig eingeklappt.
+
+**Entfernen (freigegeben):**
+- Datierte Verlaufs-Kommentare im Code (~380 Stellen, "Nutzer-Wunsch TT.MM.2026: …"). Die
+  Historie steht im Git-Log; Kommentare, die das *Warum* einer Entscheidung erklären, bleiben.
+
+**Nicht freigegeben — bleibt vorerst:**
+- Checklisten auf der Lernen-Seite (trotz 0 Nutzungen).
+- DB-Funktion `get_anchored_summary`.
+
+**Erst prüfen, dann entscheiden:**
+- OI/Preis-Quadrant: beide Formeln und Live-Werte vergleichen, Empfehlung mit Begründung
+  vorlegen — Toby entscheidet, welche Berechnung bleibt.
+- Oberer Bereich (Gesamteinschätzung/Setup-Score/Regime-Score): zuerst ein klickbarer Entwurf
+  mit echten Daten, Umsetzung erst nach Toby-Feedback.
+
+Damit entfällt Phase 4 (Lernen-Seite) für diese Runde; Phase 5 beschränkt sich auf
+Verlaufs-Kommentare und das Zerlegen grosser Komponenten ohne Verhaltensänderung.
