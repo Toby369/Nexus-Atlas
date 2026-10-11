@@ -2,6 +2,7 @@ import { supabase } from "./supabase";
 import { detectFractalSwings, emaSeries, findPivots, type FractalSwingResult } from "./swingDetection";
 import { isTrendingRegime } from "./marketRegime";
 import type { MarketRegime } from "./types";
+import { fetchAllPages } from "./supabasePaging";
 
 // Datenschicht fuer Tobys eigene TradingView-Indikatoren (GUSS/VWAP-Vector/
 // CVD -- Umsetzungsplan "Exakte Faktoren", Phase 1-3). Reine On-Request-
@@ -537,21 +538,29 @@ async function computeCvdFootprint(base: TradingIndicatorsBaseData): Promise<Cvd
     return { higherTf: "1h", latestDelta: null, latestCumulative: null, trend: null, divergence: null, dataAsOf: lastCandle?.openTime ?? null };
   }
 
-  const { data: minuteRows, error } = await supabase
-    .from("candles")
-    .select("open_time, volume, taker_buy_base_vol")
-    .eq("exchange", "binance")
-    .eq("symbol", "BTCUSDT")
-    .eq("interval", "1m")
-    .gte("open_time", candles1h[0].openTime)
-    .order("open_time", { ascending: true })
-    .limit(CVD_HIGHER_TF_LOOKBACK * 60 + 200);
+  // 48 h = 2880 Minutenkerzen, also mehr als die 1000 Zeilen, die PostgREST
+  // pro Antwort liefert -- deshalb seitenweise laden. Ein einzelnes .limit()
+  // haette nur die aeltesten ~16 h geliefert und die juengsten Stunden mit
+  // Delta 0 gefuellt.
+  const { rows: minuteRows, error } = await fetchAllPages(
+    (from, to) =>
+      supabase
+        .from("candles")
+        .select("open_time, volume, taker_buy_base_vol")
+        .eq("exchange", "binance")
+        .eq("symbol", "BTCUSDT")
+        .eq("interval", "1m")
+        .gte("open_time", candles1h[0].openTime)
+        .order("open_time", { ascending: true })
+        .range(from, to),
+    CVD_HIGHER_TF_LOOKBACK * 60 + 200
+  );
 
   if (error) {
-    console.error("tradingIndicatorsContext: Fehler beim Laden der 1m-Kerzen fuer CVD:", error.message);
+    console.error("tradingIndicatorsContext: Fehler beim Laden der 1m-Kerzen fuer CVD:", error);
   }
 
-  const rows = (minuteRows ?? []).map((r) => ({
+  const rows = minuteRows.map((r) => ({
     open_time: r.open_time as string,
     volume: Number(r.volume),
     taker_buy_base_vol: r.taker_buy_base_vol === null ? null : Number(r.taker_buy_base_vol),
