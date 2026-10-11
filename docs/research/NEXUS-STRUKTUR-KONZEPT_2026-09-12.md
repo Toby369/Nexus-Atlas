@@ -175,7 +175,7 @@ vs. MTF-Ampel).
 | 3 | Oberen Bereich verdichten (Gesamteinschätzung/Setup-Score/Regime-Score), Überzeugungsgrad-Labels, MTF-Divergenz-Warnung | ✅ erledigt (11.10.2026): "Lagebild" in `HeroHeader.tsx`, Logik in `lib/lagebild.ts` |
 | 4 | Lernen-Seite entschlacken (Checklisten, Module) | zurückgestellt (Checklisten bleiben, Entscheid 11.10.2026) |
 | 5 | Code verschlanken: datierte Verlaufs-Kommentare raus (Historie steht in Git), HeroHeader/LernenDashboard zerlegen — ohne Verhaltensänderung | ✅ erledigt (11.10.2026): ~950 Kommentarzeilen weniger; `LernenDashboard` → `components/lernen/*`, Faktor-Texte → `lib/marketStateFactors.ts` |
-| 6 | Abschluss: dieses Dokument + Backlog aktualisieren, PR | offen |
+| 6 | Abschluss: dieses Dokument + Backlog aktualisieren, PR | ✅ erledigt (11.10.2026): alle Phasen eingetragen, PR geöffnet |
 
 Jede Phase = eigener Commit, vor jedem Push `tsc`, `eslint`, `npm test`, `next build`.
 
