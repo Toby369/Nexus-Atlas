@@ -1,8 +1,8 @@
 import { supabase } from "./supabase";
+import { fetchPaged } from "./fetchPaged";
 import { detectFractalSwings, emaSeries, findPivots, type FractalSwingResult } from "./swingDetection";
 import { isTrendingRegime } from "./marketRegime";
 import type { MarketRegime } from "./types";
-import { fetchAllPages } from "./supabasePaging";
 
 // Datenschicht fuer Tobys eigene TradingView-Indikatoren (GUSS/VWAP-Vector/
 // CVD -- Umsetzungsplan "Exakte Faktoren", Phase 1-3). Reine On-Request-
@@ -538,11 +538,10 @@ async function computeCvdFootprint(base: TradingIndicatorsBaseData): Promise<Cvd
     return { higherTf: "1h", latestDelta: null, latestCumulative: null, trend: null, divergence: null, dataAsOf: lastCandle?.openTime ?? null };
   }
 
-  // 48 h = 2880 Minutenkerzen, also mehr als die 1000 Zeilen, die PostgREST
-  // pro Antwort liefert -- deshalb seitenweise laden. Ein einzelnes .limit()
-  // haette nur die aeltesten ~16 h geliefert und die juengsten Stunden mit
-  // Delta 0 gefuellt.
-  const { rows: minuteRows, error } = await fetchAllPages(
+  // Bis zu ~3000 Minuten-Kerzen -- mehr als der 1000-Zeilen-Deckel von
+  // PostgREST, daher seitenweise. Mit einem einzigen .limit() kaemen bei
+  // aufsteigender Sortierung nur die aeltesten ~16h an.
+  const { rows: minuteRows, error } = await fetchPaged(
     (from, to) =>
       supabase
         .from("candles")

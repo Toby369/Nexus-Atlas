@@ -7,7 +7,7 @@
 // Komponente importieren.
 
 import { supabase } from "./supabase";
-import { fetchAllPages } from "./supabasePaging";
+import { fetchPaged } from "./fetchPaged";
 import { computePiCycleTop, type PiCycleTopResult } from "./piCycleTop";
 import { computeLogPriceChannel, type LogPriceChannelResult } from "./logPriceChannel";
 
@@ -27,7 +27,7 @@ export async function buildCycleIndicators(): Promise<CycleIndicators> {
   // Antwort liefert. Mit einem einzelnen .limit(1000) bei aufsteigender
   // Sortierung endeten die Daten still beim 1000. Tag, und Pi-Cycle und
   // Log-Kanal rechneten mit einem veralteten "aktuellen" Preis.
-  const { rows: data, error } = await fetchAllPages(
+  const { rows: data, error } = await fetchPaged(
     (from, to) =>
       supabase
         .from("candles")
