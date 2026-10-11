@@ -41,6 +41,12 @@ Die Bausteine:
 | Webhook-Pipeline | `lib/webhookTradingView.ts`, `lib/tradingViewSignal.ts`, `docs/tradingview/README.md` | Steht. Konventionen: JSON-`alert()`, Secret als Input, `signal_type` auf `_BULLISH`/`_BEARISH`/`_HIGH`/`_LOW` |
 | Kerzendaten | Supabase `candles` (binance BTCUSDT) | 5m/15m/1h/4h/1d seit 2022-09, 1m seit 2024-09, 1w seit 2019. Aus dem Container nur über Supabase-MCP erreichbar, die Börsen-APIs sind gesperrt. |
 
+**Abgrenzung zu Wave Anchor (mit Toby geklärt, 11.10.2026):** Der Momentum Radar ist **kein**
+Update des Wave Anchor (StormCat1), sondern ein eigenständiger Indikator von Mo. Gemeinsam ist nur
+der WaveTrend-Kern (9/12/3, HLC3, MTF 1h/4h/D). Signal-Logik, Zonen und alle Zusatzbausteine sind
+anders. Die Wave-Anchor-Ergebnisse gelten deshalb nur für den gemeinsamen Kern, nicht für den Radar
+als Ganzes. Wave Anchor dient in Phase 2 als Vergleichsbasis.
+
 **Konsequenz für die Erwartung:** Die zwei nächstverwandten Studien (Wave Anchor, RSI-Reversal)
 waren negativ. Für die Punkte des Radars ist deshalb ein skeptischer Prior angebracht. Offen und
 damit der eigentliche Forschungswert sind die Bausteine, die Wave Anchor nicht hatte: das
