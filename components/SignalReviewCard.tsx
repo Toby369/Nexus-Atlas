@@ -5,15 +5,12 @@ import type { SignalReviewSnapshot } from "@/lib/types";
 import { FullDateTime, StaleBadge } from "@/components/ClientTimestamp";
 import PanelInfo from "@/components/PanelInfo";
 
-// Periodischer KI-Rueckblick, Phase 3 (10.09.2026) -- KI-Einordnung der in
-// Phase 2 (compute_signal_stats(), signal_stats_results) bereits fertig
-// berechneten Trefferquoten/Baselines/BH-FDR-Ergebnisse. Kein eigener Bias,
-// kein Handelssignal -- liest ausschliesslich schon berechnete Zahlen und
-// schreibt eine verstaendliche deutsche Einordnung (siehe
-// lib/signalReviewContext.ts + lib/ai/promptProfiles.ts "signal-review").
-// Anders als die meisten anderen KI-Kacheln laeuft diese primaer
-// automatisch woechentlich (signal-review-scheduler-Cron, Montag kurz nach
-// 05:00 UTC) -- der Button erlaubt zusaetzlich ein manuelles Update.
+// Periodischer KI-Rueckblick: KI-Einordnung der bereits berechneten
+// Trefferquoten/Baselines/BH-FDR-Ergebnisse (compute_signal_stats(),
+// signal_stats_results). Kein eigener Bias, kein Handelssignal (siehe
+// lib/signalReviewContext.ts + Prompt-Profil "signal-review"). Laeuft
+// primaer automatisch woechentlich (signal-review-scheduler-Cron, Montag kurz
+// nach 05:00 UTC); der Button erlaubt ein manuelles Update.
 
 const INFO_TEXT = [
   "Was das ist: ein periodischer, transparenter Rueckblick -- vergleicht regelmaessig vergangene Signale (TradingView-Alerts, Warn-Muster, Risk-Faktoren, Kern-Engine-Zustaende -- weitere Gruppen folgen) mit dem, was der Preis danach tatsaechlich gemacht hat. Die KI erfindet dabei keine eigene Statistik, sondern ordnet nur bereits fertig berechnete Zahlen ein (Trefferquote vs. unbedingte Basiswahrscheinlichkeit, Benjamini-Hochberg-Mehrfachvergleichs-Korrektur).",
@@ -90,10 +87,8 @@ export default function SignalReviewCard({
 
           {snapshot.result.robust_findings.length > 0 && (
             <div className="space-y-1">
-              {/* 13.09.2026 -- bewusst nicht up/down: "robust" bewertet die
-                  statistische Signifikanz eines Fundes, nicht ob er bullisch
-                  oder baerisch ist -- ein robuster baerischer Fund sah
-                  bisher gruen aus. */}
+              {/* Bewusst nicht up/down: "robust" bewertet die statistische
+                  Signifikanz eines Fundes, nicht seine Richtung. */}
               <p className="text-xs font-medium text-accent">Robuste Funde</p>
               <ul className="space-y-1 list-disc list-inside">
                 {snapshot.result.robust_findings.map((finding, i) => (

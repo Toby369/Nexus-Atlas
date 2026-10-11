@@ -1,4 +1,4 @@
-// Datenbeschaffung fuer die Confluence-Score-Kachel (12.09.2026) -- reines
+// Datenbeschaffung fuer den Setup-Score (vormals Confluence-Score) -- reines
 // Lesen, kein Schreiben, keine AI. Ruft die live-Variante des in
 // docs/research/CONFLUENCE-SCORE-PROTOCOL_2026-09-11.md dokumentierten,
 // vierfach out-of-sample validierten Weight-of-Evidence-Scores auf
@@ -81,7 +81,7 @@ export async function buildConfluenceScore(): Promise<ConfluenceScoreResult> {
   };
 }
 
-// Ebene-2-Datenbasis ("Signale im Detail", Struktur-Konzept 12.09.2026,
+// Ebene-2-Datenbasis ("Signale im Detail", siehe
 // docs/research/NEXUS-STRUKTUR-KONZEPT_2026-09-12.md Abschnitt 1+2): zeigt
 // pro Einzelsignal, ob es den vorregistrierten BH-FDR-Test besteht (fliesst
 // in den Setup-Score ein -- direkt oder als Teil des Trend-Konfirmation-

@@ -1,57 +1,33 @@
 import type { RegimeScoreResult, RegimeScoreRow, RegimeScoreTier, RegimeSignalDetail } from "@/lib/regimeScoreContext";
 import PanelInfo from "@/components/PanelInfo";
 
-// Regime-Score (Projektname weiterhin "Gesamteinschätzung-Score-Protokoll",
-// siehe docs/research/GESAMTEINSCHAETZUNG-SCORE-PROTOCOL_2026-09-12.md +
-// GESAMTEINSCHAETZUNG-SCORE-PHASE1-RESULTS_2026-09-12.md) -- separates,
-// eigenständig validiertes Regime-Modell. Bewusst als EIGENE Kachel neben
-// dem Setup-Score, niemals vermischt (institutionelle Trennung Regime- vs.
-// Trade-Signal-Scoring, siehe NEXUS-STRUKTUR-KONZEPT Abschnitt 5) -- eigene
-// Zielgrösse (ATR-skalierte 4h-Bewegung statt Hebel-Setup-Trefferquote),
-// eigener BH-FDR-Pool, eigene WOE-Gewichte.
+// Regime-Score (Projektname "Gesamteinschätzung-Score-Protokoll", siehe
+// docs/research/GESAMTEINSCHAETZUNG-SCORE-PROTOCOL_2026-09-12.md +
+// GESAMTEINSCHAETZUNG-SCORE-PHASE1-RESULTS_2026-09-12.md) -- eigenstaendig
+// validiertes Regime-Modell, bewusst getrennt vom Setup-Score (institutionelle
+// Trennung Regime- vs. Trade-Signal-Scoring, NEXUS-STRUKTUR-KONZEPT Abschnitt
+// 5): eigene Zielgroesse (ATR-skalierte 4h-Bewegung), eigener BH-FDR-Pool,
+// eigene WOE-Gewichte. Datei-/Funktionsnamen behalten den Protokollnamen.
 //
-// 12.09.2026 -- Kachel-TITEL von "Gesamteinschätzung-Score" auf
-// "Regime-Score" verkürzt (Nutzer-Feedback: zu leicht mit der
-// MarketStateCard-Überschrift "Gesamteinschätzung" zu verwechseln, obwohl
-// beides fachlich unabhängige Dinge sind). Rein kosmetisch -- Dateiname,
-// Funktionsnamen (buildRegimeScore, research_regime_score_live) und die
-// Protokoll-Dokumente behalten ihren ursprünglichen Namen.
+// Noch NICHT vollstaendig validiert (nicht alle vorregistrierten Kandidaten
+// getestet) -- daher als "in Aufbau" gekennzeichnet.
 //
-// WICHTIG -- anders als der Setup-Score noch NICHT vollständig validiert:
-// erst 31 von 50 vorregistrierten Kandidatensignalen getestet. Deshalb
-// deutlich als "in Aufbau" gekennzeichnet, analog zum "wird neu validiert"-
-// Hinweis bei der Gesamteinschätzung (MarketStateCard).
-//
-// 13.09.2026 -- vierter Faktor DXY-Bewegung ergänzt (Runde 4, siehe
-// PHASE1-RESULTS-Dokument): BH-FDR-signifikant in beide Richtungen,
-// Out-of-Sample bestätigt, praktisch unabhängig von den bestehenden 3
-// Faktoren (Kollinearitäts-Check). M2-Wachstum trotz BH-FDR-Signifikanz
-// bewusst NICHT aufgenommen (Out-of-Sample-Check degeneriert, siehe Doku).
-//
-// 13.09.2026 -- fünfter Faktor CCI-Extrem ergänzt (Runde 6, Nutzer-Vorschlag
-// CCI/ROC): Trend-Fortsetzungs-Hypothese (nicht Mean-Reversion, siehe Doku)
-// bestätigt in beide Richtungen, Out-of-Sample bestätigt. Moderate, aber
-// transparent dokumentierte Restkorrelation zu Trend-Konsens (r≈0,44-0,45)
-// -- bewusst als eigener Faktor statt Bündelung, siehe Kollinearitäts-Check
-// im PHASE1-RESULTS-Dokument. ROC-Z-Score (zweiter Runde-6-Kandidat) war
-// NICHT signifikant und fließt nicht ein.
-//
-// 13.09.2026 -- sechster Faktor Fragile Bullish ergänzt (Runde 7,
-// Nutzer-Wunsch "Warn-Muster angehen"): 1:1 aus compute-market-state
-// rekonstruiert (structure=bullish + cvd=falling), NUR für UP signifikant
-// (stärkster p-Wert im ganzen Protokoll) und bestätigt unabhängig den
-// bereits am 05.09.2026 gefundenen Befund, dass diese "Warnung" empirisch
-// eher eine Fortsetzung ist. Distribution Warning (zweiter Runde-7-
-// Kandidat) war NICHT signifikant (n zu klein) und fließt nicht ein.
-// Capitulation/Short Squeeze bleiben blockiert (Liquidations-/
-// Positionierungs-Historie zu kurz, siehe Datenverfügbarkeits-Audit).
+// Faktoren und Auswahlgruende (Details im PHASE1-RESULTS-Dokument):
+// - DXY-Bewegung: signifikant in beide Richtungen, out-of-sample bestaetigt,
+//   praktisch unabhaengig von den uebrigen Faktoren. M2-Wachstum trotz
+//   Signifikanz NICHT aufgenommen (Out-of-Sample-Check degeneriert).
+// - CCI-Extrem (Trend-Fortsetzung, nicht Mean-Reversion): bestaetigt in beide
+//   Richtungen; moderate Restkorrelation zu Trend-Konsens (r≈0,44-0,45),
+//   bewusst als eigener Faktor. ROC-Z-Score war nicht signifikant.
+// - Fragile Bullish (structure=bullish + cvd=falling, wie compute-market-
+//   state): nur fuer UP signifikant -- die "Warnung" ist empirisch eher eine
+//   Fortsetzung. Distribution Warning war nicht signifikant; Capitulation/
+//   Short Squeeze bleiben blockiert (Historie zu kurz).
 
-// 13.09.2026 -- Tier-Badge bewusst NICHT mehr in up/down (grün/rot) gefärbt:
-// "Hoch" beim DOWN-Score (hohe Konfidenz für eine bärische Bewegung) sah
-// dadurch grün aus wie ein bullisches Signal. Konfidenz-Stufe ist eine von
-// der Richtung unabhängige Achse -- jetzt neutrale accent-Skala. Die
-// Richtung selbst steht bereits im Zeilen-Label (UP/DOWN), das den
-// passenden up/down-Ton trägt (siehe ScoreRow).
+// Tier-Badge bewusst NICHT in up/down (gruen/rot) gefaerbt: "Hoch" beim
+// DOWN-Score saehe sonst bullisch aus. Die Konfidenz-Stufe ist eine von der
+// Richtung unabhaengige Achse (neutrale accent-Skala); die Richtung traegt
+// das Zeilen-Label (UP/DOWN) im passenden Ton (siehe ScoreRow).
 const TIER_STYLES: Record<RegimeScoreTier, string> = {
   Hoch: "border-accent/50 bg-accent/10 text-accent",
   Mittel: "border-border bg-surface-raised text-text-muted",
@@ -65,18 +41,11 @@ const INFO_TEXT = [
   "Kein Handelssignal, keine Erfolgsgarantie -- und ausdrücklich kein Ersatz für den Setup-Score.",
 ].join("\n\n");
 
-// Nutzer-Wunsch 14.09.2026 ("kurze und strukturierte Beschreibung hinter
-// jedem Signal, bei Antippen"): Kurzbeschreibung je Einzelsignal aus der
-// "Signale im Detail"-Liste, aufklappbar per Antippen (siehe
-// SignalDetailList unten). Texte sind 1:1 aus der tatsaechlichen SQL-
-// Berechnung abgeleitet (research_regime_extend_activation() bis _round7(),
-// siehe docs/research/GESAMTEINSCHAETZUNG-SCORE-PROTOCOL_2026-09-12.md +
-// PHASE1-RESULTS-Dokument), NICHT geraten -- beschreiben nur, WAS das
-// Signal misst, nicht ob es validiert ist (das zeigt bereits das
-// "validiert"/"unbestätigt"-Badge daneben). Ein Teil der Signale ist pro
-// Richtung invertiert (z.B. "Struktur 1h": bullisch fuer UP, baerisch fuer
-// DOWN) -- dafuer die {up, down}-Form, der Rest gilt fuer beide Richtungen
-// gleich (z.B. "CPR-Breite eng": dieselbe Bedingung, kein Gegenteil).
+// Kurzbeschreibung je Einzelsignal (aufklappbar per Antippen, siehe
+// SignalDetailList). Texte sind aus der tatsaechlichen SQL-Berechnung
+// abgeleitet (research_regime_extend_activation*), beschreiben nur WAS das
+// Signal misst, nicht ob es validiert ist (das zeigt das Badge daneben).
+// Pro Richtung invertierte Signale nutzen die {up, down}-Form.
 const SIGNAL_DESCRIPTIONS: Record<string, string | { up?: string; down?: string }> = {
   "Bollinger %b (Mean-Reversion)": {
     up: "Preis nahe/unter dem unteren Bollinger-Band (%b ≤ 0,2, überverkauft) – Mean-Reversion-Hypothese: Erholung nach oben.",
@@ -212,13 +181,9 @@ function FactorLine({ label, active }: { label: string; active: boolean | null }
   );
 }
 
-// Nutzer-Wunsch (04.10.2026: "Kachel klein machen, anzeigen badge von up
-// und down, bei antippen wird gross wie aktuell"): Kachel ist jetzt ein
-// <details>, standardmaessig zu -- im <summary> nur Titel + ein Mini-Badge
-// je Richtung (Stufe + Trefferquote, im passenden UP/DOWN-Ton), der
-// komplette bisherige Inhalt steckt im aufklappbaren Teil. Dieselbe native
-// <details>-Technik wie bereits bei "Signale im Detail" weiter unten --
-// bleibt ein Server-Component, kein Client-State noetig.
+// Kachel als <details>, standardmaessig zu: im <summary> Titel + Mini-Badge
+// je Richtung, der vollstaendige Inhalt im aufklappbaren Teil -- bleibt
+// ein Server-Component ohne Client-State.
 function ScoreBadge({ row, label, tone }: { row: RegimeScoreRow | null; label: string; tone: "up" | "down" }) {
   const toneClass = tone === "up" ? "text-up border-up/40 bg-up/10" : "text-down border-down/40 bg-down/10";
   return (
@@ -261,12 +226,9 @@ function ScoreRow({ row, label, tone }: { row: RegimeScoreRow | null; label: str
   );
 }
 
-// Ebene 2 ("Signale im Detail", Nutzer-Wunsch 14.09.2026: "regime score
-// signals im detail, wie bei setup score") -- exakt dieselbe Darstellung wie
-// SignalDetailList in ConfluenceScoreCard.tsx, nur fuer UP/DOWN statt
-// LONG/SHORT und gespeist aus research_regime_bh_fdr() statt
-// research_confluence_bh_fdr() (siehe buildRegimeSignalDetail() in
-// regimeScoreContext.ts).
+// Ebene 2 ("Signale im Detail") -- dieselbe Darstellung wie SignalDetailList
+// in ConfluenceScoreCard.tsx, nur fuer UP/DOWN und gespeist aus
+// research_regime_bh_fdr() (siehe buildRegimeSignalDetail()).
 function SignalDetailList({ signals, direction }: { signals: RegimeSignalDetail[]; direction: "UP" | "DOWN" }) {
   const rows = signals.filter((s) => s.direction === direction);
   if (rows.length === 0) return null;

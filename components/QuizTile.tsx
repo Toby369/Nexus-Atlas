@@ -47,6 +47,20 @@ async function getProgress(): Promise<QuizProgressRow[]> {
   return data ?? [];
 }
 
+// Ausserhalb der Komponente (react-hooks/purity: kein Date.now() direkt im
+// Render-Koerper) -- QuizTile ist eine Server Component, rendert also ohnehin
+// genau einmal pro Seitenaufruf.
+function summarize(entries: QuizEntry[]) {
+  const now = Date.now();
+  const boxes = boxDistribution(entries.map((e) => ({ box: e.progress?.box ?? 1 })));
+  return {
+    dueCount: entries.filter((e) => isDue(now, e.progress)).length,
+    boxes,
+    boxTotal: Object.values(boxes).reduce((a, b) => a + b, 0),
+    streak: learningStreak(entries, now),
+  };
+}
+
 export default async function QuizTile() {
   const [cards, progressRows] = await Promise.all([getCards(), getProgress()]);
   const progressByCard = new Map(progressRows.map((r) => [r.card_id, r]));
@@ -56,11 +70,7 @@ export default async function QuizTile() {
     progress: rowToProgress(progressByCard.get(card.id)),
   }));
 
-  const now = Date.now();
-  const dueCount = entries.filter((e) => isDue(now, e.progress)).length;
-  const boxes = boxDistribution(entries.map((e) => ({ box: e.progress?.box ?? 1 })));
-  const boxTotal = Object.values(boxes).reduce((a, b) => a + b, 0);
-  const streak = learningStreak(entries, now);
+  const { dueCount, boxes, boxTotal, streak } = summarize(entries);
 
   return (
     <div className="rounded-lg border border-border bg-surface p-5 space-y-3">

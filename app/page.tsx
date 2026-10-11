@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import type {
   DashboardPollBundle,
@@ -52,8 +51,8 @@ import RegimeScoreCard from "@/components/RegimeScoreCard";
 import SignalReviewCard from "@/components/SignalReviewCard";
 import EscalationCard from "@/components/EscalationCard";
 import TradeDebateCard from "@/components/TradeDebateCard";
-import CustomQueryCard from "@/components/CustomQueryCard";
 import SystemBriefingCard from "@/components/SystemBriefingCard";
+import SecondOpinionsCard from "@/components/SecondOpinionsCard";
 import YoutubeMonitorCard from "@/components/YoutubeMonitorCard";
 import { getYoutubeMonitorConfig } from "@/lib/youtubeMonitorContext";
 import LeverageMapCard from "@/components/LeverageMapCard";
@@ -62,7 +61,7 @@ import TimeframeSelector from "@/components/TimeframeSelector";
 import DashboardTabNav from "@/components/DashboardTabNav";
 import DashboardPollProvider from "@/components/DashboardPollProvider";
 import HeroHeader from "@/components/HeroHeader";
-import LogoutButton from "@/components/LogoutButton";
+import { AppFooter, AppHeader } from "@/components/AppHeader";
 import RefreshButton from "@/components/RefreshButton";
 
 export const revalidate = 0;
@@ -74,16 +73,11 @@ const LIQUIDATION_LOOKBACK_HOURS = 6;
 const LIQUIDATION_LIMIT = 300;
 const ETF_FLOW_LIMIT = 10;
 
-// Nutzer-Wunsch 18.09.2026: KI-Verlaufslisten/-Snapshots (Custom-Query,
-// Chart-Vision, Escalation, Trade-Debate, YouTube-Gesamtanalyse) sollen
-// aelter als 6h NICHT mehr angezeigt werden -- ein stehengebliebener, weit
-// veralteter Stand (z.B. weil ein neuerer Generierungsversuch scheiterte)
-// soll dann lieber als "noch nichts Aktuelles generiert" erscheinen statt
-// stillschweigend als aktuell zu wirken. Nur die ANZEIGE ist betroffen (rein
-// serverseitiger Query-Filter beim initialen Laden) -- die Zeilen bleiben in
-// der Datenbank erhalten. Bewusst NICHT auf die YouTube-Video-Analysen-Liste
-// angewendet: die zeigt Video-INHALT (haelt sich ueber Tage relevant), keine
-// KI-Live-Einschaetzung, die "veraltet" waere.
+// KI-Verlaufslisten/-Snapshots aelter als 6h werden nicht angezeigt: ein
+// veralteter Stand (z.B. nach einem gescheiterten Neuversuch) soll als "noch
+// nichts Aktuelles" erscheinen statt als aktuell zu wirken. Nur die Anzeige
+// ist gefiltert, die Zeilen bleiben in der Datenbank. Nicht auf die
+// YouTube-Video-Liste angewendet: Video-Inhalt bleibt ueber Tage relevant.
 const STALE_AI_RUN_CUTOFF_HOURS = 6;
 function staleAiRunCutoffIso(): string {
   return new Date(Date.now() - STALE_AI_RUN_CUTOFF_HOURS * 60 * 60 * 1000).toISOString();
@@ -109,12 +103,6 @@ async function getSnapshotHistory(limit = 180): Promise<MarketSnapshot[]> {
 
   return (data ?? []).slice().reverse();
 }
-
-// ENTFERNT (Single-Source-of-Truth-Merge): fruehere, eigenstaendige,
-// regelbasierte market_commentary-Abfrage. getLatestMarketState() unten
-// beliefert HeroHeader (Kurzfassung + volle Faktor-Aufschluesselung in
-// einer Sektion, siehe dortiger Kommentar vom 13.09.2026) -- kein zweiter,
-// unabhaengiger Rechenweg mehr.
 
 async function getLatestMarketState(): Promise<MarketState | null> {
   const { data, error } = await supabase
@@ -150,9 +138,8 @@ async function getLatestMarketStateMatrix(): Promise<MarketStateMatrix | null> {
   return data;
 }
 
-// MTF-Ampel (22.09.2026, siehe lib/mtfSignal.ts fuer die Klassifikations-
-// logik) -- eine Query je Zeitrahmen (wie mtf_alignment in compute-market-
-// state), damit die selteneren 4H/1D-Zeilen nicht von den viel haeufigeren
+// MTF-Ampel (Klassifikation siehe lib/mtfSignal.ts) -- eine Query je
+// Zeitrahmen, damit die selteneren 4H/1D-Zeilen nicht von den haeufigeren
 // 15M-Zeilen bei einem gemeinsamen Limit verdraengt werden.
 async function getLatestMtfDots(): Promise<MtfTimeframeDot[]> {
   const rows = await Promise.all(
@@ -175,10 +162,9 @@ async function getLatestMtfDots(): Promise<MtfTimeframeDot[]> {
   return buildMtfDots(Object.fromEntries(rows));
 }
 
-// 20.09.2026: kurzfristiger Seitwaerts-Check (siehe lib/types.ts::
-// ShortTermRangeCheck fuer die Herleitung) -- eigene RPC statt Tabellen-
-// Query, da nur der aktuelle Wert gebraucht wird (kein Verlauf/keine
-// Historie).
+// Kurzfristiger Seitwaerts-Check (Herleitung siehe lib/types.ts::
+// ShortTermRangeCheck) -- RPC statt Tabellen-Query, da nur der aktuelle Wert
+// gebraucht wird.
 async function getShortTermRangeCheck(): Promise<ShortTermRangeCheck | null> {
   const { data, error } = await supabase.rpc("get_short_term_range_check");
 
@@ -189,11 +175,10 @@ async function getShortTermRangeCheck(): Promise<ShortTermRangeCheck | null> {
   return data?.[0] ?? null;
 }
 
-// Phase 2 TradingView-Integration (Feasibility-Review vom 29.08.2026): das
-// juengste externe Signal der letzten TRADINGVIEW_SIGNAL_FRESHNESS_HOURS,
-// empfangen ueber die webhook-tradingview Edge Function
-// (tradingview_signals-Tabelle). Rein informatives Kontext-Badge in
-// RegimeMatrixCard -- fliesst NICHT in compute-market-state ein.
+// Juengstes TradingView-Signal der letzten TRADINGVIEW_SIGNAL_FRESHNESS_HOURS
+// (webhook-tradingview Edge Function, Tabelle tradingview_signals). Rein
+// informatives Kontext-Badge in RegimeMatrixCard -- fliesst NICHT in
+// compute-market-state ein.
 async function getLatestTradingViewSignal(): Promise<TradingViewSignal | null> {
   const cutoff = new Date(
     Date.now() - TRADINGVIEW_SIGNAL_FRESHNESS_HOURS * 60 * 60 * 1000
@@ -237,11 +222,9 @@ async function getHighImpactNews(): Promise<NewsEvent[]> {
   return data ?? [];
 }
 
-// News-Einordnung (KI-Ergaenzung, 05.09.2026): letzter zwischengespeicherter
-// Stand -- reines Lesen, kein AI-Aufruf (der passiert nur ueber POST
-// /api/news-analysis/generate). Seit 20.09.2026 kein eigenes Panel mehr,
-// sondern aufklappbarer Abschnitt in NewsRiskPanel.tsx (identische
-// Datenquelle, siehe dortiger Kommentar).
+// News-Einordnung (KI): letzter gespeicherter Stand, angezeigt als
+// Aufklapper in NewsRiskPanel.tsx. Reines Lesen -- ein neuer Lauf nur ueber
+// POST /api/news-analysis/generate.
 async function getLatestNewsAnalysis(): Promise<NewsAnalysisSnapshot | null> {
   const { data, error } = await supabase
     .from("news_analysis_snapshots")
@@ -257,10 +240,9 @@ async function getLatestNewsAnalysis(): Promise<NewsAnalysisSnapshot | null> {
   return data;
 }
 
-// Periodischer KI-Rueckblick, Phase 3 (10.09.2026): letzter
-// zwischengespeicherter Stand -- reines Lesen, kein AI-Aufruf (der passiert
-// nur ueber POST /api/signal-review/generate, siehe SignalReviewCard.tsx,
-// primaer woechentlich vom signal-review-scheduler-Cron ausgeloest).
+// Periodischer KI-Rueckblick: letzter gespeicherter Stand. Reines Lesen --
+// neue Laeufe ueber POST /api/signal-review/generate (primaer woechentlich
+// vom signal-review-scheduler-Cron).
 async function getLatestSignalReview(): Promise<SignalReviewSnapshot | null> {
   const { data, error } = await supabase
     .from("signal_review_snapshots")
@@ -276,9 +258,8 @@ async function getLatestSignalReview(): Promise<SignalReviewSnapshot | null> {
   return data;
 }
 
-// Eskalations-Kachel ("gezielte Eskalation", 05.09.2026): letzter
-// zwischengespeicherter Stand -- reines Lesen, kein AI-Aufruf (der passiert
-// nur ueber POST /api/escalation/generate, siehe EscalationCard.tsx).
+// Eskalation (Teil der Kachel "Zweitmeinungen"): letzter gespeicherter
+// Stand. Reines Lesen -- ein neuer Lauf nur ueber POST /api/escalation/generate.
 async function getLatestEscalation(): Promise<EscalationSnapshot | null> {
   const { data, error } = await supabase
     .from("escalation_snapshots")
@@ -295,9 +276,8 @@ async function getLatestEscalation(): Promise<EscalationSnapshot | null> {
   return data;
 }
 
-// Trade-Debate-Kachel (Nutzer-Idee 07.09.2026): letzter zwischengespeicherter
-// Stand -- reines Lesen, kein AI-Aufruf (der passiert nur ueber POST
-// /api/trade-debate/generate, siehe TradeDebateCard.tsx).
+// Trade-Debate (Teil der Kachel "Zweitmeinungen"): letzter gespeicherter
+// Stand. Reines Lesen -- ein neuer Lauf nur ueber POST /api/trade-debate/generate.
 async function getLatestTradeDebate(): Promise<TradeDebateSnapshot | null> {
   const { data, error } = await supabase
     .from("trade_debate_snapshots")
@@ -314,9 +294,8 @@ async function getLatestTradeDebate(): Promise<TradeDebateSnapshot | null> {
   return data;
 }
 
-// Freie-Anfrage-Kachel (Nutzer-Wunsch 08.09.2026): letzte gespeicherte
-// Anfragen -- reines Lesen, kein AI-Aufruf (der passiert nur ueber POST
-// /api/custom-query/generate, siehe CustomQueryCard.tsx).
+// Freie Anfrage (Abschnitt im System-Briefing): letzte gespeicherte Anfragen.
+// Reines Lesen -- neue Anfragen nur ueber POST /api/custom-query/generate.
 async function getLatestCustomQueries(): Promise<CustomQueryRun[]> {
   const { data, error } = await supabase
     .from("custom_query_runs")
@@ -332,19 +311,14 @@ async function getLatestCustomQueries(): Promise<CustomQueryRun[]> {
   return data ?? [];
 }
 
-// Krypto-YouTube-Monitor (Thema KI, 05.09.2026): letzte gespeicherte
-// Analysen -- reines Lesen, kein API-Aufruf (der passiert nur ueber POST
-// /api/youtube-monitor/generate, siehe YoutubeMonitorCard.tsx).
+// Krypto-YouTube-Monitor: letzte gespeicherte Analysen. Reines Lesen --
+// neue Laeufe nur ueber POST /api/youtube-monitor/generate.
 async function getLatestYoutubeAnalyses(): Promise<YoutubeVideoAnalysis[]> {
   // 40 statt 8: der Kanal-Vergleich (lib/youtubeConsensus.ts) braucht von
   // JEDEM konfigurierten Kanal die neueste Analyse -- bei 8 wuerde ein
-  // besonders aktiver Kanal die anderen aus der Liste verdraengen. Die
-  // sichtbare Videoliste in YoutubeMonitorCard bleibt trotzdem auf die
-  // juengsten 8 begrenzt (nur die Vergleichslogik sieht mehr).
-  //
-  // Nutzer-Wunsch (04.10.2026: "zu viele alte Reports"): zusaetzlich auf
-  // die letzten 2 Tage begrenzt -- alte Videos sollen hier nicht mehr
-  // auftauchen, auch wenn noch keine 40 neueren existieren.
+  // besonders aktiver Kanal die anderen verdraengen. Die sichtbare Liste in
+  // YoutubeMonitorCard bleibt auf die juengsten 8 begrenzt. Zusaetzlich auf
+  // die letzten 2 Tage begrenzt, damit alte Videos nicht auftauchen.
   const twoDaysAgoIso = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from("youtube_video_analyses")
@@ -360,9 +334,8 @@ async function getLatestYoutubeAnalyses(): Promise<YoutubeVideoAnalysis[]> {
   return data ?? [];
 }
 
-// YouTube-Gesamtanalyse (Nutzer-Wunsch 14.09.2026): letzter gespeicherter
-// Lauf -- reines Lesen, ein neuer Lauf passiert nur ueber POST
-// /api/youtube-monitor/overall-analysis (siehe YoutubeMonitorCard.tsx).
+// YouTube-Gesamtanalyse: letzter gespeicherter Lauf. Reines Lesen -- ein
+// neuer Lauf nur ueber POST /api/youtube-monitor/overall-analysis.
 async function getLatestYoutubeOverallAnalysis(): Promise<YoutubeOverallAnalysis | null> {
   const { data, error } = await supabase
     .from("youtube_overall_analyses")
@@ -449,13 +422,10 @@ async function getUpcomingEconomicEvents(): Promise<EconomicCalendarEvent[]> {
   return data ?? [];
 }
 
-// System-Briefing (Umsetzungsplan Phase 4, 18.09.2026; erweitert 22.09.2026,
-// 30.09.2026 mit Handelslage zusammengelegt -- siehe lib/systemBriefingContext.ts)
-// -- reines Lesen, kein AI-Aufruf (der passiert nur ueber POST
-// /api/system-briefing/generate, siehe SystemBriefingCard.tsx). Wird seit
-// 22.09.2026 auch von HeroHeader fuer die "Kurze Einordnung" wiederverwendet
-// (ersetzt die entfernte, separate "Zusammenfassung"-Kachel/Route/Tabelle --
-// siehe HeroHeader.tsx).
+// System-Briefing (Kontext siehe lib/systemBriefingContext.ts): letzter
+// gespeicherter Stand. Reines Lesen -- ein neuer Lauf nur ueber POST
+// /api/system-briefing/generate. Das Fazit erscheint zusaetzlich als
+// KI-Einordnung im Lagebild (HeroHeader).
 async function getLatestSystemBriefing(): Promise<SystemBriefingSnapshot | null> {
   const { data, error } = await supabase
     .from("system_briefings")
@@ -557,13 +527,9 @@ function timeframeSinceIso(id: TimeframeId): string {
 
 const DASHBOARD_BUNDLE_MAX_POINTS = 500;
 
-// Serverseitig dieselbe RPC wie der Client-Poll (DashboardPollProvider,
-// Phase 2 Punkt 3) -- liefert die initialen Werte fuer MarketContextCard/
-// SpotPressurePanel und den "Positionierung"-Faktor in HeroHeader (seit
-// 21.09.2026 keine eigene Kachel mehr, siehe lib/dashboardTiles.ts) in
-// einem Aufruf statt fuenf Einzelabfragen (vorher: getOiReferenceSnapshot/
-// getSpotPressureSummary/getSpotPressureSeries/getLatestPositioningSnapshot
-// x4/getLatestPositioningSignal).
+// Serverseitig dieselbe RPC wie der Client-Poll (DashboardPollProvider) --
+// liefert die initialen Werte fuer MarketContextCard/SpotPressurePanel und
+// den "Positionierung"-Faktor in HeroHeader in einem Aufruf.
 async function getDashboardPollBundle(
   sinceIso: string
 ): Promise<DashboardPollBundle | null> {
@@ -695,41 +661,18 @@ export default async function Home({
 
   return (
     <main className="flex-1 flex flex-col">
-      <header className="border-b border-border px-6 py-5 flex items-baseline justify-between">
-        <div>
-          <p className="text-xs tracking-[0.2em] text-text-faint uppercase">
-            Nexus Atlas
-          </p>
-          <h1 className="text-lg font-semibold text-text mt-1">
-            BTC Marktüberwachung
-          </h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <RefreshButton />
-          <Link
-            href="/reports"
-            className="text-xs text-text-faint hover:text-text-muted underline decoration-dotted"
-          >
-            AI Reports
-          </Link>
-          <Link
-            href="/lernen"
-            className="text-xs text-text-faint hover:text-text-muted underline decoration-dotted"
-          >
-            Lernen
-          </Link>
-          <Link
-            href="/account"
-            className="text-xs text-text-faint hover:text-text-muted underline decoration-dotted"
-          >
-            Konto
-          </Link>
-          <p className="text-xs text-text-faint hidden sm:block">
-            Datentakt: alle 5&nbsp;Minuten · Referenz: Bybit
-          </p>
-          <LogoutButton />
-        </div>
-      </header>
+      <AppHeader
+        title="BTC Marktüberwachung"
+        current="dashboard"
+        actions={
+          <>
+            <p className="text-xs text-text-faint hidden md:block">
+              Datentakt: alle 5&nbsp;Minuten · Referenz: Bybit
+            </p>
+            <RefreshButton />
+          </>
+        }
+      />
 
       <section className="flex-1 px-4 sm:px-6 py-8 max-w-3xl lg:max-w-[1600px] w-full mx-auto">
         <div className="space-y-4">
@@ -738,24 +681,9 @@ export default async function Home({
             initialBundle={initialDashboardBundle}
             initialFetchedSinceIso={timeframeSinceIsoValue}
           >
-            {/* Nutzer-Feedback vom 04.09.2026: Zeitraum ist eine globale
-                Steuerung (wirkt auf mehrere Kacheln unten, siehe
-                timeframe-Prop), sollte also vor der Gesamteinschaetzung
-                stehen statt danach -- vorher wirkte er wie ein Anhaengsel
-                der Gesamteinschaetzung-Kachel. Nicht mehr hinter dem "Alle
-                Details anzeigen"-Toggle (entfernt 09.09.2026, siehe
-                DashboardTabNav) -- Zeitraum/Gesamteinschaetzung sind zu
-                grundlegend, um sie hinter einem Klick zu verstecken; die
-                Tab-Navigation darunter uebernimmt jetzt die Aufgabe, die
-                Ansicht kompakt zu halten.
-                13.09.2026: davor statt danach verschoben, seit HeroHeader
-                (unten) und die vormalige MarketStateCard zu einer Sektion
-                verschmolzen sind -- die Steuerungen stehen jetzt vor der
-                gesamten Sektion statt in ihrer Mitte.
-                30.09.2026: Event-Anker (Phase 1 "Anchored Analytics",
-                29.08.2026) daneben entfernt -- Nutzer-Feedback: kaum
-                genutzt, der eigentliche Bedarf ("Report von X bis Y") ist
-                ein anderes Feature als ein cumulative "seit Anker"-Badge. */}
+            {/* Zeitraum ist eine globale Steuerung (wirkt auf mehrere Kacheln
+                unten) und steht deshalb vor dem Lagebild, nicht hinter einem
+                Klick versteckt. */}
             <div className="flex items-center justify-between flex-wrap gap-2">
               <p className="text-xs uppercase tracking-[0.2em] text-text-faint">
                 Zeitraum
@@ -764,19 +692,6 @@ export default async function Home({
                 <TimeframeSelector current={timeframe} />
               </Suspense>
             </div>
-
-            <HeroHeader
-              initialState={marketState}
-              initialRegime={marketStateMatrix?.regime ?? null}
-              timeframe={timeframe}
-              recentEtfFlows={recentEtfFlows}
-              initialSystemBriefing={latestSystemBriefing}
-              upcomingEconomicEvents={upcomingEconomicEvents}
-              initialMtfDots={mtfDots}
-            />
-
-            <ConfluenceScoreCard score={confluenceScore} signalDetail={confluenceSignalDetail} />
-            <RegimeScoreCard score={regimeScore} signalDetail={regimeSignalDetail} />
 
             <LivePriceDataProvider
                 timeframe={timeframe}
@@ -787,6 +702,28 @@ export default async function Home({
                 initialFetchedSinceIso={timeframeSinceIsoValue}
                 initialOiByExchange={oiByExchange}
               >
+                {/* Setup- und Regime-Score stehen als Kennzahlen im Lagebild
+                    (HeroHeader), ihre vollstaendigen Karten im Aufklapper
+                    "Warum?". HeroHeader sitzt innerhalb von
+                    LivePriceDataProvider, um den Live-Preis zu zeigen. */}
+                <HeroHeader
+                  initialState={marketState}
+                  initialRegime={marketStateMatrix?.regime ?? null}
+                  timeframe={timeframe}
+                  recentEtfFlows={recentEtfFlows}
+                  initialSystemBriefing={latestSystemBriefing}
+                  upcomingEconomicEvents={upcomingEconomicEvents}
+                  initialMtfDots={mtfDots}
+                  setupScore={confluenceScore}
+                  regimeScore={regimeScore}
+                  scoreDetails={
+                    <div className="space-y-3">
+                      <ConfluenceScoreCard score={confluenceScore} signalDetail={confluenceSignalDetail} />
+                      <RegimeScoreCard score={regimeScore} signalDetail={regimeSignalDetail} />
+                    </div>
+                  }
+                />
+
                 <DashboardTabNav
                   tiles={{
                     "market-context": <MarketContextCard timeframe={timeframe} />,
@@ -820,14 +757,22 @@ export default async function Home({
                       <NewsRiskPanel initialNews={highImpactNews} initialNewsAnalysis={latestNewsAnalysis} />
                     ),
                     "signal-review": <SignalReviewCard initialSnapshot={latestSignalReview} />,
-                    escalation: (
-                      <EscalationCard initialTriggers={escalationTriggers} initialSnapshot={latestEscalation} />
+                    "second-opinions": (
+                      <SecondOpinionsCard
+                        tradeDebate={
+                          <TradeDebateCard initialSnapshot={latestTradeDebate} initialMtfDots={mtfDots} />
+                        }
+                        escalation={
+                          <EscalationCard initialTriggers={escalationTriggers} initialSnapshot={latestEscalation} />
+                        }
+                      />
                     ),
-                    "trade-debate": (
-                      <TradeDebateCard initialSnapshot={latestTradeDebate} initialMtfDots={mtfDots} />
+                    "system-briefing": (
+                      <SystemBriefingCard
+                        initialSnapshot={latestSystemBriefing}
+                        initialCustomQueries={latestCustomQueries}
+                      />
                     ),
-                    "custom-query": <CustomQueryCard initialRuns={latestCustomQueries} />,
-                    "system-briefing": <SystemBriefingCard initialSnapshot={latestSystemBriefing} />,
                     "youtube-monitor": (
                       <YoutubeMonitorCard
                         initialAnalyses={latestYoutubeAnalyses}
@@ -842,9 +787,7 @@ export default async function Home({
         </div>
       </section>
 
-      <footer className="border-t border-border px-6 py-4 text-xs text-text-faint">
-        NEXUS Atlas · Persönliches Marktüberwachungs-Tool, keine Anlageberatung
-      </footer>
+      <AppFooter />
     </main>
   );
 }

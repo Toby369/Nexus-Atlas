@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { providerRegistry } from "@/lib/ai/providers";
 import { FREE_TIER_REPORT_PROVIDERS } from "@/lib/ai/reportProviders";
@@ -8,7 +7,7 @@ import ReportEngineDashboard, {
   type ProviderOption,
   type ReportSlotData,
 } from "@/components/ReportEngineDashboard";
-import LogoutButton from "@/components/LogoutButton";
+import { AppFooter, AppHeader } from "@/components/AppHeader";
 
 export const revalidate = 0;
 
@@ -30,9 +29,8 @@ const PROVIDER_LABELS: Record<AIProviderId, string> = {
 // einfache, client-sichere Daten (Boolean) an die Dashboard-Komponente
 // gereicht -- kein Key verlaesst je den Server (Vorgabe Teil V).
 //
-// 14.09.2026 -- nur noch Gratis-Tier-Provider (siehe lib/ai/reportProviders.ts):
-// "muss kostenlos sein, gesamte AI report!" -- OpenAI/Anthropic/xAI/
-// Perplexity/DeepSeek stehen bewusst nicht mehr zur Auswahl.
+// Nur Gratis-Tier-Provider (siehe lib/ai/reportProviders.ts) -- OpenAI/
+// Anthropic/xAI/Perplexity/DeepSeek stehen bewusst nicht zur Auswahl.
 function getProviderOptions(): ProviderOption[] {
   return (Object.keys(providerRegistry) as AIProviderId[])
     .filter((id) => FREE_TIER_REPORT_PROVIDERS.includes(id))
@@ -82,27 +80,7 @@ export default async function ReportsPage() {
 
   return (
     <main className="flex-1 flex flex-col">
-      <header className="border-b border-border px-6 py-5 flex items-baseline justify-between">
-        <div>
-          <p className="text-xs tracking-[0.2em] text-text-faint uppercase">Nexus Atlas</p>
-          <h1 className="text-lg font-semibold text-text mt-1">AI Report Engine</h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <Link
-            href="/"
-            className="text-xs text-text-faint hover:text-text-muted underline decoration-dotted"
-          >
-            ← Dashboard
-          </Link>
-          <Link
-            href="/account"
-            className="text-xs text-text-faint hover:text-text-muted underline decoration-dotted"
-          >
-            Konto
-          </Link>
-          <LogoutButton />
-        </div>
-      </header>
+      <AppHeader title="AI Report Engine" current="reports" />
 
       <section className="flex-1 px-4 sm:px-6 py-8 max-w-3xl w-full mx-auto">
         {slots.length === 0 ? (
@@ -119,9 +97,7 @@ export default async function ReportsPage() {
         )}
       </section>
 
-      <footer className="border-t border-border px-6 py-4 text-xs text-text-faint">
-        NEXUS Atlas · Persönliches Marktüberwachungs-Tool, keine Anlageberatung
-      </footer>
+      <AppFooter />
     </main>
   );
 }

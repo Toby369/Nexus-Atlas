@@ -9,7 +9,7 @@ informativ/analytisch.
 ## Architektur
 
 ```
-Exchange-APIs (Bybit/Binance/Bitunix/Pionex, Farside)
+Exchange-APIs (Bybit/Binance/Bitunix/Pionex), SoSoValue (ETF-Flows)
    → Supabase Edge Functions (Deno, cron-getriggert via pg_cron/pg_net)
    → Supabase Postgres (öffentlich lesbare Tabellen, RLS "Public read access")
    → Next.js Server Components (page.tsx liest via Supabase JS)
@@ -28,25 +28,27 @@ ist rein lesend.
 | `collect-btc` | `*/5 * * * *` | Preis/Mark/Index/OI/Funding je Börse (Bybit, Binance, Bitunix, Pionex) + regelbasierte Markteinschätzung |
 | `collect-positioning` | `*/5 * * * *` | Long/Short-Ratios, Top-Trader-Daten, Taker-Flow (Binance+Bybit) + Divergenz-Engine |
 | `collect-liquidations` | `*/5 * * * *` | Liquidations-Sampling via WebSocket (Binance+Bybit, ~25s Capture-Fenster je Lauf — keine lückenlose Erfassung) |
-| `collect-etf-flows` | `0 */4 * * *` | US-Spot-BTC-ETF-Nettoflows (Farside Investors, T+1) |
+| `collect-etf-flows` | `0 */4 * * *` | US-Spot-BTC-ETF-Nettoflows (SoSoValue-API, vormals Farside; T+1) |
 | `nexus-news-collector` | `*/15 * * * *` | RSS-News: Fed, BLS, SEC, Google News (Makro/Treasury) |
 | `nexus-news-analyst` | `2-59/15 * * * *` | Bewertet News neu: Kategorie, Impact-Score, Richtung |
 
 Alle Tabellen haben RLS-Policy "Public read access" (`SELECT using (true)`),
 Schreibzugriff nur über den Service-Role-Key der Edge Functions.
 
-## Dashboard-Kacheln
+## Aufbau der App
 
-- **Live-Preis** — Preis/Mark/Index/Funding/OI, Zeitreihen, Börsenvergleich
-  mit Ausreißer-Erkennung
-- **Positioning Intelligence** — Retail vs. Top Trader (Binance+Bybit),
-  Taker-Flow, NEXUS-Divergenz-Assessment
-- **Liquidationen** — Größe, Richtung, Häufung (Cascade vs. vereinzelt),
-  transparent als Stichprobe gekennzeichnet
-- **ETF-Flows & Makro** — Tages-/5-Tage-Flow, Synthese aus Flow-Richtung +
-  Makro-News-Ton
-- **News Risk** — nur High-Impact-News (`is_market_moving=true`), max. 5,
-  letzte 72h
+| Seite | Inhalt |
+|---|---|
+| `/` Dashboard | Fest oben: Zeitraum-Auswahl und das Lagebild (`HeroHeader`: Gesamteinschätzung, Fazit-Satz, Setup-/Regime-Score, MTF-Ampel, Marktphase, KI-Einordnung; Details aufklappbar). Darunter drei Reiter (siehe `lib/dashboardTabs.ts`): **Marktkontext**, **Preis, Orderflow & Makro**, **KI & Tools** |
+| `/reports` | AI Report Engine (nur Gratis-Tier-Provider, siehe `lib/ai/reportProviders.ts`) |
+| `/lernen` | Lernplattform: Leitner-Karteikarten, Wissen, Checklisten, Indikator-/Chartstruktur-Module |
+| `/account` | Passwort ändern, Push-Benachrichtigungen |
+
+Alle Seiten teilen sich Kopfzeile und Navigation (`components/AppHeader.tsx`).
+Die ganze App liegt hinter einem Login (`proxy.ts`, `lib/authGate.ts`).
+Neue Dashboard-Kacheln werden in `lib/dashboardTiles.ts` registriert und in
+`lib/dashboardTabs.ts` einem Reiter zugeordnet — eine vergessene Zuordnung
+bricht bewusst hart ab.
 
 ## Lokale Entwicklung
 
@@ -55,10 +57,18 @@ npm install
 npm run dev
 ```
 
-`.env.local` enthält die öffentliche Supabase-URL und den (öffentlichen)
-anon-Key — beides ist bewusst clientseitig sichtbar und kein Geheimnis.
-Vor jedem Deploy lokal `npx tsc --noEmit`, `npx next build`, `npx eslint .`
-sauber durchlaufen lassen.
+`.env.local` anlegen (Vorlage: `.env.example`). Pflicht sind nur die
+Supabase-URL und der (öffentliche) anon-Key, alles andere schaltet einzelne
+KI-/Mail-/YouTube-Funktionen frei.
+
+Vor jedem Deploy lokal sauber durchlaufen lassen:
+
+```bash
+npx tsc --noEmit && npx eslint . && npm test && npx next build
+```
+
+`npm test` läuft ohne Netzwerk; `npm run test:integration` prüft Live-
+Invarianten gegen die produktive Supabase-Instanz (nur lesend).
 
 ## Deployment (Vercel)
 
@@ -82,6 +92,4 @@ sauber durchlaufen lassen.
 - Whale-/Smart-Money-Intelligence (Phase 4-9 der Positioning-Roadmap) —
   bräuchte kostenpflichtige On-Chain-APIs oder eine eigene
   Adress-Label-Datenbank
-- AI-Router (`lib/ai/*`) — Fundament steht, aber ohne aktive API-Keys und
-  ohne UI-Anbindung, um das bestehende regelbasierte Dashboard nicht zu
-  ersetzen
+- Offene Ideen und Folgepunkte: `docs/research/IDEEN-BACKLOG.md`

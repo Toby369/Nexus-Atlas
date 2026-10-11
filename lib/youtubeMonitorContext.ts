@@ -1,8 +1,7 @@
-// Krypto-YouTube-Monitor (05.09.2026) -- findet neue BTC/Krypto-relevante
-// YouTube-Videos ueber die YouTube Data API v3 (kostenloses Tageskontingent,
-// 10'000 Einheiten/Tag, keine Kreditkarte noetig). Zwei Quellen, per
-// youtube_monitor_config vom Nutzer konfigurierbar (Nutzer-Wunsch "kann ich
-// hinterlegen was angesehen werden soll"):
+// Krypto-YouTube-Monitor -- findet neue BTC/Krypto-relevante YouTube-Videos
+// ueber die YouTube Data API v3 (kostenloses Tageskontingent, 10'000
+// Einheiten/Tag, keine Kreditkarte noetig). Zwei Quellen, per
+// youtube_monitor_config konfigurierbar:
 //   1. Freitext-Suche (search.list, 100 Einheiten/Aufruf) -- breit, findet
 //      auch unbekannte Quellen.
 //   2. Konkrete Kanaele (playlistItems.list auf die Uploads-Playlist,
@@ -27,12 +26,10 @@ const DEFAULT_SEARCH_QUERY = "Bitcoin BTC";
 // 10-15 Anfragen/Minute, 1500/Tag) -- pro Lauf werden bewusst nur wenige
 // neue Videos analysiert statt alle Treffer auf einmal.
 //
-// Angehoben 08.09.2026 (Nutzer-Wunsch, nach Ausweitung auf 6 feste Kanaele):
-// 3 war zu knapp, um bei einem Lauf jeden konfigurierten Kanal abzudecken --
-// der Kanal-Vergleich (lib/youtubeConsensus.ts) braucht dafuer moeglichst
-// von jedem Kanal die aktuelle Einschaetzung. 8 deckt 6 Kanaele plus Puffer
-// ab und bleibt weit unter dem Free-Tier-Minutenlimit (sequentielle Analyse,
-// keine Parallelisierung).
+// 8 deckt die konfigurierten Kanaele plus Puffer ab -- der Kanal-Vergleich
+// (lib/youtubeConsensus.ts) braucht moeglichst von jedem Kanal die aktuelle
+// Einschaetzung -- und bleibt weit unter dem Free-Tier-Minutenlimit
+// (sequentielle Analyse).
 export const MAX_NEW_VIDEOS_PER_RUN = 8;
 
 export interface YoutubeVideoCandidate {
@@ -55,8 +52,7 @@ export interface YoutubeMonitorConfig {
   searchQuery: string;
   channels: YoutubeMonitorChannel[];
   /**
-   * Nutzer-Wunsch 14.09.2026 ("diese verfasser moechte ich nicht mehr dabei
-   * haben"): Kanal-Titel (case-insensitiver Exact-Match gegen
+   * Gesperrte Kanaele: Kanal-Titel (case-insensitiver Exact-Match gegen
    * YoutubeVideoCandidate.channelTitle), die trotz Treffer NIE analysiert
    * werden -- unabhaengig davon, ob sie ueber die Freitext-Suche oder einen
    * konfigurierten Kanal hereingekommen sind.
@@ -278,9 +274,7 @@ export async function findRecentVideoCandidates(
  * status="error" (z.B. Gemini-Kontingent ausgeschoepft) blockiert die
  * Analyse NICHT dauerhaft, sonst waere ein Video nach einem einzigen
  * Kontingent-Fehler fuer immer von der Analyse ausgeschlossen, obwohl das
- * Kontingent sich taeglich erholt (Bugfix 16.09.2026, Nutzer-Wunsch
- * "verhindern dass report nicht vollzogen werden kann" -- der vorherige
- * Stand behandelte JEDE Zeile inkl. Fehler als endgueltig gesehen). Der
+ * Kontingent sich taeglich erholt. Der
  * Retry ueberschreibt die alte Fehler-Zeile per Upsert auf video_id (siehe
  * app/api/youtube-monitor/generate/route.ts), keine Duplikate.
  */

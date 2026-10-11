@@ -7,16 +7,12 @@ import { computeYoutubeConsensus } from "@/lib/youtubeConsensus";
 import { RelativeTime, FullDateTime } from "@/components/ClientTimestamp";
 import PanelInfo from "@/components/PanelInfo";
 
-// Krypto-YouTube-Monitor, Thema KI (05.09.2026) -- findet neue BTC/Krypto-
-// relevante YouTube-Videos (YouTube Data API v3, kostenloses Tages-
-// kontingent) und laesst sie per Gemini direkt per Video-URL analysieren
-// (Google-Free-Tier, siehe lib/ai/youtubeVideoAnalysis.ts). Zeigt
-// ausschliesslich bereits gespeicherte Analysen an -- ein neuer Suchlauf
-// passiert nur auf Klick.
-//
-// Nutzer-Wunsch (05.09.2026: "kann ich dort hinterlegen was angesehen
-// werden soll?") -- Freitext-Suche UND konkrete Kanaele sind konfigurierbar
-// (siehe lib/youtubeMonitorContext.ts + app/api/youtube-monitor/config).
+// Krypto-YouTube-Monitor: findet neue BTC/Krypto-relevante YouTube-Videos
+// (YouTube Data API v3, kostenloses Tageskontingent) und laesst sie per
+// Gemini direkt per Video-URL analysieren (Google-Free-Tier, siehe
+// lib/ai/youtubeVideoAnalysis.ts). Zeigt nur gespeicherte Analysen -- ein
+// neuer Suchlauf passiert nur auf Klick. Freitext-Suche und konkrete Kanaele
+// sind konfigurierbar (lib/youtubeMonitorContext.ts, /api/youtube-monitor/config).
 
 const INFO_TEXT = [
   "Was das ist: prueft konfigurierte YouTube-Kanaele auf neue Uploads UND/ODER eine Freitext-Suche (beides einstellbar, siehe 'Einstellungen' unten) -- letzte 24h, neue Videos werden per Gemini direkt anhand der Video-URL ausgewertet (Bild+Ton, kein Transkript-Umweg).",
@@ -53,12 +49,10 @@ const AGREEMENT_LABELS: Record<string, string> = {
   gespalten: "Gespalten",
 };
 
-// 13.09.2026 -- Farbe des "Einig"/"Mehrheitlich"/"Gespalten"-Badges kommt
-// jetzt von der tatsaechlichen Mehrheitsmeinung (consensus.majorityBias),
-// nicht mehr vom Einigkeitsgrad selbst: "einig" bei durchgehend bearish
-// sah bisher gruen aus wie ein bullisches Signal. Nutzt dieselbe
-// BIAS_STYLES-Palette wie die einzelnen Kanal-Badges (bullish=gruen,
-// bearish=rot, neutral/kein Mehrheits-Lager bei "gespalten"=grau).
+// Die Farbe des "Einig"/"Mehrheitlich"/"Gespalten"-Badges folgt der
+// Mehrheitsmeinung (consensus.majorityBias), nicht dem Einigkeitsgrad --
+// "einig bearish" darf nicht gruen aussehen. Gleiche BIAS_STYLES-Palette wie
+// die Kanal-Badges.
 
 // Videoliste bleibt uebersichtlich (juengste zuerst); der Kanal-Vergleich
 // (weiter unten) nutzt trotzdem den vollen, ungekuerzten `analyses`-State,
@@ -322,7 +316,7 @@ export default function YoutubeMonitorCard({
                   {BIAS_LABELS[overallAnalysis.result.overallBias] ?? overallAnalysis.result.overallBias}
                 </span>
                 <span className="text-[10px] text-text-faint">
-                  Überzeugungsgrad {overallAnalysis.result.confidence}
+                  YouTube-Überzeugungsgrad {overallAnalysis.result.confidence}
                 </span>
               </div>
               <p className="text-xs text-text-muted">{overallAnalysis.result.summary}</p>
@@ -384,42 +378,51 @@ export default function YoutubeMonitorCard({
         </div>
       )}
 
-      <div className="space-y-2">
-        {analyses.slice(0, VISIBLE_VIDEO_COUNT).map((a) => (
-          <div key={a.id} className="rounded-md border border-border/60 p-2.5 space-y-1">
-            <div className="flex items-start justify-between gap-2">
-              <a
-                href={a.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs font-medium text-text hover:underline"
-              >
-                {a.title}
-              </a>
-              {a.result && (
-                <span
-                  className={`shrink-0 px-1.5 py-0.5 text-[10px] rounded-md border font-medium ${
-                    BIAS_STYLES[a.result.bias] ?? BIAS_STYLES.neutral
-                  }`}
-                >
-                  {BIAS_LABELS[a.result.bias] ?? a.result.bias}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2 text-[10px] text-text-faint flex-wrap">
-              {a.channel_title && <span>{a.channel_title}</span>}
-              <RelativeTime iso={a.published_at} />
-              {a.result && <span>· {RELEVANCE_LABELS[a.result.relevance] ?? a.result.relevance}</span>}
-            </div>
-            {a.status === "ok" && a.result && (
-              <p className="text-xs text-text-faint">{a.result.summary}</p>
-            )}
-            {a.status === "error" && (
-              <p className="text-xs text-down">{a.error ?? "Analyse fehlgeschlagen."}</p>
-            )}
+      {/* Einzelvideos standardmaessig eingeklappt -- Gesamtanalyse und
+          Kanal-Vergleich oben reichen fuer den Ueberblick. */}
+      {analyses.length > 0 && (
+        <details>
+          <summary className="text-xs text-text-faint hover:text-text-muted cursor-pointer select-none">
+            Einzelvideos ({Math.min(analyses.length, VISIBLE_VIDEO_COUNT)})
+          </summary>
+          <div className="space-y-2 pt-2">
+            {analyses.slice(0, VISIBLE_VIDEO_COUNT).map((a) => (
+              <div key={a.id} className="rounded-md border border-border/60 p-2.5 space-y-1">
+                <div className="flex items-start justify-between gap-2">
+                  <a
+                    href={a.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-medium text-text hover:underline"
+                  >
+                    {a.title}
+                  </a>
+                  {a.result && (
+                    <span
+                      className={`shrink-0 px-1.5 py-0.5 text-[10px] rounded-md border font-medium ${
+                        BIAS_STYLES[a.result.bias] ?? BIAS_STYLES.neutral
+                      }`}
+                    >
+                      {BIAS_LABELS[a.result.bias] ?? a.result.bias}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-[10px] text-text-faint flex-wrap">
+                  {a.channel_title && <span>{a.channel_title}</span>}
+                  <RelativeTime iso={a.published_at} />
+                  {a.result && <span>· {RELEVANCE_LABELS[a.result.relevance] ?? a.result.relevance}</span>}
+                </div>
+                {a.status === "ok" && a.result && (
+                  <p className="text-xs text-text-faint">{a.result.summary}</p>
+                )}
+                {a.status === "error" && (
+                  <p className="text-xs text-down">{a.error ?? "Analyse fehlgeschlagen."}</p>
+                )}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </details>
+      )}
     </div>
   );
 }

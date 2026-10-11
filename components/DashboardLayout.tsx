@@ -93,20 +93,13 @@ const defaultWidthById = Object.fromEntries(
 );
 const sizeById = Object.fromEntries(DASHBOARD_TILES.map((t) => [t.id, t.size ?? "content"]));
 
-// Dashboard-Aufraeumung (22.09.2026, Nutzer-Feedback "zu viele Kacheln
-// unterschiedlicher Groessen" + gebilligtes Mockup): statt EINES 3-spaltigen
-// CSS-Grids fuer alle Kacheln (das bei stark unterschiedlichen Hoehen grosse
-// Luecken unter kuerzeren Nachbarn liess) jetzt drei getrennte Bereiche:
-// "compact" (reine Kennzahl-Kacheln, siehe lib/dashboardTiles.ts) zuerst in
-// einer flexiblen Reihe, "wide" (Inhalts-Kacheln mit Breite > 1) darunter
-// je in eigener voller Zeile, "narrow" (Inhalts-Kacheln mit Breite 1, der
-// Normalfall) in einem echten Masonry (CSS `columns`) -- dort fliessen
-// Kacheln nach Hoehe gepackt in die naechste Spalte statt in einer starren
-// Grid-Zeile stehenzubleiben. Der Breiten-Regler (1-3) bleibt intern
-// unveraendert (Persistenz-Format kompatibel), bestimmt fuer Inhalts-
-// Kacheln nur noch ob "wide" (>1) oder "narrow" (=1) gerendert wird --
-// eine dritte, echte Zwischenbreite ergibt in einem Spalten-Masonry keinen
-// sinnvollen zusaetzlichen Zustand.
+// Drei getrennte Bereiche statt EINES 3-spaltigen Grids (das bei stark
+// unterschiedlichen Hoehen grosse Luecken liess): "compact" (reine
+// Kennzahl-Kacheln, siehe lib/dashboardTiles.ts) zuerst in einer flexiblen
+// Reihe, "wide" (Breite > 1) je in eigener voller Zeile, "narrow" (Breite 1,
+// der Normalfall) in einem Masonry (CSS `columns`), wo Kacheln nach Hoehe
+// gepackt fliessen. Der Breiten-Regler (1-3) bleibt intern unveraendert
+// (Persistenz-Format kompatibel) und entscheidet nur noch wide vs. narrow.
 type Category = "compact" | "wide" | "narrow";
 
 export default function DashboardLayout({
@@ -114,11 +107,10 @@ export default function DashboardLayout({
   tileIds,
 }: {
   tiles: Record<string, ReactNode>;
-  // Kachel-IDs des aktuell aktiven Tabs (siehe components/DashboardTabNav.tsx
-  // + lib/dashboardTabs.ts, 09.09.2026) -- die volle, persistierte
-  // Reihenfolge/Breiten/Hoehen/Minimiert-Zustand bleiben unveraendert EIN
-  // globales Set ueber ALLE Kacheln, nur die sichtbare/verschiebbare Menge
-  // wird pro Aufruf auf dieses Tab eingeschraenkt (siehe
+  // Kachel-IDs des aktiven Reiters (siehe DashboardTabNav.tsx +
+  // lib/dashboardTabs.ts). Reihenfolge/Breiten/Hoehen/Minimiert-Zustand
+  // bleiben EIN globales, persistiertes Set ueber ALLE Kacheln, nur die
+  // sichtbare/verschiebbare Menge ist auf den Reiter eingeschraenkt (siehe
   // lib/dashboardTabReorder.ts).
   tileIds: string[];
 }) {

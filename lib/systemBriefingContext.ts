@@ -21,40 +21,18 @@ import type {
   SystemBriefingTrigger,
 } from "./types";
 
-// Kontext-Builder fuer die System-Briefing-Kachel (Umsetzungsplan Phase 4,
-// 18.09.2026: "kombinierte Entscheidungsunterstuetzungs-Kachel"; erweitert
-// 22.09.2026 um Marktkontext/ETF-Flows/Positionierung/News). Fusioniert
-// Tobys eigenes Regelwerk (knowledge_base) + Salomon-Phase + Nexus' bereits
-// berechnete Faktoren (14-Faktoren-Engine, Regime Matrix, GUSS/VWAP-Vector/
-// CVD, Liquidations-Cluster, Marktkontext, ETF-Flows, Positionierung, News)
-// zu EINEM Kontext -- mehrere kleine getX()-Funktionen, EIN Promise.all.
-// KEIN zweiter Rechenweg: jede Quelle hier ist bereits bestehender Code.
-// Chart-Vision (Phase 3) wurde 25.09.2026 als eigenstaendige Kachel
-// entfernt (Nutzer-Entscheidung: durch die neue, algorithmische
-// "Struktur"-Kachel weitgehend ueberholt) -- damit auch hier als Quelle
-// entfernt.
+// Kontext-Builder fuer das System-Briefing: fusioniert Tobys eigenes
+// Regelwerk (knowledge_base) + Nexus' bereits berechnete Faktoren
+// (14-Faktoren-Engine, GUSS/VWAP-Vector/CVD, Liquidations-Cluster,
+// Marktkontext, ETF-Flows, Positionierung, News, Bewegungsvorrat,
+// Chart-Struktur) zu EINEM Kontext -- mehrere kleine getX()-Funktionen, EIN
+// Promise.all. KEIN zweiter Rechenweg: jede Quelle ist bestehender Code.
 //
-// 30.09.2026 -- Toby: "brauche nicht weitere Kacheln, moechte vorhandenes
-// komprimieren". Handelslage (eigene Kachel) wurde in dieses Briefing
-// aufgenommen statt daneben zu bestehen -- deren Kernkennzahl
-// (bewegungsvorrat) ist jetzt Teil dieses Kontexts. Gleichzeitig wurden
-// Salomon-Phase (salomonInterpretation.ts) und Regime Matrix als eigene
-// Quellen HIER entfernt -- beide sind bereits in der Marktphase-Kachel
-// (RegimeMatrixCard) sichtbar bzw. werden von deren eigener Engine
-// abgeleitet, waren hier nur eine zweite Beschreibung derselben Faktoren
-// (siehe Chat-Verlauf, Redundanz-Analyse). market_state (14-Faktoren-
-// Engine) bleibt, da mein_system_checklist/Regelwerk-Gates direkt darauf
-// aufbauen.
-//
-// 06.10.2026 -- Zusammengelegt mit der vormals eigenstaendigen Chart-
-// Narrativ-Kachel (Nutzer-Audit "welche Reports sind sehr aehnlich?" --
-// beide nutzten bereits denselben breiten Signal-Satz, siehe ehemalige
-// lib/chartNarrativeContext.ts, jetzt hier aufgegangen). chart_structure
-// liefert die algorithmisch berechneten Formationen/Key Levels/Level-
-// Struktur direkt mit -- dieselbe Anreicherung (EMA13/50/200 + VWAP-
-// Vector-Konfluenz), die vormals app/lernen/page.tsx separat durchfuehrte,
-// jetzt EINMAL hier, da mein_system_checklist/trading_indicators ohnehin
-// schon oben geladen werden (kein zweiter Fetch).
+// Salomon-Phase und Regime Matrix sind bewusst KEINE Quellen (stehen in der
+// Marktphase-Kachel, waeren hier nur eine zweite Beschreibung derselben
+// Faktoren). market_state bleibt, da mein_system_checklist/Regelwerk-Gates
+// darauf aufbauen. chart_structure wird mit EMA13/50/200 + VWAP-Vector-
+// Konfluenz angereichert, ohne zweiten Fetch.
 //
 // Server-only (nutzt Supabase direkt) -- niemals aus einer "use client"
 // Komponente importieren.
@@ -66,21 +44,17 @@ const LIQUIDATION_BUCKET_MINUTES = 15;
 const LIQUIDATION_PRICE_BUCKET_USD = 200;
 const TOP_CLUSTERS_COUNT = 4;
 
-// Marktkontext/ETF-Flows/Positionierung/News (22.09.2026, ergaenzt aus dem
-// entfernten "market-state-narrative"-Kontext) -- dieselben Konstanten wie
-// dort.
+// Marktkontext/ETF-Flows/Positionierung/News -- Lookback-Konstanten.
 const CUMULATIVE_ETF_DAYS = 5;
 const ETF_FLOW_LIMIT = 10;
 const NEWS_LOOKBACK_HOURS = 72;
 const NEWS_LIMIT = 5;
 const DASHBOARD_BUNDLE_MAX_POINTS = 500;
 
-// Bewegungsvorrat (30.09.2026, aus lib/handelslageContext.ts uebernommen):
-// die heutige Tagesspanne relativ zum MEDIAN (nicht Mittelwert, ein
-// einzelner Crash-Tag soll den Massstab nicht dauerhaft verzerren) der
-// letzten 10 abgeschlossenen Tage. Ein Markt, der bereits 200% seines
-// ueblichen Tagespensums bewegt hat, ist kein guter Fortsetzungskandidat,
-// wie sauber der Trend auch aussieht.
+// Bewegungsvorrat: die heutige Tagesspanne relativ zum MEDIAN (nicht
+// Mittelwert, ein Crash-Tag soll den Massstab nicht verzerren) der letzten 10
+// abgeschlossenen Tage. Ein Markt, der bereits 200% seines ueblichen
+// Tagespensums bewegt hat, ist kein guter Fortsetzungskandidat.
 const BEWEGUNGSVORRAT_SYMBOL = "BTCUSDT";
 const BEWEGUNGSVORRAT_EXCHANGE = "binance";
 const BEWEGUNGSVORRAT_LOOKBACK_DAYS = 10;
@@ -213,14 +187,9 @@ export interface SystemBriefingContext {
     risk_factors: string[] | null;
     patterns: { name: string; note: string }[];
     mtf_alignment: MarketState["mtf_alignment"];
-    // Die einzelnen Faktor-Werte der 14-Faktoren-Engine (nicht nur deren
-    // Aggregat) -- seit 02.10.2026 hier aufgenommen, um die vormals
-    // eigenstaendige "Signal-Engine"-Kachel zu ersetzen (Nutzer: "braucht
-    // es alle Kacheln so wie sie sind?", Audit ergab: 13 Tage ungenutzt).
-    // Zweck bleibt derselbe wie dort: pruefen, ob overall_state/score/
-    // confidence/risk_level/patterns tatsaechlich zu den einzelnen
-    // Faktoren passen -- jetzt als Teil DIESES KI-Aufrufs (kontextCheck),
-    // kein zusaetzlicher separater Call noetig.
+    // Die einzelnen Faktor-Werte der 14-Faktoren-Engine (nicht nur das
+    // Aggregat), damit der Konfluenz-Check pruefen kann, ob overall_state/
+    // score/confidence/risk_level/patterns zu den Faktoren passen.
     factors: MarketState["factors"];
   } | null;
   confidence_breakdown: {
@@ -237,8 +206,7 @@ export interface SystemBriefingContext {
     lookback_hours: number;
   } | null;
   regelwerk: RegelwerkEntry[];
-  // Marktkontext/ETF-Flows/Positionierung/News (22.09.2026, ergaenzt aus dem
-  // entfernten "market-state-narrative"-Kontext, siehe Kommentar oben).
+  // Marktkontext/ETF-Flows/Positionierung/News.
   market_context: {
     label: string;
     bias: "bullish" | "bearish" | "neutral";
@@ -250,18 +218,15 @@ export interface SystemBriefingContext {
   etf_flows: { cumulative_usd_m: number | null; days: number };
   positioning: { confidence: number | null };
   news: { count: number; lookback_hours: number };
-  // Chart-Strukturdaten (06.10.2026, aus der zusammengelegten Chart-
-  // Narrativ-Kachel) -- algorithmisch berechnet, nicht vision-basiert.
+  // Chart-Strukturdaten -- algorithmisch berechnet, nicht vision-basiert.
   triangle: ChartStructureData["triangle"];
   continuationFormation: ChartStructureData["continuationFormation"];
   swingFormations: ChartStructureData["swingFormations"];
-  // Nur die juengsten 3 (07.10.2026, vorher 5) -- Teil der Prompt-
-  // Verschlankung gegen das Vercel-60s-Limit, siehe Kommentar bei
-  // nearestKeyLevels unten.
+  // Nur die juengsten 3 -- Prompt-Verschlankung gegen das Vercel-60s-Limit,
+  // siehe nearestKeyLevels unten.
   recentCandlestickPatterns: ChartStructureData["candlestickPatterns"];
-  // Nur die 2 naechstgelegenen je Seite (07.10.2026, vorher bis zu 4) --
-  // deckungsgleich mit levelStruktur, siehe nearestKeyLevels in
-  // buildSystemBriefingContext().
+  // Nur die 2 naechstgelegenen je Seite -- deckungsgleich mit levelStruktur,
+  // siehe nearestKeyLevels in buildSystemBriefingContext().
   keyLevels: KeyLevel[];
   // signalTally bewusst weggelassen -- die zugrunde liegenden Signale
   // (CVD-Trend, Warn-Muster, MTF-Ampel) stehen bereits oben in diesem
@@ -326,12 +291,10 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
     tradingIndicators.cvd.trend
   );
 
-  // 07.10.2026 -- fuer den KI-Kontext auf die 2 naechstgelegenen Key Levels
-  // je Seite begrenzt (deckungsgleich mit levelStruktur, die ohnehin nur
-  // diese narrativ beschreibt) statt aller bis zu KEY_LEVEL_MAX_ZONES_PER_SIDE
-  // (4) -- weniger Daten je Aufruf, Teil der Prompt-Verschlankung gegen das
-  // Vercel-60s-Limit (siehe promptProfiles.ts "system-briefing"). Die volle
-  // Liste bleibt fuer getLevelStructureData oben unveraendert.
+  // Fuer den KI-Kontext auf die 2 naechstgelegenen Key Levels je Seite
+  // begrenzt (deckungsgleich mit levelStruktur) statt aller bis zu
+  // KEY_LEVEL_MAX_ZONES_PER_SIDE -- weniger Daten je Aufruf gegen das
+  // Vercel-60s-Limit. Die volle Liste bleibt fuer getLevelStructureData.
   const currentPriceForSort = chartStructureEnriched.currentPrice ?? 0;
   const nearestKeyLevels = [
     ...chartStructureEnriched.keyLevels
@@ -398,16 +361,13 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
   };
 }
 
-// --- Kontext-Zuschnitte je Teil-Aufruf (08.10.2026) -------------------------
-// Struktureller Fix gegen das Vercel-60s-Limit: reines Kuerzen des EINEN
-// grossen Prompts (07.10.2026) war nur ein Pflaster. buildSystemBriefingContext()
-// faengt weiterhin ALLES in einem Promise.all (derselbe DB-Aufwand wie vorher),
-// aber der AI-Aufruf wird jetzt in vier kleine, fokussierte Calls aufgeteilt
-// statt einem grossen -- gleiches Prinzip wie sliceContextFor* in app/api/
-// reports/run/route.ts (AI Report Engine). Jede Funktion hier ist pure (kein
-// Fetch), bekommt den bereits fertigen Kontext und reicht nur ihren Ausschnitt
-// weiter. Siehe lib/ai/promptProfiles.ts ("system-briefing-*") fuer die vier
-// Prompts und app/api/system-briefing/generate/route.ts fuer die Orchestrierung.
+// --- Kontext-Zuschnitte je Teil-Aufruf ----------------------------------------
+// buildSystemBriefingContext() laedt ALLES in einem Promise.all, der KI-Aufruf
+// ist aber in vier kleine, fokussierte Calls aufgeteilt (gegen das
+// Vercel-60s-Limit) -- gleiches Prinzip wie sliceContextFor* in
+// app/api/reports/run/route.ts. Jede Funktion hier ist pure und reicht nur
+// ihren Ausschnitt weiter. Prompts: lib/ai/promptProfiles.ts
+// ("system-briefing-*"), Orchestrierung: app/api/system-briefing/generate.
 
 export function sliceForRegelwerk(ctx: SystemBriefingContext) {
   const { regelwerk, bewegungsvorrat, mein_system_checklist, trading_indicators, liquidations } = ctx;

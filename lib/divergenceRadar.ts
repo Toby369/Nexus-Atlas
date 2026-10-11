@@ -1,4 +1,4 @@
-// Divergenz-Radar (05.09.2026) -- schliesst einen Teil der in der Recherche
+// Divergenz-Radar -- schliesst einen Teil der in der Recherche
 // "bei welchen Paaren koennen Divergenzen entstehen" identifizierten Luecken.
 // Reine, getestete Funktionen -- kein Netzwerk-/DB-Zugriff hier (siehe
 // lib/divergenceRadarContext.ts fuer die Datenbeschaffung).
@@ -75,12 +75,9 @@ export function computeCycleVsMomentumDivergence(
 }
 
 // --- TradingView-Signal vs. interner Zustand -------------------------------
-// Nachgeholt (05.09.2026): war urspruenglich zurueckgestellt, weil die
-// Webhook-Alerts keine Pflicht-Richtung mitschicken. Loesung: alle 6
-// Pine-Skripte senden einen von 14 bekannten signal_type-Strings, deren
-// Richtung sich verlaesslich aus dem Namen ableiten laesst (siehe
-// lib/tradingViewSignal.ts::inferSignalDirection) -- kein Raten aus
-// Freitext, nur das Auswerten einer bereits vorhandenen Namenskonvention.
+// Alle 6 Pine-Skripte senden einen von 14 bekannten signal_type-Strings,
+// deren Richtung sich verlaesslich aus dem Namen ableiten laesst (siehe
+// lib/tradingViewSignal.ts::inferSignalDirection) -- kein Raten aus Freitext.
 export function computeTradingViewVsStateDivergence(
   signalDirection: "bullish" | "bearish" | null,
   overallState: MarketState["overall_state"] | null
@@ -92,11 +89,9 @@ export function computeTradingViewVsStateDivergence(
 }
 
 // --- 4. System-Briefing-KI-Bias (fazit) vs. Gesamteinschaetzung ------------
-// Analog zu computeEngineDivergence (Market State vs. Regime Matrix), nur
-// mit der KI-Kurzeinschaetzung als zweiter "Engine". bias ist optional --
-// vor dem 05.09.2026 generierte Snapshots (damals noch Handelslage) haben
-// das Feld noch nicht; 30.09.2026 umbenannt, nachdem Handelslage in
-// System-Briefing aufgegangen ist (siehe divergenceRadarContext.ts).
+// Analog zu computeEngineDivergence (Market State vs. Regime Matrix), nur mit
+// der KI-Kurzeinschaetzung als zweiter "Engine". bias ist optional -- sehr
+// alte Snapshots haben das Feld nicht.
 export function computeSystemBriefingVsStateDivergence(
   bias: "bullish" | "bearish" | "neutral" | undefined,
   overallState: MarketState["overall_state"] | null
@@ -109,12 +104,9 @@ export function computeSystemBriefingVsStateDivergence(
 
 // --- 4b. Master-Report-Bias vs. 14-Faktoren-Engine + System-Briefing-Konsens
 // Nur sinnvoll, wenn die beiden anderen Engines sich EINIG sind (siehe
-// computeSystemBriefingVsStateDivergence direkt oberhalb) -- sonst gibt es
-// gar keinen klaren Konsens, gegen den der Master-Report abweichen koennte.
-// 08.10.2026, Nutzer-Beobachtung: Master-Report (Positioning/Makro-lastig,
-// laeuft 3x/Tag, kann daher bis zu ~8h alt sein) und die beiden live-
-// orientierten Engines (Struktur/Momentum, minuetlich/alle paar Stunden neu)
-// konnten ohne jede Kennzeichnung widersprechen.
+// computeSystemBriefingVsStateDivergence oben). Der Master-Report
+// (Positioning/Makro-lastig, 3x/Tag, bis ~8h alt) kann sonst ohne
+// Kennzeichnung den live-orientierten Engines widersprechen.
 export function computeMasterReportVsEnginesDivergence(
   masterBias: "bullish" | "bearish" | "neutral" | undefined,
   overallState: MarketState["overall_state"] | null,
@@ -157,7 +149,7 @@ export function computeOnchainVsPriceDivergence(
 }
 
 // --- 6b. Spot-Pressure (Taker-Flow) vs. Preis --------------------------------
-// Nutzer-Wunsch (09.09.2026, "extrem wichtig"): direkter Vergleich von
+// Direkter Vergleich von
 // Taker-Kauf/Verkaufsdruck gegen die tatsaechliche Preisbewegung im selben
 // Fenster -- unabhaengig von CVD/Futures (siehe computeSpotVsFuturesDivergence
 // oben, die Spot-Flow nur gegen den Futures-CVD-Faktor prueft, nie gegen den
@@ -199,8 +191,8 @@ export function computeSpotPressureVsPriceDivergence(
 }
 
 // --- 6d. Spot-Pressure (Taker-Flow) vs. Orderbuch-Tiefe --------------------
-// Nutzer-Wunsch (13.09.2026, Rueckfrage zu einem konkreten Fall: starker
-// Taker-Kaufdruck bei nur kleiner Preisbewegung -- "wird das absorbiert?").
+// Antwort auf "starker Taker-Kaufdruck bei kleiner Preisbewegung -- wird das
+// absorbiert?".
 // computeSpotPressureVsPriceDivergence oben beantwortet das nur indirekt
 // ueber die PREIS-Reaktion (und nur bei GEGENLAEUFIGER Bewegung, also wenn
 // der Preis trotz z.B. Kaufdrucks faellt) -- hier direkt ueber die
@@ -242,7 +234,7 @@ export function computeSpotPressureVsOrderbookDivergence(
 }
 
 // --- 6c. RSI/MACD-Divergenz (TradingView) vs. Trendregime ------------------
-// Nutzer-Wunsch (09.09.2026): die klassische Divergenz-Lesart ("Preis macht
+// Die klassische Divergenz-Lesart ("Preis macht
 // ein neues Extremum, der Oszillator bestaetigt es nicht") gilt selbst in
 // der Trading-Literatur nur dann als aussagekraeftig, wenn sie NICHT gegen
 // einen intakten Trend laeuft -- in einem starken Trend kann der Oszillator

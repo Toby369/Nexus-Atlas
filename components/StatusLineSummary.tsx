@@ -1,10 +1,8 @@
 import type { ArrowDirection } from "@/lib/heroSummary";
 
-// Ebene-0-Statuszeilen (Nutzer-Feedback vom 31.08.2026, siehe
-// lib/heroSummary.ts fuer die 4-Zustands-Pfeil-Logik): eine Zeile je Sparte
-// mit ihrem eigenen, bereits vorhandenen Wert -- kein neuer Blend-Score,
-// nur die Zusammenstellung. Reine Praesentationskomponente, die fertigen
-// Text/Pfeil-Zustand entgegennimmt statt selbst etwas zu berechnen.
+// Statuszeilen (4-Zustands-Pfeil-Logik siehe lib/heroSummary.ts): eine Zeile
+// je Sparte mit ihrem eigenen, bereits vorhandenen Wert -- kein neuer
+// Blend-Score. Reine Praesentationskomponente.
 
 export interface StatusLineItem {
   key: string;

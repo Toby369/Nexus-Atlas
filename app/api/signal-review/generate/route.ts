@@ -7,7 +7,7 @@ import type { SignalReviewResult } from "@/lib/types";
 
 // POST /api/signal-review/generate
 //
-// Periodischer KI-Rueckblick, Phase 3 (10.09.2026) -- liest ausschliesslich
+// Periodischer KI-Rueckblick -- liest ausschliesslich
 // die in Phase 2 (compute_signal_stats(), signal_stats_results) fertig
 // berechneten Zahlen und schreibt eine verstaendliche deutsche Einordnung
 // (lib/signalReviewContext.ts + lib/ai/promptProfiles.ts "signal-review").

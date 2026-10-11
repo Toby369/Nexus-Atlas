@@ -142,3 +142,64 @@ Aufruf aus `HeroHeader.tsx` entfernt. Kein Datenverlust — dieselbe 4h-Struktur
    `OiChangeCard.tsx`), Liquidations-/Hebelkarte (Modell-Schätzung) und Liquidationen (echte
    Events) nebeneinander gestellt statt weit auseinander — kein Merge (unterschiedliche
    Datengrundlage), aber leichter vergleichbar.
+
+## 8. Aufräumrunde ab 11.10.2026 — Zielvereinbarung
+
+Festgelegt mit Toby am 11.10.2026 (Abstimmung per Fragebogen, Grundlage: dieses Dokument,
+`IDEEN-BACKLOG.md` und Nutzungszahlen der letzten 30 Tage aus Supabase).
+
+**Hauptziel: schneller Überblick.** Beim Öffnen von Nexus soll in ~10 Sekunden klar sein, wie
+der Markt steht. Die Leitprinzipien aus Abschnitt 0 gelten weiter.
+
+**Datenverlust-Prinzip, gelockert:** Ungenutzte Funktionen dürfen entfallen, solange die Daten
+in der DB bleiben und der Code über Git zurückholbar ist — **aber jede Entfernung wird vorher
+explizit aufgelistet und mit Toby besprochen.** Keine stillen Löschungen, keine DB-Drops ohne
+eigene Freigabe.
+
+**Kaum genutzte KI-Kacheln: zusammenlegen statt löschen.** Nutzung 11.09.–11.10.2026
+(generierte Läufe): Freie Anfrage 1, YouTube-Gesamtanalyse 2, Eskalation 3, Trade-Debate 4,
+News-Einordnung 5 — gegenüber System-Briefing 36 und AI Reports 218. Checklisten (Lernen):
+noch nie genutzt.
+
+**Backlog-Punkte in dieser Runde:** OI/Preis-Quadrant (doppelte Berechnung auflösen),
+Überzeugungsgrad-Labels je Kachel eindeutig benennen, MTF-Divergenz-Warnung (Gesamteinschätzung
+vs. MTF-Ampel).
+
+### Phasen
+
+| Phase | Inhalt | Status |
+|---|---|---|
+| 0 | Gemeinsame Navigation, toter Code, Lint/Tests, Doku | ✅ erledigt (11.10.2026) |
+| 1 | Ziel festlegen (dieser Abschnitt) | ✅ erledigt (11.10.2026) |
+| 2 | KI-Kacheln zusammenlegen, OI/Preis-Quadrant auflösen — nach Besprechung der Entfernungsliste | Zusammenlegungen ✅ (11.10.2026); Quadrant ✅: Anzeige nur noch in Marktkontext, DB-Spalte bleibt für Forschung (`OI-PREIS-QUADRANT-VERGLEICH_2026-10-11.md`) |
+| 3 | Oberen Bereich verdichten (Gesamteinschätzung/Setup-Score/Regime-Score), Überzeugungsgrad-Labels, MTF-Divergenz-Warnung | ✅ erledigt (11.10.2026): "Lagebild" in `HeroHeader.tsx`, Logik in `lib/lagebild.ts` |
+| 4 | Lernen-Seite entschlacken (Checklisten, Module) | zurückgestellt (Checklisten bleiben, Entscheid 11.10.2026) |
+| 5 | Code verschlanken: datierte Verlaufs-Kommentare raus (Historie steht in Git), HeroHeader/LernenDashboard zerlegen — ohne Verhaltensänderung | ✅ erledigt (11.10.2026): ~950 Kommentarzeilen weniger; `LernenDashboard` → `components/lernen/*`, Faktor-Texte → `lib/marketStateFactors.ts` |
+| 6 | Abschluss: dieses Dokument + Backlog aktualisieren, PR | ✅ erledigt (11.10.2026): alle Phasen eingetragen, PR geöffnet |
+
+Jede Phase = eigener Commit, vor jedem Push `tsc`, `eslint`, `npm test`, `next build`.
+
+### Entscheidungen zur Entfernungs-/Zusammenlegungsliste (11.10.2026)
+
+**Zusammenlegen (freigegeben, keine Funktion fällt weg):**
+- Eskalation + Trade-Debate → eine Kachel "Zweitmeinungen" mit beiden Auslösern.
+- Freie Anfrage → Eingabefeld "Rückfrage stellen" im System-Briefing statt eigener Kachel.
+- Reiter 4 → 3: "KI-Einschätzungen" und "Tools & Lernen" werden zu einem Reiter "KI & Tools".
+- YouTube-Monitor kompakter: Gesamtanalyse oben, Videoliste standardmäßig eingeklappt.
+
+**Entfernen (freigegeben):**
+- Datierte Verlaufs-Kommentare im Code (~380 Stellen, "Nutzer-Wunsch TT.MM.2026: …"). Die
+  Historie steht im Git-Log; Kommentare, die das *Warum* einer Entscheidung erklären, bleiben.
+
+**Nicht freigegeben — bleibt vorerst:**
+- Checklisten auf der Lernen-Seite (trotz 0 Nutzungen).
+- DB-Funktion `get_anchored_summary`.
+
+**Erst prüfen, dann entscheiden:**
+- OI/Preis-Quadrant: beide Formeln und Live-Werte vergleichen, Empfehlung mit Begründung
+  vorlegen — Toby entscheidet, welche Berechnung bleibt.
+- Oberer Bereich (Gesamteinschätzung/Setup-Score/Regime-Score): zuerst ein klickbarer Entwurf
+  mit echten Daten, Umsetzung erst nach Toby-Feedback.
+
+Damit entfällt Phase 4 (Lernen-Seite) für diese Runde; Phase 5 beschränkt sich auf
+Verlaufs-Kommentare und das Zerlegen grosser Komponenten ohne Verhaltensänderung.

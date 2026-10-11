@@ -96,11 +96,8 @@ export function DaysUntil({
 }
 
 // Feingranularer Countdown in Std/Min (z.B. "in 1Std 15Min") -- anders als
-// formatDaysUntil() oben (Tages-Granularitaet, fuer Kalendertermine wie den
-// Wirtschaftskalender) braucht die Head-Kachel (Nutzer-Wunsch 03.10.2026,
-// "aktuellste bevorstehende daten sollen in head kachel erscheinen")
-// Stunden/Minuten-Genauigkeit, da der 60-/15-Minuten-Vorwarnbereich sonst
-// nicht sichtbar waere.
+// formatDaysUntil() oben (Tages-Granularitaet) fuer den Wirtschaftstermin im
+// Lagebild, wo der 60-/15-Minuten-Vorwarnbereich sichtbar sein muss.
 export function formatCountdown(targetMs: number, nowMs: number): string {
   const diffMs = targetMs - nowMs;
   if (diffMs <= 0) return "jetzt";

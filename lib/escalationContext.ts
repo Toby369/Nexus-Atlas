@@ -1,24 +1,14 @@
-// Trigger-Erkennung + Kontext-Builder fuer die Eskalations-Kachel (Thema
-// KI, "gezielte Eskalation" statt einer dauerhaften 2-4-fach-Kachel,
-// 05.09.2026): mehrere unabhaengige AI-Provider bekommen unabhaengig
-// voneinander dieselbe rohe Gesamteinschaetzung (14-Faktoren-Engine) zur
-// Beurteilung -- aber NUR, wenn Nexus intern bereits eine Divergenz/einen
-// Widerspruch erkannt hat (System-Briefing-Inkonsistenz, Divergenz-Radar-
-// Paar, Report-Master-Konflikt). Ohne aktiven Trigger keine Mehrfach-
-// Anfrage -- dieselbe Kosten-Zurueckhaltung wie bei den anderen KI-
-// Kacheln, nur eine Stufe davor: hier wird bereits die Entscheidung "lohnt
-// sich ueberhaupt eine zweite Meinung" kostenlos (reine DB-Reads)
-// getroffen.
+// Trigger-Erkennung + Kontext-Builder fuer die Eskalation ("gezielte
+// Eskalation" statt einer dauerhaften Mehrfach-Kachel): mehrere unabhaengige
+// AI-Provider beurteilen dieselbe rohe Gesamteinschaetzung (14-Faktoren-
+// Engine) -- aber NUR, wenn Nexus intern bereits einen Widerspruch erkannt
+// hat (System-Briefing-Konfluenz-Check, Divergenz-Radar-Paar,
+// Report-Master-Konflikt). Die Entscheidung "lohnt sich eine zweite
+// Meinung" faellt kostenlos (reine DB-Reads).
 //
-// 02.10.2026 -- der erste Trigger las zuvor einen separaten
-// signal_engine_snapshots-Eintrag (eigene "Signal-Engine"-Kachel, seither
-// entfernt, siehe lib/signalEngineContext.ts). Liest jetzt stattdessen den
-// kontextCheck-Abschnitt des aktuellen System-Briefing-Snapshots -- dort
-// ist der Konsistenz-Check (plus alle anderen Kontext-Widersprueche)
-// seither Teil derselben Synthese. Zuverlaessiger als vorher: System-
-// Briefing wird per Auto-Refresh regelmaessig neu generiert, die alte
-// Signal-Engine-Kachel wurde laut Audit 13 Tage lang nicht manuell
-// ausgeloest.
+// Der erste Trigger liest den Konfluenz-Check des aktuellen System-Briefing-
+// Snapshots (enthaelt den Konsistenz-Check der frueheren Signal Engine) --
+// das Briefing wird per Auto-Refresh regelmaessig neu generiert.
 //
 // Server-only (nutzt Supabase direkt) -- niemals aus einer "use client"
 // Komponente importieren.

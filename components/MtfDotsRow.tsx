@@ -2,14 +2,10 @@
 
 import { MTF_DOT_COLOR_CLASSES, type MtfTimeframeDot } from "@/lib/mtfSignal";
 
-// MTF-Ampel (22.09.2026): kompakte Badge-Zeile fuer 15M/1H/4H/1D/1W-
-// Trendrichtung -- Mischung aus zwei mit Toby abgestimmten Mockup-Varianten
-// ("A": Zeitrahmen-Labels direkt sichtbar statt nur Hover-Tooltip, "C": kein
-// neuer Kachel-Platz, Badge sitzt im bestehenden Header). Jeder Punkt traegt
-// zusaetzlich ein natives title-Attribut mit der vollen Begruendung (ADX-
-// Wert etc.). Gemeinsame Komponente statt Kopie pro Kachel (Nutzer-Wunsch
-// 22.09.2026: "auf alle Kacheln anwenden") -- so wirkt ein Layout-/Kontrast-
-// Fix (siehe Labelgroesse/-farbe) ueberall gleichzeitig.
+// MTF-Ampel: kompakte Badge-Zeile fuer die 15M/1H/4H/1D/1W-Trendrichtung,
+// Zeitrahmen-Labels direkt sichtbar. Jeder Punkt traegt ein natives
+// title-Attribut mit der vollen Begruendung (ADX-Wert etc.). Eine gemeinsame
+// Komponente fuer alle Kacheln, damit Layout-/Kontrast-Fixes ueberall wirken.
 export default function MtfDotsRow({ dots }: { dots: MtfTimeframeDot[] }) {
   return (
     <div className="flex items-center gap-2">

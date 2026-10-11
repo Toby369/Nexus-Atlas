@@ -182,16 +182,10 @@ function SlotCard({
     setRunning(true);
     setRunError(null);
     try {
-      // Bugfix 14.09.2026 (Nutzer-Report: "news/makro laeuft nicht, auch
-      // wenn ich manuell auf groq setze"): /api/reports/run liest
-      // provider/model/etc. IMMER frisch aus report_configs, nicht aus
-      // diesem Formular -- eine geaenderte Auswahl ohne vorheriges
-      // "Speichern" wurde bisher stillschweigend ignoriert und der Lauf
-      // startete mit dem alten, gespeicherten Provider. "Jetzt ausfuehren"
-      // speichert daher jetzt zuerst automatisch, falls noch ungespeicherte
-      // Aenderungen vorliegen -- was sichtbar eingestellt ist, ist auch das,
-      // was laeuft. Betrifft alle 4 Slots gleichermassen (gemeinsame
-      // Komponente).
+      // /api/reports/run liest provider/model/etc. IMMER aus report_configs,
+      // nicht aus diesem Formular. "Jetzt ausfuehren" speichert deshalb
+      // zuerst ungespeicherte Aenderungen -- was sichtbar eingestellt ist,
+      // laeuft auch.
       let currentConfig = config;
       if (dirty) {
         const saveRes = await fetch("/api/reports/config", {
@@ -253,16 +247,10 @@ function SlotCard({
           <select
             value={provider}
             onChange={(e) => {
-              // Bugfix 14.09.2026 (Nutzer-Frage: "muss ich dann auch das
-              // Modell wechseln? sollte automatisch eingefuegt werden"):
-              // das Modell-Feld ist providerspezifisch (z.B. Slot 2s
-              // "nvidia/nemotron-3-super-120b-a12b:free" ist ein reiner
-              // OpenRouter-String) und wurde bisher beim Providerwechsel
-              // NICHT geleert -- ein stehen gebliebener, fuer den neuen
-              // Provider unbekannter Modellname haette den Lauf zum
-              // Scheitern gebracht. Leeres Feld = Provider-Default (siehe
-              // Platzhaltertext unten), daher hier automatisch zuruecksetzen
-              // statt den Nutzer den Namen manuell loeschen zu lassen.
+              // Das Modell-Feld ist providerspezifisch (z.B. ein reiner
+              // OpenRouter-String); ein stehen gebliebener Name wuerde beim
+              // neuen Provider scheitern. Leeres Feld = Provider-Default,
+              // daher beim Providerwechsel automatisch zuruecksetzen.
               setProvider(e.target.value);
               setModel("");
             }}
@@ -425,7 +413,7 @@ function LastRunView({ lastRun }: { lastRun: ReportRun | null }) {
           {bias && (
             <p className="text-sm text-text">
               Bias: <span className="font-medium">{bias}</span>
-              {confidence !== undefined && ` · Überzeugungsgrad ${confidence}`}
+              {confidence !== undefined && ` · Report-Überzeugungsgrad ${confidence}`}
             </p>
           )}
           {summary && <p className="text-xs text-text-muted">{summary}</p>}

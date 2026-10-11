@@ -19,7 +19,7 @@ const CONSENSUS_LOOKBACK = 40;
 
 // POST /api/youtube-monitor/generate
 //
-// Krypto-YouTube-Monitor (Thema KI, 05.09.2026) -- sucht neue BTC/Krypto-
+// Krypto-YouTube-Monitor -- sucht neue BTC/Krypto-
 // relevante YouTube-Videos (YouTube Data API v3, kostenloses Tages-
 // kontingent) und analysiert die noch nicht gesehenen per Gemini direkt per
 // Video-URL (Google-Free-Tier). Bewusst nur ueber POST -- das Lesen der
@@ -31,11 +31,9 @@ const CONSENSUS_LOOKBACK = 40;
 // Auth: proxy.ts sperrt diese Route wie jede andere /api/*-Route hinter
 // eine Login-Session -- keine eigene Pruefung noetig.
 
-// Bis zu MAX_NEW_VIDEOS_PER_RUN sequentielle Gemini-Video-Analysen (siehe
-// lib/youtubeMonitorContext.ts, keine Parallelisierung wegen Free-Tier-
-// Minutenlimit) koennen laenger als Vercels unkonfigurierten Default
-// dauern -- 60s ist das Maximum, das der Hobby-Plan erlaubt (08.09.2026,
-// im Rahmen des taeglichen youtube-monitor-scheduler-Crons ergaenzt).
+// Bis zu MAX_NEW_VIDEOS_PER_RUN sequentielle Gemini-Video-Analysen (keine
+// Parallelisierung wegen Free-Tier-Minutenlimit) koennen laenger als Vercels
+// Default dauern -- 60s ist das Maximum des Hobby-Plans.
 export const maxDuration = 60;
 
 const RATE_LIMIT_WINDOW_MINUTES = 30;
@@ -92,11 +90,10 @@ export async function POST() {
 
   const toAnalyze = candidates.slice(0, MAX_NEW_VIDEOS_PER_RUN);
   const inserted: YoutubeVideoAnalysis[] = [];
-  // Upsert statt Insert (Konflikt auf video_id, siehe UNIQUE-Constraint):
-  // filterUnseenVideos laesst fehlgeschlagene Videos jetzt bewusst erneut
-  // zu (Bugfix 16.09.2026) -- ein reines insert() wuerde bei so einem Retry
-  // an der UNIQUE-Constraint scheitern und die alte Fehler-Zeile stehen
-  // lassen, statt sie durch den neuen Versuch zu ersetzen.
+  // Upsert statt Insert (Konflikt auf video_id): filterUnseenVideos laesst
+  // fehlgeschlagene Videos bewusst erneut zu -- ein insert() wuerde beim
+  // Retry an der UNIQUE-Constraint scheitern, statt die alte Fehler-Zeile zu
+  // ersetzen.
   let quotaExhausted = false;
 
   for (const candidate of toAnalyze) {
@@ -139,8 +136,7 @@ export async function POST() {
       if (isQuotaError) quotaExhausted = true;
       // Kontingent-Fehler bekommen eine kurze, verstaendliche Meldung statt
       // des vollen technischen Fehlertexts (Google-Fehler-JSON inkl. Doku-
-      // Links) -- der wird sonst 1:1 im Dashboard angezeigt (Nutzer-Meldung
-      // 16.09.2026, Screenshot zeigte den Rohtext).
+      // Links), der sonst 1:1 im Dashboard stuende.
       const message = isQuotaError
         ? "Gemini-Tageskontingent erreicht -- wird beim naechsten Lauf automatisch erneut versucht."
         : err instanceof Error
@@ -165,11 +161,9 @@ export async function POST() {
   }
 
   // Kanal-Vergleich ueber die juengsten Analysen (nicht nur den aktuellen
-  // Batch) -- derselbe Grund wie in app/page.tsx: nur so ist jeder
-  // konfigurierte Kanal vertreten, auch wenn er in diesem Lauf keine neue
-  // Analyse geliefert hat. 08.09.2026, Nutzer-Wunsch: taeglicher
-  // automatischer Check soll eine Push-Nachricht mit dieser Einschaetzung
-  // ausloesen koennen (siehe youtube-monitor-scheduler Edge Function).
+  // Batch) -- wie in app/page.tsx: nur so ist jeder konfigurierte Kanal
+  // vertreten. Der taegliche automatische Check (youtube-monitor-scheduler)
+  // kann damit eine Push-Nachricht mit dieser Einschaetzung ausloesen.
   const { data: recentAnalyses } = await supabaseAdmin
     .from("youtube_video_analyses")
     .select("*")

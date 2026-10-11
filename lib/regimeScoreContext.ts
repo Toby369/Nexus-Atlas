@@ -1,11 +1,12 @@
-// Datenbeschaffung fuer die Gesamteinschaetzung-Score-Kachel (12.09.2026) --
+// Datenbeschaffung fuer den Regime-Score (Protokollname
+// "Gesamteinschaetzung-Score") --
 // reines Lesen, kein Schreiben, keine AI. Ruft research_regime_score_live()
 // auf, siehe docs/research/GESAMTEINSCHAETZUNG-SCORE-PROTOCOL_2026-09-12.md
 // und docs/research/GESAMTEINSCHAETZUNG-SCORE-PHASE1-RESULTS_2026-09-12.md.
 //
 // WICHTIG -- anders als der Setup-Score (research_confluenceScoreContext.ts)
-// ist dies noch KEIN vollstaendig validierter Ebene-1-Score: erst 34 von 52
-// vorregistrierten Kandidatensignalen getestet (siehe NEXUS-STRUKTUR-KONZEPT
+// ist dies noch KEIN vollstaendig validierter Ebene-1-Score: noch nicht alle
+// vorregistrierten Kandidatensignale getestet (siehe NEXUS-STRUKTUR-KONZEPT
 // Abschnitt 5). Die Kachel macht das explizit sichtbar, statt einen fertigen
 // Eindruck vorzutaeuschen.
 //
@@ -74,8 +75,7 @@ export async function buildRegimeScore(): Promise<RegimeScoreResult> {
   };
 }
 
-// Ebene 2 ("Signale im Detail", Nutzer-Wunsch 14.09.2026, analog zur
-// gleichnamigen Sektion beim Setup-Score/ConfluenceScoreCard) -- zeigt pro
+// Ebene 2 ("Signale im Detail", analog zur gleichnamigen Sektion beim Setup-Score/ConfluenceScoreCard) -- zeigt pro
 // Einzelsignal, ob es den vorregistrierten BH-FDR-Test besteht (fliesst in
 // den Regime-Score ein -- direkt oder als Teil des Trend-Konsens-
 // Konsenszaehlers) oder nicht (sichtbar, aber nicht stimmberechtigt). Ruft

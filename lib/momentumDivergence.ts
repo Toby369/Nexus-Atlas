@@ -1,6 +1,6 @@
 import type { MarketState } from "./types";
 
-// Momentum-Divergenz-Warnhinweis (Prototyp, 19.09.2026) -- reine
+// Momentum-Divergenz-Warnhinweis (Prototyp) -- reine
 // Anzeige-Ableitung aus bereits vorhandenen state.factors-Rohwerten, KEINE
 // Aenderung an compute-market-state/Score/Threshold/overall_state selbst.
 //

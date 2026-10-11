@@ -1,5 +1,4 @@
-// Datenbeschaffung fuer die Liquidations-/Hebelkarte (Umsetzungsplan
-// Phase 4, 05.09.2026) -- reine Lesefunktion, keine AI, kein Schreiben.
+// Datenbeschaffung fuer die Liquidations-/Hebelkarte -- reine Lesefunktion, keine AI, kein Schreiben.
 // Nutzt ausschliesslich bereits vorhandene Tabellen: candles (OHLCV +
 // taker_buy_base_vol) und market_features.oi_current (Open Interest je
 // Stunden-Kerze, von compute-market-state ohnehin schon fuer den

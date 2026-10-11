@@ -11,11 +11,9 @@ import type {
 } from "@/lib/divergenceRadar";
 import PanelInfo from "@/components/PanelInfo";
 
-// Divergenz-Radar (05.09.2026) -- Antwort auf die Recherche "bei welchen
-// Paaren koennen Divergenzen entstehen": buendelt die technisch
-// umsetzbaren Luecken aus dieser Recherche an einer Stelle, statt sie auf
-// sechs verschiedene Kacheln zu verteilen. Reiner Server-Component-Render,
-// Berechnung passiert bereits in lib/divergenceRadarContext.ts.
+// Divergenz-Radar: buendelt die technisch umsetzbaren Divergenz-Paare an
+// einer Stelle statt verteilt auf viele Kacheln. Reiner Server-Component-
+// Render, die Berechnung passiert in lib/divergenceRadarContext.ts.
 
 const INFO_TEXT = [
   "Was das ist: vergleicht Paare bereits vorhandener, unabhaengiger Nexus-Kennzahlen direkt gegeneinander -- Uebereinstimmung staerkt eine Aussage, Divergenz ist informativ (siehe \"Engine Divergence\" zwischen Gesamteinschaetzung und Marktphase als aeltestes Beispiel dieses Prinzips).",
@@ -34,14 +32,11 @@ const STATUS_LABELS: Record<DivergenceStatus, string> = {
   NOT_COMPARABLE: "Nicht vergleichbar",
 };
 
-// 13.09.2026 -- bewusst NICHT mehr up/down (gruen/rot): AGREEMENT/DIVERGENCE
-// sagt nur, ob zwei Kennzahlen sich einig sind, nicht ob diese Einigkeit
-// bullisch oder baerisch ist (eine Uebereinstimmung zweier baerischer
-// Signale sah bisher trotzdem gruen aus). Nexus-weite Konvention
-// gruen=bullisch/rot=baerisch/grau=keine Daten gilt nur fuer Zeilen mit
-// echter Richtung (siehe SPOT_VS_PRICE_STYLES/SPOT_VS_ORDERBOOK_STYLES
-// unten). Hier: grau = unauffaellig/Konsens, accent (gold) = Divergenz,
-// also der eigentlich bemerkenswerte Zustand.
+// Bewusst NICHT up/down (gruen/rot): AGREEMENT/DIVERGENCE sagt nur, ob zwei
+// Kennzahlen sich einig sind, nicht in welche Richtung. Die Konvention
+// gruen=bullisch/rot=baerisch gilt nur fuer Zeilen mit echter Richtung
+// (SPOT_VS_PRICE_STYLES/SPOT_VS_ORDERBOOK_STYLES unten). Hier: grau =
+// Konsens, accent (gold) = Divergenz, der eigentlich bemerkenswerte Zustand.
 const STATUS_STYLES: Record<DivergenceStatus, string> = {
   AGREEMENT: "border-border text-text-muted",
   DIVERGENCE: "border-accent/40 bg-accent/10 text-accent",

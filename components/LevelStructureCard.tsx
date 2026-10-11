@@ -4,13 +4,11 @@ import type { LevelStructureZone } from "@/lib/levelStructureContext";
 import PanelInfo from "@/components/PanelInfo";
 import { levelStructureInfo } from "@/lib/panelInfo";
 
-// Level-Struktur-Kachel (Nutzer-Wunsch 03.10.2026, siehe lib/
-// levelStructureContext.ts fuer die Herleitung und Kommentare). Zeigt je
-// Zone genau das Narrativ, das Toby manuell am Mai-Pivot nachvollzogen hat:
-// "haelt die Zone noch (keine hoeheren Hochs/tieferen Tiefs dagegen)" oder
-// "gebrochen, seitdem keine Gegenbewegung mehr" -- inkl. ehrlicher
-// Gegentests (wie dem 28.9.-Dip), Konfluenz-Stufe (Key-Level +EMA50/
-// +Swing-VWAP) und dem Abgleich mit anderen aktuellen Nexus-Signalen.
+// Level-Struktur (Herleitung siehe lib/levelStructureContext.ts): zeigt je
+// Zone, ob sie noch haelt (keine hoeheren Hochs/tieferen Tiefs dagegen) oder
+// gebrochen ist und seitdem keine Gegenbewegung kam -- inkl. Gegentests,
+// Konfluenz-Stufe (Key-Level +EMA50/+Swing-VWAP) und Abgleich mit anderen
+// aktuellen Nexus-Signalen.
 
 function formatPrice(value: number): string {
   return `$${value.toLocaleString("de-CH", { maximumFractionDigits: 0 })}`;

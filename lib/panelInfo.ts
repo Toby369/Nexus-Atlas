@@ -50,23 +50,14 @@ export function spotPressureInfo(tfLabel: string): string {
 So entsteht der Wert: Datenbasis ist ausschliesslich Binance Spot BTC/USDT im 5-Minuten-Takt über ${tfLabel} – die einzige öffentliche Route mit echtem Taker-Buy/Sell-Split, keine Schätzung. Berechnet wird (Taker-Kaufvolumen − Taker-Verkaufsvolumen) / Gesamtvolumen über alle Kerzen im Fenster; ab ±5 % gilt BUYING bzw. SELLING PRESSURE, sonst NEUTRAL.`;
 }
 
-// Spot-Volumen-Profil (02.10.2026, Nutzer-Wunsch: "spot Volumen möchte ich
-// bei spot pressure angezeigt haben") -- nutzt dieselbe get_spot_volume_
-// profile-RPC wie die Key Levels in der Struktur-Kachel (lib/
-// chartStructureContext.ts), hier aber als eigene Grafik statt nur als
-// Bestaetigungs-Tag an einzelnen Levels. Anders als der Chart direkt
-// darueber (zeitlicher Verlauf, WANN gekauft/verkauft wurde) zeigt dieses
-// Profil, BEI WELCHEM PREIS gekauft/verkauft wurde.
+// Spot-Volumen-Profil -- nutzt dieselbe get_spot_volume_profile-RPC wie die
+// Key Levels in der Struktur-Kachel, hier als eigene Grafik. Anders als der
+// Chart darueber (WANN gekauft/verkauft wurde) zeigt es, BEI WELCHEM PREIS.
 export function spotVolumeProfileInfo(tfLabel: string): string {
   return `So liest du das: Je Preis-Bucket ($200-Schritte) ein grüner Balken nach rechts (Kaufvolumen) und ein roter Balken nach links (Verkaufsvolumen) -- gespiegelt an der Nulllinie, wie ein klassisches Volume Profile. Ein Bucket mit deutlich mehr Kauf- als Verkaufsvolumen ist ein Hinweis auf eine mögliche Unterstützung (dort wurde bereits aktiv gekauft), deutlich mehr Verkaufsvolumen auf einen möglichen Widerstand (dort wurde bereits aktiv verkauft) -- eine Beobachtungshilfe, kein geprüftes/validiertes Signal und keine Anlageberatung.
 
-So entsteht der Wert: Binance Spot BTC/USDT Aggregated-Trades (echte Taker-Buy/Sell-Klassifikation, keine Schätzung), lückenlos per Cursor erfasst (alle 5 Minuten) und direkt beim Erfassen in $200-Preis-Buckets aggregiert. Zeitraum: derselbe ${tfLabel}, der oben im Dashboard gewählt ist. Dieselben Preis-Buckets fliessen auch als Bestätigung in die Key Levels der Struktur-Kachel ein (Tab "Tools & Lernen" → Lernen → Mein System).`;
+So entsteht der Wert: Binance Spot BTC/USDT Aggregated-Trades (echte Taker-Buy/Sell-Klassifikation, keine Schätzung), lückenlos per Cursor erfasst (alle 5 Minuten) und direkt beim Erfassen in $200-Preis-Buckets aggregiert. Zeitraum: derselbe ${tfLabel}, der oben im Dashboard gewählt ist. Dieselben Preis-Buckets fliessen auch als Bestätigung in die Key Levels der Struktur-Kachel ein (Seite "Lernen" → Mein System).`;
 }
-
-// positioningRatiosInfo/takerFlowInfo/positioningAssessmentInfo (PanelInfo-
-// Texte der ehemaligen "Positionierung"-Kachel) entfernt 21.09.2026 mit
-// components/PositioningPanel.tsx -- der zugrundeliegende Faktor bleibt Teil
-// der 14-Faktoren-Engine und wird weiterhin in HeroHeader gezeigt.
 
 export const liquidationsInfo = `Unterschied zur Liquidations-/Hebelkarte: hier stehen tatsächlich bereits PASSIERTE Liquidations-Events (Echtzeit-Stream von Binance/Bybit) — dort werden PROJIZIERTE Levels aus der Open-Interest-Historie geschätzt, wo es als Nächstes passieren könnte. Zwei unterschiedliche Fragen ("was ist geschehen" vs. "wo könnte es als Nächstes knallen"), keine doppelte Darstellung derselben Daten.
 
@@ -111,7 +102,7 @@ So entsteht der Wert: RSI>55 UND MACD-Histogramm>0 → bullisch; RSI<45 UND MACD
 
 So entsteht der Wert: Direkt aus dem CVD-Trend (steigend/fallend/neutral), alle 15 Minuten aktualisiert.`,
 
-  oi_price: `So liest du das: Nur bei spürbarer OI-Bewegung (über 0,3%) überhaupt eine Aussage – die Richtung kommt dann vom Preis relativ zum 20er-EMA, nicht vom OI-Vorzeichen allein (steigendes wie fallendes OI können je nach Kontext beides bedeuten). Die feinere 4-Felder-Version derselben Idee steht als OI/Preis-Quadrant in der Marktphase-Kachel.
+  oi_price: `So liest du das: Nur bei spürbarer OI-Bewegung (über 0,3%) überhaupt eine Aussage – die Richtung kommt dann vom Preis relativ zum 20er-EMA, nicht vom OI-Vorzeichen allein (steigendes wie fallendes OI können je nach Kontext beides bedeuten). Die feinere 4-Felder-Version derselben Idee (Long-/Short-Aufbau, Short-Covering, Long-Abbau) zeigt die Marktkontext-Kachel.
 
 So entsteht der Wert: |OI-Δ| > 0,3% → (Preis>EMA20 ? bullisch : bärisch), sonst neutral; alle 15 Minuten aktualisiert.`,
 
@@ -217,17 +208,13 @@ So entsteht der Wert: Z-Score der Funding-Rate relativ zu ihrer eigenen jüngere
 
 So entsteht der Wert: Z-Score des CVD relativ zu seiner eigenen jüngeren Historie, alle 15 Minuten neu berechnet.`,
 
-  priceChange: `So liest du das: Prozentuale Preisänderung der letzten 6 Stunden, direkt ablesbar. Wird zusammen mit OI-Δ (6h) daneben zum OI/Preis-Quadranten kombiniert – für sich allein nur die halbe Information.
+  priceChange: `So liest du das: Prozentuale Preisänderung der letzten 6 Stunden, direkt ablesbar. Für sich allein nur die halbe Information – die Kombination mit der OI-Änderung zeigt die Marktkontext-Kachel.
 
 So entsteht der Wert: (aktueller Preis − Preis vor 6h) / Preis vor 6h, alle 15 Minuten neu berechnet.`,
 
-  oiChange: `So liest du das: Prozentuale Open-Interest-Änderung der letzten 6 Stunden. Bewusst ohne eigenes Richtungs-Badge – steigendes wie fallendes OI können beide bullisch oder bärisch sein, je nachdem ob gleichzeitig long oder short aufgebaut wird. Erst zusammen mit Preis-Δ (siehe OI/Preis-Quadrant darunter) aussagekräftig.
+  oiChange: `So liest du das: Prozentuale Open-Interest-Änderung der letzten 6 Stunden. Bewusst ohne eigenes Richtungs-Badge – steigendes wie fallendes OI können beide bullisch oder bärisch sein, je nachdem ob gleichzeitig long oder short aufgebaut wird. Erst zusammen mit Preis-Δ aussagekräftig – diese Kombination zeigt die Marktkontext-Kachel.
 
 So entsteht der Wert: (aktuelles OI − OI vor 6h) / OI vor 6h, alle 15 Minuten neu berechnet.`,
-
-  oiPriceQuadrant: `So liest du das: Kombiniert Preis-Δ und OI-Δ zu einem von vier Zuständen: Long-Aufbau (Preis↑, OI↑), Short-Aufbau (Preis↓, OI↑), Short-Covering (Preis↑, OI↓), Long-Abbau (Preis↓, OI↓). Long-Aufbau/Short-Covering gelten als eher bullisch, Short-Aufbau/Long-Abbau als eher bärisch – der eigentliche Mehrwert gegenüber den beiden Einzelwerten daneben.
-
-So entsteht der Wert: Vorzeichen-Kombination aus Preis-Δ und OI-Δ (6h), alle 15 Minuten neu berechnet.`,
 
   liqClusterDensity: `So liest du das: Wie dicht geschätzte Liquidations-Level aktuell um den Preis herum liegen, standardisiert. Ein hoher Wert bedeutet viele mögliche Liquidations-Trigger in der Nähe – potenziell schnellere/heftigere Bewegungen bei Erreichen dieser Level, aber ohne eigene Richtung. Reine Magnitude/Fragilitäts-Kennzahl, kein Richtungs-Badge.
 
@@ -246,7 +233,7 @@ export const economicCalendarInfo = `So liest du das: Deckt gezielt die vier fü
 
 So entsteht der Wert: CPI/PCE/NFP-Termine kommen direkt von FRED (St. Louis Fed, fred/release/dates), der FOMC-Termin aus dem offiziell veröffentlichten Fed-Sitzungskalender – einmal täglich aktualisiert, Kalendertermine ändern sich selten und meist mit Vorlauf. Das Ergebnis selbst stammt aus denselben FRED-Zeitreihen, die auch der Makro-Collector pflegt (CPIAUCSL/PCEPI/PAYEMS, für FOMC die effektive Fed Funds Rate DFF) – kein separater Forecast-/Konsens-Datenanbieter angebunden, der Vergleich erfolgt daher gegen den letzten bekannten Wert, nicht gegen eine Analysten-Erwartung.`;
 
-export const institutionalPlaybookInfo = `So liest du das: Ein reiner Lese-Leitfaden, keine eigene Datenquelle – zeigt, wie die bereits vorhandenen Kacheln (Gesamteinschätzung, Spot Pressure, OI Change, Liquidationen, Marktphase) sinnvoll zusammen gelesen werden können. Die Signal-Matrix greift dieselbe Long-Aufbau/Short-Aufbau/Short-Covering/Long-Abbau-Einteilung wieder auf, die auch in der Marktphasen-Kachel als „OI-Preis-Quadrant“ erscheint.
+export const institutionalPlaybookInfo = `So liest du das: Ein reiner Lese-Leitfaden, keine eigene Datenquelle – zeigt, wie die bereits vorhandenen Kacheln (Gesamteinschätzung, Spot Pressure, OI Change, Liquidationen, Marktphase) sinnvoll zusammen gelesen werden können. Die Signal-Matrix greift dieselbe Long-Aufbau/Short-Aufbau/Short-Covering/Long-Abbau-Einteilung wieder auf, die auch die Marktkontext-Kachel verwendet.
 
 So entsteht der Wert: Statischer, fest hinterlegter Text – kein KI-Modell, keine Berechnung, keine Aktualisierung nötig. Die vier Markt-Muster und die Tages-Routine sind Interpretationshilfen zur Orientierung, kein Handelssignal und keine Anlageberatung.`;
 
@@ -265,15 +252,14 @@ export const cvdFootprintInfo = `So liest du das: Zeigt die tatsächliche Käufe
 
 So entsteht der Wert: Alle 1-Minuten-Kerzen innerhalb der letzten 48 Stunden werden ihrer jeweiligen 1H-Kerze zugeordnet und dort aufsummiert (2×Taker-Buy-Volumen − Gesamtvolumen je Minute – echte Binance-Aggressor-Daten, keine Schätzung). Divergenz-Check über Preis-Pivots mit Lookback 10 (wie Mo's Original-Skript). Bei jedem Seitenaufruf neu berechnet.`;
 
-// Momentum-Divergenz-Warnhinweis (Prototyp, 19.09.2026, siehe
-// lib/momentumDivergence.ts) -- reine Anzeige-Ableitung, keine neue
-// Berechnung/Query, keine Aenderung an compute-market-state.
+// Momentum-Divergenz-Warnhinweis (Prototyp, siehe lib/momentumDivergence.ts)
+// -- reine Anzeige-Ableitung, keine neue Berechnung/Query.
 export const momentumDivergenceInfo = `So liest du das: Erscheint, wenn die Gesamteinschätzung (Bullisch/Bärisch) von einem bereits etablierten Trend (ADX ≥ 25) getragen wird, das Momentum (MACD-Histogramm) diesem Trend aber inzwischen widerspricht – ein klassisches Warnzeichen für nachlassenden Schwung VOR einer möglichen Trendwende. Eine erste Rückblick-Auswertung (19.09.2026, Stand ~3,5 Wochen Historie) zeigte für Bullisch-Aufrufe: mit bestätigendem Momentum 58,8% Trefferquote (n=17) über 24h, bei widersprechendem Momentum dagegen 0 von 8 Treffern (Ø −2,8%). Das Muster ist durchgängig und mechanistisch plausibel, aber die Stichprobe ist noch klein – deshalb ausdrücklich nur ein Hinweis, keine bewiesene Regel und kein Handelssignal. Ändert nichts an der gespeicherten Gesamteinschätzung selbst.
 
 So entsteht der Wert: Rein clientseitig aus den ohnehin bereits geladenen 14-Faktoren-Rohwerten abgeleitet (ADX aus "Trend-Stärke", MACD-Histogramm aus "Momentum") – keine zusätzliche Datenbankabfrage, keine neue Berechnung in compute-market-state.`;
 
-// Struktur: Key Levels, AVWAP, Trendlinien, Muster (Nutzer-Idee 24.09.2026,
-// siehe lib/chartStructureContext.ts) -- reine Berechnung, kein KI-Aufruf.
+// Struktur: Key Levels, AVWAP, Trendlinien, Muster (siehe
+// lib/chartStructureContext.ts) -- reine Berechnung, kein KI-Aufruf.
 export const chartStructureInfo = `So liest du das: Sechs eigenständige, rein rechnerisch (keine KI) ermittelte Struktur-Bausteine, die meisten auf den letzten 300 1H-Kerzen – Key Levels bilden davon die Ausnahme (siehe unten, vier Zeitrahmen gleichzeitig).
 
 Kerzenmuster: klassische Umkehrformationen (Doji, Hammer/Hanging Man, Engulfing, Morning/Evening Star) nach Stefan Salomons Definitionen – ein Rückblick-Backtest fand dafür KEINE statistisch signifikante Edge (nach BH-FDR-Korrektur), rein informativ.

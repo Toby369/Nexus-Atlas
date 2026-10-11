@@ -16,12 +16,10 @@ const CASCADE_MIN_COUNT = 3;
 // Cluster-Breite) -- bewusst benannte Konstanten statt Magic Numbers.
 const VELOCITY_BUCKET_MINUTES = 15;
 const PRICE_CLUSTER_BUCKET_USD = 200;
-// Wie viele der von der RPC bereits nach Notional-Wert absteigend
-// sortierten Preis-Cluster (max. 5, siehe get_liquidation_intelligence)
-// angezeigt werden. Nutzer-Entscheidung 17.09.2026: immer die staerksten
-// Cluster zeigen statt nur den einen dominanten (vorher: CLUSTER_MIN_SHARE
-// = 0.3, ein Cluster wurde nur ab 30% Anteil ueberhaupt angezeigt -- das
-// blendete z.B. einen echten zweiten Cluster mit 11% Anteil komplett aus).
+// Wie viele der von der RPC nach Notional-Wert absteigend sortierten
+// Preis-Cluster (max. 5, siehe get_liquidation_intelligence) angezeigt
+// werden: immer die staerksten, nicht nur ein dominanter -- eine
+// Mindestanteil-Schwelle haette echte Neben-Cluster ausgeblendet.
 const TOP_CLUSTERS_COUNT = 4;
 
 function formatUsd(value: number) {

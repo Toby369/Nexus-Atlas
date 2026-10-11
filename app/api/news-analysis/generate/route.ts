@@ -7,11 +7,8 @@ import type { NewsAnalysisResult } from "@/lib/types";
 
 // POST /api/news-analysis/generate
 //
-// KI-Ergaenzung zum bestehenden regelbasierten News-Risk-Panel (05.09.2026)
-// -- Google als primaerem Provider, Fallback Groq (siehe tileConfig.ts,
-// "news"-Eintrag; Perplexity war nie konfiguriert und wurde 22.09.2026 aus
-// der Konfiguration entfernt statt es weiter als totes Provider-Relikt
-// stehen zu lassen).
+// KI-Ergaenzung zum regelbasierten News-Risk-Panel -- Google primaer,
+// Fallback Groq (siehe tileConfig.ts, "news"-Eintrag).
 // Bewusst nur ueber POST -- das Lesen der Kachel liest ausschliesslich den
 // zwischengespeicherten letzten Stand, nur ein expliziter Klick loest einen
 // bezahlten AI-Aufruf aus. Gleiches Prinzip wie /api/system-briefing/generate.

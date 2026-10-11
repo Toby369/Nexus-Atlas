@@ -1,6 +1,5 @@
-// Liquidations-/Hebelkarte (Umsetzungsplan Phase 4, 05.09.2026) -- portiert
-// aus shared/leverageMap.js + shared/liquidation.js im Crypto-Trading-
-// Journal (Toby's Freund). Modell, KEINE Messung: schaetzt aus der Open-
+// Liquidations-/Hebelkarte -- portiert aus shared/leverageMap.js +
+// shared/liquidation.js im Crypto-Trading-Journal. Modell, KEINE Messung: schaetzt aus der Open-
 // Interest-Historie, wo gehebelte Positionen liquidiert wuerden. Steigt das
 // offene Interesse in einer Periode, wurden dort Positionen eroeffnet; die
 // Kerze sagt zu welchem Preis, das Taker-Volumen in welche Richtung. Daraus
@@ -328,11 +327,9 @@ export function buildLeverageClusters(
   };
 }
 
-// --- Zonen-Buendelung (30.09.2026, Nutzer-Feedback "geschaetzte Liquidation
-// sollen gebuendelt angezeigt und ausgesprochen werden, bei antippen
-// aufgliederung") -- bisher zeigte die Kachel bis zu 8 Einzel-Level je Seite
-// (je eine nominale Hebelstufe), was bei eng beieinanderliegenden Stufen
-// unuebersichtlich wirkt. Bundled hier rein UI-seitig benachbarte Cluster
+// --- Zonen-Buendelung ----------------------------------------------------------
+// Bis zu 8 Einzel-Level je Seite (je eine nominale Hebelstufe) waeren bei eng
+// beieinanderliegenden Stufen unuebersichtlich. Buendelt rein UI-seitig benachbarte Cluster
 // derselben Seite zu einer Zone (Kette: jeder Cluster wird gegen den
 // UNMITTELBAR vorherigen verglichen, nicht gegen den Zonen-Mittelwert --
 // bewusst einfacher als die Pivot-Konfluenz in chartStructureContext.ts,

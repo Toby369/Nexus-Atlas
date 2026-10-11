@@ -92,6 +92,10 @@ unterschiedlich ausfallen, weil..."-Kennzeichnung wie bei den anderen
 beiden Faellen versehen werden, oder (c) ein Divergenz-Radar-Paar dafuer
 ergaenzt wird (gleiche Machart wie `computeSystemBriefingVsStateDivergence`).
 
+**Erledigt (11.10.2026):** Variante (a) fuer die Anzeige -- Quadrant-Zeile aus der
+Marktphase-Kachel entfernt, Marktkontext ist die einzige Anzeige; die DB-Spalte bleibt als
+Forschungs-Input. Siehe `OI-PREIS-QUADRANT-VERGLEICH_2026-10-11.md`.
+
 ## "Ueberzeugungsgrad"-Label fuer vier unabhaengige KI-Einschaetzungen
 
 **Datum:** 10.10.2026
@@ -109,6 +113,9 @@ Zahlen?"), nur unter neuem Namen statt "Confidence".
 disambiguieren (z.B. "System-Briefing-Ueberzeugungsgrad",
 "Master-Report-Ueberzeugungsgrad"), damit auf einen Blick klar ist, dass es
 vier getrennte Zahlen sind, keine vier Messungen derselben Sache.
+
+**Erledigt (11.10.2026):** Briefing-, Master-Report-, Report- und YouTube-Überzeugungsgrad
+je Kachel benannt (auch in der Report-E-Mail).
 
 ## MTF-Ampel ohne Divergenz-Check gegen die Gesamteinschaetzung
 
@@ -130,3 +137,7 @@ selbst noch KEINEN Abgleich gegen die Gesamteinschaetzung.
 Divergenz-Radar-Paar (oder eine Erweiterung von `computeEngineDivergence`)
 analog zu den bestehenden, das warnt, wenn `overall_state` stark
 gerichtet ist, aber die MTF-Ampel ueberwiegend widerspricht.
+
+**Erledigt (11.10.2026):** Warnung "Widerspruch zur MTF-Ampel" im Lagebild oben, sobald die
+Gesamteinschaetzung eine Richtung zeigt und mindestens 3 von 5 Zeitrahmen dagegen stehen
+(`lib/lagebild.ts::detectMtfStateConflict`, Schwelle `MTF_CONFLICT_MIN_OPPOSING`).

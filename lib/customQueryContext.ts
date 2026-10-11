@@ -1,6 +1,4 @@
-// Kontext-Builder fuer die Freie-Anfrage-Kachel (Nutzer-Wunsch 08.09.2026:
-// "kann ich eine Kachel haben, in der ich KI konkreter Auftrag geben
-// kann?"). Bewusst KEIN eigener, neuer Marktdaten-Ausschnitt -- nutzt exakt
+// Kontext-Builder fuer die Freie Anfrage. Bewusst KEIN eigener, neuer Marktdaten-Ausschnitt -- nutzt exakt
 // denselben strukturierten FullMarketContext wie die grosse Report-Engine
 // (lib/reportContext.ts), damit die freie Anfrage auf denselben validierten
 // Daten basiert statt einer zweiten, abweichenden Definition.

@@ -7,7 +7,7 @@
 // Exakte Pfade, die OHNE Session erreichbar bleiben muessen:
 // - /login: die Login-Seite selbst -- sonst Redirect-Schleife.
 // - /auth/confirm: serverseitiger Bestaetigungs-Endpoint fuer Einladungs-/
-//   Passwort-Reset-Mails (app/auth/confirm/route.ts, 01.09.2026) --
+//   Passwort-Reset-Mails (app/auth/confirm/route.ts) --
 //   verifiziert token_hash+type BEVOR ueberhaupt eine Session existiert;
 //   waere er hier nicht gelistet, wuerde proxy.ts den Aufruf samt Token
 //   sofort nach /login umleiten, ohne dass verifyOtp() je laeuft.
@@ -44,44 +44,23 @@ export function isPublicPath(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
-// Audit-Fund 05.09.2026: /api/reports/run ist zu Recht NICHT public (siehe
-// oben), aber report-scheduler (Supabase Edge Function, pg_cron alle 5 Min)
-// ruft genau diese Route als Server-zu-Server-fetch OHNE Nutzer-Session auf --
-// das Auth-Gate hat das seit Phase 4 (vollstaendiges Gate statt nur /reports)
-// ausnahmslos mit 401 abgelehnt, unbemerkt, weil report-scheduler den Fehler
-// nur in seiner eigenen (nirgends gelesenen) Response protokolliert statt ihn
-// sichtbar zu machen. report_runs hatte dadurch seit dem 27.08.2026 keine neue
-// Zeile mehr, obwohl alle 4 Report-Slots aktiv und terminiert sind.
+// Server-zu-Server-Aufrufe ohne Nutzer-Session (Supabase Edge Functions per
+// pg_cron) duerfen sich mit CRON_SECRET als Bearer-Token ausweisen:
+// - /api/reports/run: report-scheduler (alle 5 Min). Ohne diese Ausnahme
+//   lehnte das Gate die Laeufe unbemerkt mit 401 ab -- report_runs bekam
+//   wochenlang keine neue Zeile.
+// - /api/youtube-monitor/generate: youtube-monitor-scheduler (taeglicher
+//   Check + Push).
+// - /api/signal-review/generate: signal-review-scheduler (woechentlich,
+//   direkt nach compute_signal_stats()).
+// - /api/divergence-radar/snapshot: divergence-radar-scheduler (alle 15 Min,
+//   persistiert einen Radar-Snapshot).
 //
-// /api/youtube-monitor/generate ergaenzt (08.09.2026, Nutzer-Wunsch:
-// taeglich automatischer YouTube-Check 30 Min nach dem verlaesslichsten
-// Kanal-Post + Push-Benachrichtigung) -- dieselbe Begruendung, neue Edge
-// Function "youtube-monitor-scheduler" ruft die Route per pg_cron ohne
-// Nutzer-Session auf.
-//
-// Fund 09.09.2026 (Nutzer-Meldung "keine Push-Nachricht bekommen"): die
-// urspruengliche Loesung (SUPABASE_SERVICE_ROLE_KEY als Bearer-Token, "kein
-// neues Secret") hat in Produktion NIE zuverlaessig funktioniert -- Live-Test
-// gegen youtube-monitor-scheduler ergab weiterhin 401 "Nicht authentifiziert",
-// UND report_runs hatte trotz des angeblichen Fixes seit dem 27.08.2026 immer
-// noch keine neue Zeile. Ursache nicht abschliessend geklaert (moeglich:
-// process.env.SUPABASE_SERVICE_ROLE_KEY in proxy.ts driftet vom aktuellen,
-// automatisch von Supabase injizierten Wert der Edge Functions ab) --
-// unabhaengig davon ist das Wiederverwenden des Service-Role-Keys (voller
-// DB-Bypass) als HTTP-Bearer-Token ohnehin ein unnoetig hohes Risiko fuer
-// einen reinen Cron-Trigger. Ersetzt durch ein dediziertes, eng geschnittenes
-// CRON_SECRET -- eigener Wert, eigenes Vercel-Env-Var, eigenes Supabase-Edge-
-// Function-Secret, unabhaengig vom DB-Master-Key rotierbar.
-//
-// /api/signal-review/generate ergaenzt (Periodischer KI-Rueckblick Phase 3,
-// 10.09.2026): der neue signal-review-scheduler-Cron (woechentlich, direkt
-// nach compute_signal_stats()) ruft diese Route per Server-zu-Server-fetch
-// auf, gleiches Muster/CRON_SECRET wie youtube-monitor-scheduler.
-//
-// /api/divergence-radar/snapshot ergaenzt (Periodischer KI-Rueckblick Phase
-// 5, 10.09.2026): der neue divergence-radar-scheduler-Cron (alle 15 Min)
-// persistiert einen Snapshot des bisher nur live berechneten Divergenz-
-// Radars, gleiches CRON_SECRET-Muster wie die anderen Eintraege hier.
+// Bewusst ein dediziertes, eng geschnittenes CRON_SECRET statt des
+// SUPABASE_SERVICE_ROLE_KEY: der Service-Role-Key (voller DB-Bypass) als
+// HTTP-Bearer-Token waere ein unnoetig hohes Risiko und funktionierte in
+// Produktion auch nicht zuverlaessig. CRON_SECRET ist ein eigener Wert
+// (Vercel-Env + Edge-Function-Secret), unabhaengig rotierbar.
 export const SERVICE_ROLE_BEARER_PATHS: ReadonlySet<string> = new Set([
   "/api/reports/run",
   "/api/youtube-monitor/generate",

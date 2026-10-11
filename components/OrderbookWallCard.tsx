@@ -81,17 +81,14 @@ function average(values: (number | null)[]): number | null {
   return valid.reduce((sum, v) => sum + v, 0) / valid.length;
 }
 
-// ZWEI kumulierte Kennzahlen ueber ALLE Boersen gemittelt -- Nutzer-Wunsch
-// 16.09.2026 ("kumuliert ... alle börsen zusammen den durchschnitt", dann
-// "und jetzt noch die kumulierte wand"): Tiefe (Summe aller Level) UND Wand
-// (groesste Einzel-Order) je gemittelt ueber Binance/Bybit/OKX statt einer
-// Zeile je Boerse. Zusammen die <summary> des <details>-Elements -- Antippen
-// (auf beide Zeilen) klappt die Einzelwaende je Boerse auf (ExchangeRow
-// unten, dieselben Rohwerte ungemittelt). bid_depth_usd/ask_depth_usd sind
-// je Boerse die Summe ALLER Level im ±0.5%-Band (siehe collect-orderbook),
-// dieselbe Rohbasis wie depth_imbalance. Die gemittelte Wand (Preis+Groesse)
-// ist ein rechnerischer Kennwert, keine an irgendeiner Boerse tatsaechlich
-// existierende Einzel-Order -- siehe INFO_TEXT.
+// ZWEI kumulierte Kennzahlen, gemittelt ueber Binance/Bybit/OKX: Tiefe
+// (Summe aller Level) UND Wand (groesste Einzel-Order). Zusammen die
+// <summary> des <details>-Elements -- Antippen klappt die Einzelwaende je
+// Boerse auf (ExchangeRow unten, ungemittelt). bid_depth_usd/ask_depth_usd
+// sind je Boerse die Summe ALLER Level im ±0.5%-Band (siehe
+// collect-orderbook), dieselbe Rohbasis wie depth_imbalance. Die gemittelte
+// Wand ist ein rechnerischer Kennwert, keine real existierende Einzel-Order
+// -- siehe INFO_TEXT.
 function CumulativeSummary({ walls }: { walls: OrderbookWallSnapshot[] }) {
   const avgBidDepth = average(walls.map((w) => w.bid_depth_usd));
   const avgAskDepth = average(walls.map((w) => w.ask_depth_usd));

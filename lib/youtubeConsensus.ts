@@ -1,6 +1,5 @@
-// Kanal-Vergleich fuer den Krypto-YouTube-Monitor (Nutzer-Wunsch 08.09.2026:
-// "er soll Kanal Info vergleichen und mir mitteilen, wo Einigkeit oder
-// komplett andere Meinung"). Reine Funktion, keine DB-/Netzwerk-Zugriffe --
+// Kanal-Vergleich fuer den Krypto-YouTube-Monitor: wo herrscht Einigkeit,
+// wo komplett andere Meinung? Reine Funktion, keine DB-/Netzwerk-Zugriffe --
 // bewusst so, damit sie sowohl serverseitig (app/page.tsx) als auch
 // clientseitig (YoutubeMonitorCard.tsx nach einem neuen Lauf) mit denselben
 // bereits geladenen Analysen aufgerufen werden kann, ohne Code zu

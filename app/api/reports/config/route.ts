@@ -15,14 +15,10 @@ import type { ReportConfig } from "@/lib/types";
 // da RLS auf report_configs nur "Public read access" (SELECT) erlaubt
 // (Vorgabe Teil V: Schreibzugriff ausschliesslich serverseitig).
 //
-// 14.09.2026 -- schedule_time (einzelner Wert) durch schedule_times (Array,
-// max. 5, siehe MAX_SCHEDULE_TIMES -- urspruenglich 3 ("bis zu 3 Zeiten
-// planen"), auf Nutzer-Nachfrage "kann der auf 5 erhoeht werden?" noch am
-// selben Tag erhoeht, DB-Constraint report_configs_schedule_times_max5
-// synchron angepasst) ersetzt, und provider serverseitig auf Gratis-Tier-
-// Provider beschraenkt ("muss kostenlos sein, gesamte AI report!", siehe
-// lib/ai/reportProviders.ts) -- nicht nur in der UI ausgeblendet, da diese
-// Route auch direkt (ohne Dashboard) aufrufbar ist.
+// schedule_times ist ein Array (max. MAX_SCHEDULE_TIMES, synchron zum
+// DB-Constraint report_configs_schedule_times_max5), und provider ist
+// serverseitig auf Gratis-Tier-Provider beschraenkt (lib/ai/reportProviders.ts)
+// -- nicht nur in der UI, da diese Route auch direkt aufrufbar ist.
 
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/;
 const MAX_SCHEDULE_TIMES = 5;

@@ -13,8 +13,7 @@ export const ECONOMIC_EVENT_INTERPRETATION: Record<string, string> = {
   fomc: "Der Zinsentscheid selbst und vor allem die begleitenden Aussagen zur weiteren Ausrichtung bewegen Risikoassets oft stärker als andere Einzeltermine — Überraschungen gegenüber den Markterwartungen lösen typischerweise die stärkste Reaktion aus. Kein Automatismus, keine Anlageberatung.",
 };
 
-// Pfeil/Farb-Logik (Nutzer-Wunsch 03.10.2026: "mit Pfeil Richtung und Farbe
-// angezeigt werden was Resultat bedeuten würde") -- Quelle der Wahrheit fuer
+// Pfeil/Farb-Logik (was ein Resultat fuer BTC bedeuten wuerde) -- Quelle der Wahrheit fuer
 // sowohl die Kachel (EconomicCalendarPanel) als auch die Push-Benachrichtigung
 // (Supabase Edge Function send-state-change-push, die dieses Repo nicht
 // importieren kann und die Logik daher dupliziert, siehe Kommentar dort).
@@ -64,10 +63,8 @@ export function economicDirectionLegend(eventKey: string): string {
     : "↑ höher als zuvor → 🟢 bullisch für BTC · ↓ niedriger → 🔴 bärisch für BTC";
 }
 
-// Head-Kachel (Nutzer-Wunsch 03.10.2026: "aktuellste bevorstehende daten
-// sollen in head kachel erscheinen, bis und mit die daten da sind (verbleibt
-// dann 4h mit den aktuellen daten) gleichzeitig kommt dann die naechste
-// bevorstehende."): EIN Termin wird angezeigt, Auswahl nach Zeit-Prioritaet
+// Lagebild: zeigt den naechsten Termin bis zum Resultat, danach noch 4h mit
+// Resultat, dann den folgenden. EIN Termin wird angezeigt, Auswahl nach Zeit-Prioritaet
 // -- siehe getHeroEconomicEventStatus() unten fuer die genaue Zustandsmaschine
 // (upcoming -> awaiting_result -> result_recent -> naechster Termin).
 //

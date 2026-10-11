@@ -39,12 +39,9 @@ async function fetchUpcomingEvents(): Promise<EconomicCalendarEvent[]> {
 }
 
 // Letzter bekannter Wert je FRED-Serie aus macro_snapshots (collect-macro) --
-// dieselbe Tabelle/Quelle wie die Edge Function send-state-change-push fuer
-// die "Resultat"-Push-Benachrichtigung nutzt, hier nur fuer die Anzeige
-// gelesen (Nutzer-Wunsch 03.10.2026: "wenn Resultat vorhanden ist, dies
-// ebenfalls anzeigen"). Bewusst der zuletzt bekannte Wert OHNE die Pruefung
-// "ist das neuer als der Termin", die die Push-Funktion macht -- hier reicht
-// die Anzeige des Datums (Stand), der Nutzer sieht selbst, ob es frisch ist.
+// dieselbe Quelle wie die "Resultat"-Push-Benachrichtigung
+// (send-state-change-push). Bewusst ohne die Pruefung "neuer als der Termin":
+// das angezeigte Datum (Stand) zeigt selbst, ob der Wert frisch ist.
 interface MacroSnapshotLite {
   last_price: number | null;
   prev_close: number | null;

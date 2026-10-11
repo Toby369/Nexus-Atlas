@@ -1,10 +1,6 @@
-// Gemeinsame Formatierungs-Helfer der aus der ehemaligen LivePricePanel.tsx
-// hervorgegangenen Kacheln (BtcPriceCard, OiChangeCard, OiByExchangeCard,
-// FundingRateCard, KurznotizCard -- siehe lib/dashboardTiles.ts) --
-// Nutzer-Feedback 05.09.2026: die zuvor als EINE fullWidth-Kachel gebuendelten
-// Abschnitte sollten wie alle anderen Kacheln einzeln verschieb-/groessenbar
-// sein, siehe components/LivePriceDataProvider.tsx fuer den gemeinsamen
-// State/die Polling-Logik.
+// Gemeinsame Formatierungs-Helfer der Preis-Kacheln (BtcPriceCard,
+// OiChangeCard, FundingRateCard) -- State/Polling siehe
+// components/LivePriceDataProvider.tsx.
 
 export function formatUsd(value: number | null, decimals = 2): string {
   if (value === null || Number.isNaN(value)) return "—";

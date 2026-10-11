@@ -1,9 +1,8 @@
 import type { CycleIndicators } from "@/lib/cycleIndicatorsContext";
 import PanelInfo from "@/components/PanelInfo";
 
-// Umsetzungsplan Phase 5 (05.09.2026): Pi-Cycle-Top + Log-Preiskanal.
-// Server-Component-Render (keine Interaktion noetig) -- die Berechnung
-// passiert bereits serverseitig in lib/cycleIndicatorsContext.ts.
+// Pi-Cycle-Top + Log-Preiskanal. Server-Component-Render -- die Berechnung
+// passiert serverseitig in lib/cycleIndicatorsContext.ts.
 
 const PI_CYCLE_INFO = [
   "Was das ist: vergleicht den 111-Tage- mit dem verdoppelten 350-Tage-gleitenden-Durchschnitt der taeglichen Schlusskurse. Kreuzt der kurze von unten ueber den langen, fiel das historisch (2013, 2017, 2021) auf wenige Tage genau mit grossen BTC-Zyklus-Hochs zusammen.",

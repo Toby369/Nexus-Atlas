@@ -7,8 +7,8 @@ import type { TradeDebateAnalystResult, TradeDebateRefereeResult } from "@/lib/t
 
 // POST /api/trade-debate/generate
 //
-// Trade-Debate-Kachel (Nutzer-Idee 07.09.2026, TradingAgents-Architektur
-// [arXiv:2412.20138] recherchiert und fuer Einzelnutzer verkleinert): ein
+// Trade-Debate (TradingAgents-Architektur [arXiv:2412.20138], fuer
+// Einzelnutzer verkleinert): ein
 // BULLISHER und ein BAERISCHER Analyst (bewusst unterschiedliche primaere
 // Provider, siehe tileConfig.ts "trade-debate-bull"/"-bear") suchen
 // UNABHAENGIG voneinander (parallel, kennen die Antwort des jeweils anderen

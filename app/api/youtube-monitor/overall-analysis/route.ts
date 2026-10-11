@@ -7,9 +7,8 @@ import type { YoutubeVideoAnalysis, YoutubeOverallAnalysisResult } from "@/lib/t
 
 // POST /api/youtube-monitor/overall-analysis
 //
-// Gesamtanalyse-Kachel des YouTube-Monitors (Nutzer-Wunsch 14.09.2026:
-// "ich moechte eine gesamt anayse der einzelnen analysierten youtube
-// beitraege"). Nutzt KEINE neuen YouTube-/Video-API-Aufrufe -- liest
+// Gesamtanalyse des YouTube-Monitors. Nutzt KEINE neuen YouTube-/Video-API-
+// Aufrufe -- liest
 // ausschliesslich die bereits gespeicherten Einzelanalysen aus
 // youtube_video_analyses und laesst sie per Text-Prompt (nicht
 // multimodal, siehe lib/ai/youtubeVideoAnalysis.ts fuer den Unterschied)

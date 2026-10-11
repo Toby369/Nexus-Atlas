@@ -1,7 +1,6 @@
 import type { MarketStatePattern, MarketStateMtfAlignment } from "@/lib/types";
 
-// Salomon-Interpretationsschicht (Nutzer-Wunsch 15.09.2026: "salomon in
-// nexus integrieren"). Uebersetzt bereits vorhandene, live berechnete
+// Salomon-Interpretationsschicht: uebersetzt bereits vorhandene, live berechnete
 // NEXUS-Patterns/MTF-Alignment (aus market_states, geschrieben von
 // compute-market-state) in Stefan Salomons Phasenmodell-Sprache
 // (Akkumulation/Markup/Distribution/Markdown) -- siehe Mapping-Tabelle in

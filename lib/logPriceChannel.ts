@@ -1,4 +1,4 @@
-// Log-Preiskanal (Umsetzungsplan Phase 5, 05.09.2026) -- reduzierte
+// Log-Preiskanal -- reduzierte
 // Annaeherung an das "Rainbow Chart"-Konzept aus dem Crypto-Trading-
 // Journal (dort: "rainbow chart with self-computed regression bands").
 //

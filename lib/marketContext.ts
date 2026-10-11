@@ -345,11 +345,8 @@ export interface MarketContextDerived {
 // Extrahierte Herleitung aus dem geteilten DashboardPollProvider-Bundle --
 // urspruenglich nur in MarketContextCard.tsx inline berechnet. Ausgelagert,
 // damit HeroHeader.tsx (Sparten-Uebersicht) exakt dieselbe Berechnung
-// wiederverwenden kann statt sie zu duplizieren (Nutzer-Feedback vom
-// 31.08.2026: "kurze, klare, strukturierte Zusammenfassung aller Sparten" --
-// dafuer muss Marktkontext ohne Logik-Drift-Risiko an zwei Stellen
-// auswertbar sein). Mechanische Extraktion, keine Verhaltensaenderung
-// gegenueber der vorherigen Inline-Version.
+// wiederverwenden kann statt sie zu duplizieren -- kein Logik-Drift-Risiko
+// zwischen zwei Stellen.
 export function deriveMarketContext(
   bundle: DashboardPollBundle,
   timeframe: TimeframeId,

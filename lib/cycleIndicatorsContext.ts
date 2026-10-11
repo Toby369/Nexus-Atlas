@@ -1,5 +1,5 @@
-// Datenbeschaffung fuer die Zyklus-Indikatoren-Kachel (Umsetzungsplan
-// Phase 5, 05.09.2026: Pi-Cycle-Top + Log-Preiskanal). Reine Lesefunktion,
+// Datenbeschaffung fuer die Zyklus-Indikatoren-Kachel (Pi-Cycle-Top +
+// Log-Preiskanal). Reine Lesefunktion,
 // keine AI, kein Schreiben -- nutzt die bereits vorhandene candles-Tabelle
 // (1d, Binance, ~2 Jahre Historie seit dem Backfill).
 //

@@ -1,11 +1,9 @@
 import { bundleLiquidationZones, type LeverageMapResult, type LiquidationZone } from "@/lib/leverageMap";
 import PanelInfo from "@/components/PanelInfo";
 
-// Umsetzungsplan Phase 4 (05.09.2026): Liquidations-/Hebelkarte, Konzept +
-// Modell aus shared/leverageMap.js im Crypto-Trading-Journal. Reiner
-// Server-Component-Render (kein "use client" noetig, keine Interaktion) --
-// die Berechnung passiert bereits serverseitig in lib/leverageMapContext.ts
-// beim Seitenaufruf.
+// Liquidations-/Hebelkarte (Konzept + Modell aus shared/leverageMap.js im
+// Crypto-Trading-Journal). Reiner Server-Component-Render -- die Berechnung
+// passiert serverseitig in lib/leverageMapContext.ts.
 
 const INFO_TEXT = [
   "Was das ist: ein MODELL, keine Messung -- schaetzt aus der Open-Interest-Historie der letzten 48h, wo gehebelte Positionen liquidiert wuerden. Steigt das offene Interesse, wurden dort Positionen eroeffnet; die Kerze sagt zu welchem Preis, das Taker-Volumen (angenaehert) in welche Richtung.",
@@ -40,11 +38,9 @@ function ClusterRow({ price, mid, massUsd, tiers }: { price: number; mid: number
   );
 }
 
-// Buendelte Zone (30.09.2026) -- Standardansicht zeigt nur die Zone
-// (Preisspanne + Summe), <details> klappt beim Antippen die urspruenglichen
-// Einzel-Level (members) auf. Bei genau einem Member ist die Spanne ein
-// einzelner Preis -- kein Sonderfall noetig, priceLow === priceHigh zeigt
-// sich einfach als ein einzelner Wert statt einer Spanne.
+// Buendelte Zone: Standardansicht zeigt Preisspanne + Summe, <details>
+// klappt die Einzel-Level (members) auf. Bei genau einem Member ist
+// priceLow === priceHigh und erscheint einfach als einzelner Preis.
 function ZoneRow({ zone, mid }: { zone: LiquidationZone; mid: number }) {
   const distLowPct = ((zone.priceLow - mid) / mid) * 100;
   const distHighPct = ((zone.priceHigh - mid) / mid) * 100;

@@ -13,15 +13,11 @@ import {
 import { CountdownTime, RelativeTime } from "@/components/ClientTimestamp";
 import PanelInfo from "@/components/PanelInfo";
 
-// Head-Kachel-Wirtschaftstermin (Nutzer-Wunsch 03.10.2026: "aktuellste
-// bevorstehende daten sollen in head kachel erscheinen, bis und mit die
-// daten da sind (verbleibt dann 4h mit den aktuellen daten) gleichzeitig
-// kommt dann die naechste bevorstehende."). Eigene kleine Komponente statt
-// weiterer Logik in der ohnehin schon sehr grossen HeroHeader.tsx -- gleiches
-// Muster wie TradingHoursBadge (eigener Fetch/Poll, direkt unter diesem
-// platziert). Die Zustandsmaschine selbst (upcoming/awaiting_result/
-// result_recent) lebt in lib/economicCalendar.ts::getHeroEconomicEventStatus,
-// hier nur der Supabase-Fetcher + die Darstellung.
+// Wirtschaftstermin im Lagebild: zeigt den naechsten bevorstehenden Termin,
+// nach Veroeffentlichung noch 4h mit Resultat, danach den folgenden. Eigene
+// Komponente mit eigenem Fetch/Poll (wie TradingHoursBadge), um HeroHeader
+// schlank zu halten. Die Zustandsmaschine (upcoming/awaiting_result/
+// result_recent) lebt in lib/economicCalendar.ts::getHeroEconomicEventStatus.
 const POLL_MS = 2 * 60_000;
 
 const fetchMacroRows: MacroSnapshotFetcher = async (symbol, bound, limit, order) => {

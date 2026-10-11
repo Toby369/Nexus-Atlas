@@ -46,7 +46,7 @@ export function isSignalFresh(receivedAtIso: string, nowMs: number = Date.now())
 }
 
 // Richtungs-Ableitung fuer den TradingView-vs-internem-Zustand-Vergleich
-// (Divergenz-Radar, 05.09.2026). Bewusst NICHT aus beliebigem Freitext
+// (Divergenz-Radar). Bewusst NICHT aus beliebigem Freitext
 // geraten -- alle 6 Pine-Skripte in docs/tradingview/*.pine senden exakt
 // einen von 14 bekannten signal_type-Strings, 10 davon bereits explizit mit
 // "BULLISH"/"BEARISH"/"_BULL"/"_BEAR" im Namen. Die restlichen 4

@@ -49,16 +49,11 @@ export function createOpenAiCompatibleProvider(
       );
     }
 
-    // 08.10.2026 -- Nachbesserung: AbortSignal.timeout() gilt fuer die
-    // GESAMTE Fetch-Lebensdauer (Verbindungsaufbau UND Lesen des Response-
-    // Bodies), nicht nur fuer den Verbindungsaufbau. Ein try/catch nur um
-    // fetch() selbst (vorherige Version) ging daher durch, wenn der Timeout
-    // erst WAEHREND res.json() ausloeste -- Live-Beweis: Google zeigte den
-    // neuen, saubern "Zeitueberschreitung"-Text, OpenRouter zeigte den
-    // rohen, unpraefixierten DOMException-Text ("The operation was aborted
-    // due to timeout") -- derselbe Fehler, nur an einer ungeschuetzten
-    // Stelle ausgeloest. Jetzt umschliesst EIN try/catch den gesamten
-    // Ablauf (Fetch + Status-Check + JSON-Parsing).
+    // AbortSignal.timeout() gilt fuer die GESAMTE Fetch-Lebensdauer
+    // (Verbindungsaufbau UND Body-Lesen). EIN try/catch umschliesst deshalb
+    // den gesamten Ablauf (Fetch + Status-Check + JSON-Parsing) -- sonst
+    // kaeme ein Timeout waehrend res.json() als roher DOMException-Text
+    // durch.
     try {
       const res = await fetch(`${config.baseUrl}/chat/completions`, {
         method: "POST",

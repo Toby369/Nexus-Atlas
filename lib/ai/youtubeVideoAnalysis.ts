@@ -1,13 +1,11 @@
 import { fetchWithRetry } from "./fetchWithRetry";
 
-// Krypto-YouTube-Monitor (05.09.2026) -- bewusst NICHT ueber den generischen
-// AI-Router (lib/ai/router.ts/AIProvider-Interface): dessen
-// generateStructured() nimmt nur einen reinen Text-Prompt entgegen, hier
-// wird aber ein Video per file_data/file_uri direkt an Gemini uebergeben
-// (multimodaler Content-Block) -- Gemini analysiert Bild+Ton+Text des
-// YouTube-Videos direkt per URL, ohne Download/Transkript-Schritt. Laut
-// Google aktuell in Preview und kostenlos (Stand Recherche 05.09.2026),
-// nur mit Flash-Modellen der aktuellen Generation.
+// Krypto-YouTube-Monitor -- bewusst NICHT ueber den generischen AI-Router
+// (lib/ai/router.ts): dessen generateStructured() nimmt nur Text-Prompts,
+// hier wird ein Video per file_data/file_uri direkt an Gemini uebergeben
+// (multimodaler Content-Block) -- Gemini analysiert Bild+Ton+Text direkt per
+// URL, ohne Download/Transkript. Laut Google in Preview und kostenlos, nur
+// mit aktuellen Flash-Modellen.
 //
 // Env-Vars: GOOGLE_API_KEY (bereits fuer andere Kacheln konfiguriert),
 // GOOGLE_VIDEO_MODEL optional (Flash-Modell mit Video-URL-Unterstuetzung --
@@ -18,10 +16,8 @@ import { fetchWithRetry } from "./fetchWithRetry";
 
 // Traegt den HTTP-Status des fehlgeschlagenen Gemini-Aufrufs mit -- der
 // Aufrufer (app/api/youtube-monitor/generate/route.ts) muss zwischen einem
-// Kontingent-Fehler (429, betrifft ALLE folgenden Videos in diesem Lauf
-// genauso) und einem videospezifischen Fehler unterscheiden koennen, ohne
-// den Fehlertext zu parsen (Nutzer-Wunsch 16.09.2026: "andere Optionen um
-// zu verhindern dass report nicht vollzogen werden kann").
+// Kontingent-Fehler (429, betrifft ALLE folgenden Videos im Lauf) und einem
+// videospezifischen Fehler unterscheiden koennen, ohne Fehlertext zu parsen.
 export class YoutubeVideoAnalysisError extends Error {
   status?: number;
   constructor(message: string, status?: number) {

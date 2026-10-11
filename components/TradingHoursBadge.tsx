@@ -4,13 +4,11 @@ import { useEffect, useState } from "react";
 import { getTradingHoursState, type EconomicEventRow, type SessionId, type WarningId } from "@/lib/tradingHours";
 import PanelInfo from "@/components/PanelInfo";
 
-// Umsetzungsplan Phase 1 (05.09.2026) -- Handelszeiten-Gate, portiert aus
-// shared/handelszeiten.js im Crypto-Trading-Journal. Beantwortet die
-// unabhaengige ZEITPUNKT-Frage: "ist JETZT ueberhaupt eine gute Zeit fuer
-// einen 15m/5m-Einstieg" (unabhaengig von der STRUKTUR-Frage, die der
-// Setup-Score per Trend-Konfirmation-Faktor beantwortet). Reine Client-Uhr -- die zugrunde
-// liegende Berechnung (lib/tradingHours.ts) ist netzfrei, daher kein Poll
-// gegen Supabase noetig, nur ein Timer gegen die lokale Systemzeit.
+// Handelszeiten-Gate (portiert aus shared/handelszeiten.js im Crypto-Trading-
+// Journal): beantwortet die ZEITPUNKT-Frage "ist JETZT eine gute Zeit fuer
+// einen 15m/5m-Einstieg", unabhaengig von der STRUKTUR-Frage des Setup-Scores.
+// Die Berechnung (lib/tradingHours.ts) ist netzfrei -- nur ein Timer gegen
+// die lokale Systemzeit, kein Poll gegen Supabase.
 const UPDATE_INTERVAL_MS = 30_000;
 
 const SESSION_LABELS: Record<SessionId, string> = {

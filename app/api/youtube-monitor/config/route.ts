@@ -4,22 +4,17 @@ import { resolveYoutubeChannel, type YoutubeMonitorChannel } from "@/lib/youtube
 
 // POST /api/youtube-monitor/config
 //
-// Speichert die Nutzer-Konfiguration des Krypto-YouTube-Monitors (Nutzer-
-// Wunsch 05.09.2026: "kann ich hinterlegen was angesehen werden soll") --
-// Freitext-Suchbegriff (leer = keine Freitext-Suche, nur Kanaele) und eine
-// Liste von Kanal-Eingaben (Handle "@Name", volle Kanal-URL oder rohe
-// Kanal-ID), die serverseitig gegen die YouTube API aufgeloest werden. Ein
-// einzelner nicht aufloesbarer Kanal blockiert nicht das Speichern der
-// uebrigen -- er erscheint in channelErrors, damit die UI den Tippfehler
-// zeigen kann.
+// Speichert die Konfiguration des Krypto-YouTube-Monitors: Freitext-
+// Suchbegriff (leer = keine Freitext-Suche, nur Kanaele), eine Liste von
+// Kanal-Eingaben (Handle "@Name", volle Kanal-URL oder rohe Kanal-ID), die
+// serverseitig gegen die YouTube API aufgeloest werden, und blockedChannels.
+// Ein nicht aufloesbarer Kanal blockiert nicht das Speichern der uebrigen --
+// er erscheint in channelErrors, damit die UI den Tippfehler zeigen kann.
 //
-// 14.09.2026 -- zusaetzlich blockedChannels (Nutzer-Wunsch: "diese
-// verfasser moechte ich nicht mehr dabei haben"): Kanal-TITEL (nicht
-// Handle/ID, da diese Kanaele meist NICHT explizit konfiguriert sind,
-// sondern ueber die Freitext-Suche hereinkamen -- der Titel ist alles, was
-// der Nutzer aus der UI kennt). Wird komplett ersetzt bei jedem Speichern
-// (wie channels/searchQuery), daher muss die UI immer den vollstaendigen
-// aktuellen Stand mitsenden.
+// blockedChannels sind Kanal-TITEL (nicht Handle/ID): gesperrte Kanaele kommen
+// meist ueber die Freitext-Suche herein, der Titel ist alles, was die UI
+// kennt. Alle Felder werden bei jedem Speichern komplett ersetzt -- die UI
+// muss immer den vollstaendigen Stand mitsenden.
 //
 // Auth: proxy.ts sperrt diese Route wie jede andere /api/*-Route hinter
 // eine Login-Session -- keine eigene Pruefung noetig. Kein Rate-Limit noetig
@@ -51,10 +46,9 @@ export async function POST(request: Request) {
   const channelInputs = Array.isArray(body.channelInputs)
     ? body.channelInputs.filter((c): c is string => typeof c === "string" && c.trim().length > 0)
     : [];
-  // Nutzer-Wunsch 14.09.2026 ("diese verfasser moechte ich nicht mehr dabei
-  // haben"): Kanal-TITEL (kein Handle/URL-Aufloesen noetig, siehe
-  // lib/youtubeMonitorContext.ts), gegen die jeder gefundene Kandidat
-  // case-insensitiv abgeglichen wird.
+  // Gesperrte Kanal-TITEL (kein Handle/URL-Aufloesen noetig, siehe
+  // lib/youtubeMonitorContext.ts), gegen die jeder Kandidat case-insensitiv
+  // abgeglichen wird.
   const blockedChannels = Array.isArray(body.blockedChannels)
     ? body.blockedChannels
         .filter((c): c is string => typeof c === "string" && c.trim().length > 0)

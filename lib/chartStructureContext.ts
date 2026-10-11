@@ -1,52 +1,41 @@
 import { supabase } from "./supabase";
 import { detectFractalSwings, findPivots } from "./swingDetection";
 
-// Datenschicht fuer "Struktur: Key Levels, AVWAP, Trendlinien, Muster"
-// (Nutzer-Idee 24.09.2026, Recherche siehe Chat-Verlauf: Key-Level-/AVWAP-/
-// Trendlinien-/Kerzenmuster-Regelwerk). Reine, deterministische Berechnung
-// bei jedem Seitenaufruf -- KEIN KI-Aufruf (bewusste Nutzer-Entscheidung
-// "erstmal ohne KI-Verbindung"), gleiches Muster wie GUSS/VWAP-Vector/CVD
-// in tradingIndicatorsContext.ts (eigener Candle-Fetch statt Cross-Import,
-// da dessen `Candle`-Interface modul-intern ist).
+// Datenschicht fuer "Struktur: Key Levels, AVWAP, Trendlinien, Muster".
+// Reine, deterministische Berechnung bei jedem Seitenaufruf -- KEIN
+// KI-Aufruf, gleiches Muster wie GUSS/VWAP-Vector/CVD in
+// tradingIndicatorsContext.ts (eigener Candle-Fetch, da dessen
+// `Candle`-Interface modul-intern ist).
 //
-// Umsetzungs-Entscheidung (Recherche-Ergebnis): AVWAP-Pivot-Engine und
-// Kerzenmuster-Erkennung existierten bereits (research-python/
-// avwap_pivot_setup/avwap_engine.py bzw. die DB-Funktion
-// research_detect_candlestick_patterns()) -- hier nach TypeScript
-// portiert/produktiv verdrahtet. Trendlinien-Erkennung existierte nirgends
-// und ist hier komplett neu gebaut (auf Basis der bereits vorhandenen
-// Swing-Erkennung aus lib/swingDetection.ts).
+// AVWAP-Pivot-Engine und Kerzenmuster-Erkennung sind TypeScript-Portierungen
+// von research-python/avwap_pivot_setup/avwap_engine.py bzw. der DB-Funktion
+// research_detect_candlestick_patterns(); Trendlinien basieren auf der
+// Swing-Erkennung aus lib/swingDetection.ts.
 //
-// Key Levels (ueberarbeitet 30.09.2026, Nutzer-Feedback "muessen handfester
-// sein"): bewusst NICHT mehr nur Liquidations-Cluster, sondern Markt-uebliche
-// Pivot-Punkte (Web-Recherche 30.09.2026: Classic/Floor-Trader-Pivots sind
-// die verbreitetste Variante, Camarilla nur fuer <=1H geeignet -- siehe
-// Chat-Verlauf fuer Quellen) -- hier als fraktale Schwenkpunkte (gleicher
-// Lookback=3 wie AVWAP-Pivot oben) auf VIER Zeitrahmen top-down: 1W/1D/4H/1H
-// (Toby-Vorgabe). Liegen mehrere Zeitrahmen-Pivots nahe beieinander
-// (PIVOT_CONFLUENCE_TOLERANCE_PCT), werden sie zu EINER Zone gebuendelt --
-// je mehr Zeitrahmen, desto staerker die Zone. Zusaetzlich verstaerkt durch
-// Naehe zu einem Liquidations-Cluster, EMA13/50/200 oder VWAP (Daily/Weekly/
-// Swing) -- letztere zwei kommen NICHT aus einem neuen Fetch hier, sondern
-// werden nachtraeglich rein clientseitig/pure via withConfirmationLevels()
-// aus bereits an anderer Stelle auf derselben Seite geladenen Werten
-// (meinSystemContext/tradingIndicatorsContext) angereichert, um keinen
-// doppelten Rechenweg/Fetch zu erzeugen. Fibonacci-Retracement/Orderbuch-
-// Waende bleiben bewusst aussen vor (stehen bereits in VwapVectorCard/
-// OrderbookWallCard auf derselben Seite, keine Dopplung).
+// Key Levels: markt-uebliche Pivot-Punkte (Classic/Floor-Trader-Pivots sind
+// die verbreitetste Variante, Camarilla nur fuer <=1H geeignet) als
+// fraktale Schwenkpunkte (Lookback 3 wie AVWAP-Pivot) auf VIER Zeitrahmen
+// top-down: 1W/1D/4H/1H. Nahe beieinander liegende Pivots
+// (PIVOT_CONFLUENCE_TOLERANCE_PCT) werden zu EINER Zone gebuendelt -- je mehr
+// Zeitrahmen, desto staerker. Zusaetzlich verstaerkt durch Naehe zu
+// Liquidations-Cluster, EMA13/50/200 oder VWAP (Daily/Weekly/Swing); EMA und
+// VWAP werden per withConfirmationLevels() aus bereits auf derselben Seite
+// geladenen Werten angereichert, ohne zweiten Fetch. Fibonacci-Retracement/
+// Orderbuch-Waende bleiben aussen vor (stehen in VwapVectorCard/
+// OrderbookWallCard).
 
 const CANDLE_LOOKBACK = 300; // gleiche Fenstergroesse wie GUSS_CANDLE_LOOKBACK
 const CANDLESTICK_PRIOR_TREND_LOOKBACK = 6; // 1:1 wie research_detect_candlestick_patterns() (lag 6)
 const CANDLESTICK_RECENT_EVENTS_LIMIT = 5;
 
-// AVWAP-Pivot (Toby-Setup-Idee 18.09.2026, siehe research-python/
-// avwap_pivot_setup/config.py::AvwapPivotParams) -- identische Werte.
+// AVWAP-Pivot -- identische Werte wie research-python/avwap_pivot_setup/
+// config.py::AvwapPivotParams.
 const AVWAP_PIVOT_LENGTH = 3;
 const AVWAP_MAX_ACTIVE_LINES_PER_SIDE = 5;
 
-// Trendlinien (neu, 24.09.2026): dieselbe Swing-Definition wie VWAP-Vector/
-// GUSS (GUSS_SWING_LOOKBACK in tradingIndicatorsContext.ts), damit alle
-// "Struktur"-Kacheln auf derselben Seite dieselben Wendepunkte meinen.
+// Trendlinien: dieselbe Swing-Definition wie VWAP-Vector/GUSS
+// (GUSS_SWING_LOOKBACK in tradingIndicatorsContext.ts), damit alle
+// "Struktur"-Kacheln dieselben Wendepunkte meinen.
 const TRENDLINE_SWING_LOOKBACK = 20;
 // Stefan Salomon (Web-Recherche + knowledge_base module='salomon'): "Eine
 // Linie ist erst dann ein statistisch relevanter Trend, wenn sie mindestens
@@ -61,17 +50,15 @@ const KEY_LEVEL_LOOKBACK_HOURS = 6; // gleiches Fenster wie LiquidationPanel/Lev
 const KEY_LEVEL_MAX_LIQUIDATION_CLUSTERS = 4;
 const KEY_LEVEL_PRICE_BUCKET_USD = 200;
 
-// Spot Volume Profile (30.09.2026, Nutzer-Idee "sieht nexus wo/bei welchem
-// preis spot gekauft wurde?") -- wo genau Kauf-/Verkaufsvolumen im Spot-
-// Markt konzentriert ist (collect-spot-volume-profile, alle 5 Min, siehe
-// supabase/-Edge-Function -- liegt nicht in diesem Repo, nur der Aufruf
-// hier). Gleiches Lookback-Fenster wie Liquidations-Cluster, damit alle
+// Spot Volume Profile: wo Kauf-/Verkaufsvolumen im Spot-Markt konzentriert
+// ist (Edge Function collect-spot-volume-profile, alle 5 Min, nicht in diesem
+// Repo). Gleiches Lookback-Fenster wie Liquidations-Cluster, damit alle
 // Key-Level-Quellen dieselbe Frage ("was ist gerade relevant") beantworten.
 const SPOT_VOLUME_MAX_NODES = 4;
 
-// Multi-Timeframe-Pivots fuer Key Levels (30.09.2026). Lookback identisch zu
-// AVWAP_PIVOT_LENGTH oben (Toby: "3 davor, 3 danach ergibt Pivot") --
-// derselbe fraktale Massstab, nur jetzt auf vier statt nur einem Zeitrahmen.
+// Multi-Timeframe-Pivots fuer Key Levels. Lookback identisch zu
+// AVWAP_PIVOT_LENGTH (3 davor, 3 danach) -- derselbe fraktale Massstab auf
+// vier Zeitrahmen.
 const PIVOT_FRACTAL_LOOKBACK = 3;
 // Wie nah zwei Level (aus verschiedenen Zeitrahmen oder Quellen) beieinander
 // liegen muessen, um zu EINER Zone gebuendelt zu werden -- enger als die
@@ -92,20 +79,18 @@ const PIVOT_WEEKLY_SOURCE_DAILY_CANDLES = 182;
 // AVWAP_MAX_ACTIVE_LINES_PER_SIDE.
 const KEY_LEVEL_MAX_ZONES_PER_SIDE = 4;
 
-// Chart-Formationen (neu, 25.09.2026, Nutzer-Nachfrage "doubel top,
-// w-pattern"): wie nah die zwei Tops/Bottoms bzw. die zwei Schultern
-// beieinander liegen muessen, um noch als "gleiche Hoehe" zu gelten --
-// eigene, dokumentierte Toleranz (2%), keine Originalquelle.
+// Chart-Formationen: wie nah die zwei Tops/Bottoms bzw. Schultern beieinander
+// liegen muessen, um als "gleiche Hoehe" zu gelten -- eigene, dokumentierte
+// Toleranz (2%), keine Originalquelle.
 const FORMATION_PEAK_TOLERANCE_PCT = 0.02;
 // Ab welcher relativen Steigung (Preisaenderung je Kerze, relativ zum
 // aktuellen Linienwert) eine Trendlinie als "geneigt" statt "flach" gilt --
 // Schwelle fuer die Dreiecks-Klassifikation (steigend/fallend/symmetrisch).
 const TRIANGLE_FLAT_SLOPE_PCT_PER_BAR = 0.0003;
 
-// Flaggen/Wimpel/Keile (neu, 25.09.2026, Nutzer-Nachfrage): anders als
-// Trendlinien/Dreiecke (ganzes 300-Kerzen-Fenster) sind das LOKALE,
-// kurzlebige Muster direkt NACH einem scharfen vorangehenden Kursimpuls
-// (dem "Flaggenmast") -- eigene, kleinraeumigere Erkennung.
+// Flaggen/Wimpel/Keile: anders als Trendlinien/Dreiecke (ganzes
+// 300-Kerzen-Fenster) LOKALE, kurzlebige Muster direkt NACH einem scharfen
+// Kursimpuls (dem "Flaggenmast") -- eigene, kleinraeumigere Erkennung.
 const POLE_WINDOW = 10; // Kerzen fuer den moeglichen Flaggenmast
 const CONSOLIDATION_WINDOW = 15; // Kerzen fuer die moegliche Konsolidierung danach
 const CONSOLIDATION_SWING_LOOKBACK = 2; // kleines Fenster -> kleiner Pivot-Lookback
@@ -128,9 +113,7 @@ export interface OhlcvCandle {
   volume: number;
 }
 
-// Generalisiert auf beliebige Intervalle (30.09.2026, fuer die Multi-
-// Timeframe-Pivots noetig) -- vorher fest auf "1h" verdrahtet, da Key Levels
-// bis dahin ausschliesslich Liquidations-Cluster waren.
+// Generalisiert auf beliebige Intervalle (fuer die Multi-Timeframe-Pivots).
 async function fetchCandlesForInterval(interval: "1h" | "4h" | "1d", limit: number): Promise<OhlcvCandle[]> {
   const { data, error } = await supabase
     .from("candles")
@@ -481,16 +464,11 @@ export function computeTrendlines(
   return results;
 }
 
-// --- Chart-Formationen (neu, 25.09.2026) -----------------------------------
-// Nutzer-Nachfrage "doubel top, w-pattern" + Recherche-Auftrag
-// "Vollstaendigkeit": Stefan Salomons Lehrbuch deckt neben Trendlinien auch
+// --- Chart-Formationen -------------------------------------------------------
 // M-/W-Formationen (Doppelhoch/-tief), Kopf-Schulter und Dreiecke
-// (symmetrisch/steigend/fallend) ab -- alle vier hier umgesetzt, da sie
-// direkt auf der bereits vorhandenen Schwenkpunkt-/Trendlinien-Basis
-// aufbauen. BEWUSST NICHT umgesetzt: Flaggen/Wimpel/Keile -- die brauchen
-// eine andere Erkennungsbasis (ein scharfer vorangehender "Flaggenmast"
-// + ein sich verengender Parallelkanal), keine Wiederverwendung der
-// Schwenkpunkt-Logik, damit eine eigenstaendige Erweiterung.
+// (symmetrisch/steigend/fallend), wie in Stefan Salomons Lehrbuch -- alle
+// bauen auf der vorhandenen Schwenkpunkt-/Trendlinien-Basis auf. Flaggen/
+// Wimpel/Keile brauchen eine andere Erkennungsbasis und stehen weiter unten.
 
 export type SwingFormationType =
   | "double_top"
@@ -606,10 +584,9 @@ export function computeSwingFormations(
   return formations;
 }
 
-// --- Dreiecke (neu, 25.09.2026) ---------------------------------------------
-// Nutzt die bereits gefitteten Trendlinien (dieselben zwei Linien wie oben)
-// wieder -- ein Dreieck ist strukturell nur eine Konvergenz-Klassifikation
-// derselben Auf-/Abwaertslinie, kein eigener Fit.
+// --- Dreiecke -----------------------------------------------------------------
+// Nutzt die bereits gefitteten Trendlinien wieder -- ein Dreieck ist nur eine
+// Konvergenz-Klassifikation derselben Auf-/Abwaertslinie, kein eigener Fit.
 
 export interface TriangleFormation {
   type: "ascending" | "descending" | "symmetric";
@@ -644,7 +621,7 @@ export function detectTriangle(trendlines: TrendlineLevel[], candles: OhlcvCandl
   return { type, upperValue: down.currentValue, lowerValue: up.currentValue };
 }
 
-// --- Flaggen/Wimpel/Keile (neu, 25.09.2026) ---------------------------------
+// --- Flaggen/Wimpel/Keile -----------------------------------------------------
 // Anders als Trendlinien/Dreiecke ein LOKALES Muster: ein scharfer
 // vorangehender Kursimpuls (Flaggenmast, POLE_WINDOW Kerzen), gefolgt von
 // einer kurzen Konsolidierung (CONSOLIDATION_WINDOW Kerzen) mit einer
@@ -790,14 +767,13 @@ export interface KeyLevel {
   timeframes: PivotTimeframe[];
   confirmedBy: KeyLevelConfirmation[];
   liquidationNotionalUsd: number | null;
-  // Spot Volume Profile (30.09.2026): tatsaechlich gehandeltes Kauf-/
-  // Verkaufsvolumen (BTC) in dieser Zone, letzte KEY_LEVEL_LOOKBACK_HOURS.
-  // Ueberwiegend Kauf = Support-Hinweis, ueberwiegend Verkauf =
-  // Widerstand-Hinweis (Toby-Idee 30.09.2026). null, wenn keine
-  // signifikante Konzentration in dieser Zone lag.
+  // Spot Volume Profile: tatsaechlich gehandeltes Kauf-/Verkaufsvolumen (BTC)
+  // in dieser Zone, letzte KEY_LEVEL_LOOKBACK_HOURS. Ueberwiegend Kauf =
+  // Support-Hinweis, ueberwiegend Verkauf = Widerstand-Hinweis. null ohne
+  // signifikante Konzentration.
   spotVolume: { buyVolumeBtc: number; sellVolumeBtc: number } | null;
-  // Fruehester beitragender Pivot-Zeitpunkt (03.10.2026) -- null bei reinen
-  // Liquidations-/Spot-Volume-Zonen ohne Pivot-Beteiligung. Startpunkt fuer
+  // Fruehester beitragender Pivot-Zeitpunkt -- null bei reinen
+  // Liquidations-/Spot-Volume-Zonen ohne Pivot. Startpunkt fuer
   // lib/levelStructureContext.ts's "haelt die Zone seit damals?"-Analyse.
   anchorOpenTime: string | null;
 }
@@ -902,14 +878,10 @@ export function buildKeyLevelZones(
   const zones: KeyLevel[] = [];
   let clusterMembers: RawLevelSource[] = [];
   // Ankerpreis = Preis des ERSTEN (niedrigsten, da raw aufsteigend sortiert)
-  // Mitglieds der Zone -- bleibt fuer die gesamte Zone fest. Fix 08.10.2026
-  // (7-Tage-Check nach Einfuehrung, Live-Daten zeigten das Problem): vorher
-  // wurde gegen den mit jedem neuen Mitglied NEU berechneten Mittelwert
-  // geprueft ("Chaining"/Single-Linkage) -- jeder einzelne Schritt blieb
-  // innerhalb tolerancePct, aber die Zone konnte sich schrittweise ueber
-  // mehrere tolerancePct hinweg "fortbewegen" (gemessen: bis 0,537% Spanne
-  // bei 0,3% Toleranz). Gegen den fixen Anker zu pruefen begrenzt die
-  // Gesamtspanne einer Zone hart auf tolerancePct.
+  // Mitglieds -- bleibt fuer die gesamte Zone fest. Gegen einen mit jedem
+  // Mitglied neu berechneten Mittelwert zu pruefen (Single-Linkage) liess
+  // Zonen schrittweise ueber tolerancePct hinaus "wandern" (gemessen: 0,537%
+  // Spanne bei 0,3% Toleranz); der fixe Anker begrenzt die Spanne hart.
   let clusterAnchorPrice = 0;
 
   const flush = () => {
@@ -935,12 +907,9 @@ export function buildKeyLevelZones(
           }
         : null;
     // Fruehester beitragender Pivot-Zeitpunkt -- lexikalischer String-Min
-    // reicht, weil openTime echte ISO-8601-Zeitstempel sind (sortieren
-    // korrekt als String). null bei reinen Liquidations-/Spot-Volume-Zonen
-    // ohne Pivot-Beteiligung (siehe KeyLevel-Kommentar). Wird von
-    // lib/levelStructureContext.ts (03.10.2026, Nutzer-Wunsch "so moechte
-    // ich das angezeigt bekommen") als Startpunkt fuer die Struktur-
-    // Analyse (hat die Zone seitdem gehalten?) verwendet.
+    // reicht, weil openTime echte ISO-8601-Zeitstempel sind. null bei reinen
+    // Liquidations-/Spot-Volume-Zonen; Startpunkt fuer die Struktur-Analyse
+    // in lib/levelStructureContext.ts.
     const pivotMembers = clusterMembers.filter((m) => m.pivot);
     const anchorOpenTime =
       pivotMembers.length > 0 ? pivotMembers.map((m) => m.pivot!.openTime).sort()[0] : null;

@@ -1,4 +1,4 @@
-import type { MarketRegime, OiPriceQuadrant } from "@/lib/types";
+import type { MarketRegime } from "@/lib/types";
 import { DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD } from "@/lib/marketStateSummary";
 
 // Engine-Divergenz lebt in lib/marketStateSummary.ts (Institutional-Grade-
@@ -79,7 +79,7 @@ export function regimeColorClass(regime: MarketRegime): string {
 }
 
 // true fuer alle vier gerichteten Trend-Regimes (volle Trendausweitung UND
-// die schwaechere Trendbildung, seit 21.09.2026, siehe SQL-Migration
+// die schwaechere Trendbildung, siehe SQL-Migration
 // close_regime_adx_dead_zone_trend_forming) -- Hilfsfunktion fuer
 // zukuenftige UI-Filter/Badges (z.B. "nur Trend-Phasen anzeigen").
 export function isTrendingRegime(regime: MarketRegime): boolean {
@@ -143,8 +143,8 @@ export const SIGNAL_DIRECTION_COLOR: Record<SignalDirection, string> = {
 // Kennzahlen wirken in classify_market_regime() (research-python/src/
 // regime.py) ohnehin nur GEMEINSAM richtungsbestimmend -- deshalb hier ein
 // einzelnes Verdikt statt drei unabhaengig geratener Einzel-Badges, mit
-// demselben adx_range_threshold=20 (RegimeThresholds in regime.py): seit dem
-// 21.09.2026-Fix (TREND_FORMING_BULLISH/BEARISH) zaehlt uebereinstimmende
+// demselben adx_range_threshold=20 (RegimeThresholds in regime.py): wie bei
+// TREND_FORMING_BULLISH/BEARISH zaehlt uebereinstimmende
 // Richtung schon ab ADX 20 als Badge-wuerdig, nicht erst ab der vollen
 // Trendausweitungs-Schwelle 25 -- sonst wuerde dieses Einzel-Badge "neutral"
 // zeigen, waehrend die Marktphase-Ueberschrift bereits "Trendbildung" sagt.
@@ -194,11 +194,3 @@ export function bbPercentBDirection(bbPercentB: number | null): SignalDirection 
   return "neutral";
 }
 
-// OI/Preis-Quadrant-Semantik (dieselbe Taxonomie wie InstitutionalPlaybook-
-// Card/QUADRANT_LABELS in RegimeMatrixCard.tsx): Long-Aufbau/Short-Covering
-// sind beide preistreibend nach oben, Short-Aufbau/Long-Abbau nach unten.
-export function quadrantDirection(quadrant: OiPriceQuadrant | null): SignalDirection {
-  if (quadrant === "long_buildup" || quadrant === "short_covering") return "up";
-  if (quadrant === "short_buildup" || quadrant === "long_unwind") return "down";
-  return "neutral";
-}

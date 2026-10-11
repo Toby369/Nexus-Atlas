@@ -1,4 +1,4 @@
-// Datenbeschaffung fuer die News-Kachel (KI-Ergaenzung, 05.09.2026) --
+// Datenbeschaffung fuer die KI-News-Einordnung --
 // reines Lesen, kein Schreiben. Nutzt dieselbe Auswahl (markbewegend,
 // letzte 72h, Top 5) wie das bestehende regelbasierte News-Risk-Panel
 // (siehe getHighImpactNews() in app/page.tsx) -- keine zweite, abweichende
