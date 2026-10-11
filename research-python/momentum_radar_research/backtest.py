@@ -149,3 +149,82 @@ def bh_fdr(pvalues: list[float], alpha: float = 0.05) -> list[bool]:
             passed_rank = rank
     keep = set(order[:passed_rank])
     return [i in keep for i in range(m)]
+
+
+def simulate_limit(path: Path15m, place_time: pd.Timestamp, level: float, direction: int, valid: pd.Timedelta) -> tuple[str, float, pd.Timestamp, pd.Timestamp] | None:
+    """Limit-Order am VWAP-Vector-Level (Mo's Anleitung, Schritt 3: "Dorthin die
+    Order"). Gueltig ab place_time fuer `valid`. Fuellung, sobald eine 15m-Kerze das
+    Level erreicht; oeffnet sie schon jenseits des Levels, wird zum Open gefuellt.
+    In der Fuell-Kerze zaehlt nur der SL (konservativ: ob TP vor oder nach der
+    Fuellung lag, ist unbekannt), TP erst ab der Folgekerze.
+
+    Rueckgabe (Ausgang, Rendite, Fuellzeit, Ausstiegszeit); Ausgang "NOFILL", wenn
+    das Level nicht erreicht wurde; None, wenn Daten fuer das Fenster fehlen."""
+    i0 = int(np.searchsorted(path.times, place_time.value))
+    i_end = int(np.searchsorted(path.times, (place_time + valid).value))
+    if i_end >= len(path.times):
+        return None
+    if direction > 0:
+        touched = path.low[i0:i_end] <= level
+    else:
+        touched = path.high[i0:i_end] >= level
+    if not touched.any():
+        return "NOFILL", 0.0, place_time, place_time + valid
+    fi = i0 + int(np.argmax(touched))
+    entry = min(path.open[fi], level) if direction > 0 else max(path.open[fi], level)
+    fill_time = pd.Timestamp(path.times[fi], tz="UTC")
+    tp = entry * (1 + direction * TP_PCT)
+    sl = entry * (1 - direction * SL_PCT)
+    if (direction > 0 and path.low[fi] <= sl) or (direction < 0 and path.high[fi] >= sl):
+        return "SL", -SL_PCT, fill_time, fill_time + pd.Timedelta(minutes=15)
+    end_ns = (fill_time + HOLD).value
+    i1 = int(np.searchsorted(path.times, end_ns))
+    if i1 >= len(path.times):
+        return None
+    hi = path.high[fi + 1 : i1]
+    lo = path.low[fi + 1 : i1]
+    sl_hit = lo <= sl if direction > 0 else hi >= sl
+    tp_hit = hi >= tp if direction > 0 else lo <= tp
+    first_sl = int(np.argmax(sl_hit)) if sl_hit.any() else None
+    first_tp = int(np.argmax(tp_hit)) if tp_hit.any() else None
+    if first_sl is not None and (first_tp is None or first_sl <= first_tp):
+        return "SL", -SL_PCT, fill_time, pd.Timestamp(path.times[fi + 1 + first_sl] + 900 * 10**9, tz="UTC")
+    if first_tp is not None:
+        return "TP", TP_PCT, fill_time, pd.Timestamp(path.times[fi + 1 + first_tp] + 900 * 10**9, tz="UTC")
+    ret = direction * (path.close[i1 - 1] / entry - 1)
+    return "TIMEOUT", float(ret), fill_time, pd.Timestamp(end_ns, tz="UTC")
+
+
+def run_limit_cell(signal_close_times: pd.DatetimeIndex, direction: int, path: Path15m, levels: pd.DataFrame,
+                   close_15m: pd.Series, reach: float, valid: pd.Timedelta) -> pd.DataFrame:
+    """Signal am Schluss einer Chart-Kerze (signal_close_times) -> Limit-Order am
+    naechsten Level in Reichweite. Nicht ueberlappend: waehrend eine Order offen oder
+    ein Trade aktiv ist, werden neue Signale ignoriert. Kein Level in Reichweite =
+    kein Trade (Mo: "Kein brauchbares Level in Reichweite = kein Trade")."""
+    from vwap_vector import nearest_level
+
+    lv = levels.to_numpy()
+    lv_index = levels.index
+    rows = []
+    busy_until = pd.Timestamp.min.tz_localize("UTC")
+    for t in signal_close_times:
+        if t < busy_until:
+            continue
+        sp = split_of(t)
+        if sp is None or split_of(t + valid + HOLD) != sp:
+            continue
+        k = lv_index.searchsorted(t)
+        if k >= len(lv_index) or lv_index[k] != t:
+            continue
+        price = close_15m.iloc[k]
+        level = nearest_level(lv[k], price, direction, reach)
+        if level is None:
+            rows.append({"signal_time": t, "split": sp, "outcome": "NOLEVEL", "ret": 0.0, "r": 0.0})
+            continue
+        res = simulate_limit(path, t, level, direction, valid)
+        if res is None:
+            continue
+        outcome, ret, fill_time, exit_time = res
+        busy_until = exit_time
+        rows.append({"signal_time": t, "split": sp, "outcome": outcome, "ret": ret, "r": ret / SL_PCT})
+    return pd.DataFrame(rows, columns=["signal_time", "split", "outcome", "ret", "r"])

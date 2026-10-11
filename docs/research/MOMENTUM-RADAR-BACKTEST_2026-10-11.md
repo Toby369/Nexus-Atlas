@@ -149,3 +149,104 @@ Das deckt sich mit den beiden nächstverwandten Studien: Wave Anchor (gleicher W
 Keine Nexus-Integration der großen Punkte als Signal, weder Webhook-Badge noch native Berechnung.
 Das ist dieselbe Konsequenz wie bei Wave Anchor. Der Radar bleibt nutzbar als Chart-Werkzeug für
 Kontext (Lage der Zeitebenen, Geldfluss), aber ohne belegten Vorteil als Einstiegsauslöser.
+
+---
+
+# Teil 2 — Folge-Backtest: Punkt + VWAP-Vector-Level und übrige Signale
+
+Toby, 11.10.2026: "ja" zu beiden Folge-Vorschlägen. Code: `run_followup.py`, `vwap_vector.py`.
+Gleiche Daten, Splits, Barrieren und Statistik wie Teil 1. Pre-registriert im Kopf von
+`run_followup.py`.
+
+## 10. Familie A — Punkt + VWAP-Vector-Level (Mo's Anleitung Kapitel 6)
+
+**Umsetzung der Regel "Level aus dem VWAP Vector, dorthin die Order, kein Level in Reichweite =
+kein Trade":**
+- Levels wie Nexus' VWAP-Vector-Nachbau (`lib/tradingIndicatorsContext.ts`): Tag-, Wochen- und
+  Monats-VWAP sowie VWAP seit dem letzten bestätigten 1H-Swing-Hoch bzw. -Tief (fraktal,
+  Lookback 20). Gerechnet auf 15m mit hlc3 × Volumen. Ein Swing gilt erst nach 20 Folgekerzen
+  als bekannt.
+- Nach dem Punkt: Limit-Order am nächsten Level in Trade-Richtung (Long: höchstes Level unter dem
+  Kurs, Short: tiefstes darüber), sofern es innerhalb der Reichweite liegt (0,5 % oder 1,0 %).
+  Die Order ist 8 Chart-Kerzen gültig. In der Füll-Kerze zählt nur der SL (konservativ).
+- Baseline A0: dieselbe Limit-Logik stündlich, **ohne** Radar-Punkt.
+
+**Ergebnis Test-Split:** keine Zelle besteht BH-FDR. Bei den großen Punkten haben alle
+Test-Zellen n ≤ 8.
+
+**Gepoolt über alle Splits (Auszug):**
+
+| Signal | TF | Richtung | Reichweite | Punkte | ohne Level | Trades | TP-Rate | 95 %-KI |
+|---|---|---|---|---|---|---|---|---|
+| groß | 15m | Long | 1,0 % | 256 | 88 % | 25 | 28,0 % | 14,3–47,6 % |
+| groß | 15m | Short | 1,0 % | 487 | 87 % | 52 | 25,0 % | 15,2–38,2 % |
+| groß | 1h | Long | 1,0 % | 141 | 75 % | 32 | 28,1 % | 15,6–45,4 % |
+| groß | 1h | Short | 1,0 % | 266 | 70 % | 68 | 20,6 % | 12,7–31,6 % |
+| jeder | 15m | Long | 1,0 % | 2723 | 66 % | 526 | 24,5 % | 21,0–28,4 % |
+| jeder | 15m | Short | 1,0 % | 2975 | 68 % | 564 | 25,2 % | 21,8–28,9 % |
+| jeder | 1h | Long | 1,0 % | 725 | 66 % | 203 | 26,6 % | 21,0–33,1 % |
+| jeder | 1h | Short | 1,0 % | 826 | 69 % | 212 | 21,7 % | 16,7–27,7 % |
+| jeder | 4h | Short | 1,0 % | 226 | 39 % | 123 | 30,1 % | 22,7–38,7 % |
+| **A0: nur Level, kein Punkt** | 1h | Long | 1,0 % | 11.271 | 69 % | 2706 | 25,8 % | 24,2–27,5 % |
+| **A0: nur Level, kein Punkt** | 1h | Short | 1,0 % | 12.193 | 72 % | 2715 | 24,1 % | 22,6–25,8 % |
+
+Kernaussagen:
+
+1. **Großer Punkt + Level kommt kaum vor.** Bei 70–88 % der großen Punkte liegt **kein**
+   VWAP-Level in Trade-Richtung. Der Grund ist mechanisch: Ein großer Long-Punkt entsteht nach
+   einem Abverkauf, dann hängen alle VWAPs (Tag, Woche, Swing) **über** dem Kurs. Mo's Regel
+   "kein Level = kein Trade" filtert also fast alle großen Punkte weg. Die übrigen 25–68 Trades
+   reichen für keine Aussage (KI ±15 Prozentpunkte).
+2. **Der Punkt fügt dem Level nichts hinzu.** "Jeder Punkt + Level" liegt bei 22–27 % und damit
+   auf dem Niveau von "nur Level, ohne Punkt" (24–26 %). Die Baseline selbst hat ebenfalls
+   keine Kante: Eine reine Limit-Order am VWAP-Level schlägt die 25 % nicht robust.
+3. **Einzige Auffälligkeit: 4h, jeder Short-Punkt + Level** (30,1 %, n = 123). Sie hält im
+   Test-Split nicht (11 %, n = 9) und ist eine von 24 Zellen. Das ist kein Beleg, höchstens ein
+   Punkt zum Weiterbeobachten.
+
+## 11. Familie B — Raute, Divergenz, Geldfluss-Divergenz (Markt-Entry)
+
+**Ergebnis Test-Split:** keine Zelle besteht BH-FDR.
+
+**Gepoolt über alle Splits:**
+
+| Signal | TF | Long: n / TP | Short: n / TP |
+|---|---|---|---|
+| Raute (als Umkehr-Einstieg) | 15m | 40 / **12,5 %** | 60 / **13,3 %** |
+| Divergenz Welle | 15m | 737 / 25,0 % | 821 / 24,4 % |
+| Divergenz Welle | 1h | 176 / **16,5 %** | 225 / **19,1 %** |
+| Divergenz Welle | 4h | 49 / 16,3 % | 78 / 26,9 % |
+| Geldfluss-Divergenz (MF) | 15m | 1048 / 26,0 % | 1120 / 23,8 % |
+| Geldfluss-Divergenz (MF) | 1h | 323 / 27,2 % | 345 / 21,7 % |
+| Geldfluss-Divergenz (MF) | 4h | 68 / 23,5 % | 85 / 17,6 % |
+
+Kernaussagen:
+
+1. **Raute als Einstieg ist klar schlecht** (12–13 % auf 15m, KI-Obergrenze 24–26 %). Das
+   bestätigt Mo's eigene Anleitung ("kein Einstieg, sondern eine Warnung"). Auf 1h/4h kommt sie
+   zu selten vor (≤ 9).
+2. **Divergenzen auf 1h sind schlechter als Zufall** (16,5 % bzw. 19,1 %, in train mit
+   p = 0,015 bzw. 0,012 signifikant darunter). Gegen die laufende Bewegung einzusteigen, weil
+   eine Divergenz da ist, kostet auf 1h Geld. Auch das deckt sich mit der Anleitung ("Divergenz
+   ist KEIN Einstieg … kann sich mehrfach verlängern").
+3. **Die Geldfluss-Divergenz** (laut Anleitung "die wichtigste Beobachtung") liegt durchweg im
+   Bereich 18–27 %, ohne stabile Kante. Long auf 1h (27,2 %) war in train 29,5 %, in test 13,5 %.
+
+## 12. Gesamtklassifikation (Teil 1 + Teil 2)
+
+**NO_EDGE.** Kein getestetes Signal des Momentum Radars liefert mit Tobys Setup (3:1, 48 h)
+eine robuste, über train/validation/test stabile Trefferquote über der 25-%-Gewinnschwelle:
+große Punkte, kleine Punkte, Punkt + VWAP-Level, Raute, Divergenz und Geldfluss-Divergenz.
+Zwei Signale schneiden sogar klar **schlechter** als Zufall ab: die Raute als Umkehr-Einstieg und
+Divergenzen auf 1h. Beide warnt Mo's eigene Anleitung schon als Einstieg.
+
+Zusätzlich gelten die Limitationen aus Abschnitt 8. Für Teil 2 kommt hinzu: Der VWAP Vector
+ist Nexus' Nachbau (5 Levels). Mo's Original kennt zusätzlich "offene POCs" und ATR-
+Erweiterungen, deren Quellcode nicht vorliegt.
+
+## 13. Konsequenz
+
+Phase 3 (Nexus-Integration) entfällt für alle getesteten Radar-Signale. Der Radar bleibt ein
+persönliches Chart-Werkzeug. Wenn Toby ihn nutzt, dann am ehesten als **Warnsystem**: Raute und
+Divergenz sind laut Daten schlechte Einstiege, also eher ein Grund, **nicht** gegen die Bewegung
+einzusteigen. Ein Auslöser für Trades ist er nicht.

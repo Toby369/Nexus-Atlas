@@ -7,7 +7,9 @@ Backtest von Mo's Momentum Radar (Phase 2 aus
 - `radar.py`: Nachbau der Signal-Logik (Welle, Punkte, große Punkte, Geldfluss-Vorzeichen,
   4h-Trendfilter), Konstanten 1:1 aus dem Pine-Skript.
 - `backtest.py`: Triple-Barrier (TP +1,5 % / SL -0,5 % / 48 h, Pfad auf 15m), Splits, Statistik.
-- `run_backtest.py`: führt alle pre-registrierten Zellen aus und schreibt `output/` (gitignored).
+- `run_backtest.py`: Teil 1 (große/kleine Punkte, Trendfilter), schreibt `output/` (gitignored).
+- `run_followup.py` + `vwap_vector.py`: Teil 2 (Punkt + VWAP-Vector-Level als Limit-Order, Raute,
+  Divergenz, Geldfluss-Divergenz).
 
 ## Daten erzeugen
 
@@ -27,5 +29,6 @@ Das Ergebnis wird als `btc_<tf>.csv` mit Kopfzeile `ts,open,high,low,close,volum
 
 ```bash
 python run_backtest.py <datenverzeichnis>
+python run_followup.py <datenverzeichnis>
 python -m pytest -q
 ```

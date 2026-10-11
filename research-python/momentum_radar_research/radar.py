@@ -174,3 +174,83 @@ def radar_signals(chart_tf: str, frames: dict[str, pd.DataFrame]) -> pd.DataFram
     out["bull_cnt"] = bull_cnt
     out["bear_cnt"] = bear_cnt
     return out
+
+
+# --- Sekundaere Signale (Plan H4-H6) ---
+EXT_LOOK = 4
+OV_LVL = 100.0
+DIV_MAX = 80
+DIV_LOOK = 5
+MF_NORM = 200
+MF_TARGET = 22.0
+MFD_LEN = 5
+MFD_MIN = 5
+MFD_MAX = 80
+
+
+def money_flow_scaled(df: pd.DataFrame) -> pd.Series:
+    """Vollstaendiges f_mf(0) inkl. Selbstskalierung (fuer Vergleiche ueber die Zeit,
+    z. B. die Geldfluss-Divergenz)."""
+    raw = money_flow_raw(df)
+    absraw = raw.abs()
+    ref_sma = absraw.rolling(MF_NORM, min_periods=MF_NORM).mean()
+    ref_cum = absraw.expanding().mean()
+    ref = ref_sma.where(ref_sma.notna(), ref_cum)
+    return (raw / ref * MF_TARGET).where(ref.notna() & (ref != 0), 0.0)
+
+
+def secondary_signals(df: pd.DataFrame, sig: pd.DataFrame) -> pd.DataFrame:
+    """Raute (extrLo/extrHi), Divergenz auf der Welle (divBull/divBear, Nexus-Fix-
+    Version = Original fuer die Chart-Zeitebene) und Geldfluss-Divergenz (Fix F6).
+    Alle Signale gelten am Schluss der Kerze, an der sie im Pine-Skript feuern."""
+    w1, w2 = sig["wt1"], sig["wt2"]
+    cross_up = (w1 > w2) & (w1.shift(1) <= w2.shift(1))
+    cross_dn = (w1 < w2) & (w1.shift(1) >= w2.shift(1))
+    out = pd.DataFrame(index=df.index)
+    out["raute_long"] = cross_up & (w1.rolling(EXT_LOOK).min() <= -OV_LVL)
+    out["raute_short"] = cross_dn & (w1.rolling(EXT_LOOK).max() >= OV_LVL)
+
+    px_hi = df["high"].rolling(DIV_LOOK).max().to_numpy()
+    px_lo = df["low"].rolling(DIV_LOOK).min().to_numpy()
+    wt = w1.to_numpy()
+    bull_dot = sig["bull_dot"].to_numpy()
+    bear_dot = sig["bear_dot"].to_numpy()
+    n = len(df)
+    div_bull = np.zeros(n, dtype=bool)
+    div_bear = np.zeros(n, dtype=bool)
+    pb = pw = pp = None
+    qb = qw = qp = None
+    for i in range(n):
+        if bear_dot[i]:
+            if pb is not None and i - pb <= DIV_MAX and px_hi[i] > pp and wt[i] < pw:
+                div_bear[i] = True
+            pb, pw, pp = i, wt[i], px_hi[i]
+        if bull_dot[i]:
+            if qb is not None and i - qb <= DIV_MAX and px_lo[i] < qp and wt[i] > qw:
+                div_bull[i] = True
+            qb, qw, qp = i, wt[i], px_lo[i]
+    out["div_long"] = div_bull
+    out["div_short"] = div_bear
+
+    from vwap_vector import fractal_swings
+
+    mf = money_flow_scaled(df).to_numpy()
+    is_hi, is_lo = fractal_swings(df["high"].to_numpy(), df["low"].to_numpy(), MFD_LEN)
+    high = df["high"].to_numpy()
+    low = df["low"].to_numpy()
+    mfd_bull = np.zeros(n, dtype=bool)
+    mfd_bear = np.zeros(n, dtype=bool)
+    prev_l = prev_h = None
+    for p in range(n - MFD_LEN):
+        i = p + MFD_LEN  # Bestaetigungskerze
+        if is_lo[p]:
+            if prev_l is not None and MFD_MIN <= p - prev_l <= MFD_MAX and low[p] < low[prev_l] and mf[p] > mf[prev_l]:
+                mfd_bull[i] = True
+            prev_l = p
+        if is_hi[p]:
+            if prev_h is not None and MFD_MIN <= p - prev_h <= MFD_MAX and high[p] > high[prev_h] and mf[p] < mf[prev_h]:
+                mfd_bear[i] = True
+            prev_h = p
+    out["mfdiv_long"] = mfd_bull
+    out["mfdiv_short"] = mfd_bear
+    return out
