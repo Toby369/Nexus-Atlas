@@ -142,3 +142,39 @@ Aufruf aus `HeroHeader.tsx` entfernt. Kein Datenverlust — dieselbe 4h-Struktur
    `OiChangeCard.tsx`), Liquidations-/Hebelkarte (Modell-Schätzung) und Liquidationen (echte
    Events) nebeneinander gestellt statt weit auseinander — kein Merge (unterschiedliche
    Datengrundlage), aber leichter vergleichbar.
+
+## 8. Aufräumrunde ab 11.10.2026 — Zielvereinbarung
+
+Festgelegt mit Toby am 11.10.2026 (Abstimmung per Fragebogen, Grundlage: dieses Dokument,
+`IDEEN-BACKLOG.md` und Nutzungszahlen der letzten 30 Tage aus Supabase).
+
+**Hauptziel: schneller Überblick.** Beim Öffnen von Nexus soll in ~10 Sekunden klar sein, wie
+der Markt steht. Die Leitprinzipien aus Abschnitt 0 gelten weiter.
+
+**Datenverlust-Prinzip, gelockert:** Ungenutzte Funktionen dürfen entfallen, solange die Daten
+in der DB bleiben und der Code über Git zurückholbar ist — **aber jede Entfernung wird vorher
+explizit aufgelistet und mit Toby besprochen.** Keine stillen Löschungen, keine DB-Drops ohne
+eigene Freigabe.
+
+**Kaum genutzte KI-Kacheln: zusammenlegen statt löschen.** Nutzung 11.09.–11.10.2026
+(generierte Läufe): Freie Anfrage 1, YouTube-Gesamtanalyse 2, Eskalation 3, Trade-Debate 4,
+News-Einordnung 5 — gegenüber System-Briefing 36 und AI Reports 218. Checklisten (Lernen):
+noch nie genutzt.
+
+**Backlog-Punkte in dieser Runde:** OI/Preis-Quadrant (doppelte Berechnung auflösen),
+Überzeugungsgrad-Labels je Kachel eindeutig benennen, MTF-Divergenz-Warnung (Gesamteinschätzung
+vs. MTF-Ampel).
+
+### Phasen
+
+| Phase | Inhalt | Status |
+|---|---|---|
+| 0 | Gemeinsame Navigation, toter Code, Lint/Tests, Doku | ✅ erledigt (11.10.2026) |
+| 1 | Ziel festlegen (dieser Abschnitt) | ✅ erledigt (11.10.2026) |
+| 2 | KI-Kacheln zusammenlegen, OI/Preis-Quadrant auflösen — nach Besprechung der Entfernungsliste | offen |
+| 3 | Oberen Bereich verdichten (Gesamteinschätzung/Setup-Score/Regime-Score), Überzeugungsgrad-Labels, MTF-Divergenz-Warnung | offen |
+| 4 | Lernen-Seite entschlacken (Checklisten, Module) | offen |
+| 5 | Code verschlanken: datierte Verlaufs-Kommentare raus (Historie steht in Git), HeroHeader/LernenDashboard zerlegen — ohne Verhaltensänderung | offen |
+| 6 | Abschluss: dieses Dokument + Backlog aktualisieren, PR | offen |
+
+Jede Phase = eigener Commit, vor jedem Push `tsc`, `eslint`, `npm test`, `next build`.
