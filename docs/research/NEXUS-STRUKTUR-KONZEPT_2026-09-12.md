@@ -223,8 +223,8 @@ für die Briefing-Teile) und `maxDuration = 300` der Briefing-Route.
 lieferten Richtung, Überzeugungsgrad, Zusammenfassung und Widersprüche aus weitgehend denselben
 Marktdaten; das Briefing wendet zusätzlich das eigene Regelwerk und die Chart-Struktur an.
 
-- Das Briefing übernimmt vom Master-Report: den Zeitplan (frei wählbare Uhrzeiten, UTC, Startwerte
-  des Master-Slots 04:35/08:15/14:10/21:10), E-Mail und Push nach geplanten Läufen und den Satz
+- Das Briefing übernimmt vom Master-Report: den Zeitplan (frei wählbare Uhrzeiten, seit 12.10. in Schweizer Zeit, Startwerte
+  des Master-Slots 04:35/08:15/14:10/21:10 UTC = 06:35/10:15/16:10/23:10 Schweizer Zeit), E-Mail und Push nach geplanten Läufen und den Satz
   "Seit dem letzten Lauf". Einstellung im Lagebild unter "Zeitplan & Benachrichtigungen"
   (`system_briefing_config`, `components/BriefingScheduleSettings.tsx`).
 - Entfernt: Seite `/reports`, die vier Report-Slots (`/api/reports/*`), die Master-Report-Box im

@@ -394,7 +394,9 @@ export interface SystemBriefingResult {
 }
 
 // Zeitplan/Benachrichtigungen des System-Briefings (system_briefing_config,
-// eine Zeile). schedule_times sind UTC-Uhrzeiten ("HH:MM:SS").
+// eine Zeile). schedule_times sind Uhrzeiten in Schweizer Zeit
+// (Europe/Zurich, "HH:MM:SS"); der report-scheduler rechnet die
+// Sommer-/Winterzeit selbst um.
 export interface SystemBriefingConfig {
   id: number;
   schedule_times: string[] | null;

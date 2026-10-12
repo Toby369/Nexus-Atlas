@@ -10,7 +10,7 @@ import type { SystemBriefingConfig } from "@/lib/types";
 // system_briefing_config.id = 1). Schreibt ueber den Service-Role-Client,
 // da RLS nur Lesen erlaubt. Der report-scheduler (Supabase Edge Function)
 // liest schedule_times alle 5 Minuten und startet das Briefing zur
-// jeweiligen Uhrzeit (UTC).
+// jeweiligen Uhrzeit (Schweizer Zeit, Europe/Zurich).
 
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/;
 
