@@ -40,10 +40,6 @@ function isStringArray(value: unknown): value is string[] {
 
 const BIAS_3 = ["bullish", "bearish", "neutral"] as const;
 const RISK_LEVELS = ["low", "medium", "high"] as const;
-const IMPACT_LEVELS = ["high", "medium", "low"] as const;
-// Gesamtanalysen ueber mehrere Quellen duerfen zusaetzlich "conflicting"
-// melden, statt Widersprueche zu einem falschen "bullish" zu mitteln.
-const OVERALL_BIAS = ["bullish", "bearish", "neutral", "conflicting"] as const;
 
 // Einheitliche Zahlen-/Formatierungsregeln für die "summary"/Freitext-Felder
 // -- an die Profile angehängt, deren Text direkt im Dashboard angezeigt
@@ -64,9 +60,11 @@ const NUMBER_FORMAT_INSTRUCTION =
 // und englische Statuswerte ("Phase: respecting") woertlich ausgegeben.
 const BRIEFING_STYLE_INSTRUCTION =
   "Du schreibst Teile eines taeglichen Bitcoin-Marktberichts fuer einen erfahrenen " +
-  "Trader, ausschliesslich zu BTC (keine anderen Coins). Stil: Deutsch, ganze Saetze, " +
+  "Trader, ausschliesslich zu BTC (keine anderen Coins). Stil: Deutsch mit echten " +
+  "Umlauten (ä, ö, ü -- nie 'ae', 'oe', 'ue' als Ersatz), ganze Saetze, " +
   "sachlich und konkret wie ein guter Trading-Newsletter; jeder Text beginnt mit einem " +
-  "Kernsatz, der die Aussage allein traegt (die Anzeige setzt ihn fett). Uebliche " +
+  "Kernsatz, der die Aussage allein traegt (die Anzeige setzt ihn fett -- deshalb KEIN " +
+  "Markdown, keine Sternchen, keine Aufzaehlungszeichen im Text). Uebliche " +
   "Trader-Begriffe sind erlaubt (VWAP, EMA 200, RSI, Support, Widerstand, Funding, " +
   "Open Interest, Liquidationen, Reclaim). VERBOTEN: interne Datenfeldnamen, " +
   "Variablen oder JSON-Pfade aus dem Kontext (nie 'mein_system_checklist.ema13', " +
@@ -77,6 +75,46 @@ const BRIEFING_STYLE_INSTRUCTION =
   "USD), Zonen als Spanne (84'300-84'500 USD), Prozentwerte mit Vorzeichen und einer " +
   "Nachkommastelle mit Punkt (+1.2 %), Volumen gerundet (286 Mio. USD). " +
   "Nutze ausschliesslich die gelieferten Daten, erfinde keine Zahlen. ";
+
+// Regelwerk-Check: feste Zeilen-Bezeichnungen, je hoechstens einmal. Ein Lauf
+// hatte das Platzhalterwort "Label:" aus dem Prompt dreimal uebernommen und
+// die Gates dabei doppelt beschrieben (12.10.2026).
+const REGELWERK_LABELS = ["Gates", "Orderflow", "Bewegungsvorrat", "Liquidation"] as const;
+
+export function regelwerkLineErrors(text: string): string[] {
+  const lines = text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const seen = new Set<string>();
+  const errors: string[] = [];
+  if (lines.length > REGELWERK_LABELS.length) {
+    errors.push(`"regelwerkCheck" hat ${lines.length} Zeilen, erlaubt sind hoechstens ${REGELWERK_LABELS.length}.`);
+  }
+  for (const line of lines) {
+    const label = line.slice(0, Math.max(0, line.indexOf(":"))).trim();
+    if (!(REGELWERK_LABELS as readonly string[]).includes(label)) {
+      errors.push(`"regelwerkCheck"-Zeile ohne gueltige Bezeichnung (${REGELWERK_LABELS.join("/")}): "${line.slice(0, 40)}"`);
+    } else if (seen.has(label)) {
+      errors.push(`"regelwerkCheck" nennt "${label}" mehrfach.`);
+    } else {
+      seen.add(label);
+    }
+  }
+  return errors;
+}
+
+// Schlagzeile und Fazit beschreiben den Markt, nicht den Aufbau der Analyse
+// ("Spannungsfeld zwischen Chart und Trendfiltern", Lauf 12.10.2026 16:11 --
+// fuer den Leser unverstaendlich). Diese Begriffe verweisen auf die internen
+// Teil-Aufrufe und fallen dort durch.
+const ANALYSIS_JARGON = /\b(Trendfilter\w*|Regelwerk\w*|Teil-?[Aa]nalyse\w*|Spannungsfeld|Chartstruktur|Konfluenz\w*)\b/i;
+
+export function analysisJargonErrors(value: unknown, key: string): string[] {
+  if (typeof value !== "string") return [];
+  const hit = ANALYSIS_JARGON.exec(value);
+  return hit ? [`"${key}" beschreibt die Analyse statt den Markt ("${hit[0]}") -- Kurs, Zonen, Richtung nennen.`] : [];
+}
 
 // Freitext-Abschnitte der Synthese, gemeinsam fuer Prompt-Validierung und
 // Anzeige (components/SystemBriefingDetails.tsx, lib/systemBriefingNotify.ts).
@@ -221,80 +259,7 @@ function validateTradeReferee(data: unknown): string[] {
   return errors;
 }
 
-function validateNewsAnalysis(data: unknown): string[] {
-  const errors: string[] = [];
-  const items = field(data, "items");
-
-  if (!Array.isArray(items)) {
-    errors.push(`"items" muss ein Array sein.`);
-  } else {
-    items.forEach((item, i) => {
-      if (!isNonEmptyString(field(item, "headline"))) {
-        errors.push(`items[${i}].headline muss ein nicht-leerer String sein.`);
-      }
-      if (!isEnum(field(item, "impact"), IMPACT_LEVELS)) {
-        errors.push(`items[${i}].impact muss einer von [${IMPACT_LEVELS.join(", ")}] sein.`);
-      }
-      if (!isNonEmptyString(field(item, "reasoning"))) {
-        errors.push(`items[${i}].reasoning muss ein nicht-leerer String sein.`);
-      }
-    });
-  }
-
-  if (!isNonEmptyString(field(data, "summary"))) {
-    errors.push(`"summary" muss ein nicht-leerer String sein.`);
-  }
-
-  return errors;
-}
-
-// YouTube-Gesamtanalyse -- gleiche Philosophie wie frueher der Master-Report: NICHT
-// die Einzelvideos zu einem Bias mitteln, sondern Widersprueche zwischen
-// Kanaelen/Videos explizit benennen. Die Anzahl der Quellen ist variabel,
-// daher kein componentBiases-Objekt, sondern "conflicts" als Freitext-Liste
-// mit konkreten Kanalnamen.
-function validateYoutubeOverallAnalysis(data: unknown): string[] {
-  const errors: string[] = [];
-
-  const overallBias = field(data, "overallBias");
-  if (!isEnum(overallBias, OVERALL_BIAS)) {
-    errors.push(
-      `"overallBias" muss einer von [${OVERALL_BIAS.join(", ")}] sein, war: ${JSON.stringify(overallBias)}`
-    );
-  }
-  if (!isConfidence(field(data, "confidence"))) {
-    errors.push(`"confidence" muss eine Zahl zwischen 0 und 100 sein.`);
-  }
-  if (!isNonEmptyString(field(data, "summary"))) {
-    errors.push(`"summary" muss ein nicht-leerer String sein.`);
-  }
-  if (!isStringArray(field(data, "conflicts"))) {
-    errors.push(`"conflicts" muss ein String-Array sein (leeres Array, wenn keine Widersprüche).`);
-  }
-
-  return errors;
-}
-
 export const promptProfiles: Record<string, PromptProfile> = {
-  "news-analysis": {
-    id: "news-analysis",
-    category: "research",
-    description:
-      "Einordnung/Kontext zu bereits regelbasiert gefilterten markbewegenden News (nicht: kompletter Feed, nicht: Neu-Filterung).",
-    systemPrompt:
-      "Du bekommst eine Liste von Nachrichten, die Nexus bereits regelbasiert (Kategorie/" +
-      "Keyword-Score) als markbewegend fuer BTC/USDT Futures eingestuft hat. Deine Aufgabe " +
-      "ist NICHT, erneut zu filtern, sondern jede Meldung inhaltlich einzuordnen: was ist " +
-      "die wahrscheinliche Wirkung auf den BTC-Markt und warum -- nutze dabei dein Wissen " +
-      "bzw. deine Recherchefaehigkeit, um Kontext zu ergaenzen, den die reine Schlagzeile " +
-      "nicht zeigt. Erfinde KEINE zusaetzlichen Nachrichten ausserhalb der gegebenen Liste " +
-      "-- ein Modell ohne Live-Zugriff auf aktuelle Ereignisse darf hier nichts aus "+
-      "eigenem, moeglicherweise veraltetem Wissen dazuerfinden. " +
-      NUMBER_FORMAT_INSTRUCTION +
-      " Antworte als JSON mit: items (Array aus { headline, impact: high|medium|low, " +
-      "reasoning }), summary (string, deutsch, 2-3 Saetze Gesamtbild).",
-    validate: validateNewsAnalysis,
-  },
   // --- Periodischer KI-Rueckblick ------------------------------------------
   // Liest AUSSCHLIESSLICH bereits berechnete Zahlen (compute_signal_stats(),
   // signal_stats_results; Kontext aus lib/signalReviewContext.ts) -- kein
@@ -365,34 +330,6 @@ export const promptProfiles: Record<string, PromptProfile> = {
     },
   },
 
-  // YouTube-Gesamtanalyse -- laeuft ueber runTileAnalysis() (tileConfig.ts),
-  // Kontext aus den gespeicherten Einzelanalysen
-  // (app/api/youtube-monitor/overall-analysis/route.ts).
-  "youtube-overall-analysis": {
-    id: "youtube-overall-analysis",
-    category: "orchestration",
-    description:
-      "Synthetisiert mehrere bereits analysierte YouTube-Videos zu einer Gesamteinschaetzung, Widersprueche explizit benannt statt gemittelt.",
-    systemPrompt:
-      "Du bekommst eine Liste bereits einzeln analysierter YouTube-Videos (Kanal, Titel, " +
-      "bias, confidence, relevance, summary, Veroeffentlichungsdatum). Deine Aufgabe ist " +
-      "NICHT, die Einzelmeinungen zu einem Durchschnitt zu verwischen, sondern zu pruefen, " +
-      "ob sich die Kanaele/Videos WIDERSPRECHEN. Gewichte Videos mit relevance='low' kaum " +
-      "bis gar nicht (sie sind oft off-topic) -- sag explizit, wenn die meisten Videos " +
-      "wenig markt-relevant waren, statt trotzdem eine forcierte Gesamtrichtung zu " +
-      "konstruieren. Stimmen die relevanten Kanaele in dieselbe Richtung ueberein, ist " +
-      "overallBias diese Richtung und conflicts ein leeres Array. Weichen sie ab, nenne " +
-      "JEDEN konkreten Widerspruch einzeln in 'conflicts' mit Kanalnamen (z.B. \"Coin " +
-      "Bureau bullish wegen ETF-Zuflüssen, waehrend Benjamin Cowen bearish wegen " +
-      "Makro-Risiko argumentiert\") und setze overallBias auf 'conflicting'. Erfinde keine " +
-      "Aussagen, die nicht in den gelieferten Zusammenfassungen stehen. " +
-      NUMBER_FORMAT_INSTRUCTION +
-      " Antworte als JSON mit: overallBias (bullish|bearish|neutral|conflicting), " +
-      "confidence (0-100), summary (string, deutsch, 3-5 Saetze), conflicts (string[], " +
-      "leer wenn keine).",
-    validate: validateYoutubeOverallAnalysis,
-  },
-
   // --- System-Briefing ------------------------------------------------------
   // Fuenf Abschnitte: Fazit, Regelwerk-Check, Chart-Struktur (Formationen/
   // Key Levels/Level-Struktur), Konfluenz-Check (widerspricht etwas dem
@@ -425,8 +362,11 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "trading_indicators (GUSS-Regime, VWAP-Vector mit Tages-/Wochen-/Monats-VWAP, CVD -- " +
       "einzige Orderflow-Quelle); liquidations (Preis-Cluster nahe Kurs). " +
       "Pruefe NUR Tobys Regelwerk gegen diese Live-Daten, die Chart-Struktur siehst du " +
-      "hier nicht. regelwerkCheck: 2-4 Zeilen 'Label: Befund in einem ganzen Satz', " +
-      "getrennt durch \\n, nur befuellte Zeilen. 'Gates: ...' (Funding, OI und " +
+      "hier nicht. regelwerkCheck: 2-4 Zeilen, getrennt durch \\n, jede beginnt mit " +
+      "GENAU einer dieser Bezeichnungen und einem Doppelpunkt: 'Gates:', 'Orderflow:', " +
+      "'Bewegungsvorrat:', 'Liquidation:' -- jede hoechstens einmal, keine anderen " +
+      "Bezeichnungen (nie 'Label:'), danach der Befund in einem ganzen Satz. Funding, OI " +
+      "und EMAs gehoeren gemeinsam in die eine Gates-Zeile. 'Gates: ...' (Funding, OI und " +
       "EMA-Reihenfolge erfuellt? immer, z.B. 'Kurs ueber EMA 13 und EMA 50, aber noch " +
       "unter EMA 200 -- das Long-Gate ist nur teilweise erfuellt.'). 'Orderflow: ...' " +
       "(VWAP und CVD in dieselbe Richtung? immer; GUSS nur erwaehnen, wenn das GUSS-" +
@@ -437,8 +377,11 @@ export const promptProfiles: Record<string, PromptProfile> = {
       " JSON (flach): regelwerkCheck (string), leanBias (bullish/bearish/neutral).",
     validate: (data) => {
       const errors: string[] = [];
-      if (!isNonEmptyString(field(data, "regelwerkCheck"))) {
+      const regelwerkCheck = field(data, "regelwerkCheck");
+      if (!isNonEmptyString(regelwerkCheck)) {
         errors.push(`"regelwerkCheck" muss ein nicht-leerer String sein.`);
+      } else {
+        errors.push(...regelwerkLineErrors(regelwerkCheck));
       }
       if (!isEnum(field(data, "leanBias"), BIAS_3)) {
         errors.push(`"leanBias" muss einer von ${BIAS_3.join(", ")} sein.`);
@@ -511,17 +454,19 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "ueber dem EMA 200', 'Funding bleibt unter 0.05 %', 'CVD steigt weiter'), jede an " +
       "einen echten Wert aus den Daten gebunden; kursziel = Zahl oder null -- MUSS null " +
       "sein oder EXAKT einem keyLevels-Preis entsprechen, nie frei berechnet, und ist das " +
-      "naechste sinnvolle Level HINTER dem Ausloeser. Kein plausibles Szenario fuer eine " +
-      "Richtung? Dann text leer, bedingungen leer, kursziel null. invalidierung: ein " +
-      "ganzer Satz, ab wann das Bild kippt. " +
+      "naechste sinnvolle Level HINTER dem Ausloeser -- nie derselbe Preis wie der " +
+      "Ausloeser im text (Ausloeser 84'300 USD -> Kursziel z.B. 85'000 USD). Schreibe " +
+      "IMMER beide Richtungen, auch wenn eine unwahrscheinlicher ist (dann im text so " +
+      "einordnen); kein Level hinter dem Ausloeser vorhanden? Dann kursziel null. " +
+      "invalidierung: ein ganzer Satz, ab wann das Bild kippt. " +
       " JSON (flach, KEIN 'trigger'-Wrapper): bullish ({ text: string, bedingungen: " +
       "string[], kursziel: Zahl oder null }), bearish (gleich), invalidierung (string).",
     validate: (data) => {
       const errors: string[] = [];
       for (const key of ["bullish", "bearish"] as const) {
         const scenario = field(data, key);
-        if (typeof field(scenario, "text") !== "string") {
-          errors.push(`"${key}.text" muss ein String sein (leer, wenn kein Szenario).`);
+        if (!isNonEmptyString(field(scenario, "text"))) {
+          errors.push(`"${key}.text" muss ein nicht-leerer String sein (immer beide Szenarien).`);
         }
         if (!isStringArray(field(scenario, "bedingungen"))) {
           errors.push(`"${key}.bedingungen" muss ein String-Array sein.`);
@@ -555,8 +500,11 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "(marktbewegende Schlagzeilen), market_state und market_context (nur zum Abgleich), " +
       "bewegungsvorrat_ratio_pct, previousBriefing. Abschnitte, jeder mit Kernsatz " +
       "zuerst: " +
-      "schlagzeile: EINE Zeile ohne Punkt am Ende, wie ein Newsletter-Betreff (z.B. 'BTC " +
-      "erholt sich und steht vor moeglichem Ausbruch'). " +
+      "schlagzeile: EINE Zeile ohne Punkt am Ende, wie ein Newsletter-Betreff, die den " +
+      "MARKT beschreibt (Kurs, Zone, Richtung) -- nie den Aufbau dieser Analyse. Gut: " +
+      "'BTC erholt sich und steht vor moeglichem Ausbruch', 'BTC pendelt bei 82'900 USD " +
+      "zwischen Support 82'600 und Widerstand 83'400'. Schlecht: 'Spannungsfeld zwischen " +
+      "Chart und Trendfiltern', 'Regelwerk und Chart uneins'. " +
       "marktupdate: 2-4 Saetze -- Kurs, Veraenderung 24h und 7 Tage, Einordnung " +
       "(z.B. 'Nach dem Boden um 82'000 USD hat sich BTC kraftvoll zurueck zu 84'000 USD " +
       "gearbeitet (+1.2 % in 24 Stunden).'); relevante Schlagzeilen hoechstens in einem " +
@@ -573,7 +521,11 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "fazit: bias (bullish/bearish/neutral -- verdichte regelwerkLeanBias und " +
       "chartLeanBias zu einem Urteil, nur bei echter Richtung, sonst neutral), " +
       "confidence (0-100), kernaussage (1-2 Saetze, verdichtet Regelwerk und Chart; der " +
-      "erste Satz darf bias nicht widersprechen). " +
+      "erste Satz darf bias nicht widersprechen). Auch die kernaussage spricht ueber den " +
+      "Markt, nicht ueber die Analyse: statt 'Pattsituation zwischen stuetzenden " +
+      "Chartmustern und baerischen Trendfiltern' konkret 'BTC haelt die Unterstuetzung " +
+      "bei 82'600 USD, notiert aber unter EMA 200 und Tages-VWAP -- solange 83'400 USD " +
+      "nicht zurueckerobert ist, bleibt der Druck nach unten'. " +
       "konfluenzCheck: NUR bei echtem inhaltlichem Widerspruch (Marktdaten vs. Regelwerk/" +
       "Chart, Aggregat vs. Faktoren, Chart vs. Regelwerk), 1-2 Saetze, sonst null. " +
       "aenderungSeitLetztem: previousBriefing vorhanden? 1-2 Saetze, was sich bei " +
@@ -612,7 +564,9 @@ export const promptProfiles: Record<string, PromptProfile> = {
       }
       errors.push(
         ...technicalIdentifierErrors(data, [...BRIEFING_REPORT_SECTIONS, "konfluenzCheck", "aenderungSeitLetztem"]),
-        ...technicalIdentifierErrors(fazit, ["kernaussage"], "fazit.")
+        ...technicalIdentifierErrors(fazit, ["kernaussage"], "fazit."),
+        ...analysisJargonErrors(field(data, "schlagzeile"), "schlagzeile"),
+        ...analysisJargonErrors(field(fazit, "kernaussage"), "fazit.kernaussage")
       );
       return errors;
     },
@@ -759,37 +713,6 @@ export const promptProfiles: Record<string, PromptProfile> = {
     validate: validateTradeReferee,
   },
 
-  // Freie Anfrage: einziges Profil ohne festen Zweck -- der Kontext traegt
-  // "user_task" (Freitext) getrennt von "market_data" (derselbe validierte
-  // Marktkontext aus lib/reportContext.ts). Der System-Prompt legt nur die
-  // Leitplanken fest (nur market_data nutzen, nichts erfinden).
-  "custom-query": {
-    id: "custom-query",
-    category: "orchestration",
-    description: "Beantwortet eine frei formulierte Nutzeraufgabe/-frage anhand des echten Nexus-Marktkontexts.",
-    systemPrompt:
-      "Du bist NEXUS, ein persoenliches BTC-Marktueberwachungs-Tool. Der Kontext enthaelt zwei " +
-      "getrennte Felder: user_task (eine frei formulierte Aufgabe oder Frage des Nutzers) und " +
-      "market_data (der aktuelle, bereits validierte Nexus-Marktkontext -- Preis, Open " +
-      "Interest, Funding, Spot-Pressure, Liquidationen, Positionierung, Boersenvergleich, " +
-      "markbewegende News, ETF-Flows, sowie die regelbasierte Gesamteinschaetzung inkl. " +
-      "data_quality). Bearbeite AUSSCHLIESSLICH user_task. Stuetze dich dabei NUR auf " +
-      "market_data -- erfinde niemals Zahlen, Ereignisse oder Quellen, die dort nicht " +
-      "vorkommen. Wenn market_data fuer die gestellte Aufgabe nicht ausreicht (z.B. gefragt " +
-      "nach einem Wert, den Nexus nicht erfasst, oder data_quality zeigt INSUFFICIENT_DATA " +
-      "fuer einen relevanten Teil), sag das explizit statt zu spekulieren. Wenn user_task " +
-      "eindeutig NICHTS mit BTC/Krypto-Marktanalyse zu tun hat, weise kurz darauf hin statt " +
-      "die Anfrage trotzdem zu bearbeiten. " +
-      NUMBER_FORMAT_INSTRUCTION +
-      " Antworte als JSON mit: answer (string, deutsch, so lang wie fuer die Aufgabe " +
-      "angemessen -- keine kuenstliche Kuerzung, aber auch kein unnoetiges Fuellmaterial).",
-    validate: (data) => {
-      if (!isNonEmptyString(field(data, "answer"))) {
-        return ['"answer" muss ein nicht-leerer String sein.'];
-      }
-      return [];
-    },
-  },
 };
 
 export function getPromptProfile(id: string): PromptProfile {

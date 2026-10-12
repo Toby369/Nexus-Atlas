@@ -4,7 +4,9 @@
 //
 // Nur 503 wird retried -- 4xx-Fehler (z.B. 429 Rate-Limit, 400 ungueltige
 // Anfrage) aendern sich durch sofortiges Wiederholen nicht.
-const RETRY_DELAYS_MS = [1000, 2500];
+// Drei Versuche mit wachsendem Abstand: zwei kurze reichten am 12.10.2026
+// nicht, Gemini meldete ueber mehrere Sekunden "high demand".
+const RETRY_DELAYS_MS = [1500, 4000, 8000];
 
 // Eigenes Zeitlimit je Fetch-Versuch: ohne Limit konnte ein haengender
 // Provider das gesamte 60s-Budget einer Vercel-Funktion (Hobby-Plan)

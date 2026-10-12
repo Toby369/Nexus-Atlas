@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findTechnicalIdentifiers, getPromptProfile } from "./promptProfiles";
+import { analysisJargonErrors, findTechnicalIdentifiers, getPromptProfile, regelwerkLineErrors } from "./promptProfiles";
 
 describe("findTechnicalIdentifiers", () => {
   it("laesst Marktbericht-Klartext durch", () => {
@@ -32,10 +32,19 @@ describe("system-briefing-trigger validate", () => {
     expect(
       validate({
         bullish: scenario("Überwindet BTC die Zone 84'300-84'500 USD nachhaltig, rückt 85'000 USD in den Fokus.", ["Tagesschluss über dem EMA 200"]),
-        bearish: scenario("", []),
+        bearish: scenario("Scheitert BTC an der Zone, werden 83'200 USD wichtig.", []),
         invalidierung: "Ein Tagesschluss unter 82'300 USD kippt das Bild.",
       })
     ).toEqual([]);
+  });
+
+  it("verlangt beide Szenarien", () => {
+    const errors = validate({
+      bullish: scenario("Überwindet BTC die Zone, rückt 85'000 USD in den Fokus.", []),
+      bearish: scenario("", []),
+      invalidierung: "Unter 82'300 USD.",
+    });
+    expect(errors.join(" ")).toContain("bearish.text");
   });
 
   it("weist Feldnamen in den Bedingungen ab", () => {
@@ -45,5 +54,31 @@ describe("system-briefing-trigger validate", () => {
       invalidierung: "Unter 82'300 USD.",
     });
     expect(errors.join(" ")).toContain("interne Feldnamen");
+  });
+});
+
+describe("regelwerkLineErrors", () => {
+  it("akzeptiert die festen Bezeichnungen", () => {
+    expect(
+      regelwerkLineErrors("Gates: Kurs unter EMA 200, Long-Gate nicht erfüllt.\nOrderflow: VWAP und CVD fallen.")
+    ).toEqual([]);
+  });
+  it("weist 'Label:' und doppelte Bezeichnungen ab (Lauf vom 12.10.2026 16:10)", () => {
+    const errors = regelwerkLineErrors(
+      "Label: Funding unter Schwelle.\nLabel: OI-Delta negativ.\nGates: Kurs unter EMA 200.\nGates: nochmals."
+    );
+    expect(errors.join(" ")).toContain("ohne gueltige Bezeichnung");
+    expect(errors.join(" ")).toContain("mehrfach");
+  });
+});
+
+describe("analysisJargonErrors", () => {
+  it("weist Analyse-Jargon in der Schlagzeile ab (Lauf 12.10.2026 16:11)", () => {
+    expect(
+      analysisJargonErrors("Bitcoin konsolidiert bei 82'922 USD im Spannungsfeld zwischen Chart und Trendfiltern", "schlagzeile")
+    ).toHaveLength(1);
+  });
+  it("laesst Marktsprache durch", () => {
+    expect(analysisJargonErrors("BTC pendelt bei 82'900 USD zwischen Support 82'600 und Widerstand 83'400", "schlagzeile")).toEqual([]);
   });
 });
