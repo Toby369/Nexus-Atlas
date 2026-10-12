@@ -75,6 +75,7 @@ import {
   riskColor,
   riskFactorLabel,
 } from "@/lib/marketStateFactors";
+import { setVisibleInterval } from "@/lib/visibleInterval";
 
 const CUMULATIVE_ETF_DAYS = 5;
 
@@ -220,23 +221,23 @@ export default function HeroHeader({
       setLastSyncOk(ok);
       if (ok && data) setState(data);
     };
-    const interval = setInterval(load, MARKET_STATE_REFRESH_MS);
-    return () => clearInterval(interval);
+    const stopPolling = setVisibleInterval(load, MARKET_STATE_REFRESH_MS);
+    return () => stopPolling();
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(async () => {
+    const stopPolling = setVisibleInterval(async () => {
       const data = await fetchLatestRegime();
       setRegime(data);
     }, REGIME_REFRESH_MS);
-    return () => clearInterval(interval);
+    return () => stopPolling();
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(async () => {
+    const stopPolling = setVisibleInterval(async () => {
       setMtfDots(await fetchMtfDots());
     }, MARKET_STATE_REFRESH_MS);
-    return () => clearInterval(interval);
+    return () => stopPolling();
   }, []);
 
   // Eine veraltete KI-Einordnung darf nie als aktueller Zustand lesbar sein

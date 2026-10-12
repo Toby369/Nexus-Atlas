@@ -6,6 +6,7 @@ import type { NewsEvent } from "@/lib/types";
 import PanelInfo from "@/components/PanelInfo";
 import { newsRiskInfo } from "@/lib/panelInfo";
 import { RelativeTime } from "@/components/ClientTimestamp";
+import { setVisibleInterval } from "@/lib/visibleInterval";
 
 const REFRESH_INTERVAL_MS = 60_000;
 const NEWS_LIMIT = 5;
@@ -64,12 +65,12 @@ export default function NewsRiskPanel({
   const [lastSyncOk, setLastSyncOk] = useState(true);
 
   useEffect(() => {
-    const interval = setInterval(async () => {
+    const stopPolling = setVisibleInterval(async () => {
       const { data, ok } = await fetchHighImpactNews();
       setLastSyncOk(ok);
       if (ok) setNews(data);
     }, REFRESH_INTERVAL_MS);
-    return () => clearInterval(interval);
+    return () => stopPolling();
   }, []);
 
   return (

@@ -12,6 +12,7 @@ import {
 } from "@/lib/economicCalendar";
 import { CountdownTime, RelativeTime } from "@/components/ClientTimestamp";
 import PanelInfo from "@/components/PanelInfo";
+import { setVisibleInterval } from "@/lib/visibleInterval";
 
 // Wirtschaftstermin im Lagebild: zeigt den naechsten bevorstehenden Termin,
 // nach Veroeffentlichung noch 4h mit Resultat, danach den folgenden. Eigene
@@ -50,10 +51,10 @@ export default function EconomicHeroBadge({ events }: { events: EconomicCalendar
       if (!cancelled) setStatus(result);
     };
     load();
-    const interval = setInterval(load, POLL_MS);
+    const stopPolling = setVisibleInterval(load, POLL_MS);
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      stopPolling();
     };
   }, [events]);
 

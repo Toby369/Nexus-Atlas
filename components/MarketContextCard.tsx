@@ -11,6 +11,7 @@ import SpotPressureChart from "@/components/SpotPressureChart";
 import SpotVolumeProfileChart, { type SpotVolumeBucket } from "@/components/SpotVolumeProfileChart";
 import SpotPerpFlowPanel, { useSpotPerpSummary } from "@/components/SpotPerpFlowPanel";
 import { supabase } from "@/lib/supabase";
+import { setVisibleInterval } from "@/lib/visibleInterval";
 
 // Preis-Bucket-Breite fuer das Spot-Volumen-Profil -- dieselbe Breite wie
 // bei den Key Levels/Liquidations-Clustern (lib/chartStructureContext.ts,
@@ -79,10 +80,10 @@ export default function MarketContextCard({
       if (!cancelled) setSpotVolumeBuckets(buckets);
     }
     load();
-    const interval = setInterval(load, SPOT_VOLUME_REFRESH_MS);
+    const stopPolling = setVisibleInterval(load, SPOT_VOLUME_REFRESH_MS);
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      stopPolling();
     };
   }, [fetchedSinceIso]);
 

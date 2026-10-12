@@ -6,6 +6,7 @@ import { FullDateTime, StaleBadge } from "@/components/ClientTimestamp";
 import PanelInfo from "@/components/PanelInfo";
 import { fetchMtfDots, type MtfTimeframeDot } from "@/lib/mtfSignal";
 import MtfDotsRow from "@/components/MtfDotsRow";
+import { setVisibleInterval } from "@/lib/visibleInterval";
 
 // MTF-Ampel-Refresh im selben 5-Minuten-Takt wie HeroHeader/RegimeMatrixCard
 // -- reiner Live-Kontext neben dem zuletzt generierten Snapshot. Die
@@ -63,10 +64,10 @@ export default function TradeDebateCard({
   const [mtfDots, setMtfDots] = useState(initialMtfDots);
 
   useEffect(() => {
-    const interval = setInterval(async () => {
+    const stopPolling = setVisibleInterval(async () => {
       setMtfDots(await fetchMtfDots());
     }, MTF_REFRESH_MS);
-    return () => clearInterval(interval);
+    return () => stopPolling();
   }, []);
 
   async function handleGenerate() {
