@@ -30,11 +30,11 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "funding-rate", title: "Funding Rate", size: "compact" },
   { id: "orderbook-walls", title: "Orderbuch-Wände", size: "compact" },
   { id: "divergence-radar", title: "Divergenz-Radar" },
-  // News-Einordnung (KI) ist ein Aufklapper in "news-risk", der Konsistenz-
-  // Check der frueheren Signal Engine steckt im System-Briefing (Lagebild).
+  // Der Konsistenz-Check der frueheren Signal Engine steckt im System-
+  // Briefing (Lagebild).
   { id: "signal-review", title: "Periodischer Rückblick (KI)" },
-  // Buendelt Eskalation + Trade-Debate. System-Briefing und Freie Anfrage
-  // stehen im Lagebild (HeroHeader), nicht als eigene Kachel.
+  // Buendelt Eskalation + Trade-Debate. Das System-Briefing steht im
+  // Lagebild (HeroHeader), nicht als eigene Kachel.
   { id: "second-opinions", title: "Zweitmeinungen (KI)" },
   { id: "youtube-monitor", title: "Krypto-YouTube-Monitor (KI)" },
   { id: "liquidations", title: "Liquidationen" },

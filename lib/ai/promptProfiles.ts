@@ -40,10 +40,6 @@ function isStringArray(value: unknown): value is string[] {
 
 const BIAS_3 = ["bullish", "bearish", "neutral"] as const;
 const RISK_LEVELS = ["low", "medium", "high"] as const;
-const IMPACT_LEVELS = ["high", "medium", "low"] as const;
-// Gesamtanalysen ueber mehrere Quellen duerfen zusaetzlich "conflicting"
-// melden, statt Widersprueche zu einem falschen "bullish" zu mitteln.
-const OVERALL_BIAS = ["bullish", "bearish", "neutral", "conflicting"] as const;
 
 // Einheitliche Zahlen-/Formatierungsregeln für die "summary"/Freitext-Felder
 // -- an die Profile angehängt, deren Text direkt im Dashboard angezeigt
@@ -251,80 +247,7 @@ function validateTradeReferee(data: unknown): string[] {
   return errors;
 }
 
-function validateNewsAnalysis(data: unknown): string[] {
-  const errors: string[] = [];
-  const items = field(data, "items");
-
-  if (!Array.isArray(items)) {
-    errors.push(`"items" muss ein Array sein.`);
-  } else {
-    items.forEach((item, i) => {
-      if (!isNonEmptyString(field(item, "headline"))) {
-        errors.push(`items[${i}].headline muss ein nicht-leerer String sein.`);
-      }
-      if (!isEnum(field(item, "impact"), IMPACT_LEVELS)) {
-        errors.push(`items[${i}].impact muss einer von [${IMPACT_LEVELS.join(", ")}] sein.`);
-      }
-      if (!isNonEmptyString(field(item, "reasoning"))) {
-        errors.push(`items[${i}].reasoning muss ein nicht-leerer String sein.`);
-      }
-    });
-  }
-
-  if (!isNonEmptyString(field(data, "summary"))) {
-    errors.push(`"summary" muss ein nicht-leerer String sein.`);
-  }
-
-  return errors;
-}
-
-// YouTube-Gesamtanalyse -- gleiche Philosophie wie frueher der Master-Report: NICHT
-// die Einzelvideos zu einem Bias mitteln, sondern Widersprueche zwischen
-// Kanaelen/Videos explizit benennen. Die Anzahl der Quellen ist variabel,
-// daher kein componentBiases-Objekt, sondern "conflicts" als Freitext-Liste
-// mit konkreten Kanalnamen.
-function validateYoutubeOverallAnalysis(data: unknown): string[] {
-  const errors: string[] = [];
-
-  const overallBias = field(data, "overallBias");
-  if (!isEnum(overallBias, OVERALL_BIAS)) {
-    errors.push(
-      `"overallBias" muss einer von [${OVERALL_BIAS.join(", ")}] sein, war: ${JSON.stringify(overallBias)}`
-    );
-  }
-  if (!isConfidence(field(data, "confidence"))) {
-    errors.push(`"confidence" muss eine Zahl zwischen 0 und 100 sein.`);
-  }
-  if (!isNonEmptyString(field(data, "summary"))) {
-    errors.push(`"summary" muss ein nicht-leerer String sein.`);
-  }
-  if (!isStringArray(field(data, "conflicts"))) {
-    errors.push(`"conflicts" muss ein String-Array sein (leeres Array, wenn keine Widersprüche).`);
-  }
-
-  return errors;
-}
-
 export const promptProfiles: Record<string, PromptProfile> = {
-  "news-analysis": {
-    id: "news-analysis",
-    category: "research",
-    description:
-      "Einordnung/Kontext zu bereits regelbasiert gefilterten markbewegenden News (nicht: kompletter Feed, nicht: Neu-Filterung).",
-    systemPrompt:
-      "Du bekommst eine Liste von Nachrichten, die Nexus bereits regelbasiert (Kategorie/" +
-      "Keyword-Score) als markbewegend fuer BTC/USDT Futures eingestuft hat. Deine Aufgabe " +
-      "ist NICHT, erneut zu filtern, sondern jede Meldung inhaltlich einzuordnen: was ist " +
-      "die wahrscheinliche Wirkung auf den BTC-Markt und warum -- nutze dabei dein Wissen " +
-      "bzw. deine Recherchefaehigkeit, um Kontext zu ergaenzen, den die reine Schlagzeile " +
-      "nicht zeigt. Erfinde KEINE zusaetzlichen Nachrichten ausserhalb der gegebenen Liste " +
-      "-- ein Modell ohne Live-Zugriff auf aktuelle Ereignisse darf hier nichts aus "+
-      "eigenem, moeglicherweise veraltetem Wissen dazuerfinden. " +
-      NUMBER_FORMAT_INSTRUCTION +
-      " Antworte als JSON mit: items (Array aus { headline, impact: high|medium|low, " +
-      "reasoning }), summary (string, deutsch, 2-3 Saetze Gesamtbild).",
-    validate: validateNewsAnalysis,
-  },
   // --- Periodischer KI-Rueckblick ------------------------------------------
   // Liest AUSSCHLIESSLICH bereits berechnete Zahlen (compute_signal_stats(),
   // signal_stats_results; Kontext aus lib/signalReviewContext.ts) -- kein
@@ -393,34 +316,6 @@ export const promptProfiles: Record<string, PromptProfile> = {
       }
       return errors;
     },
-  },
-
-  // YouTube-Gesamtanalyse -- laeuft ueber runTileAnalysis() (tileConfig.ts),
-  // Kontext aus den gespeicherten Einzelanalysen
-  // (app/api/youtube-monitor/overall-analysis/route.ts).
-  "youtube-overall-analysis": {
-    id: "youtube-overall-analysis",
-    category: "orchestration",
-    description:
-      "Synthetisiert mehrere bereits analysierte YouTube-Videos zu einer Gesamteinschaetzung, Widersprueche explizit benannt statt gemittelt.",
-    systemPrompt:
-      "Du bekommst eine Liste bereits einzeln analysierter YouTube-Videos (Kanal, Titel, " +
-      "bias, confidence, relevance, summary, Veroeffentlichungsdatum). Deine Aufgabe ist " +
-      "NICHT, die Einzelmeinungen zu einem Durchschnitt zu verwischen, sondern zu pruefen, " +
-      "ob sich die Kanaele/Videos WIDERSPRECHEN. Gewichte Videos mit relevance='low' kaum " +
-      "bis gar nicht (sie sind oft off-topic) -- sag explizit, wenn die meisten Videos " +
-      "wenig markt-relevant waren, statt trotzdem eine forcierte Gesamtrichtung zu " +
-      "konstruieren. Stimmen die relevanten Kanaele in dieselbe Richtung ueberein, ist " +
-      "overallBias diese Richtung und conflicts ein leeres Array. Weichen sie ab, nenne " +
-      "JEDEN konkreten Widerspruch einzeln in 'conflicts' mit Kanalnamen (z.B. \"Coin " +
-      "Bureau bullish wegen ETF-Zuflüssen, waehrend Benjamin Cowen bearish wegen " +
-      "Makro-Risiko argumentiert\") und setze overallBias auf 'conflicting'. Erfinde keine " +
-      "Aussagen, die nicht in den gelieferten Zusammenfassungen stehen. " +
-      NUMBER_FORMAT_INSTRUCTION +
-      " Antworte als JSON mit: overallBias (bullish|bearish|neutral|conflicting), " +
-      "confidence (0-100), summary (string, deutsch, 3-5 Saetze), conflicts (string[], " +
-      "leer wenn keine).",
-    validate: validateYoutubeOverallAnalysis,
   },
 
   // --- System-Briefing ------------------------------------------------------
@@ -797,37 +692,6 @@ export const promptProfiles: Record<string, PromptProfile> = {
     validate: validateTradeReferee,
   },
 
-  // Freie Anfrage: einziges Profil ohne festen Zweck -- der Kontext traegt
-  // "user_task" (Freitext) getrennt von "market_data" (derselbe validierte
-  // Marktkontext aus lib/reportContext.ts). Der System-Prompt legt nur die
-  // Leitplanken fest (nur market_data nutzen, nichts erfinden).
-  "custom-query": {
-    id: "custom-query",
-    category: "orchestration",
-    description: "Beantwortet eine frei formulierte Nutzeraufgabe/-frage anhand des echten Nexus-Marktkontexts.",
-    systemPrompt:
-      "Du bist NEXUS, ein persoenliches BTC-Marktueberwachungs-Tool. Der Kontext enthaelt zwei " +
-      "getrennte Felder: user_task (eine frei formulierte Aufgabe oder Frage des Nutzers) und " +
-      "market_data (der aktuelle, bereits validierte Nexus-Marktkontext -- Preis, Open " +
-      "Interest, Funding, Spot-Pressure, Liquidationen, Positionierung, Boersenvergleich, " +
-      "markbewegende News, ETF-Flows, sowie die regelbasierte Gesamteinschaetzung inkl. " +
-      "data_quality). Bearbeite AUSSCHLIESSLICH user_task. Stuetze dich dabei NUR auf " +
-      "market_data -- erfinde niemals Zahlen, Ereignisse oder Quellen, die dort nicht " +
-      "vorkommen. Wenn market_data fuer die gestellte Aufgabe nicht ausreicht (z.B. gefragt " +
-      "nach einem Wert, den Nexus nicht erfasst, oder data_quality zeigt INSUFFICIENT_DATA " +
-      "fuer einen relevanten Teil), sag das explizit statt zu spekulieren. Wenn user_task " +
-      "eindeutig NICHTS mit BTC/Krypto-Marktanalyse zu tun hat, weise kurz darauf hin statt " +
-      "die Anfrage trotzdem zu bearbeiten. " +
-      NUMBER_FORMAT_INSTRUCTION +
-      " Antworte als JSON mit: answer (string, deutsch, so lang wie fuer die Aufgabe " +
-      "angemessen -- keine kuenstliche Kuerzung, aber auch kein unnoetiges Fuellmaterial).",
-    validate: (data) => {
-      if (!isNonEmptyString(field(data, "answer"))) {
-        return ['"answer" muss ein nicht-leerer String sein.'];
-      }
-      return [];
-    },
-  },
 };
 
 export function getPromptProfile(id: string): PromptProfile {

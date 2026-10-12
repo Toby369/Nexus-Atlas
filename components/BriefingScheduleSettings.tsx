@@ -9,6 +9,8 @@ import { MAX_BRIEFING_SCHEDULE_TIMES } from "@/lib/systemBriefingConfig";
 // Report-Slot: bis zu MAX_BRIEFING_SCHEDULE_TIMES taegliche
 // Uhrzeiten (Schweizer Zeit, Europe/Zurich -- Sommer-/Winterzeit rechnet
 // der report-scheduler selbst um), E-Mail und Push nur fuer geplante Laeufe.
+// Nur Viertelstunden: der report-scheduler laeuft alle 15 Minuten (siehe
+// app/api/system-briefing/config/route.ts).
 
 function toHHMM(times: string[] | null): string[] {
   return (times ?? []).map((t) => t.slice(0, 5));
@@ -66,12 +68,13 @@ export default function BriefingScheduleSettings({ initialConfig }: { initialCon
     <div className="space-y-3 text-xs">
       <div className="space-y-1.5">
         <p className="text-text-faint">
-          Automatisch täglich um (Schweizer Zeit, bis zu {MAX_BRIEFING_SCHEDULE_TIMES} Zeiten; keine Zeit = nur manuell)
+          Automatisch täglich um (Schweizer Zeit, nur Viertelstunden, bis zu {MAX_BRIEFING_SCHEDULE_TIMES} Zeiten; keine Zeit = nur manuell)
         </p>
         {scheduleTimes.map((t, i) => (
           <div key={i} className="flex items-center gap-1.5">
             <input
               type="time"
+              step={900}
               value={t}
               onChange={(e) => setScheduleTimes((prev) => prev.map((v, idx) => (idx === i ? e.target.value : v)))}
               className="bg-surface-raised border border-border rounded-md px-2 py-1.5 text-sm text-text"

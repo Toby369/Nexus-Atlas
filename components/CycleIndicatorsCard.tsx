@@ -11,7 +11,7 @@ const PI_CYCLE_INFO = [
 
 const LOG_CHANNEL_INFO = [
   "Was das ist: eine log-Regression ueber die verfuegbare Kerzenhistorie, aehnlich dem bekannten 'Rainbow Chart'-Konzept.",
-  "WICHTIG: der echte Rainbow-Chart braucht eine Regression ueber den VOLLEN Marktzyklus seit 2013 (mehrere vollstaendige Boom-Bust-Zyklen). Nexus hat aktuell nur ~2 Jahre Kerzenhistorie -- das hier ist bestenfalls der AKTUELLE Trendkanal dieser 2 Jahre, kein Ersatz fuer den langfristigen Rainbow-Chart. Die vollstaendige Version ist vorbereitet (btc_price_history_daily/CoinGecko), wartet aber auf einen kostenlosen CoinGecko-API-Key.",
+  "WICHTIG: der echte Rainbow-Chart braucht eine Regression ueber den VOLLEN Marktzyklus seit 2013 (mehrere vollstaendige Boom-Bust-Zyklen). Nexus hat aktuell nur ~2 Jahre Kerzenhistorie -- das hier ist bestenfalls der AKTUELLE Trendkanal dieser 2 Jahre, kein Ersatz fuer den langfristigen Rainbow-Chart.",
   "Kein Handelssignal -- eine Orientierungshilfe, wo der Preis relativ zum eigenen kurzfristigen Trend steht.",
 ].join("\n\n");
 

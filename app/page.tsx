@@ -12,17 +12,14 @@ import type {
   MarketStateMatrix,
   SystemBriefingConfig,
   SystemBriefingSnapshot,
-  NewsAnalysisSnapshot,
   NewsEvent,
   OiChangeByExchange,
   OrderbookWallSnapshot,
   SignalReviewSnapshot,
   ShortTermRangeCheck,
   TradeDebateSnapshot,
-  CustomQueryRun,
   TradingViewSignal,
   YoutubeVideoAnalysis,
-  YoutubeOverallAnalysis,
 } from "@/lib/types";
 import { getTimeframe, parseTimeframe, type TimeframeId } from "@/lib/timeframes";
 import { buildLiveLeverageMap } from "@/lib/leverageMapContext";
@@ -222,24 +219,6 @@ async function getHighImpactNews(): Promise<NewsEvent[]> {
   return data ?? [];
 }
 
-// News-Einordnung (KI): letzter gespeicherter Stand, angezeigt als
-// Aufklapper in NewsRiskPanel.tsx. Reines Lesen -- ein neuer Lauf nur ueber
-// POST /api/news-analysis/generate.
-async function getLatestNewsAnalysis(): Promise<NewsAnalysisSnapshot | null> {
-  const { data, error } = await supabase
-    .from("news_analysis_snapshots")
-    .select("*")
-    .order("generated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error("Fehler beim Laden der News-Einordnung:", error.message);
-    return null;
-  }
-  return data;
-}
-
 // Periodischer KI-Rueckblick: letzter gespeicherter Stand. Reines Lesen --
 // neue Laeufe ueber POST /api/signal-review/generate (primaer woechentlich
 // vom signal-review-scheduler-Cron).
@@ -294,23 +273,6 @@ async function getLatestTradeDebate(): Promise<TradeDebateSnapshot | null> {
   return data;
 }
 
-// Freie Anfrage (Abschnitt im System-Briefing): letzte gespeicherte Anfragen.
-// Reines Lesen -- neue Anfragen nur ueber POST /api/custom-query/generate.
-async function getLatestCustomQueries(): Promise<CustomQueryRun[]> {
-  const { data, error } = await supabase
-    .from("custom_query_runs")
-    .select("*")
-    .gte("generated_at", staleAiRunCutoffIso())
-    .order("generated_at", { ascending: false })
-    .limit(10);
-
-  if (error) {
-    console.error("Fehler beim Laden der freien Anfragen:", error.message);
-    return [];
-  }
-  return data ?? [];
-}
-
 // Krypto-YouTube-Monitor: letzte gespeicherte Analysen. Reines Lesen --
 // neue Laeufe nur ueber POST /api/youtube-monitor/generate.
 async function getLatestYoutubeAnalyses(): Promise<YoutubeVideoAnalysis[]> {
@@ -332,24 +294,6 @@ async function getLatestYoutubeAnalyses(): Promise<YoutubeVideoAnalysis[]> {
     return [];
   }
   return data ?? [];
-}
-
-// YouTube-Gesamtanalyse: letzter gespeicherter Lauf. Reines Lesen -- ein
-// neuer Lauf nur ueber POST /api/youtube-monitor/overall-analysis.
-async function getLatestYoutubeOverallAnalysis(): Promise<YoutubeOverallAnalysis | null> {
-  const { data, error } = await supabase
-    .from("youtube_overall_analyses")
-    .select("*")
-    .gte("generated_at", staleAiRunCutoffIso())
-    .order("generated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error("Fehler beim Laden der YouTube-Gesamtanalyse:", error.message);
-    return null;
-  }
-  return data;
 }
 
 // Stichprobenerfassung (~25s alle 5 Min je Boerse) -- letzte Fenster fuer
@@ -605,17 +549,14 @@ export default async function Home({
     confluenceSignalDetail,
     regimeScore,
     regimeSignalDetail,
-    latestNewsAnalysis,
     latestSignalReview,
     escalationTriggers,
     latestEscalation,
     latestTradeDebate,
-    latestCustomQueries,
     latestSystemBriefing,
     systemBriefingConfig,
     latestYoutubeAnalyses,
     youtubeMonitorConfig,
-    latestYoutubeOverallAnalysis,
     oiSeriesData,
     oiReferenceSnapshot,
     dashboardBundle,
@@ -639,17 +580,14 @@ export default async function Home({
     buildConfluenceSignalDetail(),
     buildRegimeScore(),
     buildRegimeSignalDetail(),
-    getLatestNewsAnalysis(),
     getLatestSignalReview(),
     detectEscalationTriggers(),
     getLatestEscalation(),
     getLatestTradeDebate(),
-    getLatestCustomQueries(),
     getLatestSystemBriefing(),
     getSystemBriefingConfig(),
     getLatestYoutubeAnalyses(),
     getYoutubeMonitorConfig(),
-    getLatestYoutubeOverallAnalysis(),
     getMarketSeries(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getOiReferenceSnapshot(DEFAULT_SERIES_EXCHANGE, timeframeSinceIsoValue),
     getDashboardPollBundle(timeframeSinceIsoValue),
@@ -728,7 +666,6 @@ export default async function Home({
                   timeframe={timeframe}
                   recentEtfFlows={recentEtfFlows}
                   initialSystemBriefing={latestSystemBriefing}
-                  initialCustomQueries={latestCustomQueries}
                   initialBriefingConfig={systemBriefingConfig}
                   upcomingEconomicEvents={upcomingEconomicEvents}
                   initialMtfDots={mtfDots}
@@ -772,7 +709,7 @@ export default async function Home({
                       <EtfFlowPanel initialFlows={recentEtfFlows} macroNews={highImpactNews} />
                     ),
                     "news-risk": (
-                      <NewsRiskPanel initialNews={highImpactNews} initialNewsAnalysis={latestNewsAnalysis} />
+                      <NewsRiskPanel initialNews={highImpactNews} />
                     ),
                     "signal-review": <SignalReviewCard initialSnapshot={latestSignalReview} />,
                     "second-opinions": (
@@ -789,7 +726,6 @@ export default async function Home({
                       <YoutubeMonitorCard
                         initialAnalyses={latestYoutubeAnalyses}
                         initialConfig={youtubeMonitorConfig}
-                        initialOverallAnalysis={latestYoutubeOverallAnalysis}
                       />
                     ),
                   }}

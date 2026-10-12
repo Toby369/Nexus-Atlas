@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import type {
-  CustomQueryRun,
   EconomicCalendarEvent,
   EtfFlowDay,
   MarketRegime,
@@ -61,7 +60,6 @@ import EconomicHeroBadge from "@/components/EconomicHeroBadge";
 import BriefingScheduleSettings from "@/components/BriefingScheduleSettings";
 import PanelInfo from "@/components/PanelInfo";
 import SystemBriefingDetails, { isValidSystemBriefingResult } from "@/components/SystemBriefingDetails";
-import CustomQueryPanel from "@/components/CustomQueryPanel";
 import { marketStateInfo, MARKET_STATE_FACTOR_INFO, momentumDivergenceInfo } from "@/lib/panelInfo";
 import { fetchMtfDots, type MtfTimeframeDot } from "@/lib/mtfSignal";
 import { RISK_ELEVATING_PATTERN_NAMES } from "@/lib/patternDirection";
@@ -173,7 +171,6 @@ export default function HeroHeader({
   recentEtfFlows,
   upcomingEconomicEvents,
   initialSystemBriefing,
-  initialCustomQueries,
   initialBriefingConfig,
   initialMtfDots,
   setupScore,
@@ -198,8 +195,6 @@ export default function HeroHeader({
   // Auszug des ohnehin vorhandenen System-Briefing-Snapshots fuer die
   // KI-Einordnung, kein eigener Fetch/Poll/Button hier.
   initialSystemBriefing: SystemBriefingSnapshot | null;
-  // Juengste freie Anfragen (custom_query_runs) fuer "Rückfrage an die KI".
-  initialCustomQueries: CustomQueryRun[];
   // Zeitplan/E-Mail/Push des Briefings (system_briefing_config).
   initialBriefingConfig: SystemBriefingConfig | null;
   // MTF-Ampel (lib/mtfSignal.ts) -- 15M/1H/4H/1D/1W mit Trend-vs-
@@ -632,17 +627,6 @@ export default function HeroHeader({
             </div>
           </details>
         )}
-
-        {/* Freie Anfrage arbeitet auf demselben Marktkontext. Offen, sobald
-            juengste Anfragen vorliegen. */}
-        <details className="pt-1" open={initialCustomQueries.length > 0}>
-          <summary className="text-xs text-text-muted hover:text-text cursor-pointer select-none">
-            Rückfrage an die KI stellen
-          </summary>
-          <div className="pt-2">
-            <CustomQueryPanel initialRuns={initialCustomQueries} />
-          </div>
-        </details>
 
         <details className="pt-1">
           <summary className="text-xs text-text-muted hover:text-text cursor-pointer select-none">
