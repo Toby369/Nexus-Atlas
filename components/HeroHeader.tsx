@@ -204,7 +204,7 @@ export default function HeroHeader({
   // MTF-Ampel (lib/mtfSignal.ts) -- 15M/1H/4H/1D/1W mit Trend-vs-
   // Trendbildung-Unterscheidung, unabhaengig vom mtf_alignment-Feld in state.
   initialMtfDots: MtfTimeframeDot[];
-  // Kurs vor 1 Std / 4 Std / 1 Tag / 1 Woche (lib/priceChanges.ts), die Veraenderung rechnet
+  // Kurs vor 1H/4H/1D/1W (lib/priceChanges.ts), die Veraenderung rechnet
   // gegen den Live-Preis.
   initialPriceReferences: PriceReference[];
   // Setup-/Regime-Score als Kennzahlen oben, die vollstaendigen Karten
@@ -471,12 +471,11 @@ export default function HeroHeader({
                 <div key={label} className="sm:text-right">
                   <dt className="text-text-faint font-sans">{label}</dt>
                   <dd className={abs >= 0 ? "text-up" : "text-down"}>
-                    {abs >= 0 ? "+" : "−"}
-                    {formatUsd(Math.abs(abs), 0)}
+                    {abs >= 0 ? "▲" : "▼"} {formatUsd(Math.abs(abs), 0)}
                   </dd>
                   <dd className={abs >= 0 ? "text-up" : "text-down"}>
-                    {pct >= 0 ? "+" : "−"}
-                    {Math.abs(pct).toFixed(1)} %
+                    {pct >= 0 ? "+" : ""}
+                    {pct.toFixed(1)} %
                   </dd>
                 </div>
               ))}

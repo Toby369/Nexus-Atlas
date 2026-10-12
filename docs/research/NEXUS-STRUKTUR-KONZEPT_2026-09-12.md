@@ -276,8 +276,8 @@ Confluence-/Regime-Score-Pipelines inklusive ihrer Aktivierungstabellen (Kürzen
 
 ### Nachtrag: Preisänderung im Lagebild (12.10.2026)
 
-**Freigegeben (Toby):** Neben dem Live-Preis im Lagebild steht die Veränderung über 1 Std / 4 Std / 1 Tag / 1 Woche,
-jeweils mit Vorzeichen in USD und Prozent, steigend grün, fallend rot (`lib/priceChanges.ts`). Grundlage sind die 5-Minuten-Snapshots
+**Freigegeben (Toby):** Neben dem Live-Preis im Lagebild steht die Veränderung über 1H/4H/1D/1W,
+jeweils in USD (▲/▼) und Prozent (`lib/priceChanges.ts`). Grundlage sind die 5-Minuten-Snapshots
 derselben Börse (Bybit), aktualisiert wie die Gesamteinschätzung. Die eigenständige Kachel
 "BTC Preis" entfällt, ihr Inhalt (Preis, Veränderung zum letzten Datenpunkt, Verlauf der letzten
 Stunden) ist damit im Lagebild abgedeckt.
