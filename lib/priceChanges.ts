@@ -1,16 +1,16 @@
 import { supabase } from "./supabase";
 
-// Preisveraenderung ueber 1H/4H/1D/1W neben dem Live-Preis im Lagebild
+// Preisveraenderung ueber 1 Std / 4 Std / 1 Tag / 1 Woche neben dem Live-Preis im Lagebild
 // (HeroHeader). Referenz ist der erste 5-Minuten-Snapshot ab dem jeweiligen
 // Zeitpunkt von derselben Boerse wie der Live-Preis (Bybit, siehe
 // REFERENCE_EXCHANGE in app/page.tsx und LivePriceDataProvider.tsx), damit
 // kein Boersen-Basisunterschied in die Differenz einfliesst.
 
 export const PRICE_CHANGE_WINDOWS = [
-  { label: "1H", minutes: 60 },
-  { label: "4H", minutes: 4 * 60 },
-  { label: "1D", minutes: 24 * 60 },
-  { label: "1W", minutes: 7 * 24 * 60 },
+  { label: "1 Std", minutes: 60 },
+  { label: "4 Std", minutes: 4 * 60 },
+  { label: "1 Tag", minutes: 24 * 60 },
+  { label: "1 Woche", minutes: 7 * 24 * 60 },
 ] as const;
 
 export type PriceChangeLabel = (typeof PRICE_CHANGE_WINDOWS)[number]["label"];
