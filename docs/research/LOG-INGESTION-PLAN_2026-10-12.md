@@ -37,6 +37,18 @@ Grösste Verursacher (Aufrufe/Tag):
 - Quellcode beider Funktionen neu im Repo unter `supabase/functions/` (bisher nur in
   Supabase vorhanden).
 
+**Umgesetzt 12.10.2026, ~16:13 UTC** (analyst v10, collector v19). Messung pro
+15-Min-Slot, nur Aufrufe der News-Funktionen:
+
+| Slot | GET news_events | PATCH | GET news_sources | Summe |
+|---|---|---|---|---|
+| vorher (15:00–16:00, je) | 26 | 50 | 6 | ~82 |
+| 16:30 (erster regulärer Lauf danach) | 2 | 0 | 1 | 3 |
+
+→ von ~7'900 auf ~300 Aufrufe pro Tag (−96 %). Neue News werden weiter erfasst,
+übersetzt und bewertet (Testlauf: 8 neu, 60 Duplikate übersprungen, 7 Bewertungen
+geschrieben).
+
 ## Phase 2 – `get_secret` (−~535/Tag)
 
 Prüfen, welche Edge Functions `get_secret` pro Lauf aufrufen; Schlüssel als
