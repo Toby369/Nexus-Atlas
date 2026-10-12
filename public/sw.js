@@ -73,6 +73,34 @@ self.addEventListener("push", (event) => {
   );
 });
 
+// Der Browser kann ein Push-Abo selbst erneuern oder verwerfen. Dann sofort
+// neu anmelden und an den Server melden (gleicher Upsert wie in
+// components/ServiceWorkerRegister.tsx), sonst landen Pushes beim alten,
+// toten Abo. Der Key muss lib/webPush.ts::VAPID_PUBLIC_KEY entsprechen.
+const VAPID_PUBLIC_KEY =
+  "BJWQ6WGvi9OMy_YswlA_Y9c6_SaLl-Werw94zsEZXWyKIy5el8lXl44k0MXmtIAlVx5nxf_bSeLaTOn4Fkkn20A";
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  return Uint8Array.from(raw, (c) => c.charCodeAt(0));
+}
+
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil(
+    self.registration.pushManager
+      .subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) })
+      .then((subscription) =>
+        fetch("/api/push/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(subscription.toJSON()),
+        }),
+      ),
+  );
+});
+
 // Klick auf die Benachrichtigung: bestehenden Dashboard-Tab fokussieren
 // statt immer einen neuen zu oeffnen, falls einer bereits offen ist.
 //

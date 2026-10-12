@@ -80,6 +80,34 @@ const BRIEFING_STYLE_INSTRUCTION =
   "Nachkommastelle mit Punkt (+1.2 %), Volumen gerundet (286 Mio. USD). " +
   "Nutze ausschliesslich die gelieferten Daten, erfinde keine Zahlen. ";
 
+// Regelwerk-Check: feste Zeilen-Bezeichnungen, je hoechstens einmal. Ein Lauf
+// hatte das Platzhalterwort "Label:" aus dem Prompt dreimal uebernommen und
+// die Gates dabei doppelt beschrieben (12.10.2026).
+const REGELWERK_LABELS = ["Gates", "Orderflow", "Bewegungsvorrat", "Liquidation"] as const;
+
+export function regelwerkLineErrors(text: string): string[] {
+  const lines = text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const seen = new Set<string>();
+  const errors: string[] = [];
+  if (lines.length > REGELWERK_LABELS.length) {
+    errors.push(`"regelwerkCheck" hat ${lines.length} Zeilen, erlaubt sind hoechstens ${REGELWERK_LABELS.length}.`);
+  }
+  for (const line of lines) {
+    const label = line.slice(0, Math.max(0, line.indexOf(":"))).trim();
+    if (!(REGELWERK_LABELS as readonly string[]).includes(label)) {
+      errors.push(`"regelwerkCheck"-Zeile ohne gueltige Bezeichnung (${REGELWERK_LABELS.join("/")}): "${line.slice(0, 40)}"`);
+    } else if (seen.has(label)) {
+      errors.push(`"regelwerkCheck" nennt "${label}" mehrfach.`);
+    } else {
+      seen.add(label);
+    }
+  }
+  return errors;
+}
+
 // Freitext-Abschnitte der Synthese, gemeinsam fuer Prompt-Validierung und
 // Anzeige (components/SystemBriefingDetails.tsx, lib/systemBriefingNotify.ts).
 export const BRIEFING_REPORT_SECTIONS = [
@@ -427,8 +455,11 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "trading_indicators (GUSS-Regime, VWAP-Vector mit Tages-/Wochen-/Monats-VWAP, CVD -- " +
       "einzige Orderflow-Quelle); liquidations (Preis-Cluster nahe Kurs). " +
       "Pruefe NUR Tobys Regelwerk gegen diese Live-Daten, die Chart-Struktur siehst du " +
-      "hier nicht. regelwerkCheck: 2-4 Zeilen 'Label: Befund in einem ganzen Satz', " +
-      "getrennt durch \\n, nur befuellte Zeilen. 'Gates: ...' (Funding, OI und " +
+      "hier nicht. regelwerkCheck: 2-4 Zeilen, getrennt durch \\n, jede beginnt mit " +
+      "GENAU einer dieser Bezeichnungen und einem Doppelpunkt: 'Gates:', 'Orderflow:', " +
+      "'Bewegungsvorrat:', 'Liquidation:' -- jede hoechstens einmal, keine anderen " +
+      "Bezeichnungen (nie 'Label:'), danach der Befund in einem ganzen Satz. Funding, OI " +
+      "und EMAs gehoeren gemeinsam in die eine Gates-Zeile. 'Gates: ...' (Funding, OI und " +
       "EMA-Reihenfolge erfuellt? immer, z.B. 'Kurs ueber EMA 13 und EMA 50, aber noch " +
       "unter EMA 200 -- das Long-Gate ist nur teilweise erfuellt.'). 'Orderflow: ...' " +
       "(VWAP und CVD in dieselbe Richtung? immer; GUSS nur erwaehnen, wenn das GUSS-" +
@@ -439,8 +470,11 @@ export const promptProfiles: Record<string, PromptProfile> = {
       " JSON (flach): regelwerkCheck (string), leanBias (bullish/bearish/neutral).",
     validate: (data) => {
       const errors: string[] = [];
-      if (!isNonEmptyString(field(data, "regelwerkCheck"))) {
+      const regelwerkCheck = field(data, "regelwerkCheck");
+      if (!isNonEmptyString(regelwerkCheck)) {
         errors.push(`"regelwerkCheck" muss ein nicht-leerer String sein.`);
+      } else {
+        errors.push(...regelwerkLineErrors(regelwerkCheck));
       }
       if (!isEnum(field(data, "leanBias"), BIAS_3)) {
         errors.push(`"leanBias" muss einer von ${BIAS_3.join(", ")} sein.`);
