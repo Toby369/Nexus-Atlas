@@ -18,6 +18,7 @@ import {
   type SpotPerpTone,
 } from "@/lib/spotPerpFlow";
 import type { PremiumLevel, PremiumSummary } from "@/lib/coinbasePremium";
+import { setVisibleInterval } from "@/lib/visibleInterval";
 
 // Aufklapper in der Marktkontext-Kachel: wer traegt die Bewegung (Spot oder
 // Perp) und kaufen die US-Institutionen (Coinbase-Premium)? Bewusst keine
@@ -100,10 +101,10 @@ export function useSpotPerpSummary({
       if (!cancelled) setPerpRows(rows);
     }
     load();
-    const id = setInterval(load, PERP_REFRESH_MS);
+    const stopPolling = setVisibleInterval(load, PERP_REFRESH_MS);
     return () => {
       cancelled = true;
-      clearInterval(id);
+      stopPolling();
     };
   }, [sinceIso, interval]);
 
@@ -152,10 +153,10 @@ export default function SpotPerpFlowPanel({
       }
     }
     load();
-    const id = setInterval(load, PREMIUM_REFRESH_MS);
+    const stopPolling = setVisibleInterval(load, PREMIUM_REFRESH_MS);
     return () => {
       cancelled = true;
-      clearInterval(id);
+      stopPolling();
     };
   }, []);
 

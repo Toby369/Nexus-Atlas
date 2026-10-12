@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import { supabase } from "@/lib/supabase";
 import type { DashboardPollBundle } from "@/lib/types";
 import { getTimeframe, type TimeframeId } from "@/lib/timeframes";
+import { setVisibleInterval } from "@/lib/visibleInterval";
 
 // Phase 2, Punkt 3: buendelt die 30s-Polls von MarketContextCard,
 // SpotPressurePanel und PositioningPanel (vorher zusammen 10 unabhaengige
@@ -101,10 +102,10 @@ export default function DashboardPollProvider({
     };
 
     if (!skipImmediateLoad) load(true);
-    const interval = setInterval(() => load(false), REFRESH_INTERVAL_MS);
+    const stopPolling = setVisibleInterval(() => load(false), REFRESH_INTERVAL_MS);
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      stopPolling();
     };
   }, [timeframe]);
 

@@ -39,6 +39,7 @@ import {
 import { RelativeTime } from "@/components/ClientTimestamp";
 import { fetchMtfDots, type MtfTimeframeDot } from "@/lib/mtfSignal";
 import MtfDotsRow from "@/components/MtfDotsRow";
+import { setVisibleInterval } from "@/lib/visibleInterval";
 
 // Regime-Daten aendern sich hoechstens stuendlich (1H-Kerzen-Raster, siehe
 // compute_market_state_matrix_series) -- kein 30s-Live-Takt noetig wie bei
@@ -158,8 +159,8 @@ export default function RegimeMatrixCard({
       setShortTermRangeCheck(rangeCheck);
       setMtfDots(dots);
     };
-    const interval = setInterval(load, REFRESH_INTERVAL_MS);
-    return () => clearInterval(interval);
+    const stopPolling = setVisibleInterval(load, REFRESH_INTERVAL_MS);
+    return () => stopPolling();
   }, []);
 
   if (!matrix) {

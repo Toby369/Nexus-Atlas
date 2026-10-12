@@ -61,7 +61,13 @@ Gemeinsamer Hook: Intervalle laufen nur bei sichtbarem Tab, beim Zurückkehren
 sofort einmal laden. Betrifft u.a. `DashboardPollProvider`, `LivePriceDataProvider`,
 `HeroHeader`, `RegimeMatrixCard`, `LiquidationPanel`, `MarketContextCard`,
 `NewsRiskPanel`, `EtfFlowPanel`, `SpotPerpFlowPanel`, `EconomicCalendarPanel`.
-Abstimmen mit der Aufräum-Session (PR #12 ändert ebenfalls Komponenten).
+PR #12 der Aufräum-Session ist bereits gemergt, kein Konflikt.
+
+**Umgesetzt 12.10.2026:** `lib/visibleInterval.ts` (`setVisibleInterval`, mit Tests)
+ersetzt `setInterval` in 17 Daten-Abfragen in 12 Komponenten. Unverändert bleiben
+reine Uhr-/Zeitanzeigen (`TradingHoursBadge`, `ClientTimestamp`, Freshness-Check im
+`HeroHeader`, Stale-Check im `LivePriceDataProvider`) und `OfflineBanner` (war schon
+sichtbarkeitsabhängig). Wirkt erst nach dem Vercel-Deploy von `main`; Messung danach.
 
 ## Phase 4 – Takt der Sammler (Entscheid Toby)
 

@@ -21,6 +21,7 @@ import {
   getSeriesExchange,
   type SeriesExchangeId,
 } from "@/lib/exchanges";
+import { setVisibleInterval } from "@/lib/visibleInterval";
 
 // Gemeinsamer State/Polling fuer die Preis-Kacheln (BtcPriceCard,
 // OiChangeCard, FundingRateCard) und den Live-Preis im Lagebild: jede
@@ -185,10 +186,10 @@ export default function LivePriceDataProvider({
     };
 
     if (!skipImmediateLoad) load();
-    const interval = setInterval(load, REFRESH_INTERVAL_MS);
+    const stopPolling = setVisibleInterval(load, REFRESH_INTERVAL_MS);
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      stopPolling();
     };
   }, [timeframe]);
 
@@ -219,10 +220,10 @@ export default function LivePriceDataProvider({
     };
 
     if (!skipImmediateLoad) load(true);
-    const interval = setInterval(() => load(false), REFRESH_INTERVAL_MS);
+    const stopPolling = setVisibleInterval(() => load(false), REFRESH_INTERVAL_MS);
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      stopPolling();
     };
   }, [timeframe, seriesExchange]);
 
@@ -256,8 +257,8 @@ export default function LivePriceDataProvider({
       }
     };
 
-    const interval = setInterval(fetchLatest, REFRESH_INTERVAL_MS);
-    return () => clearInterval(interval);
+    const stopPolling = setVisibleInterval(fetchLatest, REFRESH_INTERVAL_MS);
+    return () => stopPolling();
   }, []);
 
   useEffect(() => {

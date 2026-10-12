@@ -12,6 +12,7 @@ import {
   economicDirectionMeaning,
 } from "@/lib/economicCalendar";
 import { ShortDate, DaysUntil, FullDateTime } from "@/components/ClientTimestamp";
+import { setVisibleInterval } from "@/lib/visibleInterval";
 
 // Kalendertermine aendern sich selten und fast immer mit Vorlauf -- deutlich
 // laengeres Poll-Intervall als bei den uebrigen, minuetlich schwankenden
@@ -94,12 +95,12 @@ export default function EconomicCalendarPanel({
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(async () => {
+    const stopPolling = setVisibleInterval(async () => {
       const freshEvents = await fetchUpcomingEvents();
       setEvents(freshEvents);
       setMacroValues(await fetchLatestMacroValues(freshEvents.map((e) => e.event_key)));
     }, REFRESH_INTERVAL_MS);
-    return () => clearInterval(interval);
+    return () => stopPolling();
   }, []);
 
   return (

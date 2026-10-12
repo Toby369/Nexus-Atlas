@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import type { LiquidationEvent, LiquidationIntelligence } from "@/lib/types";
 import PanelInfo from "@/components/PanelInfo";
 import { liquidationsInfo } from "@/lib/panelInfo";
+import { setVisibleInterval } from "@/lib/visibleInterval";
 
 const REFRESH_INTERVAL_MS = 60_000;
 const LOOKBACK_HOURS = 6;
@@ -129,8 +130,8 @@ export default function LiquidationPanel({
       setIntelligence(intel);
     };
     load();
-    const interval = setInterval(load, REFRESH_INTERVAL_MS);
-    return () => clearInterval(interval);
+    const stopPolling = setVisibleInterval(load, REFRESH_INTERVAL_MS);
+    return () => stopPolling();
   }, []);
 
   const longNotional = events

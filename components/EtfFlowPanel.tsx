@@ -6,6 +6,7 @@ import type { EtfFlowDay, EtfFlowIntelligence, NewsEvent } from "@/lib/types";
 import PanelInfo from "@/components/PanelInfo";
 import { etfMacroInfo } from "@/lib/panelInfo";
 import { ShortDate } from "@/components/ClientTimestamp";
+import { setVisibleInterval } from "@/lib/visibleInterval";
 
 // ETF-Flow-Daten aendern sich hoechstens 1x/Tag (T+1) -- seltenes Polling
 // reicht, kein 30s-Live-Takt noetig wie bei Preis/Positioning.
@@ -127,7 +128,7 @@ export default function EtfFlowPanel({
   const [intelligence, setIntelligence] = useState<EtfFlowIntelligence | null>(null);
 
   useEffect(() => {
-    const interval = setInterval(async () => {
+    const stopPolling = setVisibleInterval(async () => {
       const [flowResult, freshMacroNews, freshIntelligence] = await Promise.all([
         fetchRecentFlows(),
         fetchMacroNews(),
@@ -138,7 +139,7 @@ export default function EtfFlowPanel({
       setMacroNewsState(freshMacroNews);
       setIntelligence(freshIntelligence);
     }, REFRESH_INTERVAL_MS);
-    return () => clearInterval(interval);
+    return () => stopPolling();
   }, []);
 
   // Eigener, einmaliger Mount-Fetch nur fuer die Intelligence-RPC -- flows/
