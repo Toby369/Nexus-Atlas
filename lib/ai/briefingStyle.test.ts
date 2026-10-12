@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findTechnicalIdentifiers, getPromptProfile } from "./promptProfiles";
+import { findTechnicalIdentifiers, getPromptProfile, regelwerkLineErrors } from "./promptProfiles";
 
 describe("findTechnicalIdentifiers", () => {
   it("laesst Marktbericht-Klartext durch", () => {
@@ -54,5 +54,20 @@ describe("system-briefing-trigger validate", () => {
       invalidierung: "Unter 82'300 USD.",
     });
     expect(errors.join(" ")).toContain("interne Feldnamen");
+  });
+});
+
+describe("regelwerkLineErrors", () => {
+  it("akzeptiert die festen Bezeichnungen", () => {
+    expect(
+      regelwerkLineErrors("Gates: Kurs unter EMA 200, Long-Gate nicht erfüllt.\nOrderflow: VWAP und CVD fallen.")
+    ).toEqual([]);
+  });
+  it("weist 'Label:' und doppelte Bezeichnungen ab (Lauf vom 12.10.2026 16:10)", () => {
+    const errors = regelwerkLineErrors(
+      "Label: Funding unter Schwelle.\nLabel: OI-Delta negativ.\nGates: Kurs unter EMA 200.\nGates: nochmals."
+    );
+    expect(errors.join(" ")).toContain("ohne gueltige Bezeichnung");
+    expect(errors.join(" ")).toContain("mehrfach");
   });
 });
