@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findTechnicalIdentifiers, getPromptProfile, regelwerkLineErrors } from "./promptProfiles";
+import { analysisJargonErrors, findTechnicalIdentifiers, getPromptProfile, regelwerkLineErrors } from "./promptProfiles";
 
 describe("findTechnicalIdentifiers", () => {
   it("laesst Marktbericht-Klartext durch", () => {
@@ -69,5 +69,16 @@ describe("regelwerkLineErrors", () => {
     );
     expect(errors.join(" ")).toContain("ohne gueltige Bezeichnung");
     expect(errors.join(" ")).toContain("mehrfach");
+  });
+});
+
+describe("analysisJargonErrors", () => {
+  it("weist Analyse-Jargon in der Schlagzeile ab (Lauf 12.10.2026 16:11)", () => {
+    expect(
+      analysisJargonErrors("Bitcoin konsolidiert bei 82'922 USD im Spannungsfeld zwischen Chart und Trendfiltern", "schlagzeile")
+    ).toHaveLength(1);
+  });
+  it("laesst Marktsprache durch", () => {
+    expect(analysisJargonErrors("BTC pendelt bei 82'900 USD zwischen Support 82'600 und Widerstand 83'400", "schlagzeile")).toEqual([]);
   });
 });
