@@ -234,3 +234,12 @@ Marktdaten; das Briefing wendet zusätzlich das eigene Regelwerk und die Chart-S
 - Wirkung: statt ~16 geplanter Report-Aufrufe plus Briefing-Läufen pro Tag nur noch die geplanten
   Briefing-Läufe (4 Teil-Aufrufe je Lauf, davon 2 auf Groq).
 
+### Nachtrag: Briefing als BTC-Marktbericht (12.10.2026)
+
+Auf Tobys Wunsch (Vorlage: Marktupdate-Newsletter von Bastian Keller, nur BTC) ist das Briefing wie
+ein Marktbericht aufgebaut: Schlagzeile, Marktupdate (Kurs, 24h/7 Tage), Momentum (RSI 4H/1D),
+Bitcoin Chart mit beiden Szenarien in ganzen Sätzen, Liquidationen, ETF-Flows,
+Wirtschaftskalender, Regelwerk-Check, Fazit. Jeder Abschnitt beginnt mit einem fetten Kernsatz
+(`lib/briefingText.ts`). Anlass: ein Lauf hatte interne Feldnamen ("mein_system_checklist.ema13")
+ausgegeben -- die Prompt-Validierung weist solche Antworten jetzt ab (`findTechnicalIdentifiers`).
+

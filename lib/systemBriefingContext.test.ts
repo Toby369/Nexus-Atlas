@@ -19,13 +19,16 @@ function fixtureContext(overrides: Record<string, unknown> = {}): SystemBriefing
     market_state: { overall_state: "BULLISH", score: 5, confidence: 70, data_coverage_pct: 90, risk_level: "LOW", risk_factors: [], patterns: [], mtf_alignment: null, factors: {} },
     confidence_breakdown: { coveragePct: 90, consensusPct: 80, signalStrengthPct: 70 },
     mein_system_checklist: { ema13: 1, ema50: 2, ema200: 3 },
-    trading_indicators: { cvd: { trend: "bullish" }, vwapVector: {} },
+    trading_indicators: { cvd: { trend: "bullish" }, vwapVector: { dayVwap: 84000, weeklyVwap: 83500, monthlyVwap: 84400 } },
     liquidations: null,
     regelwerk: [{ module: "welz", section: "s1", title: "t1", content: "c1" }],
     market_context: { label: "L", bias: "bullish", explanation: "E", price_change_pct: 1, oi_change_pct: 1, spot_verdict_label: "V" },
     etf_flows: { cumulative_usd_m: 10, days: 5 },
     positioning: { confidence: 50 },
-    news: { count: 2, lookback_hours: 72 },
+    news: { count: 2, lookback_hours: 72, schlagzeilen: ["a", "b"] },
+    btc_markt: { kurs_usd: 84250, veraenderung_24h_pct: 1.2, veraenderung_7d_pct: -2.3, hoch_7d_usd: 86000, tief_7d_usd: 82000 },
+    rsi: { "4h": { aktuell: 56.5, vorher: 45.4 }, "1d": { aktuell: 54.6, vorher: 51.7 } },
+    wirtschaftskalender: [],
     triangle: null,
     continuationFormation: null,
     swingFormations: [],
@@ -59,9 +62,10 @@ describe("sliceForChartStruktur", () => {
     const ctx = fixtureContext();
     const slice = sliceForChartStruktur(ctx);
     expect(Object.keys(slice).sort()).toEqual(
-      ["continuationFormation", "keyLevels", "levelStruktur", "recentCandlestickPatterns", "swingFormations", "triangle"].sort()
+      ["btc_markt", "continuationFormation", "keyLevels", "levelStruktur", "recentCandlestickPatterns", "swingFormations", "triangle", "vwap"].sort()
     );
     expect(slice.keyLevels).toBe(ctx.keyLevels);
+    expect(slice.vwap).toEqual({ tag: 84000, woche: 83500, monat: 84400 });
   });
   it("enthaelt KEIN Regelwerk (eigener Teil-Aufruf)", () => {
     const slice = sliceForChartStruktur(fixtureContext()) as Record<string, unknown>;
@@ -70,10 +74,10 @@ describe("sliceForChartStruktur", () => {
 });
 
 describe("sliceForTrigger", () => {
-  it("enthaelt nur keyLevels/mein_system_checklist/trading_indicators", () => {
+  it("enthaelt nur btc_markt/keyLevels/mein_system_checklist/trading_indicators", () => {
     const ctx = fixtureContext();
     const slice = sliceForTrigger(ctx);
-    expect(Object.keys(slice).sort()).toEqual(["keyLevels", "mein_system_checklist", "trading_indicators"].sort());
+    expect(Object.keys(slice).sort()).toEqual(["btc_markt", "keyLevels", "mein_system_checklist", "trading_indicators"].sort());
     expect(slice.keyLevels).toBe(ctx.keyLevels);
   });
 });
@@ -95,6 +99,10 @@ describe("sliceForSynthese", () => {
     expect(slice.trigger).toBe(parts.trigger);
     expect(slice.market_state).toBe(ctx.market_state);
     expect(slice.bewegungsvorrat_ratio_pct).toBe(ctx.bewegungsvorrat.ratio_pct);
+    // Daten fuer die Rahmen-Abschnitte des Marktberichts.
+    expect(slice.btc_markt).toBe(ctx.btc_markt);
+    expect(slice.rsi).toBe(ctx.rsi);
+    expect(slice.wirtschaftskalender).toBe(ctx.wirtschaftskalender);
     // keine Chart-Struktur-Rohdaten (triangle etc.) -- Synthese bekommt nur
     // das bereits fertige chartStruktur-Fazit des Teil-Aufrufs, nicht die
     // Formationsdaten dahinter.

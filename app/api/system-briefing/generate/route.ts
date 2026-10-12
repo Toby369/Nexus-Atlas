@@ -64,11 +64,10 @@ interface ChartStrukturResult {
   leanBias: "bullish" | "bearish" | "neutral";
 }
 
-interface SyntheseResult {
-  fazit: SystemBriefingResult["fazit"];
-  konfluenzCheck: string | null;
-  aenderungSeitLetztem?: string | null;
-}
+type SyntheseResult = Pick<
+  SystemBriefingResult,
+  "fazit" | "konfluenzCheck" | "schlagzeile" | "marktupdate" | "momentum" | "liquidationen" | "etfFlows" | "wirtschaftskalender"
+> & { aenderungSeitLetztem?: string | null };
 
 async function getPreviousBriefing(
   supabaseAdmin: ReturnType<typeof getSupabaseAdmin>
@@ -177,6 +176,12 @@ export async function POST(req: NextRequest) {
       konfluenzCheck: syntheseResult.data.konfluenzCheck,
       trigger: triggerResult.data,
       aenderungSeitLetztem: previousBriefing ? (syntheseResult.data.aenderungSeitLetztem ?? null) : null,
+      schlagzeile: syntheseResult.data.schlagzeile,
+      marktupdate: syntheseResult.data.marktupdate,
+      momentum: syntheseResult.data.momentum,
+      liquidationen: syntheseResult.data.liquidationen,
+      etfFlows: syntheseResult.data.etfFlows,
+      wirtschaftskalender: syntheseResult.data.wirtschaftskalender,
     };
 
     const { data: snapshot, error: insertError } = await supabaseAdmin

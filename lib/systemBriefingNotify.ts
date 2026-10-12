@@ -1,6 +1,7 @@
 import { sendReportEmail } from "@/lib/email";
 import { sendReportPush } from "@/lib/push";
-import type { SystemBriefingResult } from "@/lib/types";
+import { splitLeadSentence } from "@/lib/briefingText";
+import type { SystemBriefingResult, SystemBriefingScenario } from "@/lib/types";
 
 // E-Mail und Push nach einem erfolgreichen System-Briefing (uebernommen vom
 // frueheren Master-Report der AI Report Engine). Beides ist optional
@@ -25,70 +26,98 @@ const BIAS_STYLE: Record<string, { bg: string; fg: string; label: string }> = {
   neutral: { bg: "#f1f2f4", fg: "#6b7280", label: "Neutral" },
 };
 
+// Aufbau wie ein BTC-Marktbericht-Newsletter: gruene Abschnitts-Titel,
+// jeder Abschnitt beginnt mit einem fetten Kernsatz (splitLeadSentence).
 function section(title: string, body: string): string {
   return (
-    `<div style="margin:0 0 16px;"><p style="font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:#9ca3af;margin:0 0 6px;">${escapeHtml(title)}</p>` +
+    `<div style="margin:24px 0 0;"><p style="margin:0 0 10px;text-align:center;color:#16a34a;font-size:15px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">${escapeHtml(title)}</p>` +
     body +
     `</div>`
   );
 }
 
-function paragraph(text: string): string {
-  return `<p style="font-size:14px;line-height:1.6;color:#374151;margin:0;white-space:pre-line;">${escapeHtml(text)}</p>`;
+function leadParagraph(text: string): string {
+  const { lead, rest } = splitLeadSentence(text);
+  return (
+    `<p style="font-size:15px;line-height:1.6;color:#374151;margin:0 0 12px;">` +
+    `<strong style="color:#111827;">${escapeHtml(lead)}</strong>` +
+    (rest ? ` ${escapeHtml(rest)}` : "") +
+    `</p>`
+  );
 }
 
 function formatPrice(value: number): string {
-  return `$${value.toLocaleString("de-CH", { maximumFractionDigits: 0 })}`;
+  return `${value.toLocaleString("de-CH", { maximumFractionDigits: 0 })} USD`;
+}
+
+function scenarioHtml(s: SystemBriefingScenario, label: string, color: string): string {
+  const parts: string[] = [];
+  if (s.text?.trim()) parts.push(leadParagraph(s.text));
+  else if (s.bedingungen.length > 0 || s.kursziel !== null) {
+    parts.push(`<p style="margin:0 0 6px;font-size:14px;font-weight:600;color:${color};">${escapeHtml(label)}</p>`);
+  }
+  if (s.bedingungen.length > 0) {
+    parts.push(
+      `<ul style="margin:0 0 8px;padding-left:20px;color:#374151;font-size:14px;line-height:1.6;">` +
+        s.bedingungen.map((b) => `<li>${escapeHtml(b)}</li>`).join("") +
+        `</ul>`
+    );
+  }
+  if (s.kursziel !== null) {
+    parts.push(`<p style="margin:0 0 12px;font-size:14px;color:${color};">Kursziel: <strong>${escapeHtml(formatPrice(s.kursziel))}</strong></p>`);
+  }
+  return parts.join("");
 }
 
 export function buildBriefingEmailHtml(result: SystemBriefingResult): string {
   const style = BIAS_STYLE[result.fazit.bias] ?? BIAS_STYLE.neutral;
-  const biasSection =
-    `<div style="margin:0 0 16px;"><span style="display:inline-block;padding:4px 12px;border-radius:999px;` +
+  const optional = (title: string, text: string | null | undefined) => (text ? section(title, leadParagraph(text)) : "");
+
+  const fazit =
+    `<div style="margin:0 0 4px;padding:14px 16px;background:#f9fafb;border-radius:8px;">` +
+    `<div style="margin:0 0 8px;"><span style="display:inline-block;padding:4px 12px;border-radius:999px;` +
     `background:${style.bg};color:${style.fg};font-weight:600;font-size:13px;">${escapeHtml(style.label)}</span>` +
-    `<span style="margin-left:10px;color:#6b7280;font-size:13px;">Briefing-Überzeugungsgrad ${Math.round(result.fazit.confidence)}/100</span></div>`;
+    `<span style="margin-left:10px;color:#6b7280;font-size:13px;">Briefing-Überzeugungsgrad ${Math.round(result.fazit.confidence)}/100</span></div>` +
+    `<p style="font-size:15px;line-height:1.5;color:#111827;margin:0;">${escapeHtml(result.fazit.kernaussage)}</p>` +
+    (result.aenderungSeitLetztem
+      ? `<p style="font-size:13px;line-height:1.5;color:#6b7280;margin:8px 0 0;font-style:italic;">Seit dem letzten Lauf: ${escapeHtml(result.aenderungSeitLetztem)}</p>`
+      : "") +
+    `</div>`;
 
-  const kernaussage = `<p style="font-size:15px;line-height:1.5;color:#111827;margin:0 0 16px;">${escapeHtml(result.fazit.kernaussage)}</p>`;
-
-  const aenderung = result.aenderungSeitLetztem
-    ? `<p style="font-size:13px;line-height:1.5;color:#6b7280;margin:0 0 16px;font-style:italic;">Seit dem letzten Lauf: ${escapeHtml(result.aenderungSeitLetztem)}</p>`
-    : "";
-
-  const konfluenz = result.konfluenzCheck
-    ? `<div style="margin:0 0 16px;padding:12px 14px;background:#fef3e2;border-radius:8px;">` +
-      `<p style="font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:#d97706;margin:0 0 6px;font-weight:600;">Widerspruch</p>` +
-      `<p style="margin:0;color:#78350f;font-size:14px;line-height:1.6;">${escapeHtml(result.konfluenzCheck)}</p></div>`
-    : "";
-
-  const scenario = (label: string, s: SystemBriefingResult["trigger"]["bullish"]) =>
-    `<p style="font-size:14px;color:#111827;margin:0 0 4px;font-weight:600;">${escapeHtml(label)}` +
-    (s.kursziel !== null ? ` · Kursziel ${escapeHtml(formatPrice(s.kursziel))}` : "") +
-    `</p>` +
-    (s.bedingungen.length > 0
-      ? `<ul style="margin:0 0 8px;padding-left:20px;color:#374151;font-size:14px;line-height:1.6;">` +
-        s.bedingungen.map((b) => `<li>${escapeHtml(b)}</li>`).join("") +
-        `</ul>`
-      : `<p style="margin:0 0 8px;color:#9ca3af;font-size:13px;">Kein plausibles Szenario ableitbar.</p>`);
+  const regelwerk = result.regelwerkCheck
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const idx = line.indexOf(":");
+      return idx === -1
+        ? `<li>${escapeHtml(line)}</li>`
+        : `<li><strong>${escapeHtml(line.slice(0, idx))}:</strong>${escapeHtml(line.slice(idx + 1))}</li>`;
+    })
+    .join("");
 
   return (
-    `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;">` +
+    `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:600px;margin:0 auto;">` +
     `<div style="padding:20px 24px;background:#111827;border-radius:12px 12px 0 0;">` +
-    `<p style="margin:0;color:#9ca3af;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;">NEXUS Atlas</p>` +
-    `<h1 style="margin:4px 0 0;color:#fff;font-size:18px;">System-Briefing</h1></div>` +
+    `<p style="margin:0;color:#9ca3af;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;">NEXUS Atlas · BTC-Marktbericht</p>` +
+    `<h1 style="margin:6px 0 0;color:#fff;font-size:20px;line-height:1.3;">${escapeHtml(result.schlagzeile ?? "System-Briefing")}</h1></div>` +
     `<div style="padding:20px 24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;">` +
-    biasSection +
-    kernaussage +
-    aenderung +
-    konfluenz +
-    section("Regelwerk-Check", paragraph(result.regelwerkCheck)) +
-    section("Chart-Struktur", paragraph(result.chartStruktur)) +
+    fazit +
+    optional("Marktupdate", result.marktupdate) +
+    optional("Momentum (RSI)", result.momentum) +
     section(
-      "Trigger & Szenario",
-      scenario("Bullisches Szenario", result.trigger.bullish) +
-        scenario("Bärisches Szenario", result.trigger.bearish) +
+      "Bitcoin Chart",
+      leadParagraph(result.chartStruktur) +
+        scenarioHtml(result.trigger.bullish, "Bullisches Szenario", "#16a34a") +
+        scenarioHtml(result.trigger.bearish, "Bärisches Szenario", "#dc2626") +
         `<p style="margin:0;color:#6b7280;font-size:13px;">Ungültig wenn: ${escapeHtml(result.trigger.invalidierung)}</p>`
     ) +
-    `<p style="margin:16px 0 0;padding-top:16px;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:11px;">Automatisch generiert von NEXUS Atlas · Entscheidungsunterstützung, keine Anlageberatung</p>` +
+    optional("Liquidationen", result.liquidationen) +
+    optional("Bitcoin ETF-Flows", result.etfFlows) +
+    optional("Wirtschaftskalender", result.wirtschaftskalender) +
+    optional("Widerspruch", result.konfluenzCheck) +
+    section("Dein Regelwerk", `<ul style="margin:0;padding-left:20px;color:#374151;font-size:14px;line-height:1.6;">${regelwerk}</ul>`) +
+    `<p style="margin:24px 0 0;padding-top:16px;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:11px;">Automatisch generiert von NEXUS Atlas · Entscheidungsunterstützung, keine Anlageberatung</p>` +
     `</div></div>`
   );
 }
@@ -112,7 +141,9 @@ export async function notifyBriefing(
     } else {
       const emailResult = await sendReportEmail({
         to,
-        subject: `NEXUS Atlas · System-Briefing (${BIAS_STYLE[result.fazit.bias]?.label ?? result.fazit.bias})`,
+        subject: result.schlagzeile
+          ? `BTC · ${result.schlagzeile}`
+          : `NEXUS Atlas · System-Briefing (${BIAS_STYLE[result.fazit.bias]?.label ?? result.fazit.bias})`,
         html: buildBriefingEmailHtml(result),
       });
       if (!emailResult.attempted) {
@@ -127,7 +158,7 @@ export async function notifyBriefing(
 
   if (settings.push_enabled) {
     const pushResult = await sendReportPush({
-      title: "NEXUS Atlas · System-Briefing",
+      title: result.schlagzeile ? `BTC · ${result.schlagzeile}` : "NEXUS Atlas · System-Briefing",
       body: result.fazit.kernaussage,
       url: "/",
     });

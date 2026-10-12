@@ -1,46 +1,66 @@
-import type { SystemBriefingResult } from "@/lib/types";
+import type { SystemBriefingResult, SystemBriefingScenario } from "@/lib/types";
+import { splitLeadSentence } from "@/lib/briefingText";
 
 // Details des System-Briefings im Lagebild (HeroHeader, Aufklapper unter der
-// KI-Einordnung): Regelwerk-Check (max. 4 gelabelte Zeilen, siehe
-// parseRegelwerkLines), Chart-Struktur, optionaler Konfluenz-Check (nur bei
-// Widerspruch) und Trigger & Szenario mit beiden Richtungen inkl. konkretem
-// Kursziel. Das Fazit selbst zeigt HeroHeader direkt. Kontext/Prompts siehe
-// lib/systemBriefingContext.ts und lib/ai/promptProfiles.ts.
+// KI-Einordnung), aufgebaut wie ein BTC-Marktbericht: Marktupdate, Momentum,
+// Bitcoin Chart mit beiden Szenarien, Liquidationen, ETF-Flows,
+// Wirtschaftskalender und zuletzt Tobys Regelwerk-Check. Jeder Abschnitt
+// beginnt mit einem fett gesetzten Kernsatz. Schlagzeile und Fazit zeigt
+// HeroHeader direkt. Snapshots von vor dem Umbau haben die Rahmen-Abschnitte
+// nicht -- dann erscheinen nur Chart, Szenarien und Regelwerk.
+// Kontext/Prompts: lib/systemBriefingContext.ts, lib/ai/promptProfiles.ts.
 
 function formatPrice(value: number): string {
   return `$${value.toLocaleString("de-CH", { maximumFractionDigits: 0 })}`;
 }
 
-function ScenarioBlock({
-  label,
+function LeadText({ text }: { text: string }) {
+  const { lead, rest } = splitLeadSentence(text);
+  return (
+    <p className="text-sm text-text-muted leading-relaxed">
+      <span className="text-text font-semibold">{lead}</span>
+      {rest && ` ${rest}`}
+    </p>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="pt-2 border-t border-border/60 space-y-1.5 first:pt-0 first:border-t-0">
+      <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">{title}</p>
+      {children}
+    </div>
+  );
+}
+
+function Scenario({
   scenario,
   tone,
+  fallbackLabel,
 }: {
-  label: string;
-  scenario: { bedingungen: string[]; kursziel: number | null };
+  scenario: SystemBriefingScenario;
   tone: "up" | "down";
+  fallbackLabel: string;
 }) {
+  const hasText = !!scenario.text?.trim();
+  if (!hasText && scenario.bedingungen.length === 0 && scenario.kursziel === null) return null;
   const toneClass = tone === "up" ? "text-up" : "text-down";
-  if (scenario.bedingungen.length === 0 && scenario.kursziel === null) {
-    return (
-      <div className="rounded-md border border-border/60 p-2.5 space-y-1">
-        <p className={`text-xs font-medium ${toneClass}`}>{label}</p>
-        <p className="text-xs text-text-faint">Kein plausibles Szenario aus der aktuellen Lage ableitbar.</p>
-      </div>
-    );
-  }
   return (
-    <div className="rounded-md border border-border/60 p-2.5 space-y-1">
-      <p className={`text-xs font-medium ${toneClass}`}>{label}</p>
+    <div className="space-y-1">
+      {hasText ? (
+        <LeadText text={scenario.text!} />
+      ) : (
+        <p className={`text-xs font-medium ${toneClass}`}>{fallbackLabel}</p>
+      )}
       {scenario.bedingungen.length > 0 && (
-        <ul className="space-y-1 text-xs text-text-muted list-disc list-inside">
+        <ul className="space-y-0.5 text-xs text-text-muted list-disc list-inside">
           {scenario.bedingungen.map((b, i) => (
             <li key={i}>{b}</li>
           ))}
         </ul>
       )}
       {scenario.kursziel !== null && (
-        <p className="text-xs text-text">
+        <p className={`text-xs ${toneClass}`}>
           Kursziel: <span className="font-semibold">{formatPrice(scenario.kursziel)}</span>
         </p>
       )}
@@ -87,8 +107,47 @@ export function isValidSystemBriefingResult(result: unknown): result is SystemBr
 export default function SystemBriefingDetails({ result }: { result: SystemBriefingResult }) {
   return (
     <div className="space-y-3">
-      <div className="space-y-1.5">
-        <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Regelwerk-Check</p>
+      {result.marktupdate && (
+        <Section title="Marktupdate">
+          <LeadText text={result.marktupdate} />
+        </Section>
+      )}
+      {result.momentum && (
+        <Section title="Momentum (RSI)">
+          <LeadText text={result.momentum} />
+        </Section>
+      )}
+
+      <Section title="Bitcoin Chart">
+        <LeadText text={result.chartStruktur} />
+        <Scenario scenario={result.trigger.bullish} tone="up" fallbackLabel="Bullisches Szenario" />
+        <Scenario scenario={result.trigger.bearish} tone="down" fallbackLabel="Bärisches Szenario" />
+        <p className="text-xs text-text-faint">Ungültig wenn: {result.trigger.invalidierung}</p>
+      </Section>
+
+      {result.liquidationen && (
+        <Section title="Liquidationen">
+          <LeadText text={result.liquidationen} />
+        </Section>
+      )}
+      {result.etfFlows && (
+        <Section title="Bitcoin ETF-Flows">
+          <LeadText text={result.etfFlows} />
+        </Section>
+      )}
+      {result.wirtschaftskalender && (
+        <Section title="Wirtschaftskalender">
+          <LeadText text={result.wirtschaftskalender} />
+        </Section>
+      )}
+
+      {result.konfluenzCheck && (
+        <Section title="Widerspruch">
+          <LeadText text={result.konfluenzCheck} />
+        </Section>
+      )}
+
+      <Section title="Dein Regelwerk">
         <ul className="space-y-1">
           {parseRegelwerkLines(result.regelwerkCheck).map(({ label, detail }, i) => (
             <li key={i} className="text-sm text-text-muted leading-relaxed">
@@ -97,28 +156,7 @@ export default function SystemBriefingDetails({ result }: { result: SystemBriefi
             </li>
           ))}
         </ul>
-      </div>
-
-      <div className="pt-2 border-t border-border/60 space-y-1">
-        <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Chart-Struktur</p>
-        <p className="text-sm text-text-muted leading-relaxed">{result.chartStruktur}</p>
-      </div>
-
-      {result.konfluenzCheck && (
-        <div className="pt-2 border-t border-border/60 space-y-1">
-          <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Konfluenz-Check</p>
-          <p className="text-sm text-text-muted leading-relaxed">{result.konfluenzCheck}</p>
-        </div>
-      )}
-
-      <div className="pt-2 border-t border-border/60 space-y-1.5">
-        <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Trigger &amp; Szenario</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-start">
-          <ScenarioBlock label="Bullisches Szenario" scenario={result.trigger.bullish} tone="up" />
-          <ScenarioBlock label="Bärisches Szenario" scenario={result.trigger.bearish} tone="down" />
-        </div>
-        <p className="text-xs text-text-faint">Ungültig wenn: {result.trigger.invalidierung}</p>
-      </div>
+      </Section>
 
       <p className="text-xs text-text-faint">
         Entscheidungsunterstützung anhand deines eigenen Regelwerks, keine automatisierte Anlageberatung.

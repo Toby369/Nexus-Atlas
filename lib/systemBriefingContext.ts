@@ -17,6 +17,7 @@ import type {
   LiquidationIntelligence,
   EtfFlowDay,
   NewsEvent,
+  EconomicCalendarEvent,
   DashboardPollBundle,
   SystemBriefingTrigger,
 } from "./types";
@@ -163,6 +164,87 @@ async function getBewegungsvorrat(): Promise<BewegungsvorratRow> {
   return { today_range_usd: todayRange, median_range_10d_usd: medianRange, ratio_pct: ratioPct };
 }
 
+// Kurs und Veraenderung fuer das Marktupdate: 24h aus 1h-Kerzen, 7 Tage
+// samt Hoch/Tief aus 1d-Kerzen (dieselbe Quelle wie der Bewegungsvorrat).
+interface BtcMarkt {
+  kurs_usd: number | null;
+  veraenderung_24h_pct: number | null;
+  veraenderung_7d_pct: number | null;
+  hoch_7d_usd: number | null;
+  tief_7d_usd: number | null;
+}
+
+function pctChange(now: number | null | undefined, then: number | null | undefined): number | null {
+  if (now == null || then == null || then === 0) return null;
+  return Math.round(((now - then) / then) * 1000) / 10;
+}
+
+async function getBtcMarkt(): Promise<BtcMarkt> {
+  const [hourly, daily] = await Promise.all([
+    supabase
+      .from("candles")
+      .select("open_time, close")
+      .eq("exchange", BEWEGUNGSVORRAT_EXCHANGE)
+      .eq("symbol", BEWEGUNGSVORRAT_SYMBOL)
+      .eq("interval", "1h")
+      .order("open_time", { ascending: false })
+      .limit(25),
+    supabase
+      .from("candles")
+      .select("open_time, high, low, close")
+      .eq("exchange", BEWEGUNGSVORRAT_EXCHANGE)
+      .eq("symbol", BEWEGUNGSVORRAT_SYMBOL)
+      .eq("interval", "1d")
+      .order("open_time", { ascending: false })
+      .limit(8),
+  ]);
+  const h = (hourly.data ?? []) as { close: number }[];
+  const d = (daily.data ?? []) as { high: number; low: number; close: number }[];
+  const kurs = h[0]?.close ?? d[0]?.close ?? null;
+  const week = d.slice(0, 7);
+  return {
+    kurs_usd: kurs,
+    veraenderung_24h_pct: pctChange(kurs, h[24]?.close),
+    veraenderung_7d_pct: pctChange(kurs, d[7]?.close),
+    hoch_7d_usd: week.length > 0 ? Math.max(...week.map((c) => c.high)) : null,
+    tief_7d_usd: week.length > 0 ? Math.min(...week.map((c) => c.low)) : null,
+  };
+}
+
+// RSI(14) aus market_features, aktuell und vorherige Kerze je Zeitrahmen --
+// fuer den Momentum-Abschnitt ("RSI 4H von 45 auf 56 gestiegen").
+interface RsiStand {
+  aktuell: number | null;
+  vorher: number | null;
+}
+
+async function getRsi(interval: "4h" | "1d"): Promise<RsiStand> {
+  const { data } = await supabase
+    .from("market_features")
+    .select("rsi_14")
+    .eq("symbol", BEWEGUNGSVORRAT_SYMBOL)
+    .eq("interval", interval)
+    .order("candle_open_time", { ascending: false })
+    .limit(2);
+  const rows = (data ?? []) as { rsi_14: number | null }[];
+  const round = (v: number | null | undefined) => (v == null ? null : Math.round(v * 10) / 10);
+  return { aktuell: round(rows[0]?.rsi_14), vorher: round(rows[1]?.rsi_14) };
+}
+
+// Termine von heute und morgen (economic_calendar_events, gleiche Quelle wie
+// die Wirtschaftskalender-Kachel).
+async function getKalender(): Promise<Pick<EconomicCalendarEvent, "label" | "event_date" | "typical_time_et">[]> {
+  const today = new Date();
+  const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+  const { data } = await supabase
+    .from("economic_calendar_events")
+    .select("label, event_date, typical_time_et")
+    .gte("event_date", today.toISOString().slice(0, 10))
+    .lte("event_date", tomorrow.toISOString().slice(0, 10))
+    .order("event_date", { ascending: true });
+  return data ?? [];
+}
+
 interface RegelwerkEntry {
   module: "welz" | "salomon" | "mein_system";
   section: string;
@@ -215,9 +297,17 @@ export interface SystemBriefingContext {
     oi_change_pct: number | null;
     spot_verdict_label: string;
   } | null;
-  etf_flows: { cumulative_usd_m: number | null; days: number };
+  etf_flows: {
+    cumulative_usd_m: number | null;
+    days: number;
+    // Juengster Handelstag einzeln (Netto-Zu-/Abfluss in Mio. USD).
+    letzter_tag: { datum: string; usd_m: number | null } | null;
+  };
   positioning: { confidence: number | null };
-  news: { count: number; lookback_hours: number };
+  news: { count: number; lookback_hours: number; schlagzeilen: string[] };
+  btc_markt: BtcMarkt;
+  rsi: { "4h": RsiStand; "1d": RsiStand };
+  wirtschaftskalender: Pick<EconomicCalendarEvent, "label" | "event_date" | "typical_time_et">[];
   // Chart-Strukturdaten -- algorithmisch berechnet, nicht vision-basiert.
   triangle: ChartStructureData["triangle"];
   continuationFormation: ChartStructureData["continuationFormation"];
@@ -251,6 +341,10 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
     recentEtfFlows,
     highImpactNews,
     chartStructure,
+    btcMarkt,
+    rsi4h,
+    rsi1d,
+    kalender,
   ] = await Promise.all([
     getLatestMarketState(),
     getBewegungsvorrat(),
@@ -262,6 +356,10 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
     getRecentEtfFlows(),
     getHighImpactNews(),
     getChartStructureData(),
+    getBtcMarkt(),
+    getRsi("4h"),
+    getRsi("1d"),
+    getKalender(),
   ]);
 
   const marketContextDerived = bundle
@@ -345,9 +443,22 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
           spot_verdict_label: marketContextDerived.spotVerdict.label,
         }
       : null,
-    etf_flows: { cumulative_usd_m: etfCumulative, days: etfDays },
+    etf_flows: {
+      cumulative_usd_m: etfCumulative,
+      days: etfDays,
+      letzter_tag: recentEtfFlows[0]
+        ? { datum: recentEtfFlows[0].flow_date, usd_m: recentEtfFlows[0].total_flow_usd_m }
+        : null,
+    },
     positioning: { confidence: bundle?.positioning_signal?.confidence ?? null },
-    news: { count: highImpactNews.length, lookback_hours: NEWS_LOOKBACK_HOURS },
+    news: {
+      count: highImpactNews.length,
+      lookback_hours: NEWS_LOOKBACK_HOURS,
+      schlagzeilen: highImpactNews.map((n) => n.title_de ?? n.title),
+    },
+    btc_markt: btcMarkt,
+    rsi: { "4h": rsi4h, "1d": rsi1d },
+    wirtschaftskalender: kalender,
     triangle: chartStructureEnriched.triangle,
     continuationFormation: chartStructureEnriched.continuationFormation,
     swingFormations: chartStructureEnriched.swingFormations,
@@ -376,12 +487,22 @@ export function sliceForRegelwerk(ctx: SystemBriefingContext) {
 export function sliceForChartStruktur(ctx: SystemBriefingContext) {
   const { triangle, continuationFormation, swingFormations, recentCandlestickPatterns, keyLevels, levelStruktur } =
     ctx;
-  return { triangle, continuationFormation, swingFormations, recentCandlestickPatterns, keyLevels, levelStruktur };
+  const { dayVwap, weeklyVwap, monthlyVwap } = ctx.trading_indicators.vwapVector;
+  return {
+    btc_markt: ctx.btc_markt,
+    vwap: { tag: dayVwap, woche: weeklyVwap, monat: monthlyVwap },
+    triangle,
+    continuationFormation,
+    swingFormations,
+    recentCandlestickPatterns,
+    keyLevels,
+    levelStruktur,
+  };
 }
 
 export function sliceForTrigger(ctx: SystemBriefingContext) {
-  const { keyLevels, mein_system_checklist, trading_indicators } = ctx;
-  return { keyLevels, mein_system_checklist, trading_indicators };
+  const { btc_markt, keyLevels, mein_system_checklist, trading_indicators } = ctx;
+  return { btc_markt, keyLevels, mein_system_checklist, trading_indicators };
 }
 
 // Eingabe fuer sliceForSynthese: die bereits fertigen Ergebnisse der drei
@@ -409,6 +530,10 @@ export function sliceForSynthese(
   const { market_state, market_context, etf_flows, positioning, news, bewegungsvorrat } = ctx;
   return {
     previousBriefing,
+    btc_markt: ctx.btc_markt,
+    rsi: ctx.rsi,
+    liquidations: ctx.liquidations,
+    wirtschaftskalender: ctx.wirtschaftskalender,
     regelwerkCheck: parts.regelwerkCheck.regelwerkCheck,
     regelwerkLeanBias: parts.regelwerkCheck.leanBias,
     chartStruktur: parts.chartStruktur.chartStruktur,
