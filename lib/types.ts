@@ -500,31 +500,6 @@ export interface OrderbookWallSnapshot {
   status: string;
 }
 
-// KI-Einordnung bereits regelbasiert als markbewegend eingestufter News --
-// siehe lib/newsAnalysisContext.ts + lib/ai/promptProfiles.ts
-// ("news-analysis"). "items" bewusst auf die von Nexus gelieferten
-// Schlagzeilen beschraenkt (Prompt untersagt, neue zu erfinden).
-export interface NewsAnalysisItem {
-  headline: string;
-  impact: "high" | "medium" | "low";
-  reasoning: string;
-}
-
-export interface NewsAnalysisResult {
-  items: NewsAnalysisItem[];
-  summary: string;
-}
-
-export interface NewsAnalysisSnapshot {
-  id: number;
-  generated_at: string;
-  provider: string | null;
-  model: string | null;
-  result: NewsAnalysisResult | null;
-  status: "ok" | "error";
-  error: string | null;
-}
-
 // Periodischer KI-Rueckblick -- liest ausschliesslich fertig berechnete Zahlen
 // (signal_stats_results), kein eigener Bias, kein Handelssignal. Siehe
 // lib/signalReviewContext.ts + lib/ai/promptProfiles.ts ("signal-review").
@@ -637,36 +612,6 @@ export interface YoutubeVideoAnalysis {
   generated_at: string;
   model: string | null;
   result: YoutubeVideoAnalysisResult | null;
-  status: "ok" | "error";
-  error: string | null;
-}
-
-export interface YoutubeOverallAnalysisResult {
-  overallBias: "bullish" | "bearish" | "neutral" | "conflicting";
-  confidence: number;
-  summary: string;
-  conflicts: string[];
-}
-
-export interface YoutubeOverallAnalysis {
-  id: number;
-  generated_at: string;
-  video_count: number;
-  provider: string | null;
-  model: string | null;
-  result: YoutubeOverallAnalysisResult | null;
-  status: "ok" | "error";
-  error: string | null;
-}
-
-export interface CustomQueryRun {
-  id: number;
-  generated_at: string;
-  prompt: string;
-  provider: string | null;
-  model: string | null;
-  answer: string | null;
-  market_data_generated_at: string | null;
   status: "ok" | "error";
   error: string | null;
 }

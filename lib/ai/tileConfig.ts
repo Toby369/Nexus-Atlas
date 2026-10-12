@@ -23,16 +23,6 @@ import type { TileAIConfig } from "./types";
 const BRIEFING_TIMEOUT_MS = 40_000;
 
 export const tileConfigs: Record<string, TileAIConfig> = {
-  // Explizit Google statt "auto" (-> Perplexity, nie konfiguriert):
-  // buildNewsAnalysisContext() liefert nur bereits gesammelte Schlagzeilen
-  // (keine Live-Web-Suche), Google leistet dieselbe Einordnung. Groq als
-  // Fallback, damit ein Google-503 die Kachel nicht lahmlegt.
-  news: {
-    tileId: "news",
-    aiProvider: "google",
-    promptProfile: "news-analysis",
-    fallbackProviders: ["groq"],
-  },
   // System-Briefing (siehe promptProfiles.ts/systemBriefingContext.ts):
   // deckt auch Handelslage und den Konsistenz-Check der frueheren Signal
   // Engine ab. Strukturell vier Teil-Aufrufe (siehe Kopfkommentar in
@@ -133,21 +123,6 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     aiProvider: "auto", // -> google (signal-logic)
     promptProfile: "signal-review",
     fallbackProviders: ["openrouter", "deepseek"],
-  },
-  // Freie Anfrage: Google primaer, OpenRouter/Groq als Fallback --
-  // komplett kostenlose Kette.
-  "custom-query": {
-    tileId: "custom-query",
-    aiProvider: "google",
-    promptProfile: "custom-query",
-    fallbackProviders: ["openrouter", "groq"],
-  },
-  // YouTube-Gesamtanalyse: gleiche kostenlose Kette wie custom-query.
-  "youtube-overall-analysis": {
-    tileId: "youtube-overall-analysis",
-    aiProvider: "google",
-    promptProfile: "youtube-overall-analysis",
-    fallbackProviders: ["openrouter", "groq"],
   },
 };
 

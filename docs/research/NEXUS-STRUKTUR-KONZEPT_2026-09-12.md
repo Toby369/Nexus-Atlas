@@ -176,6 +176,7 @@ vs. MTF-Ampel).
 | 4 | Lernen-Seite entschlacken (Checklisten, Module) | zurückgestellt (Checklisten bleiben, Entscheid 11.10.2026) |
 | 5 | Code verschlanken: datierte Verlaufs-Kommentare raus (Historie steht in Git), HeroHeader/LernenDashboard zerlegen — ohne Verhaltensänderung | ✅ erledigt (11.10.2026): ~950 Kommentarzeilen weniger; `LernenDashboard` → `components/lernen/*`, Faktor-Texte → `lib/marketStateFactors.ts` |
 | 6 | Abschluss: dieses Dokument + Backlog aktualisieren, PR | ✅ erledigt (11.10.2026): alle Phasen eingetragen, PR geöffnet |
+| 7 | DB aufräumen: je Funktion "nutze ich das noch?" — Code, Cron-Job und Tabelle gemeinsam | App-Teil ✅ (12.10.2026); SQL-Blöcke für den Editor in `DB-AUFRAEUMEN_2026-10-12.md` |
 
 Jede Phase = eigener Commit, vor jedem Push `tsc`, `eslint`, `npm test`, `next build`.
 
@@ -243,3 +244,32 @@ Wirtschaftskalender, Regelwerk-Check, Fazit. Jeder Abschnitt beginnt mit einem f
 (`lib/briefingText.ts`). Anlass: ein Lauf hatte interne Feldnamen ("mein_system_checklist.ema13")
 ausgegeben -- die Prompt-Validierung weist solche Antworten jetzt ab (`findTechnicalIdentifiers`).
 
+### Phase 7: DB aufräumen (12.10.2026)
+
+Anlass: Die DB steht bei 460 MB, das Free-Limit liegt bei 500 MB (Inventar:
+`DB-INVENTAR_2026-10-12.md`). Für jede Funktion galt die Frage "nutze ich das noch?". Was
+wegfällt, verschwindet mit Code, Cron-Job und Tabelle zusammen. Nutzung 12.09.–12.10.:
+Freie Anfrage 1, YouTube-Gesamtanalyse 2, Eskalation 3, News-Einordnung 5.
+
+**Entfernt (freigegeben, Toby):**
+- KI-Funktionen komplett: Freie Anfrage ("Rückfrage stellen" im Lagebild), YouTube-Gesamtanalyse,
+  KI-News-Einordnung. Weg sind die Routen, die Prompt-Profile, die Kontext-Builder und die Typen.
+  Die Tabellen `custom_query_runs`, `news_analysis_snapshots` und `youtube_overall_analyses` werden
+  nach dem Deploy gelöscht. Die Eskalation bleibt.
+- Altlasten: Backtest-Rekonstruktion (Jobs 18–20, `backtest_states` 54 MB),
+  Einmal-Forschungstabellen und ihre Funktionen, Reste früher entfernter Funktionen, leerer
+  Kurs-Historie-Job (Job 24, `btc_price_history_daily`).
+- `report_configs`/`report_runs`: Der `report-scheduler` startet seit 12.10. (08:25 UTC) nur noch das
+  Briefing und schreibt dort nichts mehr hinein. Damit ist der Nachtrag "bleiben mit allen Läufen in der DB"
+  oben überholt: Die Tabellen werden exportiert und gelöscht.
+
+**Jobs entlastet:**
+- Marktphase (`refresh_market_state_matrix`) schreibt nur noch die letzten 2 Tage statt aller
+  ~36'000 Zeilen alle 15 Minuten.
+- Datenqualität stündlich statt alle 5 Minuten.
+- Briefing-Taktgeber alle 15 statt 5 Minuten. Die Briefing-Zeiten sind dafür auf Viertelstunden
+  beschränkt (UI und `PATCH /api/system-briefing/config`). Der Scheduler holt eine Uhrzeit bis zu 20 Minuten
+  lang nach.
+
+**Bleibt:** `options_snapshots` (Options-Faktor der Marktphase), die wöchentlichen
+Confluence-/Regime-Score-Pipelines inklusive ihrer Aktivierungstabellen (Kürzen nicht freigegeben).

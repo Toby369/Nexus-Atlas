@@ -9,10 +9,12 @@ import type { SystemBriefingConfig } from "@/lib/types";
 // Zeitplan und Benachrichtigungen des System-Briefings (eine Zeile,
 // system_briefing_config.id = 1). Schreibt ueber den Service-Role-Client,
 // da RLS nur Lesen erlaubt. Der report-scheduler (Supabase Edge Function)
-// liest schedule_times alle 5 Minuten und startet das Briefing zur
-// jeweiligen Uhrzeit (Schweizer Zeit, Europe/Zurich).
+// laeuft alle 15 Minuten (:00/:15/:30/:45) und startet das Briefing zur
+// jeweiligen Uhrzeit (Schweizer Zeit, Europe/Zurich). Deshalb sind nur
+// Viertelstunden erlaubt -- eine Zeit wie 06:35 wuerde erst um 06:45
+// laufen.
 
-const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/;
+const TIME_RE = /^([01]\d|2[0-3]):(00|15|30|45)(:00)?$/;
 
 interface PatchBody {
   schedule_times?: string[] | null;
@@ -43,7 +45,7 @@ export async function PATCH(req: NextRequest) {
       }
       for (const t of times) {
         if (typeof t !== "string" || !TIME_RE.test(t)) {
-          return badRequest(`Ungueltige Uhrzeit "${t}" -- Format muss HH:MM sein.`);
+          return badRequest(`Ungueltige Uhrzeit "${t}" -- Format muss HH:MM sein, nur volle Viertelstunden (:00/:15/:30/:45).`);
         }
       }
       if (new Set(times).size !== times.length) return badRequest("schedule_times enthaelt doppelte Uhrzeiten.");
