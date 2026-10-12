@@ -17,7 +17,7 @@ import { setVisibleInterval } from "@/lib/visibleInterval";
 // Coverage%, etc.) bleibt unveraendert, nur die Datenquelle wechselt.
 //
 // Die aus der ehemaligen LivePricePanel hervorgegangenen Kacheln
-// (BtcPriceCard, OiChangeCard, OiByExchangeCard, FundingRateCard, siehe
+// (OiChangeCard, OiByExchangeCard, FundingRateCard, siehe
 // LivePriceDataProvider.tsx) sind bewusst NICHT angebunden: deren
 // Boersen-Auswahl ist Nutzer-gesteuert (nicht immer DEFAULT_SERIES_EXCHANGE)
 // und haette eine deutlich groessere, riskantere Restrukturierung erfordert

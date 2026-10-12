@@ -62,6 +62,8 @@ import PanelInfo from "@/components/PanelInfo";
 import SystemBriefingDetails, { isValidSystemBriefingResult } from "@/components/SystemBriefingDetails";
 import { marketStateInfo, MARKET_STATE_FACTOR_INFO, momentumDivergenceInfo } from "@/lib/panelInfo";
 import { fetchMtfDots, type MtfTimeframeDot } from "@/lib/mtfSignal";
+import { computePriceChanges, fetchPriceReferences, type PriceReference } from "@/lib/priceChanges";
+import { formatUsd } from "@/lib/livePriceFormat";
 import { RISK_ELEVATING_PATTERN_NAMES } from "@/lib/patternDirection";
 import MtfDotsRow from "@/components/MtfDotsRow";
 import {
@@ -174,6 +176,7 @@ export default function HeroHeader({
   initialSystemBriefing,
   initialBriefingConfig,
   initialMtfDots,
+  initialPriceReferences,
   setupScore,
   regimeScore,
   scoreDetails,
@@ -201,6 +204,9 @@ export default function HeroHeader({
   // MTF-Ampel (lib/mtfSignal.ts) -- 15M/1H/4H/1D/1W mit Trend-vs-
   // Trendbildung-Unterscheidung, unabhaengig vom mtf_alignment-Feld in state.
   initialMtfDots: MtfTimeframeDot[];
+  // Kurs vor 1H/4H/1D/1W (lib/priceChanges.ts), die Veraenderung rechnet
+  // gegen den Live-Preis.
+  initialPriceReferences: PriceReference[];
   // Setup-/Regime-Score als Kennzahlen oben, die vollstaendigen Karten
   // (scoreDetails) im Aufklapper "Warum?".
   setupScore: ConfluenceScoreResult;
@@ -211,6 +217,7 @@ export default function HeroHeader({
   const [lastSyncOk, setLastSyncOk] = useState(true);
   const [regime, setRegime] = useState(initialRegime);
   const [mtfDots, setMtfDots] = useState(initialMtfDots);
+  const [priceReferences, setPriceReferences] = useState(initialPriceReferences);
   const [expandedRiskFactor, setExpandedRiskFactor] = useState<string | null>(null);
   const { bundle, fetchedSinceIso, fetchedAtMs } = useDashboardPoll();
   const { latest: latestSnapshot } = useLivePriceData();
@@ -236,6 +243,13 @@ export default function HeroHeader({
   useEffect(() => {
     const stopPolling = setVisibleInterval(async () => {
       setMtfDots(await fetchMtfDots());
+    }, MARKET_STATE_REFRESH_MS);
+    return () => stopPolling();
+  }, []);
+
+  useEffect(() => {
+    const stopPolling = setVisibleInterval(async () => {
+      setPriceReferences(await fetchPriceReferences());
     }, MARKET_STATE_REFRESH_MS);
     return () => stopPolling();
   }, []);
@@ -422,6 +436,7 @@ export default function HeroHeader({
       ? narrativeSnapshot.result
       : null;
   const livePrice = latestSnapshot?.last_price ?? null;
+  const priceChanges = computePriceChanges(livePrice, priceReferences);
 
   return (
     <section className="rounded-lg border border-accent/40 bg-surface-raised p-5 sm:p-6 space-y-4">
@@ -449,6 +464,22 @@ export default function HeroHeader({
             <p className="tabular font-mono text-xl text-text">
               {livePrice.toLocaleString("de-CH", { maximumFractionDigits: 0 })} USD
             </p>
+          )}
+          {priceChanges.length > 0 && (
+            <dl className="grid grid-cols-4 gap-x-3 mt-1 text-xs tabular font-mono">
+              {priceChanges.map(({ label, abs, pct }) => (
+                <div key={label} className="sm:text-right">
+                  <dt className="text-text-faint font-sans">{label}</dt>
+                  <dd className={abs >= 0 ? "text-up" : "text-down"}>
+                    {abs >= 0 ? "▲" : "▼"} {formatUsd(Math.abs(abs), 0)}
+                  </dd>
+                  <dd className={abs >= 0 ? "text-up" : "text-down"}>
+                    {pct >= 0 ? "+" : ""}
+                    {pct.toFixed(1)} %
+                  </dd>
+                </div>
+              ))}
+            </dl>
           )}
           <RelativeTime iso={state.timestamp_utc} className="text-xs text-text-faint" />
         </div>

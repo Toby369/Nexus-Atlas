@@ -23,8 +23,8 @@ import {
 } from "@/lib/exchanges";
 import { setVisibleInterval } from "@/lib/visibleInterval";
 
-// Gemeinsamer State/Polling fuer die Preis-Kacheln (BtcPriceCard,
-// OiChangeCard, FundingRateCard) und den Live-Preis im Lagebild: jede
+// Gemeinsamer State/Polling fuer die Preis-Kacheln (OiChangeCard,
+// FundingRateCard) und den Live-Preis im Lagebild: jede
 // Komponente liest per useLivePriceData() nur den Ausschnitt, den sie
 // braucht, und bleibt unabhaengig verschieb-/groessenbar (DashboardLayout).
 //
@@ -99,9 +99,6 @@ async function fetchOiChangeByExchange(sinceIso: string): Promise<OiChangeByExch
 export interface LivePriceData {
   hasData: boolean;
   latest: MarketSnapshot | undefined;
-  priceChange: number | null;
-  isUp: boolean;
-  priceSeries: { t: string; v: number }[];
   fundingSeries: { t: string; v: number }[];
   isStale: boolean;
   lastSyncOk: boolean;
@@ -273,17 +270,6 @@ export default function LivePriceDataProvider({
   }, [snapshots]);
 
   const latest = snapshots[snapshots.length - 1];
-  const previous = snapshots[snapshots.length - 2];
-
-  const priceChange =
-    previous?.last_price != null && latest?.last_price != null
-      ? latest.last_price - previous.last_price
-      : null;
-  const isUp = priceChange !== null && priceChange >= 0;
-
-  const priceSeries = snapshots
-    .filter((s) => s.last_price != null)
-    .map((s) => ({ t: s.timestamp_utc, v: s.last_price as number }));
   const fundingSeries = snapshots
     .filter((s) => s.funding_rate != null)
     .map((s) => ({ t: s.timestamp_utc, v: (s.funding_rate as number) * 100 }));
@@ -328,9 +314,6 @@ export default function LivePriceDataProvider({
   const value: LivePriceData = {
     hasData: !!latest,
     latest,
-    priceChange,
-    isUp,
-    priceSeries,
     fundingSeries,
     isStale,
     lastSyncOk,

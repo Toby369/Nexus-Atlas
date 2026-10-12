@@ -18,10 +18,6 @@ export function marktkontextInfo(tfLabel: string): string {
 So entsteht der Wert: Kombiniert die Preisrichtung (Bybit), die aggregierte Open-Interest-Richtung (Summe über alle Börsen mit Daten) und den Spot-Taker-Netto-Flow (Binance) über ${tfLabel}. Reicht die OI-Historie für ${tfLabel} noch nicht aus oder ist die Spot-Datenbasis zu dünn, wird das Ergebnis als PRELIMINARY oder INSUFFICIENT DATA gekennzeichnet.`;
 }
 
-export const btcPriceInfo = `So liest du das: Zeigt den aktuellen BTC/USDT-Perpetual-Preis sowie den Preisverlauf der letzten rund 15 Stunden, ausschliesslich von Bybit als fester Referenzbörse – unabhängig davon, welche Börse weiter unten bei „OI Change“ ausgewählt ist. Bybit dient bewusst als einheitliche Preis-Referenz für das gesamte Dashboard (Marktkontext, OI-Change-Berechnung, Kurznotiz), damit alle Kennzahlen auf derselben Preisbasis beruhen. Ein „Sync-Problem“-Hinweis erscheint, wenn die letzte erfolgreiche Datenerfassung mehr als 15 Minuten zurückliegt.
-
-So entsteht der Wert: Der Wert stammt vom letzten erfassten Datenpunkt der Sammel-Pipeline, die alle 5 Minuten neue Daten holt – kein Echtzeit-Tick-Feed.`;
-
 export function oiChangeInfo(tfLabel: string): string {
   return `So liest du das: Steigendes OI bedeutet, dass neue Positionen eröffnet werden, fallendes OI, dass Positionen geschlossen werden; ob es sich dabei um Long- oder Short-Positionen handelt, ist daraus allein nicht ablesbar. Bei „Aggregiert“ ist das die Summe des Open Interest aller Börsen, die zu diesem Zeitpunkt Daten geliefert haben (Bitunix liefert öffentlich kein Open Interest und fehlt daher immer).
 

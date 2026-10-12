@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { supabase } from "@/lib/supabase";
+import { fetchPriceReferences } from "@/lib/priceChanges";
 import type {
   DashboardPollBundle,
   EconomicCalendarEvent,
@@ -32,7 +33,6 @@ import { TRADINGVIEW_SIGNAL_FRESHNESS_HOURS } from "@/lib/tradingViewSignal";
 import { DEFAULT_SERIES_EXCHANGE } from "@/lib/exchanges";
 import { MTF_TIMEFRAMES, buildMtfDots, type MtfTimeframeDot } from "@/lib/mtfSignal";
 import LivePriceDataProvider from "@/components/LivePriceDataProvider";
-import BtcPriceCard from "@/components/BtcPriceCard";
 import OiChangeCard from "@/components/OiChangeCard";
 import FundingRateCard from "@/components/FundingRateCard";
 import NewsRiskPanel from "@/components/NewsRiskPanel";
@@ -562,6 +562,7 @@ export default async function Home({
     dashboardBundle,
     oiByExchange,
     latestTradingViewSignal,
+    priceReferences,
   ] = await Promise.all([
     getSnapshotHistory(),
     getLatestMarketState(),
@@ -593,6 +594,7 @@ export default async function Home({
     getDashboardPollBundle(timeframeSinceIsoValue),
     getOiChangeByExchange(timeframeSinceIsoValue),
     getLatestTradingViewSignal(),
+    fetchPriceReferences(),
   ]);
 
   // Fallback, falls das Bundle-RPC fehlschlaegt (z.B. kurzzeitiger DB-
@@ -669,6 +671,7 @@ export default async function Home({
                   initialBriefingConfig={systemBriefingConfig}
                   upcomingEconomicEvents={upcomingEconomicEvents}
                   initialMtfDots={mtfDots}
+                  initialPriceReferences={priceReferences}
                   setupScore={confluenceScore}
                   regimeScore={regimeScore}
                   scoreDetails={
@@ -697,7 +700,6 @@ export default async function Home({
                     lernen: <QuizTile />,
                     "leverage-map": <LeverageMapCard map={latestLeverageMap} />,
                     "cycle-indicators": <CycleIndicatorsCard data={cycleIndicators} />,
-                    "btc-price": <BtcPriceCard />,
                     "oi-change": <OiChangeCard />,
                     "funding-rate": <FundingRateCard />,
                     "orderbook-walls": <OrderbookWallCard walls={latestOrderbookWalls} />,
