@@ -1,5 +1,5 @@
 // Kontext-Builder fuer die Freie Anfrage. Bewusst KEIN eigener, neuer Marktdaten-Ausschnitt -- nutzt exakt
-// denselben strukturierten FullMarketContext wie die grosse Report-Engine
+// den strukturierten FullMarketContext (frueher auch Basis der Report-Engine)
 // (lib/reportContext.ts), damit die freie Anfrage auf denselben validierten
 // Daten basiert statt einer zweiten, abweichenden Definition.
 //

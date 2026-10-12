@@ -15,7 +15,7 @@ import type { EscalationRead } from "@/lib/types";
 // spiegelt meist Modellrauschen statt echter Markt-Ambiguitaet), holt diese
 // Route mehrere unabhaengige AI-Meinungen NUR ein, wenn Nexus intern bereits
 // eine Divergenz/einen Widerspruch erkannt hat (Signal-Engine, Divergenz-
-// Radar, Report-Master -- siehe lib/escalationContext.ts). Die
+// Radar -- siehe lib/escalationContext.ts). Die
 // Trigger-Erkennung selbst ist kostenlos (reine DB-Reads); erst wenn
 // mindestens ein Trigger aktiv ist, werden die drei Provider aus
 // ESCALATION_PROVIDER_ENSEMBLE parallel aufgerufen.

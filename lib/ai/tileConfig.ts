@@ -18,8 +18,8 @@ import type { TileAIConfig } from "./types";
 // aus, schlaegt sie deshalb fehl statt bezahlt auszuweichen -- bewusst.
 // eines bezahlten Fallbacks -- bewusst in Kauf genommen.
 
-// 3 Provider je Kette * 40s = 120s fuer die parallelen Teile, dasselbe fuer
-// die Synthese -- 240s, unter maxDuration=300 der Briefing-Route.
+// 2 Provider je Kette * 40s = 80s fuer die parallelen Teile, dasselbe fuer
+// die Synthese -- 160s, unter maxDuration=300 der Briefing-Route.
 const BRIEFING_TIMEOUT_MS = 40_000;
 
 export const tileConfigs: Record<string, TileAIConfig> = {
@@ -39,50 +39,42 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   // promptProfiles.ts); kostenloser Fallback je Teil, kein bezahlter
   // Provider (siehe Anthropic-Linie oben).
   //
-  // Verteilung der Teil-Aufrufe -- Lehren aus Live-Vorfaellen:
-  // - Alle vier per "auto" auf Google vervierfachten den Quota-Verbrauch;
-  //   die Gratis-Tagesquota EINES Gemini-Modells kann projektweit
-  //   ausgeschoepft sein, waehrend andere Gemini-Modelle frei sind. Daher
-  //   Modell-Overrides je Teil (aiModel) statt nur GOOGLE_MODEL.
-  // - Nur Modelle verwenden, die live funktionierten ("gemini-3.7-flash",
-  //   "gemini-3.8-flash"); aeltere 2.5-Modelle liefern HTTP 404 (fuer neue
-  //   Nutzer abgeschaltet).
-  // - Verschiedene Gemini-Modelle teilen sich trotzdem ein Projekt-Limit
-  //   (RPM/Concurrency): drei parallele Google-Aufrufe fuehrten zu 429 und
-  //   stummen 20s-Timeouts. Deshalb laufen die DREI PARALLELEN Teil-Aufrufe
-  //   auf drei verschiedenen Vendors (Regelwerk=Google, Chart=Groq,
-  //   Trigger=Mistral); die Synthese laeuft danach sequenziell auf Google.
-  // - Gratis-Modelle brauchten fuer diese Teile regelmaessig >20s; mit dem
-  //   Standard-Zeitlimit scheiterte jeder Versuch. Daher eigenes Limit
-  //   (BRIEFING_TIMEOUT_MS) und maxDuration=300 in der Route.
-  // - DeepSeek ist nicht konfiguriert und steht deshalb in keiner Kette.
+  // Verteilung -- gemessen in den Vercel-Logs (Live-Laeufe nach Umstellung
+  // auf 40s-Limit):
+  // - Groq: 1,5-4s je Teil, jeder Versuch erfolgreich -- aber Gratis-Tier
+  //   mit Tageslimit, das auch Eskalation, Trade-Debate-Referee und mehrere
+  //   Fallbacks nutzen. Daher nur die zwei kleinen Teile (Chart, Trigger).
+  // - Google (gemini-3.7-flash): 19-25s, teils Zeitueberschreitung. Traegt
+  //   Regelwerk und Synthese; eigenes Modell statt GOOGLE_MODEL, damit die
+  //   Tagesquota der uebrigen Google-Kacheln nicht mitbelastet wird. Groq
+  //   springt nur bei einem Google-Ausfall ein.
+  // - Mistral: jeder Versuch HTTP 429 (Rate limit exceeded) -- vermutlich
+  //   durch den frueheren Mistral-Slot der AI Reports ausgelastet.
+  // - OpenRouter: Antwort "User Safety: safe" (Moderations-Modell statt
+  //   JSON) oder Zeitueberschreitung; hing schon frueher bei Kursziel-
+  //   Szenarien (siehe promptProfiles.ts).
+  // Mistral, OpenRouter und DeepSeek (nicht konfiguriert) stehen deshalb in
+  // keiner Briefing-Kette.
   "system-briefing-regelwerk": {
     tileId: "system-briefing-regelwerk",
     aiProvider: "google",
     aiModel: "gemini-3.7-flash",
     promptProfile: "system-briefing-regelwerk",
-    fallbackProviders: ["openrouter", "groq"],
+    fallbackProviders: ["groq"],
     timeoutMs: BRIEFING_TIMEOUT_MS,
   },
   "system-briefing-chart": {
     tileId: "system-briefing-chart",
     aiProvider: "groq",
     promptProfile: "system-briefing-chart",
-    fallbackProviders: ["google", "openrouter"],
+    fallbackProviders: ["google"],
     timeoutMs: BRIEFING_TIMEOUT_MS,
   },
-  // Trigger primaer auf Mistral (statt OpenRouter): OpenRouter hing bei
-  // dieser Kachel reproduzierbar bis zum 20s-Zeitlimit ohne Antwort --
-  // vermutlich ein stiller Moderations-Haenger bei Kursziel-Szenarien
-  // (derselbe Inhalt loeste dort schon eine "Unauthorized Advice"-
-  // Verweigerung aus, siehe promptProfiles.ts). OpenRouter ist daher GANZ
-  // aus dieser Kette entfernt (bei Regelwerk/Chart weiterhin Fallback);
-  // Fallback Groq -> Google.
   "system-briefing-trigger": {
     tileId: "system-briefing-trigger",
-    aiProvider: "mistral",
+    aiProvider: "groq",
     promptProfile: "system-briefing-trigger",
-    fallbackProviders: ["groq", "google"],
+    fallbackProviders: ["google"],
     timeoutMs: BRIEFING_TIMEOUT_MS,
   },
   "system-briefing-synthese": {
@@ -90,7 +82,7 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     aiProvider: "google",
     aiModel: "gemini-3.7-flash",
     promptProfile: "system-briefing-synthese",
-    fallbackProviders: ["mistral", "openrouter"],
+    fallbackProviders: ["groq"],
     timeoutMs: BRIEFING_TIMEOUT_MS,
   },
   // Eskalation: aiProvider ist nur ein Platzhalter --

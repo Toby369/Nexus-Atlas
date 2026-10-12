@@ -41,10 +41,9 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/")).toBe(false);
   });
 
-  it("sperrt /reports und dessen API-Routen", () => {
-    expect(isPublicPath("/reports")).toBe(false);
-    expect(isPublicPath("/api/reports/run")).toBe(false);
-    expect(isPublicPath("/api/reports/config")).toBe(false);
+  it("sperrt die System-Briefing-API-Routen", () => {
+    expect(isPublicPath("/api/system-briefing/generate")).toBe(false);
+    expect(isPublicPath("/api/system-briefing/config")).toBe(false);
   });
 
   it("sperrt andere API-Routen (z.B. /api/ai/analyze)", () => {
@@ -78,23 +77,23 @@ describe("isPublicPath", () => {
 describe("isAuthorizedServiceRoleRequest", () => {
   it("laesst report-scheduler mit korrektem Service-Role-Bearer-Token durch", () => {
     expect(
-      isAuthorizedServiceRoleRequest("/api/reports/run", "Bearer geheim-123", "geheim-123")
+      isAuthorizedServiceRoleRequest("/api/system-briefing/generate", "Bearer geheim-123", "geheim-123")
     ).toBe(true);
   });
 
   it("sperrt bei falschem Token", () => {
     expect(
-      isAuthorizedServiceRoleRequest("/api/reports/run", "Bearer falsch", "geheim-123")
+      isAuthorizedServiceRoleRequest("/api/system-briefing/generate", "Bearer falsch", "geheim-123")
     ).toBe(false);
   });
 
   it("sperrt, wenn kein Authorization-Header mitgeschickt wurde", () => {
-    expect(isAuthorizedServiceRoleRequest("/api/reports/run", null, "geheim-123")).toBe(false);
+    expect(isAuthorizedServiceRoleRequest("/api/system-briefing/generate", null, "geheim-123")).toBe(false);
   });
 
   it("sperrt, wenn SUPABASE_SERVICE_ROLE_KEY serverseitig nicht gesetzt ist (kein Vergleich gegen 'Bearer undefined')", () => {
     expect(
-      isAuthorizedServiceRoleRequest("/api/reports/run", "Bearer undefined", undefined)
+      isAuthorizedServiceRoleRequest("/api/system-briefing/generate", "Bearer undefined", undefined)
     ).toBe(false);
   });
 

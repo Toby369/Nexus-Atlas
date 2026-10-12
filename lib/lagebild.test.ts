@@ -36,11 +36,13 @@ const CONFLICT_DOTS = dots("bullish_confirmed", "bearish_forming", "bearish_form
 
 describe("countMtfDirections", () => {
   it("zaehlt bestaetigt und Trendbildung gleichermassen", () => {
-    expect(countMtfDirections(LIVE_DOTS)).toEqual({ bullish: 3, bearish: 2, neutral: 0 });
+    expect(countMtfDirections(LIVE_DOTS)).toEqual({
+      bullish: 3, bearish: 2, neutral: 0, bullishForming: 2, bearishForming: 1,
+    });
   });
   it("wertet fehlende Daten als neutral", () => {
     expect(countMtfDirections(dots("no_data", "neutral", "bullish_confirmed", "no_data", "no_data"))).toEqual({
-      bullish: 1, bearish: 0, neutral: 4,
+      bullish: 1, bearish: 0, neutral: 4, bullishForming: 0, bearishForming: 0,
     });
   });
 });

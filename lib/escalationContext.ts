@@ -2,9 +2,11 @@
 // Eskalation" statt einer dauerhaften Mehrfach-Kachel): mehrere unabhaengige
 // AI-Provider beurteilen dieselbe rohe Gesamteinschaetzung (14-Faktoren-
 // Engine) -- aber NUR, wenn Nexus intern bereits einen Widerspruch erkannt
-// hat (System-Briefing-Konfluenz-Check, Divergenz-Radar-Paar,
-// Report-Master-Konflikt). Die Entscheidung "lohnt sich eine zweite
-// Meinung" faellt kostenlos (reine DB-Reads).
+// hat (System-Briefing-Konfluenz-Check, Divergenz-Radar-Paar). Die
+// Entscheidung "lohnt sich eine zweite
+// Meinung" faellt kostenlos (reine DB-Reads). Der Report-Master-Trigger
+// entfiel mit der Zusammenlegung von Master-Report und System-Briefing --
+// dessen Widersprueche deckt der Konfluenz-Check ab.
 //
 // Der erste Trigger liest den Konfluenz-Check des aktuellen System-Briefing-
 // Snapshots (enthaelt den Konsistenz-Check der frueheren Signal Engine) --
@@ -53,38 +55,13 @@ async function getLatestSystemBriefing(): Promise<SystemBriefingSnapshot | null>
   return data;
 }
 
-interface MasterReportRow {
-  generated_at: string;
-  status: "ok" | "error";
-  result: { overallBias?: unknown; conflicts?: unknown } | null;
-}
-
-async function getLatestMasterReportRun(): Promise<MasterReportRow | null> {
-  const { data, error } = await supabase
-    .from("report_runs")
-    .select("generated_at, status, result")
-    .eq("report_type", "master")
-    .order("generated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) {
-    console.error("escalationContext: Fehler bei report_runs (master):", error.message);
-    return null;
-  }
-  return data;
-}
-
 /**
- * Prueft die drei bereits bestehenden Divergenz-/Konsistenz-Mechanismen auf
+ * Prueft die bestehenden Divergenz-/Konsistenz-Mechanismen auf
  * einen AKTUELL aktiven Treffer -- reine DB-Reads, kein AI-Aufruf, kostet
  * also nichts. Leeres Array = keine Eskalation gerechtfertigt.
  */
 export async function detectEscalationTriggers(): Promise<EscalationTrigger[]> {
-  const [briefing, radar, masterRun] = await Promise.all([
-    getLatestSystemBriefing(),
-    buildDivergenceRadar(),
-    getLatestMasterReportRun(),
-  ]);
+  const [briefing, radar] = await Promise.all([getLatestSystemBriefing(), buildDivergenceRadar()]);
 
   const triggers: EscalationTrigger[] = [];
 
@@ -108,18 +85,6 @@ export async function detectEscalationTriggers(): Promise<EscalationTrigger[]> {
       source: "divergence-radar",
       label: "Divergenz-Radar zeigt mindestens ein divergentes Paar",
       detail: divergentPairs,
-    });
-  }
-
-  if (
-    masterRun?.status === "ok" &&
-    masterRun.result?.overallBias === "conflicting" &&
-    isFresh(masterRun.generated_at)
-  ) {
-    triggers.push({
-      source: "report-master",
-      label: "Report-Master (Report 4) meldet widerspruechliche Einzelreports",
-      detail: Array.isArray(masterRun.result.conflicts) ? (masterRun.result.conflicts as string[]) : [],
     });
   }
 

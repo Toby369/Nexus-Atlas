@@ -6,7 +6,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 // PushSubscription-Objekt (JSON.stringify(subscription) liefert genau
 // dieses Format). Schreibt ueber den Service-Role-Client, da push_
 // subscriptions bewusst keine Client-Policies hat (siehe Migration
-// add_push_subscriptions_table) -- gleiche Begruendung wie report_configs.
+// add_push_subscriptions_table) -- gleiche Begruendung wie system_briefing_config.
 //
 // Upsert auf "endpoint" (unique): ein Geraet, das sich erneut anmeldet
 // (z.B. nach Browser-Neustart), erzeugt keine doppelte Zeile.

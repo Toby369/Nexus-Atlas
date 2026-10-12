@@ -25,7 +25,7 @@ const INFO_TEXT = [
   "EMA800 ist eine in der Krypto-Szene gebraeuchliche, aber KEINE etablierte institutionelle Kennzahl wie EMA50/200 -- wird trotzdem mitgegeben, aber von den Analysten niedriger gewichtet.",
   "Wird NICHT automatisch aktualisiert -- jeder Lauf macht 3 KI-Aufrufe (Bull, Bear, Referee), alle ueber kostenlose Gratis-Tiers (Google, OpenRouter, Groq), und entsteht nur per Klick.",
   "Kein Handelssignal, keine Anlageberatung -- eine strukturierte Analysehilfe, die eigene Entscheidung bleibt bei dir.",
-  "Die MTF-Ampel oben neben dem Titel ist reiner Live-Kontext, unabhaengig vom letzten Analyse-Lauf -- je ein Punkt fuer 15M/1H/4H/1D/1W (gruen/rot = bestaetigter Trend, gold = Trendbildung, grau = neutral, ausgegraut = keine Daten). Wird alle 5 Minuten aktualisiert, auch ohne neue Analyse.",
+  "Die MTF-Ampel oben neben dem Titel ist reiner Live-Kontext, unabhaengig vom letzten Analyse-Lauf -- je ein Punkt fuer 15M/1H/4H/1D/1W (gruen/rot = bestaetigter Trend, hohler gruener/roter Ring = Trendbildung, grau = neutral, ausgegraut = keine Daten). Wird alle 5 Minuten aktualisiert, auch ohne neue Analyse.",
 ].join("\n\n");
 
 const VERDICT_STYLES: Record<string, string> = {

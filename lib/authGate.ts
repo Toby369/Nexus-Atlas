@@ -46,9 +46,9 @@ export function isPublicPath(pathname: string): boolean {
 
 // Server-zu-Server-Aufrufe ohne Nutzer-Session (Supabase Edge Functions per
 // pg_cron) duerfen sich mit CRON_SECRET als Bearer-Token ausweisen:
-// - /api/reports/run: report-scheduler (alle 5 Min). Ohne diese Ausnahme
-//   lehnte das Gate die Laeufe unbemerkt mit 401 ab -- report_runs bekam
-//   wochenlang keine neue Zeile.
+// - /api/system-briefing/generate: report-scheduler (alle 5 Min, startet
+//   das Briefing zu den Uhrzeiten aus system_briefing_config). Ohne diese
+//   Ausnahme lehnte das Gate frueher die Report-Laeufe unbemerkt mit 401 ab.
 // - /api/youtube-monitor/generate: youtube-monitor-scheduler (taeglicher
 //   Check + Push).
 // - /api/signal-review/generate: signal-review-scheduler (woechentlich,
@@ -62,7 +62,7 @@ export function isPublicPath(pathname: string): boolean {
 // Produktion auch nicht zuverlaessig. CRON_SECRET ist ein eigener Wert
 // (Vercel-Env + Edge-Function-Secret), unabhaengig rotierbar.
 export const SERVICE_ROLE_BEARER_PATHS: ReadonlySet<string> = new Set([
-  "/api/reports/run",
+  "/api/system-briefing/generate",
   "/api/youtube-monitor/generate",
   "/api/signal-review/generate",
   "/api/divergence-radar/snapshot",
