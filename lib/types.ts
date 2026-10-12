@@ -367,6 +367,10 @@ export interface SystemBriefingFazit {
 export interface SystemBriefingScenario {
   bedingungen: string[];
   kursziel: number | null;
+  // Szenario als 1-2 ganze Saetze im Stil eines Marktberichts ("Ueberwindet
+  // BTC ... nachhaltig, rueckt ... in den Fokus."). Fehlt in aelteren
+  // Snapshots.
+  text?: string;
 }
 
 export interface SystemBriefingTrigger {
@@ -391,10 +395,21 @@ export interface SystemBriefingResult {
   // ersten Lauf. Fehlt in Snapshots von vor der Zusammenlegung mit dem
   // Master-Report.
   aenderungSeitLetztem?: string | null;
+  // Marktbericht-Abschnitte (Aufbau angelehnt an einen klassischen
+  // BTC-Marktupdate-Newsletter). Jeder Text beginnt mit einem Kernsatz, den
+  // die Anzeige fett setzt. Fehlen in Snapshots von vor dem Umbau.
+  schlagzeile?: string;
+  marktupdate?: string;
+  momentum?: string;
+  liquidationen?: string;
+  etfFlows?: string;
+  wirtschaftskalender?: string;
 }
 
 // Zeitplan/Benachrichtigungen des System-Briefings (system_briefing_config,
-// eine Zeile). schedule_times sind UTC-Uhrzeiten ("HH:MM:SS").
+// eine Zeile). schedule_times sind Uhrzeiten in Schweizer Zeit
+// (Europe/Zurich, "HH:MM:SS"); der report-scheduler rechnet die
+// Sommer-/Winterzeit selbst um.
 export interface SystemBriefingConfig {
   id: number;
   schedule_times: string[] | null;

@@ -7,7 +7,8 @@ import { MAX_BRIEFING_SCHEDULE_TIMES } from "@/lib/systemBriefingConfig";
 // Zeitplan und Benachrichtigungen des System-Briefings, als Aufklapper in
 // der KI-Einordnung des Lagebilds (HeroHeader). Bedienung wie frueher je
 // Report-Slot: bis zu MAX_BRIEFING_SCHEDULE_TIMES taegliche
-// Uhrzeiten (UTC), E-Mail und Push nur fuer geplante Laeufe.
+// Uhrzeiten (Schweizer Zeit, Europe/Zurich -- Sommer-/Winterzeit rechnet
+// der report-scheduler selbst um), E-Mail und Push nur fuer geplante Laeufe.
 
 function toHHMM(times: string[] | null): string[] {
   return (times ?? []).map((t) => t.slice(0, 5));
@@ -65,7 +66,7 @@ export default function BriefingScheduleSettings({ initialConfig }: { initialCon
     <div className="space-y-3 text-xs">
       <div className="space-y-1.5">
         <p className="text-text-faint">
-          Automatisch täglich um (UTC, bis zu {MAX_BRIEFING_SCHEDULE_TIMES} Zeiten; keine Zeit = nur manuell)
+          Automatisch täglich um (Schweizer Zeit, bis zu {MAX_BRIEFING_SCHEDULE_TIMES} Zeiten; keine Zeit = nur manuell)
         </p>
         {scheduleTimes.map((t, i) => (
           <div key={i} className="flex items-center gap-1.5">

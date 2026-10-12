@@ -99,7 +99,7 @@ function formatSignedPct(value: number | null) {
 // (siehe lib/types.ts::SystemBriefingResult), keine clientseitige Kuerzung.
 const SHORT_NARRATIVE_INFO_TEXT = [
   "Was das ist: das Fazit des System-Briefings -- eine KI-Synthese, die dein eigenes Regelwerk (Welz/Salomon-Methodik + \"Mein Trading System\"-Checkliste) und die berechnete Chart-Struktur auf den aktuellen Stand von Nexus' Faktoren anwendet (Bewegungsvorrat, 14-Faktoren-Engine, VWAP-Vector/CVD, Liquidations-Cluster, Marktkontext, ETF-Flows, Positionierung, News).",
-  "Im Aufklapper darunter: Regelwerk-Check, Chart-Struktur, Konfluenz-Check (nur bei echtem Widerspruch) und Trigger & Szenario mit beiden Richtungen -- jedes Kursziel entspricht einem echten Key Level, nie einer frei geschätzten Zahl. Entscheidungsunterstützung, keine Anlageberatung.",
+  "Im Aufklapper darunter der ganze BTC-Marktbericht: Marktupdate, Momentum (RSI), Bitcoin Chart mit beiden Szenarien, Liquidationen, ETF-Flows, Wirtschaftskalender und dein Regelwerk-Check -- jedes Kursziel entspricht einem echten Key Level, nie einer frei geschätzten Zahl. Entscheidungsunterstützung, keine Anlageberatung.",
   "Andere Engine als das grosse Badge oben: das Badge ist die regelbasierte 14-Faktoren-Gesamteinschätzung, diese Box wendet dein eigenes Regelwerk (Welz/Salomon/\"Mein Trading System\") AUF diese Einschätzung an -- beide können unterschiedlicher Meinung sein. Weicht der aktuelle Stand tatsächlich ab, erscheint hier ein Warnhinweis (⚠) statt zwei stillschweigend widersprüchlichen Badges.",
   `Automatische Aktualisierung: ist der zuletzt generierte Stand älter als ${NARRATIVE_AUTO_REFRESH_HOURS} Std., löst das Lagebild automatisch EINEN neuen System-Briefing-Aufruf aus -- bis dahin wird kein veralteter Text angezeigt. Normalerweise läuft das Briefing aber zu den Uhrzeiten unter "Zeitplan & Benachrichtigungen" (dort auch E-Mail/Push), "Neu generieren" stösst jederzeit manuell einen neuen Lauf an.`,
   "Seit dem letzten Lauf: vergleicht das Fazit mit dem vorherigen Briefing (Richtung, Überzeugungsgrad, Kernaussage) -- übernommen vom früheren Master-Report.",
@@ -610,6 +610,9 @@ export default function HeroHeader({
             {narrativeRefreshError && (
               <p className="text-xs text-down">Neu generieren fehlgeschlagen: {narrativeRefreshError}</p>
             )}
+            {narrativeSnapshot?.result?.schlagzeile && (
+              <p className="text-base font-semibold text-text leading-snug">{narrativeSnapshot.result.schlagzeile}</p>
+            )}
             <p className="text-sm text-text-muted leading-relaxed">{fazit.kernaussage}</p>
             {narrativeSnapshot?.result?.aenderungSeitLetztem && (
               <p className="text-xs text-text-faint italic leading-relaxed">
@@ -622,7 +625,7 @@ export default function HeroHeader({
         {briefingDetails && narrativeFreshness === "fresh" && (
           <details className="pt-1">
             <summary className="text-xs text-text-muted hover:text-text cursor-pointer select-none">
-              Regelwerk-Check, Chart-Struktur &amp; Szenarien
+              Ganzer Marktbericht (Chart, Szenarien, Liquidationen, ETF, Kalender, Regelwerk)
             </summary>
             <div className="pt-2">
               <SystemBriefingDetails result={briefingDetails} />

@@ -223,8 +223,8 @@ für die Briefing-Teile) und `maxDuration = 300` der Briefing-Route.
 lieferten Richtung, Überzeugungsgrad, Zusammenfassung und Widersprüche aus weitgehend denselben
 Marktdaten; das Briefing wendet zusätzlich das eigene Regelwerk und die Chart-Struktur an.
 
-- Das Briefing übernimmt vom Master-Report: den Zeitplan (frei wählbare Uhrzeiten, UTC, Startwerte
-  des Master-Slots 04:35/08:15/14:10/21:10), E-Mail und Push nach geplanten Läufen und den Satz
+- Das Briefing übernimmt vom Master-Report: den Zeitplan (frei wählbare Uhrzeiten, seit 12.10. in Schweizer Zeit, Startwerte
+  des Master-Slots 04:35/08:15/14:10/21:10 UTC = 06:35/10:15/16:10/23:10 Schweizer Zeit), E-Mail und Push nach geplanten Läufen und den Satz
   "Seit dem letzten Lauf". Einstellung im Lagebild unter "Zeitplan & Benachrichtigungen"
   (`system_briefing_config`, `components/BriefingScheduleSettings.tsx`).
 - Entfernt: Seite `/reports`, die vier Report-Slots (`/api/reports/*`), die Master-Report-Box im
@@ -233,4 +233,13 @@ Marktdaten; das Briefing wendet zusätzlich das eigene Regelwerk und die Chart-S
 - Die Supabase-Funktion `report-scheduler` startet jetzt das Briefing statt der Reports.
 - Wirkung: statt ~16 geplanter Report-Aufrufe plus Briefing-Läufen pro Tag nur noch die geplanten
   Briefing-Läufe (4 Teil-Aufrufe je Lauf, davon 2 auf Groq).
+
+### Nachtrag: Briefing als BTC-Marktbericht (12.10.2026)
+
+Auf Tobys Wunsch (Vorlage: Marktupdate-Newsletter von Bastian Keller, nur BTC) ist das Briefing wie
+ein Marktbericht aufgebaut: Schlagzeile, Marktupdate (Kurs, 24h/7 Tage), Momentum (RSI 4H/1D),
+Bitcoin Chart mit beiden Szenarien in ganzen Sätzen, Liquidationen, ETF-Flows,
+Wirtschaftskalender, Regelwerk-Check, Fazit. Jeder Abschnitt beginnt mit einem fetten Kernsatz
+(`lib/briefingText.ts`). Anlass: ein Lauf hatte interne Feldnamen ("mein_system_checklist.ema13")
+ausgegeben -- die Prompt-Validierung weist solche Antworten jetzt ab (`findTechnicalIdentifiers`).
 

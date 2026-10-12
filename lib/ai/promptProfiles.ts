@@ -57,6 +57,71 @@ const NUMBER_FORMAT_INSTRUCTION =
   "Nachkommastelle (z.B. +1.5%, -0.3%), Punkt als Dezimaltrennzeichen (nie Komma), große " +
   "USD-Beträge gerundet mit Einheit (z.B. $12.3M, $450K) statt ausgeschriebener Nullen.";
 
+// --- System-Briefing: Stil und Klartext-Pruefung --------------------------
+// Das Briefing liest sich wie ein BTC-Marktbericht (Vorbild: ein klassischer
+// Trading-Newsletter -- Kernsatz zuerst, konkrete Zonen, ganze Saetze). Ein
+// Lauf hatte vorher interne Datenfeldnamen ("mein_system_checklist.ema13")
+// und englische Statuswerte ("Phase: respecting") woertlich ausgegeben.
+const BRIEFING_STYLE_INSTRUCTION =
+  "Du schreibst Teile eines taeglichen Bitcoin-Marktberichts fuer einen erfahrenen " +
+  "Trader, ausschliesslich zu BTC (keine anderen Coins). Stil: Deutsch, ganze Saetze, " +
+  "sachlich und konkret wie ein guter Trading-Newsletter; jeder Text beginnt mit einem " +
+  "Kernsatz, der die Aussage allein traegt (die Anzeige setzt ihn fett). Uebliche " +
+  "Trader-Begriffe sind erlaubt (VWAP, EMA 200, RSI, Support, Widerstand, Funding, " +
+  "Open Interest, Liquidationen, Reclaim). VERBOTEN: interne Datenfeldnamen, " +
+  "Variablen oder JSON-Pfade aus dem Kontext (nie 'mein_system_checklist.ema13', " +
+  "'dayVwap', 'regimeAllowsGuss', 'TREND_FORMING_BULLISH', 'phase: respecting') -- " +
+  "uebersetze sie in Klartext ('EMA 13 auf Tagesbasis', 'Tages-VWAP', 'GUSS sieht " +
+  "einen beginnenden Aufwaertstrend', 'die Zone haelt'); keine Vergleichsoperatoren " +
+  "wie '>' oder '='. Kurse als ganze USD mit Apostroph als Tausendertrenner (84'300 " +
+  "USD), Zonen als Spanne (84'300-84'500 USD), Prozentwerte mit Vorzeichen und einer " +
+  "Nachkommastelle mit Punkt (+1.2 %), Volumen gerundet (286 Mio. USD). " +
+  "Nutze ausschliesslich die gelieferten Daten, erfinde keine Zahlen. ";
+
+// Freitext-Abschnitte der Synthese, gemeinsam fuer Prompt-Validierung und
+// Anzeige (components/SystemBriefingDetails.tsx, lib/systemBriefingNotify.ts).
+export const BRIEFING_REPORT_SECTIONS = [
+  "schlagzeile",
+  "marktupdate",
+  "momentum",
+  "liquidationen",
+  "etfFlows",
+  "wirtschaftskalender",
+] as const;
+
+const TECHNICAL_IDENTIFIER_PATTERNS: RegExp[] = [
+  /\b[a-z][a-z0-9]*_[a-z0-9_]+\b/, // snake_case (mein_system_checklist)
+  /\b[A-Z]{2,}_[A-Z0-9_]{2,}\b/, // UPPER_SNAKE (TREND_FORMING_BULLISH)
+  /\b[a-z]+[A-Z][a-zA-Z0-9]*\b/, // camelCase (dayVwap, closePrice)
+  /\b[A-Za-z_]{3,}\.[A-Za-z_]{3,}\b/, // Pfad (vwapVector.dayVwap)
+];
+
+/** Findet interne Feldnamen/Variablen in einem KI-Text (leeres Array = Klartext). */
+export function findTechnicalIdentifiers(text: string): string[] {
+  const hits = new Set<string>();
+  for (const pattern of TECHNICAL_IDENTIFIER_PATTERNS) {
+    const global = new RegExp(pattern.source, "g");
+    for (const match of text.matchAll(global)) hits.add(match[0]);
+  }
+  return [...hits];
+}
+
+// Validierungsfehler fuer alle Textfelder (String oder String-Array), die
+// interne Bezeichner enthalten -- der Router wechselt dann zum naechsten
+// Provider, statt den Text so anzuzeigen und zu verschicken.
+function technicalIdentifierErrors(data: unknown, keys: readonly string[], prefix = ""): string[] {
+  const errors: string[] = [];
+  for (const key of keys) {
+    const value = field(data, key);
+    const texts = typeof value === "string" ? [value] : isStringArray(value) ? value : [];
+    const hits = texts.flatMap(findTechnicalIdentifiers);
+    if (hits.length > 0) {
+      errors.push(`"${prefix}${key}" enthaelt interne Feldnamen statt Klartext: ${hits.slice(0, 3).join(", ")}`);
+    }
+  }
+  return errors;
+}
+
 // Deckt das in oi-/funding-/liquidation-/market-structure-/macro-/etf-/
 // market-intelligence-Analysis wiederkehrende { bias, confidence, summary,
 // [keyFactors], [riskLevel] }-Schema ab, mit austauschbarem Bias-Feldnamen
@@ -352,20 +417,23 @@ export const promptProfiles: Record<string, PromptProfile> = {
     category: "signal-logic",
     description: "Teil-Aufruf 1/4 des System-Briefings: prueft Tobys Regelwerk gegen die Live-Daten (Gates/Orderflow/Bewegungsvorrat/Liquidation).",
     systemPrompt:
-      "Daten: regelwerk (Tobys Welz-/Salomon-/'Mein Trading System'-Regelwerk, Array " +
-      "module/section/title/content); bewegungsvorrat.ratio_pct (heutige Tagesspanne vs. " +
-      "Median 10 Tage, deutlich >100 = Tagespensum ausgeschoepft); mein_system_checklist " +
-      "(Funding/OI/EMA13-50-200-Gates + closePrice); trading_indicators (GUSS/VWAP-Vector/" +
-      "CVD, EINZIGE Orderflow-Quelle); liquidations (Preis-Cluster nahe Kurs). " +
-      "Pruefe NUR das Regelwerk gegen diese Live-Daten -- Chart-Struktur siehst du hier " +
-      "nicht, erwaehne sie nicht. regelwerkCheck: max. 4 Zeilen 'Label: Befund', getrennt " +
-      "durch \\n, nur befuellte Zeilen. 'Gates: ...' (Funding/OI/EMA13-50-200-Gates " +
-      "erfuellt? immer). 'Orderflow: ...' (VWAP-Vector/CVD gleiche Richtung? immer; GUSS " +
-      "nur erwaehnen wenn guss.regimeAllowsGuss=true, sonst komplett weglassen, kein " +
-      "'n/a'-Rauschen). 'Bewegungsvorrat: ...' nur wenn ratio_pct deutlich >100. " +
-      "'Liquidation: ...' nur bei relevantem Cluster nahe Kurs. Dazu leanBias (bullish/" +
-      "bearish/neutral): deine eigene Tendenz AUSSCHLIESSLICH aus diesem Regelwerk-Befund. " +
-      NUMBER_FORMAT_INSTRUCTION +
+      BRIEFING_STYLE_INSTRUCTION +
+      "Daten: regelwerk (Tobys Welz-/Salomon-/'Mein Trading System'-Regelwerk); " +
+      "bewegungsvorrat.ratio_pct (heutige Tagesspanne in % des Medians der letzten 10 " +
+      "Tage, deutlich ueber 100 = Tagespensum ausgeschoepft); mein_system_checklist " +
+      "(Funding, OI-Veraenderung, EMA 13/50/200 auf Tagesbasis, Tagesschluss); " +
+      "trading_indicators (GUSS-Regime, VWAP-Vector mit Tages-/Wochen-/Monats-VWAP, CVD -- " +
+      "einzige Orderflow-Quelle); liquidations (Preis-Cluster nahe Kurs). " +
+      "Pruefe NUR Tobys Regelwerk gegen diese Live-Daten, die Chart-Struktur siehst du " +
+      "hier nicht. regelwerkCheck: 2-4 Zeilen 'Label: Befund in einem ganzen Satz', " +
+      "getrennt durch \\n, nur befuellte Zeilen. 'Gates: ...' (Funding, OI und " +
+      "EMA-Reihenfolge erfuellt? immer, z.B. 'Kurs ueber EMA 13 und EMA 50, aber noch " +
+      "unter EMA 200 -- das Long-Gate ist nur teilweise erfuellt.'). 'Orderflow: ...' " +
+      "(VWAP und CVD in dieselbe Richtung? immer; GUSS nur erwaehnen, wenn das GUSS-" +
+      "Regime einen Trend erkennt, sonst weglassen). 'Bewegungsvorrat: ...' nur wenn " +
+      "die Tagesspanne deutlich ueber dem Ueblichen liegt. 'Liquidation: ...' nur bei " +
+      "einem relevanten Cluster nahe Kurs. Dazu leanBias (bullish/bearish/neutral): " +
+      "deine Tendenz AUSSCHLIESSLICH aus diesem Regelwerk-Befund. " +
       " JSON (flach): regelwerkCheck (string), leanBias (bullish/bearish/neutral).",
     validate: (data) => {
       const errors: string[] = [];
@@ -375,6 +443,7 @@ export const promptProfiles: Record<string, PromptProfile> = {
       if (!isEnum(field(data, "leanBias"), BIAS_3)) {
         errors.push(`"leanBias" muss einer von ${BIAS_3.join(", ")} sein.`);
       }
+      errors.push(...technicalIdentifierErrors(data, ["regelwerkCheck"]));
       return errors;
     },
   },
@@ -382,21 +451,25 @@ export const promptProfiles: Record<string, PromptProfile> = {
   "system-briefing-chart": {
     id: "system-briefing-chart",
     category: "signal-logic",
-    description: "Teil-Aufruf 2/4 des System-Briefings: fasst Formationen/Key Levels/Level-Struktur zusammen.",
+    description: "Teil-Aufruf 2/4 des System-Briefings: Abschnitt 'Bitcoin Chart' (Struktur, Zonen, VWAPs).",
     systemPrompt:
-      "Chart-Struktur-Daten: triangle (ascending/descending/symmetric + upperValue/" +
-      "lowerValue, null = keins), continuationFormation (flag/pennant/wedge + " +
-      "poleDirection, null = keine), swingFormations (double_top/bottom/" +
-      "head_and_shoulders + direction/necklineValue/confirmed), recentCandlestickPatterns, " +
-      "keyLevels (price/side/timeframes/confirmedBy -- mehr confirmedBy-Eintraege = " +
-      "staerkere Konfluenz), levelStruktur (je Key Level: phase respecting/broken, " +
-      "fertiger narrative-Satz, confluenceTier 1-3). Das Regelwerk siehst du hier nicht, " +
-      "erwaehne es nicht. chartStruktur: 2-4 Saetze -- welche Formation (falls vorhanden), " +
-      "Kurs vs. naechste keyLevels, levelStruktur-Status (haelt/gebrochen). Keine " +
-      "Formation erkannt? Das explizit sagen statt eine hineinzuinterpretieren. Dazu " +
-      "leanBias (bullish/bearish/neutral): deine eigene Tendenz AUSSCHLIESSLICH aus " +
-      "dieser Chart-Struktur. " +
-      NUMBER_FORMAT_INSTRUCTION +
+      BRIEFING_STYLE_INSTRUCTION +
+      "Du schreibst den Abschnitt 'Bitcoin Chart'. Daten: btc_markt (aktueller Kurs, " +
+      "7-Tage-Hoch/-Tief), vwap (Tages-, Wochen-, Monats-VWAP), triangle/" +
+      "continuationFormation/swingFormations (algorithmisch erkannte Formationen, null = " +
+      "keine), recentCandlestickPatterns, keyLevels (Preis, Seite Widerstand/" +
+      "Unterstuetzung, Zeitrahmen, Bestaetigungen -- mehr Bestaetigungen = staerkere " +
+      "Zone), levelStruktur (je Zone: haelt oder gebrochen). Das Regelwerk siehst du " +
+      "hier nicht. chartStruktur: 3-5 Saetze wie ein Chartanalyst. Erster Satz = " +
+      "Kernaussage zur Lage (z.B. 'BTC konsolidiert seit gestern direkt unter dem " +
+      "Monats-VWAP.'). Danach: wo liegt die entscheidende Widerstands- und die naechste " +
+      "Unterstuetzungszone (als Spanne, wenn zwei Levels nah beieinander liegen), warum " +
+      "sind sie relevant (z.B. mehrfach bestaetigt, letztes Tief vor dem Einbruch, VWAP), " +
+      "und was waere ein starkes Zeichen. Formation nur nennen, wenn eine erkannt wurde; " +
+      "keine erkannt? Nicht erwaehnen statt 'keine Formation' zu schreiben. Kerzenmuster " +
+      "nur nennen, wenn sie zur Aussage beitragen, dann auf Deutsch (z.B. 'bullische " +
+      "Umkehrkerze'). Dazu leanBias (bullish/bearish/neutral): deine Tendenz " +
+      "AUSSCHLIESSLICH aus dieser Chart-Struktur. " +
       " JSON (flach): chartStruktur (string), leanBias (bullish/bearish/neutral).",
     validate: (data) => {
       const errors: string[] = [];
@@ -406,6 +479,7 @@ export const promptProfiles: Record<string, PromptProfile> = {
       if (!isEnum(field(data, "leanBias"), BIAS_3)) {
         errors.push(`"leanBias" muss einer von ${BIAS_3.join(", ")} sein.`);
       }
+      errors.push(...technicalIdentifierErrors(data, ["chartStruktur"]));
       return errors;
     },
   },
@@ -413,7 +487,7 @@ export const promptProfiles: Record<string, PromptProfile> = {
   "system-briefing-trigger": {
     id: "system-briefing-trigger",
     category: "signal-logic",
-    description: "Teil-Aufruf 3/4 des System-Briefings: Trigger&Szenario (bullish+bearish) inkl. Kursziel und Invalidierung.",
+    description: "Teil-Aufruf 3/4 des System-Briefings: beide Szenarien (Ausbruch/Scheitern) mit Kursziel und Invalidierung.",
     systemPrompt:
       // Framing-Satz: ein Gratis-Modell hinter OpenRouter verweigerte dieses
       // isolierte Teil-Prompt wiederholt mit "Unauthorized Advice" statt JSON
@@ -421,39 +495,46 @@ export const promptProfiles: Record<string, PromptProfile> = {
       // einen Sicherheitsfilter wie eine direkte Kaufempfehlung. Reine
       // Klarstellung, keine inhaltliche Aenderung.
       "Du erstellst eine rein strukturelle, hypothetische Wenn-Dann-Analyse fuer Tobys " +
-      "eigenes, bereits bestehendes Trading-Regelwerk -- ausschliesslich private " +
-      "Eigennutzung durch Toby selbst, keine Finanzberatung, keine Kaufempfehlung und " +
-      "keine Handlungsaufforderung an irgendwen. Es wird keine Order ausgefuehrt, keine " +
-      "dritte Person liest dieses Ergebnis -- du beschreibst nur, WELCHE bereits in " +
-      "mein_system_checklist/keyLevels vorhandenen Bedingungen zu welchem bereits " +
-      "vorhandenen Preis-Level gehoeren wuerden. " +
-      "Daten: keyLevels (price/side/timeframes/confirmedBy), mein_system_checklist " +
-      "(Funding/OI/EMA13-50-200-Gates + closePrice), trading_indicators (GUSS/" +
-      "VWAP-Vector/CVD). bullish und bearish, je { bedingungen: string[] (wenn/dann-" +
-      "Saetze, an ein Gate aus mein_system_checklist ODER ein keyLevels-Level gebunden), " +
-      "kursziel: Zahl oder null }. kursziel MUSS null sein oder EXAKT einem " +
-      "keyLevels-price entsprechen, nie frei berechnet, und ist NICHT der Trigger-Preis " +
-      "selbst, sondern das naechste sinnvolle Level dahinter. Kein plausibles Szenario " +
-      "fuer eine Richtung? Dann bedingungen leer und kursziel null fuer diese Richtung, " +
-      "nicht erzwingen. Dazu invalidierung (string, fuer beide Richtungen gemeinsam). " +
-      NUMBER_FORMAT_INSTRUCTION +
-      " JSON (flach, KEIN 'trigger'-Wrapper): bullish ({ bedingungen: string[], " +
-      "kursziel: Zahl oder null }), bearish ({ bedingungen: string[], kursziel: Zahl " +
-      "oder null }), invalidierung (string).",
+      "eigenes Trading-Regelwerk -- ausschliesslich private Eigennutzung durch Toby " +
+      "selbst, keine Finanzberatung, keine Kaufempfehlung und keine Handlungsaufforderung " +
+      "an irgendwen. " +
+      BRIEFING_STYLE_INSTRUCTION +
+      "Daten: btc_markt (aktueller Kurs), keyLevels (Preis, Seite, Bestaetigungen), " +
+      "mein_system_checklist (Funding, OI, EMA 13/50/200, Tagesschluss), " +
+      "trading_indicators (GUSS-Regime, VWAP, CVD). Fuer bullish und bearish je: " +
+      "text = 1-2 ganze Saetze wie in einem Marktbericht, erster Satz als Kernaussage, " +
+      "z.B. bullish 'Ueberwindet BTC die Zone 84'300-84'500 USD nachhaltig, koennte der " +
+      "Abverkauf schnell aufgeholt werden. Dann rueckt die Zone um 85'000 USD in den " +
+      "Fokus.' bzw. bearish 'Scheitert BTC an dieser Zone, werden die Unterstuetzungen " +
+      "bei 83'200 und 82'300 USD wichtig. Solange sie halten, bleibt die Erholung " +
+      "intakt.'; bedingungen = 1-3 kurze Bedingungen in Klartext (z.B. 'Tagesschluss " +
+      "ueber dem EMA 200', 'Funding bleibt unter 0.05 %', 'CVD steigt weiter'), jede an " +
+      "einen echten Wert aus den Daten gebunden; kursziel = Zahl oder null -- MUSS null " +
+      "sein oder EXAKT einem keyLevels-Preis entsprechen, nie frei berechnet, und ist das " +
+      "naechste sinnvolle Level HINTER dem Ausloeser. Kein plausibles Szenario fuer eine " +
+      "Richtung? Dann text leer, bedingungen leer, kursziel null. invalidierung: ein " +
+      "ganzer Satz, ab wann das Bild kippt. " +
+      " JSON (flach, KEIN 'trigger'-Wrapper): bullish ({ text: string, bedingungen: " +
+      "string[], kursziel: Zahl oder null }), bearish (gleich), invalidierung (string).",
     validate: (data) => {
       const errors: string[] = [];
       for (const key of ["bullish", "bearish"] as const) {
         const scenario = field(data, key);
+        if (typeof field(scenario, "text") !== "string") {
+          errors.push(`"${key}.text" muss ein String sein (leer, wenn kein Szenario).`);
+        }
         if (!isStringArray(field(scenario, "bedingungen"))) {
           errors.push(`"${key}.bedingungen" muss ein String-Array sein.`);
         }
         if (!isNullableFiniteNumber(field(scenario, "kursziel"))) {
           errors.push(`"${key}.kursziel" muss eine Zahl oder null sein.`);
         }
+        errors.push(...technicalIdentifierErrors(scenario, ["text", "bedingungen"], `${key}.`));
       }
       if (!isNonEmptyString(field(data, "invalidierung"))) {
         errors.push(`"invalidierung" muss ein nicht-leerer String sein.`);
       }
+      errors.push(...technicalIdentifierErrors(data, ["invalidierung"]));
       return errors;
     },
   },
@@ -461,38 +542,47 @@ export const promptProfiles: Record<string, PromptProfile> = {
   "system-briefing-synthese": {
     id: "system-briefing-synthese",
     category: "signal-logic",
-    description: "Teil-Aufruf 4/4 des System-Briefings: verdichtet Regelwerk-Check + Chart-Struktur zu Fazit, prueft auf echten Widerspruch (Konfluenz-Check) und vergleicht mit dem vorherigen Lauf.",
+    description: "Teil-Aufruf 4/4 des System-Briefings: Schlagzeile, Marktupdate, Momentum, Liquidationen, ETF-Flows, Kalender, Fazit, Konfluenz-Check und Vergleich mit dem vorherigen Lauf.",
     systemPrompt:
-      "Du bekommst zwei bereits erstellte Teil-Analysen (regelwerkCheck, chartStruktur, " +
-      "je mit eigener regelwerkLeanBias/chartLeanBias-Tendenz) sowie das bereits " +
-      "erstellte trigger-Szenario (bullish/bearish/invalidierung) -- NICHT neu bewerten, " +
-      "nur einordnen und verdichten. Dazu zum Abgleich: market_state (overall_state/" +
-      "score/confidence/risk_level/patterns/mtf_alignment + factors, NUR zum Pruefen ob " +
-      "Aggregat zu den Einzelwerten passt, nicht einzeln aufzaehlen), market_context/" +
-      "etf_flows/positioning/news (kurz), bewegungsvorrat_ratio_pct. " +
-      "Antworte in ZWEI Abschnitten: " +
-      "(1) fazit: bias (bullish/bearish/neutral -- verdichte regelwerkLeanBias UND " +
-      "chartLeanBias zu EINEM Gesamturteil, nur bei echter Richtung, sonst neutral), " +
-      "confidence (0-100), kernaussage (1-2 Saetze, verdichtet regelwerkCheck UND " +
-      "chartStruktur). Erster Satz darf bias nicht widersprechen (bei neutral nicht " +
-      "unqualifiziert 'bullisch/baerisch' eroeffnen, sondern die Gemengelage selbst " +
-      "benennen). " +
-      "(2) konfluenzCheck: NUR befuellen bei echtem inhaltlichem Widerspruch -- " +
-      "market_context/etf_flows/positioning/news vs. regelwerkCheck/chartStruktur, ODER " +
-      "market_state-Aggregat vs. factors, ODER chartStruktur vs. regelwerkCheck (eine " +
-      "reine leanBias-Differenz allein reicht nicht). 1-2 Saetze, welcher Widerspruch. " +
-      "Sonst null, keine erzwungene Erwaehnung. market_state null? Dann dafuer keinen " +
-      "Widerspruch erfinden, einfach null lassen. Regelwerk nur als Referenz, keine " +
-      "neuen Regeln erfinden, keine Daten ausserhalb des Kontexts. " +
-      "(3) aenderungSeitLetztem: Enthaelt der Kontext previousBriefing (generated_at/" +
-      "bias/confidence/kernaussage deines vorherigen Laufs), vergleiche kurz: hat sich " +
-      "bias gedreht, ist confidence deutlich gestiegen/gefallen, hat sich die Kernaussage " +
-      "inhaltlich verschoben? 1-2 Saetze. Keine relevante Aenderung? Sag das explizit " +
-      "(\"Kaum Veraenderung seit dem letzten Lauf.\"), erfinde keine Bewegung. " +
-      "previousBriefing null? Dann aenderungSeitLetztem null -- nie erfinden, was vorher war. " +
-      NUMBER_FORMAT_INSTRUCTION +
-      " JSON (flach): fazit ({ bias, confidence, kernaussage }), konfluenzCheck (string " +
-      "oder null), aenderungSeitLetztem (string oder null).",
+      BRIEFING_STYLE_INSTRUCTION +
+      "Du schreibst die Rahmen-Abschnitte des BTC-Marktberichts. Bereits fertig (NICHT " +
+      "neu bewerten, nur einordnen): regelwerkCheck und chartStruktur mit je eigener " +
+      "Tendenz (regelwerkLeanBias/chartLeanBias) sowie das trigger-Szenario. Daten: " +
+      "btc_markt (Kurs, Veraenderung 24h/7 Tage, 7-Tage-Hoch/-Tief), rsi (RSI 14 auf 4H " +
+      "und 1D, aktuell und vorherige Kerze), liquidations (Preis-Cluster mit Volumen, " +
+      "Seite long/short), etf_flows (letzter Handelstag und Summe der letzten Tage, Mio. " +
+      "USD), wirtschaftskalender (Termine heute/morgen, Uhrzeit US-Ostkueste), news " +
+      "(marktbewegende Schlagzeilen), market_state und market_context (nur zum Abgleich), " +
+      "bewegungsvorrat_ratio_pct, previousBriefing. Abschnitte, jeder mit Kernsatz " +
+      "zuerst: " +
+      "schlagzeile: EINE Zeile ohne Punkt am Ende, wie ein Newsletter-Betreff (z.B. 'BTC " +
+      "erholt sich und steht vor moeglichem Ausbruch'). " +
+      "marktupdate: 2-4 Saetze -- Kurs, Veraenderung 24h und 7 Tage, Einordnung " +
+      "(z.B. 'Nach dem Boden um 82'000 USD hat sich BTC kraftvoll zurueck zu 84'000 USD " +
+      "gearbeitet (+1.2 % in 24 Stunden).'); relevante Schlagzeilen hoechstens in einem " +
+      "Halbsatz. " +
+      "momentum: 2-3 Saetze zum RSI auf 4H und 1D (Richtung seit der vorherigen Kerze, " +
+      "ueberkauft ueber 70, ueberverkauft unter 30, neutral um 50). " +
+      "liquidationen: 2-3 Saetze -- welche Cluster liegen ueber dem Kurs (Hürde), welche " +
+      "darunter (Fundament), mit Preis und Volumen; keine Daten? Das in einem Satz sagen. " +
+      "etfFlows: 1-3 Saetze -- Netto-Fluss des letzten Handelstags und die Tendenz der " +
+      "letzten Tage. " +
+      "wirtschaftskalender: 1-2 Saetze -- welche US-Termine heute/morgen anstehen und " +
+      "wann (Uhrzeit in Schweizer Zeit umrechnen: US-Ostkueste + 6 Stunden); keine? " +
+      "'Heute und morgen stehen keine relevanten US-Wirtschaftsdaten an.' " +
+      "fazit: bias (bullish/bearish/neutral -- verdichte regelwerkLeanBias und " +
+      "chartLeanBias zu einem Urteil, nur bei echter Richtung, sonst neutral), " +
+      "confidence (0-100), kernaussage (1-2 Saetze, verdichtet Regelwerk und Chart; der " +
+      "erste Satz darf bias nicht widersprechen). " +
+      "konfluenzCheck: NUR bei echtem inhaltlichem Widerspruch (Marktdaten vs. Regelwerk/" +
+      "Chart, Aggregat vs. Faktoren, Chart vs. Regelwerk), 1-2 Saetze, sonst null. " +
+      "aenderungSeitLetztem: previousBriefing vorhanden? 1-2 Saetze, was sich bei " +
+      "Richtung, Ueberzeugungsgrad oder Kernaussage geaendert hat; keine relevante " +
+      "Aenderung? 'Kaum Veraenderung seit dem letzten Lauf.' previousBriefing null? Dann " +
+      "null -- nie erfinden, was vorher war. " +
+      " JSON (flach): schlagzeile, marktupdate, momentum, liquidationen, etfFlows, " +
+      "wirtschaftskalender (alle string), fazit ({ bias, confidence, kernaussage }), " +
+      "konfluenzCheck (string oder null), aenderungSeitLetztem (string oder null).",
     validate: (data) => {
       const errors: string[] = [];
       const fazit = field(data, "fazit");
@@ -505,6 +595,11 @@ export const promptProfiles: Record<string, PromptProfile> = {
       if (!isNonEmptyString(field(fazit, "kernaussage"))) {
         errors.push(`"fazit.kernaussage" muss ein nicht-leerer String sein.`);
       }
+      for (const key of BRIEFING_REPORT_SECTIONS) {
+        if (!isNonEmptyString(field(data, key))) {
+          errors.push(`"${key}" muss ein nicht-leerer String sein.`);
+        }
+      }
       const konfluenzCheck = field(data, "konfluenzCheck");
       if (konfluenzCheck !== null && !isNonEmptyString(konfluenzCheck)) {
         errors.push(`"konfluenzCheck" muss ein nicht-leerer String oder null sein.`);
@@ -515,6 +610,10 @@ export const promptProfiles: Record<string, PromptProfile> = {
       if (aenderung !== undefined && aenderung !== null && !isNonEmptyString(aenderung)) {
         errors.push(`"aenderungSeitLetztem" muss ein nicht-leerer String oder null sein.`);
       }
+      errors.push(
+        ...technicalIdentifierErrors(data, [...BRIEFING_REPORT_SECTIONS, "konfluenzCheck", "aenderungSeitLetztem"]),
+        ...technicalIdentifierErrors(fazit, ["kernaussage"], "fazit.")
+      );
       return errors;
     },
   },
