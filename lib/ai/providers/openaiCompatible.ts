@@ -7,6 +7,23 @@ import type {
 import { extractJson } from "../extractJson";
 import { PROVIDER_TIMEOUT_MS } from "../fetchWithRetry";
 
+// Laengste Wartezeit, die bei einem 429 noch abgewartet wird -- passt mit dem
+// Briefing-Zeitlimit je Versuch (40s) und maxDuration der Route zusammen.
+const MAX_RATE_LIMIT_WAIT_SECONDS = 25;
+
+/**
+ * Wartezeit aus einer 429-Antwort: Retry-After-Header (Sekunden) oder der
+ * Fehlertext ("Please try again in 18.525s" / "in 1m2.5s"). null = keine
+ * Angabe gefunden.
+ */
+export function retryAfterSeconds(header: string | null, body: string): number | null {
+  const fromHeader = header !== null ? Number(header) : NaN;
+  if (Number.isFinite(fromHeader) && fromHeader >= 0) return fromHeader;
+  const match = /try again in (?:(\d+)m)?([\d.]+)s/i.exec(body);
+  if (!match) return null;
+  return Number(match[1] ?? 0) * 60 + Number(match[2]);
+}
+
 // Mehrere Anbieter (OpenAI, xAI/Grok, DeepSeek, Perplexity) bieten eine
 // weitgehend identische "/chat/completions"-API im OpenAI-Format an.
 // Dieser Helper implementiert das gemeinsame Verhalten einmal, damit nicht
@@ -56,7 +73,7 @@ export function createOpenAiCompatibleProvider(
     // kaeme ein Timeout waehrend res.json() als roher DOMException-Text
     // durch.
     try {
-      const res = await fetch(`${config.baseUrl}/chat/completions`, {
+      const send = () => fetch(`${config.baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -70,6 +87,19 @@ export function createOpenAiCompatibleProvider(
         }),
         signal: AbortSignal.timeout(timeoutMs),
       });
+
+      let res = await send();
+      // Minutenlimit (HTTP 429, z.B. Groqs Token-pro-Minute-Grenze): nennt der
+      // Anbieter eine kurze Wartezeit, einmal warten und erneut senden, statt
+      // die Kette scheitern zu lassen (Vorfall 12.10.2026: Briefing-Teile
+      // parallel auf Groq rissen das 8000-TPM-Limit, "try again in 18.5s").
+      if (res.status === 429) {
+        const waitSeconds = retryAfterSeconds(res.headers.get("retry-after"), await res.clone().text().catch(() => ""));
+        if (waitSeconds !== null && waitSeconds <= MAX_RATE_LIMIT_WAIT_SECONDS) {
+          await new Promise((resolve) => setTimeout(resolve, (waitSeconds + 0.5) * 1000));
+          res = await send();
+        }
+      }
 
       if (!res.ok) {
         const errText = await res.text().catch(() => "");
