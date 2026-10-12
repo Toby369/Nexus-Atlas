@@ -23,8 +23,8 @@ export interface SendReportPushResult {
  * "attempted: false" bedeutet hier: NEXT_PUBLIC_SUPABASE_URL fehlt, es
  * wurde also gar nicht erst versucht. Anders als bei E-Mail gibt es keine
  * separate "ist ein Provider konfiguriert"-Frage -- die Edge Function ist
- * immer deployed, faellt aber selbst ins Leere, wenn keine Subscriptions
- * registriert sind (das zaehlt hier als success, kein Fehler).
+ * immer deployed; ohne Subscriptions oder ohne erreichtes Geraet gilt der
+ * Versand als nicht erfolgt (success: false, siehe unten).
  */
 export async function sendReportPush(message: ReportPushMessage): Promise<SendReportPushResult> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -43,6 +43,20 @@ export async function sendReportPush(message: ReportPushMessage): Promise<SendRe
     const data = await res.json();
     if (!res.ok || data?.success === false) {
       return { attempted: true, success: false, error: data?.error ?? `HTTP ${res.status}` };
+    }
+    // Die Edge Function meldet success auch, wenn kein Geraet erreicht wurde
+    // (abgelaufenes Abo -> removed, Zustellfehler -> failed). Nur sent > 0
+    // zaehlt als verschickt (Vorfall 12.10.2026: push_sent=true, aber das
+    // einzige Abo war ungueltig).
+    if (data?.skipped === "no_subscriptions") {
+      return { attempted: true, success: false, error: "Keine Push-Anmeldung vorhanden." };
+    }
+    if (typeof data?.sent === "number" && data.sent === 0) {
+      return {
+        attempted: true,
+        success: false,
+        error: `Kein Gerät erreicht (entfernt: ${data.removed ?? 0}, fehlgeschlagen: ${data.failed ?? 0}).`,
+      };
     }
     return { attempted: true, success: true };
   } catch (err) {

@@ -64,9 +64,11 @@ const NUMBER_FORMAT_INSTRUCTION =
 // und englische Statuswerte ("Phase: respecting") woertlich ausgegeben.
 const BRIEFING_STYLE_INSTRUCTION =
   "Du schreibst Teile eines taeglichen Bitcoin-Marktberichts fuer einen erfahrenen " +
-  "Trader, ausschliesslich zu BTC (keine anderen Coins). Stil: Deutsch, ganze Saetze, " +
+  "Trader, ausschliesslich zu BTC (keine anderen Coins). Stil: Deutsch mit echten " +
+  "Umlauten (ä, ö, ü -- nie 'ae', 'oe', 'ue' als Ersatz), ganze Saetze, " +
   "sachlich und konkret wie ein guter Trading-Newsletter; jeder Text beginnt mit einem " +
-  "Kernsatz, der die Aussage allein traegt (die Anzeige setzt ihn fett). Uebliche " +
+  "Kernsatz, der die Aussage allein traegt (die Anzeige setzt ihn fett -- deshalb KEIN " +
+  "Markdown, keine Sternchen, keine Aufzaehlungszeichen im Text). Uebliche " +
   "Trader-Begriffe sind erlaubt (VWAP, EMA 200, RSI, Support, Widerstand, Funding, " +
   "Open Interest, Liquidationen, Reclaim). VERBOTEN: interne Datenfeldnamen, " +
   "Variablen oder JSON-Pfade aus dem Kontext (nie 'mein_system_checklist.ema13', " +
@@ -511,17 +513,19 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "ueber dem EMA 200', 'Funding bleibt unter 0.05 %', 'CVD steigt weiter'), jede an " +
       "einen echten Wert aus den Daten gebunden; kursziel = Zahl oder null -- MUSS null " +
       "sein oder EXAKT einem keyLevels-Preis entsprechen, nie frei berechnet, und ist das " +
-      "naechste sinnvolle Level HINTER dem Ausloeser. Kein plausibles Szenario fuer eine " +
-      "Richtung? Dann text leer, bedingungen leer, kursziel null. invalidierung: ein " +
-      "ganzer Satz, ab wann das Bild kippt. " +
+      "naechste sinnvolle Level HINTER dem Ausloeser -- nie derselbe Preis wie der " +
+      "Ausloeser im text (Ausloeser 84'300 USD -> Kursziel z.B. 85'000 USD). Schreibe " +
+      "IMMER beide Richtungen, auch wenn eine unwahrscheinlicher ist (dann im text so " +
+      "einordnen); kein Level hinter dem Ausloeser vorhanden? Dann kursziel null. " +
+      "invalidierung: ein ganzer Satz, ab wann das Bild kippt. " +
       " JSON (flach, KEIN 'trigger'-Wrapper): bullish ({ text: string, bedingungen: " +
       "string[], kursziel: Zahl oder null }), bearish (gleich), invalidierung (string).",
     validate: (data) => {
       const errors: string[] = [];
       for (const key of ["bullish", "bearish"] as const) {
         const scenario = field(data, key);
-        if (typeof field(scenario, "text") !== "string") {
-          errors.push(`"${key}.text" muss ein String sein (leer, wenn kein Szenario).`);
+        if (!isNonEmptyString(field(scenario, "text"))) {
+          errors.push(`"${key}.text" muss ein nicht-leerer String sein (immer beide Szenarien).`);
         }
         if (!isStringArray(field(scenario, "bedingungen"))) {
           errors.push(`"${key}.bedingungen" muss ein String-Array sein.`);

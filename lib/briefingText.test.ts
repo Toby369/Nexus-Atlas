@@ -18,6 +18,12 @@ describe("splitLeadSentence", () => {
     });
     expect(splitLeadSentence("Wichtig sind z.B. 83'200 USD. Rest.").lead).toBe("Wichtig sind z.B. 83'200 USD.");
   });
+  it("entfernt Markdown-Sternchen", () => {
+    expect(splitLeadSentence("**BTC konsolidiert über dem VWAP.** Die Zone hält.")).toEqual({
+      lead: "BTC konsolidiert über dem VWAP.",
+      rest: "Die Zone hält.",
+    });
+  });
   it("gibt einen Text ohne Satzende ganz als Kernsatz zurück", () => {
     expect(splitLeadSentence("BTC erholt sich")).toEqual({ lead: "BTC erholt sich", rest: "" });
   });

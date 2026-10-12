@@ -32,10 +32,19 @@ describe("system-briefing-trigger validate", () => {
     expect(
       validate({
         bullish: scenario("Überwindet BTC die Zone 84'300-84'500 USD nachhaltig, rückt 85'000 USD in den Fokus.", ["Tagesschluss über dem EMA 200"]),
-        bearish: scenario("", []),
+        bearish: scenario("Scheitert BTC an der Zone, werden 83'200 USD wichtig.", []),
         invalidierung: "Ein Tagesschluss unter 82'300 USD kippt das Bild.",
       })
     ).toEqual([]);
+  });
+
+  it("verlangt beide Szenarien", () => {
+    const errors = validate({
+      bullish: scenario("Überwindet BTC die Zone, rückt 85'000 USD in den Fokus.", []),
+      bearish: scenario("", []),
+      invalidierung: "Unter 82'300 USD.",
+    });
+    expect(errors.join(" ")).toContain("bearish.text");
   });
 
   it("weist Feldnamen in den Bedingungen ab", () => {

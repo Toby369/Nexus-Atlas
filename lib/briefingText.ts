@@ -6,7 +6,9 @@
 const ABBREVIATIONS = new Set(["mio", "mrd", "ca", "bzw", "z.b", "u.a", "inkl", "evtl", "nr", "vs", "usw", "d.h"]);
 
 export function splitLeadSentence(text: string): { lead: string; rest: string } {
-  const trimmed = text.trim();
+  // Manche Modelle setzen den Kernsatz trotz Vorgabe selbst in **...** --
+  // die Anzeige fettet ihn ohnehin, die Sternchen wuerden roh erscheinen.
+  const trimmed = text.replace(/\*\*/g, "").trim();
   const boundary = /[.!?](\s+)/g;
   for (let match = boundary.exec(trimmed); match; match = boundary.exec(trimmed)) {
     const wordBefore = /([\p{L}.]+)$/u.exec(trimmed.slice(0, match.index))?.[1]?.toLowerCase() ?? "";
