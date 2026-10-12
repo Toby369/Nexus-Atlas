@@ -2,7 +2,7 @@ import type { EmailMessage, EmailProvider, EmailSendResult } from "../types";
 
 // Resend (https://resend.com) -- ein moeglicher Free-Tier-Kandidat fuer den
 // Report-E-Mail-Versand (Vorgabe Teil U). Bewusst NICHT in die Business-
-// Logik verdrahtet: app/api/reports/run/route.ts kennt nur das
+// Logik verdrahtet: lib/systemBriefingNotify.ts kennt nur das
 // EmailProvider-Interface (lib/email/types.ts) ueber sendReportEmail(),
 // nicht diese Datei direkt. Raw fetch statt SDK, analog zu
 // lib/ai/providers/openaiCompatible.ts -- keine zusaetzliche Abhaengigkeit

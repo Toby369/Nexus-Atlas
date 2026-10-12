@@ -364,8 +364,7 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
 // --- Kontext-Zuschnitte je Teil-Aufruf ----------------------------------------
 // buildSystemBriefingContext() laedt ALLES in einem Promise.all, der KI-Aufruf
 // ist aber in vier kleine, fokussierte Calls aufgeteilt (gegen das
-// Vercel-60s-Limit) -- gleiches Prinzip wie sliceContextFor* in
-// app/api/reports/run/route.ts. Jede Funktion hier ist pure und reicht nur
+// Vercel-60s-Limit). Jede Funktion hier ist pure und reicht nur
 // ihren Ausschnitt weiter. Prompts: lib/ai/promptProfiles.ts
 // ("system-briefing-*"), Orchestrierung: app/api/system-briefing/generate.
 
@@ -386,18 +385,30 @@ export function sliceForTrigger(ctx: SystemBriefingContext) {
 }
 
 // Eingabe fuer sliceForSynthese: die bereits fertigen Ergebnisse der drei
-// anderen Teil-Aufrufe (nicht die Rohdaten dahinter) -- analog zu
-// marketStructureReport/positioningReport/newsMacroReport im Master-Report-
-// Kontext (app/api/reports/run/route.ts).
+// anderen Teil-Aufrufe (nicht die Rohdaten dahinter).
 export interface SystemBriefingSynthesisParts {
   regelwerkCheck: { regelwerkCheck: string; leanBias: "bullish" | "bearish" | "neutral" };
   chartStruktur: { chartStruktur: string; leanBias: "bullish" | "bearish" | "neutral" };
   trigger: SystemBriefingTrigger;
 }
 
-export function sliceForSynthese(ctx: SystemBriefingContext, parts: SystemBriefingSynthesisParts) {
+// Fazit des vorherigen erfolgreichen Briefings fuer "aenderungSeitLetztem"
+// (uebernommen vom frueheren Master-Report, dort "changeSinceLast").
+export interface PreviousBriefing {
+  generated_at: string;
+  bias: string;
+  confidence: number;
+  kernaussage: string;
+}
+
+export function sliceForSynthese(
+  ctx: SystemBriefingContext,
+  parts: SystemBriefingSynthesisParts,
+  previousBriefing: PreviousBriefing | null
+) {
   const { market_state, market_context, etf_flows, positioning, news, bewegungsvorrat } = ctx;
   return {
+    previousBriefing,
     regelwerkCheck: parts.regelwerkCheck.regelwerkCheck,
     regelwerkLeanBias: parts.regelwerkCheck.leanBias,
     chartStruktur: parts.chartStruktur.chartStruktur,

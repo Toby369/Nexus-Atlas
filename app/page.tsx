@@ -10,6 +10,7 @@ import type {
   MarketSnapshot,
   MarketState,
   MarketStateMatrix,
+  SystemBriefingConfig,
   SystemBriefingSnapshot,
   NewsAnalysisSnapshot,
   NewsEvent,
@@ -443,6 +444,17 @@ async function getLatestSystemBriefing(): Promise<SystemBriefingSnapshot | null>
   return data;
 }
 
+// Zeitplan/E-Mail/Push des Briefings (eine Zeile, siehe
+// app/api/system-briefing/config/route.ts).
+async function getSystemBriefingConfig(): Promise<SystemBriefingConfig | null> {
+  const { data, error } = await supabase.from("system_briefing_config").select("*").eq("id", 1).maybeSingle();
+  if (error) {
+    console.error("Fehler beim Laden des Briefing-Zeitplans:", error.message);
+    return null;
+  }
+  return data;
+}
+
 const ORDERBOOK_EXCHANGES = ["binance", "bybit", "okx"] as const;
 
 // Nutzer-Wunsch nach einer "Bookmap"-Ansicht: kein Live-L2-Feed (siehe
@@ -600,6 +612,7 @@ export default async function Home({
     latestTradeDebate,
     latestCustomQueries,
     latestSystemBriefing,
+    systemBriefingConfig,
     latestYoutubeAnalyses,
     youtubeMonitorConfig,
     latestYoutubeOverallAnalysis,
@@ -633,6 +646,7 @@ export default async function Home({
     getLatestTradeDebate(),
     getLatestCustomQueries(),
     getLatestSystemBriefing(),
+    getSystemBriefingConfig(),
     getLatestYoutubeAnalyses(),
     getYoutubeMonitorConfig(),
     getLatestYoutubeOverallAnalysis(),
@@ -715,6 +729,7 @@ export default async function Home({
                   recentEtfFlows={recentEtfFlows}
                   initialSystemBriefing={latestSystemBriefing}
                   initialCustomQueries={latestCustomQueries}
+                  initialBriefingConfig={systemBriefingConfig}
                   upcomingEconomicEvents={upcomingEconomicEvents}
                   initialMtfDots={mtfDots}
                   setupScore={confluenceScore}

@@ -216,3 +216,21 @@ entfernt, `system_briefings` und Route bleiben.
 Anlass: Seit dem Umbau auf vier Teil-Aufrufe (08.10.) scheiterte jeder Lauf am harten
 20s-Limit je Provider. Behoben über ein Zeitlimit je Kachel (`TileAIConfig.timeoutMs`, 40s
 für die Briefing-Teile) und `maxDuration = 300` der Briefing-Route.
+
+### Nachtrag: Master-Report ins System-Briefing (12.10.2026)
+
+**Freigegeben (Toby):** Master-Report (AI Report Engine) und System-Briefing zusammengelegt. Beide
+lieferten Richtung, Überzeugungsgrad, Zusammenfassung und Widersprüche aus weitgehend denselben
+Marktdaten; das Briefing wendet zusätzlich das eigene Regelwerk und die Chart-Struktur an.
+
+- Das Briefing übernimmt vom Master-Report: den Zeitplan (frei wählbare Uhrzeiten, UTC, Startwerte
+  des Master-Slots 04:35/08:15/14:10/21:10), E-Mail und Push nach geplanten Läufen und den Satz
+  "Seit dem letzten Lauf". Einstellung im Lagebild unter "Zeitplan & Benachrichtigungen"
+  (`system_briefing_config`, `components/BriefingScheduleSettings.tsx`).
+- Entfernt: Seite `/reports`, die vier Report-Slots (`/api/reports/*`), die Master-Report-Box im
+  Lagebild, das Divergenz-Paar Master-Report vs. Engines und der Report-Master-Trigger der
+  Eskalation. Tabellen `report_configs`/`report_runs` bleiben mit allen Läufen in der DB.
+- Die Supabase-Funktion `report-scheduler` startet jetzt das Briefing statt der Reports.
+- Wirkung: statt ~16 geplanter Report-Aufrufe plus Briefing-Läufen pro Tag nur noch die geplanten
+  Briefing-Läufe (4 Teil-Aufrufe je Lauf, davon 2 auf Groq).
+

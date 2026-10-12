@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   buildSystemBriefingContext,
@@ -6,7 +6,9 @@ import {
   sliceForChartStruktur,
   sliceForTrigger,
   sliceForSynthese,
+  type PreviousBriefing,
 } from "@/lib/systemBriefingContext";
+import { notifyBriefing } from "@/lib/systemBriefingNotify";
 import { runTileAnalysis } from "@/lib/ai/router";
 import { checkAndRecordRateLimit } from "@/lib/rateLimit";
 import type { SystemBriefingResult, SystemBriefingTrigger } from "@/lib/types";
@@ -19,9 +21,17 @@ import type { SystemBriefingResult, SystemBriefingTrigger } from "@/lib/types";
 // Kachel liest nur den gespeicherten Stand.
 //
 // Auth: proxy.ts sperrt diese Route wie jede andere /api/*-Route hinter eine
-// Login-Session -- keine eigene Pruefung noetig.
+// Login-Session -- keine eigene Pruefung noetig. Ausnahme: der
+// report-scheduler (Supabase Edge Function) ruft sie zu den Uhrzeiten aus
+// system_briefing_config mit CRON_SECRET auf (lib/authGate.ts). Nur diese
+// geplanten Laeufe verschicken E-Mail/Push -- ein Klick auf "Neu generieren"
+// zeigt das Ergebnis ohnehin direkt an.
 //
-// Aufbau wie die AI Report Engine: drei kleine, unabhaengige Teil-Aufrufe
+// Seit der Zusammenlegung mit dem Master-Report der AI Report Engine
+// vergleicht die Synthese zusaetzlich mit dem vorherigen Lauf
+// (aenderungSeitLetztem).
+//
+// Aufbau: drei kleine, unabhaengige Teil-Aufrufe
 // PARALLEL (Regelwerk-Check, Chart-Struktur, Trigger & Szenario), danach EIN
 // kleiner Synthese-Call, der nur die drei Ergebnisse verdichtet -- siehe
 // lib/ai/promptProfiles.ts ("system-briefing-*") und
@@ -57,9 +67,35 @@ interface ChartStrukturResult {
 interface SyntheseResult {
   fazit: SystemBriefingResult["fazit"];
   konfluenzCheck: string | null;
+  aenderungSeitLetztem?: string | null;
 }
 
-export async function POST() {
+async function getPreviousBriefing(
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>
+): Promise<PreviousBriefing | null> {
+  const { data } = await supabaseAdmin
+    .from("system_briefings")
+    .select("generated_at, result")
+    .eq("status", "ok")
+    .order("generated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const fazit = (data?.result as SystemBriefingResult | null)?.fazit;
+  if (!data || !fazit?.kernaussage) return null;
+  return {
+    generated_at: data.generated_at,
+    bias: fazit.bias,
+    confidence: fazit.confidence,
+    kernaussage: fazit.kernaussage,
+  };
+}
+
+export async function POST(req: NextRequest) {
+  // proxy.ts hat den Bearer bereits geprueft; hier nur unterscheiden, ob
+  // der Lauf geplant (Scheduler) oder per Klick ausgeloest wurde.
+  const cronSecret = process.env.CRON_SECRET;
+  const isScheduled = !!cronSecret && req.headers.get("authorization") === `Bearer ${cronSecret}`;
+
   let supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
   try {
     supabaseAdmin = getSupabaseAdmin();
@@ -99,7 +135,10 @@ export async function POST() {
   }
 
   try {
-    const context = await buildSystemBriefingContext();
+    const [context, previousBriefing] = await Promise.all([
+      buildSystemBriefingContext(),
+      getPreviousBriefing(supabaseAdmin),
+    ]);
 
     // Drei fokussierte, voneinander unabhaengige Teil-Aufrufe PARALLEL --
     // jeder bekommt nur seinen eigenen Daten-Ausschnitt (sliceFor*), daher
@@ -119,16 +158,15 @@ export async function POST() {
     ]);
 
     // Vierter Call: verdichtet die drei Teil-Ergebnisse zu Fazit +
-    // Konfluenz-Check -- bekommt KEINE Rohdaten mehr (ausser dem kleinen
-    // Abgleichs-Schnitt in sliceForSynthese), analog zu report-master, das
-    // ebenfalls nur die drei Teilreports liest statt neu zu rechnen.
+    // Konfluenz-Check und vergleicht mit dem vorherigen Lauf -- bekommt KEINE
+    // Rohdaten mehr (ausser dem kleinen Abgleichs-Schnitt in sliceForSynthese).
     const syntheseResult = await runTileAnalysis<SyntheseResult>("system-briefing-synthese", {
       context: JSON.stringify(
         sliceForSynthese(context, {
           regelwerkCheck: regelwerkResult.data,
           chartStruktur: chartResult.data,
           trigger: triggerResult.data,
-        })
+        }, previousBriefing)
       ),
     });
 
@@ -138,6 +176,7 @@ export async function POST() {
       chartStruktur: chartResult.data.chartStruktur,
       konfluenzCheck: syntheseResult.data.konfluenzCheck,
       trigger: triggerResult.data,
+      aenderungSeitLetztem: previousBriefing ? (syntheseResult.data.aenderungSeitLetztem ?? null) : null,
     };
 
     const { data: snapshot, error: insertError } = await supabaseAdmin
@@ -161,6 +200,24 @@ export async function POST() {
         { success: false, error: `Briefing erzeugt, aber Speichern fehlgeschlagen: ${insertError.message}` },
         { status: 500 }
       );
+    }
+
+    if (isScheduled) {
+      const { data: config } = await supabaseAdmin
+        .from("system_briefing_config")
+        .select("email_enabled, push_enabled")
+        .eq("id", 1)
+        .maybeSingle();
+      if (config && (config.email_enabled || config.push_enabled)) {
+        const { emailSent, pushSent } = await notifyBriefing(combined, config);
+        if (emailSent || pushSent) {
+          const { error: flagError } = await supabaseAdmin
+            .from("system_briefings")
+            .update({ email_sent: emailSent, push_sent: pushSent })
+            .eq("id", snapshot.id);
+          if (flagError) console.error(`System-Briefing: Versand-Flags nicht gesetzt: ${flagError.message}`);
+        }
+      }
     }
 
     return NextResponse.json({ success: true, snapshot });

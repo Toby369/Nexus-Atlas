@@ -86,7 +86,8 @@ describe("sliceForSynthese", () => {
       chartStruktur: { chartStruktur: "Dreieck steigend", leanBias: "neutral" as const },
       trigger: { bullish: { bedingungen: [], kursziel: null }, bearish: { bedingungen: [], kursziel: null }, invalidierung: "x" },
     };
-    const slice = sliceForSynthese(ctx, parts);
+    const slice = sliceForSynthese(ctx, parts, null);
+    expect(slice.previousBriefing).toBeNull();
     expect(slice.regelwerkCheck).toBe("Gates: ok");
     expect(slice.regelwerkLeanBias).toBe("bullish");
     expect(slice.chartStruktur).toBe("Dreieck steigend");
@@ -99,5 +100,18 @@ describe("sliceForSynthese", () => {
     // Formationsdaten dahinter.
     expect((slice as Record<string, unknown>).triangle).toBeUndefined();
     expect((slice as Record<string, unknown>).keyLevels).toBeUndefined();
+  });
+  it("reicht das vorherige Fazit fuer den Vergleich seit dem letzten Lauf durch", () => {
+    const previous = { generated_at: "2026-10-11T19:45:28Z", bias: "neutral", confidence: 50, kernaussage: "Seitwaerts." };
+    const slice = sliceForSynthese(
+      fixtureContext(),
+      {
+        regelwerkCheck: { regelwerkCheck: "x", leanBias: "neutral" as const },
+        chartStruktur: { chartStruktur: "y", leanBias: "neutral" as const },
+        trigger: { bullish: { bedingungen: [], kursziel: null }, bearish: { bedingungen: [], kursziel: null }, invalidierung: "z" },
+      },
+      previous
+    );
+    expect(slice.previousBriefing).toBe(previous);
   });
 });

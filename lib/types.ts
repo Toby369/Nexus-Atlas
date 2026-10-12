@@ -200,52 +200,6 @@ export interface DashboardPollBundle {
   positioning_signal: PositioningSignal | null;
 }
 
-// NEXUS AI Report Engine (Vorgabe Teil M-P). report_configs = bis zu 4
-// vom Nutzer konfigurierte Report-Slots, report_runs = jede tatsaechliche
-// Ausfuehrung samt der Datenbasis, die der KI vorlag (data_snapshot).
-export type ReportType = "market_structure" | "positioning" | "news_macro" | "master";
-
-export interface ReportConfig {
-  id: number;
-  slot: number;
-  report_type: ReportType;
-  provider: string;
-  model: string | null;
-  timeframe: string;
-  // Bis zu 3 taegliche Uhrzeiten (HH:MM, UTC) je Slot, siehe report-scheduler.
-  schedule_times: string[] | null;
-  active: boolean;
-  email_enabled: boolean;
-  // Push-Benachrichtigung je Slot, spiegelt email_enabled (kein globaler
-  // Schalter).
-  push_enabled: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ReportRun {
-  id: number;
-  report_config_id: number | null;
-  report_type: ReportType;
-  provider: string;
-  model: string | null;
-  timeframe: string;
-  generated_at: string;
-  status: "ok" | "error";
-  result: Record<string, unknown> | null;
-  data_snapshot: Record<string, unknown> | null;
-  error: string | null;
-  email_sent: boolean;
-  push_sent: boolean;
-  // Regelbasierte Post-Validation (Phase 2, Punkt 1) -- getrennt von
-  // "status": status sagt "hat der API-Call funktioniert", validation_status
-  // sagt "stimmt der Text mit den mitgegebenen Rohdaten überein". null =
-  // nicht validiert (z.B. status='error'-Läufe, oder Altdaten vor Phase 2).
-  validation_status: "ok" | "flagged_contradiction" | null;
-  validation_notes: string[] | null;
-  created_at: string;
-}
-
 export interface EtfFlowDay {
   id: number;
   flow_date: string;
@@ -433,6 +387,20 @@ export interface SystemBriefingResult {
   // (vormals "confluence" in der Chart-Narrativ-Kachel) mit abdeckt.
   konfluenzCheck: string | null;
   trigger: SystemBriefingTrigger;
+  // Vergleich zum vorherigen erfolgreichen Briefing (1-2 Saetze), null beim
+  // ersten Lauf. Fehlt in Snapshots von vor der Zusammenlegung mit dem
+  // Master-Report.
+  aenderungSeitLetztem?: string | null;
+}
+
+// Zeitplan/Benachrichtigungen des System-Briefings (system_briefing_config,
+// eine Zeile). schedule_times sind UTC-Uhrzeiten ("HH:MM:SS").
+export interface SystemBriefingConfig {
+  id: number;
+  schedule_times: string[] | null;
+  email_enabled: boolean;
+  push_enabled: boolean;
+  updated_at: string;
 }
 
 export interface SystemBriefingSnapshot {
@@ -568,6 +536,7 @@ export interface SignalReviewSnapshot {
 // lib/escalationConsensus.ts (Konsens-Logik), lib/ai/promptProfiles.ts
 // ("escalation-analysis").
 export interface EscalationTriggerRecord {
+  // "report-master" nur noch in aelteren gespeicherten Eskalationen.
   source: "system-briefing" | "divergence-radar" | "report-master";
   label: string;
   detail: string[];

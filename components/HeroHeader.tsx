@@ -8,6 +8,7 @@ import type {
   EtfFlowDay,
   MarketRegime,
   MarketState,
+  SystemBriefingConfig,
   SystemBriefingSnapshot,
 } from "@/lib/types";
 import type { TimeframeId } from "@/lib/timeframes";
@@ -57,7 +58,7 @@ import {
 import StatusLineSummary, { type StatusLineItem } from "@/components/StatusLineSummary";
 import TradingHoursBadge from "@/components/TradingHoursBadge";
 import EconomicHeroBadge from "@/components/EconomicHeroBadge";
-import MasterReportHeroCard from "@/components/MasterReportHeroCard";
+import BriefingScheduleSettings from "@/components/BriefingScheduleSettings";
 import PanelInfo from "@/components/PanelInfo";
 import SystemBriefingDetails, { isValidSystemBriefingResult } from "@/components/SystemBriefingDetails";
 import CustomQueryPanel from "@/components/CustomQueryPanel";
@@ -82,8 +83,11 @@ const CUMULATIVE_ETF_DAYS = 5;
 // Ab diesem Alter wird die KI-Einordnung nicht nur ausgeblendet, sondern
 // automatisch EINMAL neu generiert (siehe Effect unten) -- bewusst enger als
 // der allgemeine STALE_HOURS_THRESHOLD (12h, ClientTimestamp.tsx), der nur
-// fuer reine Anzeige-Badges ohne eigene Aktion gilt.
-const NARRATIVE_AUTO_REFRESH_HOURS = 6;
+// fuer reine Anzeige-Badges ohne eigene Aktion gilt. 8h: etwas mehr als
+// die groesste Luecke im geplanten Zeitplan (system_briefing_config), damit
+// der Nachlauf nur bei einem ausgefallenen geplanten Lauf einspringt statt
+// zusaetzliche Gratis-Kontingente zu verbrauchen.
+const NARRATIVE_AUTO_REFRESH_HOURS = 8;
 
 function formatSignedPct(value: number | null) {
   if (value === null || Number.isNaN(value)) return "—";
@@ -97,7 +101,8 @@ const SHORT_NARRATIVE_INFO_TEXT = [
   "Was das ist: das Fazit des System-Briefings -- eine KI-Synthese, die dein eigenes Regelwerk (Welz/Salomon-Methodik + \"Mein Trading System\"-Checkliste) und die berechnete Chart-Struktur auf den aktuellen Stand von Nexus' Faktoren anwendet (Bewegungsvorrat, 14-Faktoren-Engine, VWAP-Vector/CVD, Liquidations-Cluster, Marktkontext, ETF-Flows, Positionierung, News).",
   "Im Aufklapper darunter: Regelwerk-Check, Chart-Struktur, Konfluenz-Check (nur bei echtem Widerspruch) und Trigger & Szenario mit beiden Richtungen -- jedes Kursziel entspricht einem echten Key Level, nie einer frei geschätzten Zahl. Entscheidungsunterstützung, keine Anlageberatung.",
   "Andere Engine als das grosse Badge oben: das Badge ist die regelbasierte 14-Faktoren-Gesamteinschätzung, diese Box wendet dein eigenes Regelwerk (Welz/Salomon/\"Mein Trading System\") AUF diese Einschätzung an -- beide können unterschiedlicher Meinung sein. Weicht der aktuelle Stand tatsächlich ab, erscheint hier ein Warnhinweis (⚠) statt zwei stillschweigend widersprüchlichen Badges.",
-  `Automatische Aktualisierung: ist der zuletzt generierte Stand älter als ${NARRATIVE_AUTO_REFRESH_HOURS} Std., löst das Lagebild automatisch EINEN neuen System-Briefing-Aufruf aus (kostenloses Gratis-Tier, wie jede andere KI-Kachel) -- bis dahin wird kein veralteter Text angezeigt. "Neu generieren" stösst jederzeit manuell einen neuen Lauf an.`,
+  `Automatische Aktualisierung: ist der zuletzt generierte Stand älter als ${NARRATIVE_AUTO_REFRESH_HOURS} Std., löst das Lagebild automatisch EINEN neuen System-Briefing-Aufruf aus -- bis dahin wird kein veralteter Text angezeigt. Normalerweise läuft das Briefing aber zu den Uhrzeiten unter "Zeitplan & Benachrichtigungen" (dort auch E-Mail/Push), "Neu generieren" stösst jederzeit manuell einen neuen Lauf an.`,
+  "Seit dem letzten Lauf: vergleicht das Fazit mit dem vorherigen Briefing (Richtung, Überzeugungsgrad, Kernaussage) -- übernommen vom früheren Master-Report.",
   "Wichtig: Preis-/EMA-/sonstige Zahlen IM TEXT sind der Stand zum Generierungszeitpunkt (siehe Zeitstempel darunter), keine Live-Werte. Für den Live-Preis immer die BTC-Preis-Kachel nutzen.",
 ].join("\n\n");
 
@@ -110,8 +115,8 @@ function formatUsdM(value: number) {
 // Lagebild: fest platzierte Synthese ganz oben auf dem Dashboard. Ein Poll
 // auf market_states liefert Zustand, Fazit-Satz und Detail; Setup-/Regime-
 // Score, MTF-Ampel und Marktphase stehen als Kennzahlen daneben. Alles
-// Weitere (Statuszeilen, 14 Faktoren, Muster, Risikofaktoren, Master-Report,
-// vollstaendige Score-Karten) liegt im Aufklapper "Warum?".
+// Weitere (Statuszeilen, 14 Faktoren, Muster, Risikofaktoren, vollstaendige
+// Score-Karten) liegt im Aufklapper "Warum?".
 //
 // Die MTF-Ampel (5 Zeitrahmen, mit ADX-Nuance) ist die einzige Quelle fuer
 // die Zeitrahmen-Lage -- die alte MTF-Alignment-% (nur 1H/4H/1D) konnte einen
@@ -169,6 +174,7 @@ export default function HeroHeader({
   upcomingEconomicEvents,
   initialSystemBriefing,
   initialCustomQueries,
+  initialBriefingConfig,
   initialMtfDots,
   setupScore,
   regimeScore,
@@ -194,6 +200,8 @@ export default function HeroHeader({
   initialSystemBriefing: SystemBriefingSnapshot | null;
   // Juengste freie Anfragen (custom_query_runs) fuer "Rückfrage an die KI".
   initialCustomQueries: CustomQueryRun[];
+  // Zeitplan/E-Mail/Push des Briefings (system_briefing_config).
+  initialBriefingConfig: SystemBriefingConfig | null;
   // MTF-Ampel (lib/mtfSignal.ts) -- 15M/1H/4H/1D/1W mit Trend-vs-
   // Trendbildung-Unterscheidung, unabhaengig vom mtf_alignment-Feld in state.
   initialMtfDots: MtfTimeframeDot[];
@@ -603,6 +611,11 @@ export default function HeroHeader({
               <p className="text-xs text-down">Neu generieren fehlgeschlagen: {narrativeRefreshError}</p>
             )}
             <p className="text-sm text-text-muted leading-relaxed">{fazit.kernaussage}</p>
+            {narrativeSnapshot?.result?.aenderungSeitLetztem && (
+              <p className="text-xs text-text-faint italic leading-relaxed">
+                Seit dem letzten Lauf: {narrativeSnapshot.result.aenderungSeitLetztem}
+              </p>
+            )}
           </>
         ) : null}
 
@@ -625,6 +638,15 @@ export default function HeroHeader({
           </summary>
           <div className="pt-2">
             <CustomQueryPanel initialRuns={initialCustomQueries} />
+          </div>
+        </details>
+
+        <details className="pt-1">
+          <summary className="text-xs text-text-muted hover:text-text cursor-pointer select-none">
+            Zeitplan &amp; Benachrichtigungen
+          </summary>
+          <div className="pt-2">
+            <BriefingScheduleSettings initialConfig={initialBriefingConfig} />
           </div>
         </details>
       </div>
@@ -759,11 +781,6 @@ export default function HeroHeader({
               Einordnung, kein Handelssignal.
             </p>
           </div>
-
-          <MasterReportHeroCard
-            overallState={state.overall_state}
-            briefingBias={narrativeSnapshot?.result?.fazit?.bias}
-          />
 
           {scoreDetails}
         </div>

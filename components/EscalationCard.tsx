@@ -13,7 +13,7 @@ import PanelInfo from "@/components/PanelInfo";
 // Button ist nur bei mindestens einem aktiven Trigger aktiv.
 
 const INFO_TEXT = [
-  "Was das ist: statt einer dauerhaften Kachel mit 2-4 parallelen KI-Meinungen (verworfen -- Modell-Uneinigkeit auf denselben Rohdaten spiegelt meist Modellrauschen statt echter Markt-Ambiguitaet) holt Nexus mehrere unabhaengige Meinungen NUR ein, wenn eines der bestehenden Pruefmechanismen bereits eine Divergenz/einen Widerspruch meldet: Signal-Engine (Konsistenz der Gesamteinschaetzung), Divergenz-Radar (unabhaengige Datenquellen) oder Report-Master (widerspruechliche Einzelreports).",
+  "Was das ist: statt einer dauerhaften Kachel mit 2-4 parallelen KI-Meinungen (verworfen -- Modell-Uneinigkeit auf denselben Rohdaten spiegelt meist Modellrauschen statt echter Markt-Ambiguitaet) holt Nexus mehrere unabhaengige Meinungen NUR ein, wenn eines der bestehenden Pruefmechanismen bereits eine Divergenz/einen Widerspruch meldet: Signal-Engine (Konsistenz der Gesamteinschaetzung), Divergenz-Radar (unabhaengige Datenquellen) oder System-Briefing (Konfluenz-Check meldet einen Widerspruch).",
   "Die vier Provider (Groq, Google, Mistral, OpenRouter -- alle kostenlos) bekommen dieselbe rohe Gesamteinschaetzung und bilden unabhaengig voneinander bias/confidence/summary -- keine Web-Suche (bewusst ohne Perplexity), damit keine externen Informationen die Vergleichbarkeit verzerren.",
   "Konsens/Divergenz zwischen den Providern wird rein regelbasiert ausgewertet (gleicher bias bei allen = Konsens), nicht durch ein weiteres Modell.",
   "Wird NICHT automatisch aktualisiert -- jeder Lauf loest bis zu 4 AI-Aufrufe aus und entsteht nur per Klick, und nur wenn oben mindestens ein aktiver Trigger angezeigt wird.",
@@ -54,6 +54,8 @@ const CONSENSUS_LABELS: Record<string, string> = {
 const TRIGGER_SOURCE_LABELS: Record<EscalationTriggerRecord["source"], string> = {
   "system-briefing": "System-Briefing",
   "divergence-radar": "Divergenz-Radar",
+  // Nur noch in aelteren Eskalationen (Master-Report ist ins System-Briefing
+  // aufgegangen).
   "report-master": "Report-Master",
 };
 

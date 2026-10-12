@@ -49,7 +49,7 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   //   Tagesquota der uebrigen Google-Kacheln nicht mitbelastet wird. Groq
   //   springt nur bei einem Google-Ausfall ein.
   // - Mistral: jeder Versuch HTTP 429 (Rate limit exceeded) -- vermutlich
-  //   durch den Mistral-Slot der AI Reports ausgelastet.
+  //   durch den frueheren Mistral-Slot der AI Reports ausgelastet.
   // - OpenRouter: Antwort "User Safety: safe" (Moderations-Modell statt
   //   JSON) oder Zeitueberschreitung; hing schon frueher bei Kursziel-
   //   Szenarien (siehe promptProfiles.ts).

@@ -6,7 +6,7 @@ import type { PromptProfile } from "./types";
 //
 // Die regelbasierte Gesamteinschaetzung laeuft unabhaengig davon in
 // supabase/functions/compute-market-state. Kachel-Profile laufen ueber
-// runTileAnalysis(), report-* ueber runReportAnalysis().
+// runTileAnalysis().
 
 // --- Validierungs-Bausteine ------------------------------------------------
 // Jedes Profile beschreibt sein JSON-Schema im systemPrompt (Freitext fürs
@@ -38,32 +38,16 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((v) => typeof v === "string");
 }
 
-function isNullableNonEmptyString(value: unknown): value is string | null {
-  return value === null || isNonEmptyString(value);
-}
-
 const BIAS_3 = ["bullish", "bearish", "neutral"] as const;
-const RISK_ON_OFF = ["risk-on", "risk-off", "neutral"] as const;
 const RISK_LEVELS = ["low", "medium", "high"] as const;
 const IMPACT_LEVELS = ["high", "medium", "low"] as const;
-// Master-Report darf zusätzlich "conflicting" melden -- siehe
-// validateMasterReport weiter unten (Vorgabe: Widersprüche zwischen den
-// Einzelreports erkennen statt sie zu einem falschen "bullish" zu mitteln).
-const MASTER_BIAS = ["bullish", "bearish", "neutral", "conflicting"] as const;
-
-// Wird an JEDES Report-Profile angehängt (siehe Vorgabe Teil Q/T): die KI
-// bekommt data_quality explizit im Kontext mitgeliefert und MUSS eine
-// eingeschränkte Datenbasis in der summary benennen statt sie zu
-// ignorieren oder fehlende Werte zu erfinden.
-const DATA_QUALITY_INSTRUCTION =
-  "Der Kontext enthält ein data_quality-Feld (overall: OK|PRELIMINARY|INSUFFICIENT_DATA, " +
-  "plus Detail-Notizen). Ist overall nicht 'OK', muss die summary das explizit benennen und " +
-  "die Einschätzung entsprechend vorsichtiger formulieren. Nutze ausschliesslich die im " +
-  "Kontext gelieferten Werte -- erfinde niemals fehlende Zahlen, Ereignisse oder Quellen.";
+// Gesamtanalysen ueber mehrere Quellen duerfen zusaetzlich "conflicting"
+// melden, statt Widersprueche zu einem falschen "bullish" zu mitteln.
+const OVERALL_BIAS = ["bullish", "bearish", "neutral", "conflicting"] as const;
 
 // Einheitliche Zahlen-/Formatierungsregeln für die "summary"/Freitext-Felder
-// -- an alle Report-Profile angehängt (Report 1-4, deren summary direkt im
-// Dashboard angezeigt wird), damit AI-Text und die regelbasierten UI-Werte
+// -- an die Profile angehängt, deren Text direkt im Dashboard angezeigt
+// wird, damit AI-Text und die regelbasierten UI-Werte
 // (siehe z.B. LivePricePanel.tsx/MarketContextCard.tsx, durchgehend
 // toLocaleString("de-CH") bzw. .toFixed()) nicht auseinanderlaufen -- vorher
 // gab es dafür keine Vorgabe, wodurch je nach Provider/Modell uneinheitlich
@@ -199,48 +183,7 @@ function validateNewsAnalysis(data: unknown): string[] {
   return errors;
 }
 
-// Master-Report: prüft die drei Einzelreports auf Widersprüche statt sie
-// zu kopieren/mitteln. componentBiases macht nachvollziehbar, WELCHE
-// Einzelmeinung in welche Richtung zeigt (Transparenz, keine Black Box).
-function validateMasterReport(data: unknown): string[] {
-  const errors: string[] = [];
-
-  const overallBias = field(data, "overallBias");
-  if (!isEnum(overallBias, MASTER_BIAS)) {
-    errors.push(
-      `"overallBias" muss einer von [${MASTER_BIAS.join(", ")}] sein, war: ${JSON.stringify(overallBias)}`
-    );
-  }
-  if (!isConfidence(field(data, "confidence"))) {
-    errors.push(`"confidence" muss eine Zahl zwischen 0 und 100 sein.`);
-  }
-  if (!isNonEmptyString(field(data, "summary"))) {
-    errors.push(`"summary" muss ein nicht-leerer String sein.`);
-  }
-  if (!isStringArray(field(data, "conflicts"))) {
-    errors.push(`"conflicts" muss ein String-Array sein (leeres Array, wenn keine Widersprüche).`);
-  }
-
-  const componentBiases = field(data, "componentBiases");
-  for (const key of ["marketStructure", "positioning", "newsMacro"]) {
-    if (!isNonEmptyString(field(componentBiases, key))) {
-      errors.push(`"componentBiases.${key}" muss ein nicht-leerer String sein.`);
-    }
-  }
-
-  // changeSinceLast: null ist korrekt, wenn der Kontext keinen vorherigen
-  // Lauf enthielt (erster Master-Lauf oder Ladefehler) -- KEIN
-  // Validierungsfehler. Ob ein String fehlt, obwohl ein vorheriger Lauf
-  // mitgegeben wurde, kann diese rein strukturelle Pruefung nicht
-  // erkennen, daher nur der Typ.
-  if (!isNullableNonEmptyString(field(data, "changeSinceLast"))) {
-    errors.push(`"changeSinceLast" muss ein nicht-leerer String oder null sein.`);
-  }
-
-  return errors;
-}
-
-// YouTube-Gesamtanalyse -- gleiche Philosophie wie der Master-Report: NICHT
+// YouTube-Gesamtanalyse -- gleiche Philosophie wie frueher der Master-Report: NICHT
 // die Einzelvideos zu einem Bias mitteln, sondern Widersprueche zwischen
 // Kanaelen/Videos explizit benennen. Die Anzahl der Quellen ist variabel,
 // daher kein componentBiases-Objekt, sondern "conflicts" als Freitext-Liste
@@ -249,9 +192,9 @@ function validateYoutubeOverallAnalysis(data: unknown): string[] {
   const errors: string[] = [];
 
   const overallBias = field(data, "overallBias");
-  if (!isEnum(overallBias, MASTER_BIAS)) {
+  if (!isEnum(overallBias, OVERALL_BIAS)) {
     errors.push(
-      `"overallBias" muss einer von [${MASTER_BIAS.join(", ")}] sein, war: ${JSON.stringify(overallBias)}`
+      `"overallBias" muss einer von [${OVERALL_BIAS.join(", ")}] sein, war: ${JSON.stringify(overallBias)}`
     );
   }
   if (!isConfidence(field(data, "confidence"))) {
@@ -357,104 +300,6 @@ export const promptProfiles: Record<string, PromptProfile> = {
     },
   },
 
-  // --- NEXUS AI Report Engine (Report 1-4) ---------------------------------
-  // Bekommen ihren Kontext ausschliesslich aus lib/reportContext.ts
-  // (buildMarketContext) -- ein bereits validiertes, strukturiertes Objekt,
-  // niemals rohe Tabellenzeilen. Werden über runReportAnalysis() in
-  // router.ts ausgeführt (Provider/Modell kommen aus der Nutzer-Konfiguration
-  // je Report-Slot, nicht aus tileConfig.ts).
-  "report-market-structure": {
-    id: "report-market-structure",
-    category: "market-mechanics",
-    description: "Report 1: Preis, OI, Funding, Liquidationen, Spot Pressure, Exchange-Daten.",
-    systemPrompt:
-      "Du analysierst die aktuelle BTC/USDT-Futures-Marktstruktur für den im Kontext " +
-      "angegebenen Zeitraum (timeframe). Nutze btc_price, oi (inkl. by_exchange), funding, " +
-      "liquidations, spot_pressure und exchange_comparison. Ordne ein, ob Preis- und " +
-      "OI-Bewegung zusammen mit dem Spot-Flow für echten Positionsaufbau/-abbau oder eher " +
-      "gehebelte/mechanische Bewegung sprechen (das regelbasierte assessment-Feld gibt dir " +
-      "bereits eine Einordnung dazu -- widersprich ihr nicht ohne Grund, sondern nutze sie " +
-      "als Ausgangspunkt). " +
-      DATA_QUALITY_INSTRUCTION +
-      NUMBER_FORMAT_INSTRUCTION +
-      " Antworte als JSON mit: bias (bullish|bearish|neutral), confidence (0-100), " +
-      "summary (string, deutsch), keyFactors (string[]), riskLevel (low|medium|high).",
-    validate: (data) =>
-      validateBiasSummary(data, { requireKeyFactors: true, requireRiskLevel: true }),
-  },
-  "report-positioning": {
-    id: "report-positioning",
-    category: "market-mechanics",
-    description: "Report 2: Long/Short, Top Trader, Retail, OI, Taker Flow, Exchange Divergence.",
-    systemPrompt:
-      "Du analysierst die aktuelle BTC-Futures-Positionierung. Nutze positioning (Retail- " +
-      "und Top-Trader-Ratios je Börse, Taker-Buy/Sell), oi.by_exchange (Exchange Divergence " +
-      "-- zieht eine einzelne Börse die OI-Bewegung überproportional?) und liquidations als " +
-      "Kontext. Ordne insbesondere ein, ob Retail- und Top-Trader-Positionierung " +
-      "übereinstimmen oder auseinanderlaufen, und ob die OI-Bewegung breit über mehrere " +
-      "Börsen oder konzentriert auf eine einzelne stattfindet. " +
-      DATA_QUALITY_INSTRUCTION +
-      NUMBER_FORMAT_INSTRUCTION +
-      " Antworte als JSON mit: bias (bullish|bearish|neutral), confidence (0-100), " +
-      "summary (string, deutsch), keyFactors (string[]).",
-    validate: (data) => validateBiasSummary(data, { requireKeyFactors: true }),
-  },
-  "report-news-macro": {
-    id: "report-news-macro",
-    category: "research",
-    description: "Report 3: News Risk, ETF-Flows, Makro-relevante Ereignisse.",
-    systemPrompt:
-      "Du bewertest die aktuelle News- und Makro-Lage für BTC. Nutze ausschliesslich " +
-      "news_macro.items (bereits gefilterte, marktbewegende News der letzten " +
-      "news_macro.window_hours Stunden) und etf_flows. Erfinde keine Ereignisse, die nicht " +
-      "in den gelieferten Items stehen. Sind items leer, sag explizit, dass aktuell keine " +
-      "markbewegenden News/Makro-Ereignisse im Datenbestand vorliegen, statt eine " +
-      "Einschätzung zu konstruieren. " +
-      DATA_QUALITY_INSTRUCTION +
-      NUMBER_FORMAT_INSTRUCTION +
-      " Antworte als JSON mit: bias (risk-on|risk-off|neutral), confidence (0-100), " +
-      "summary (string, deutsch), keyFactors (string[]).",
-    validate: (data) =>
-      validateBiasSummary(data, { biasValues: RISK_ON_OFF, requireKeyFactors: true }),
-  },
-  "report-master": {
-    id: "report-master",
-    category: "orchestration",
-    description:
-      "Report 4: prüft die Ergebnisse der Reports 1-3 auf Widersprüche statt sie zu mitteln.",
-    systemPrompt:
-      "Du erhältst im Kontext die strukturierten Ergebnisse von drei Einzelreports " +
-      "(marketStructureReport, positioningReport, newsMacroReport -- jeweils mit bias/" +
-      "confidence/summary) sowie die rohen Nexus-Marktdaten (marketData) und das " +
-      "regelbasierte assessment. Deine Aufgabe ist NICHT, die Einzelreports zu kopieren " +
-      "oder ihren Bias einfach zu mitteln, sondern zu prüfen, ob sie sich WIDERSPRECHEN. " +
-      "Beispiel: Market Structure bullish, Positioning bearish, News neutral -> overallBias " +
-      "muss 'conflicting' sein, nicht blind 'bullish'. Nenne jeden konkreten Widerspruch " +
-      "in 'conflicts' (z.B. \"Market Structure bullish, aber Positioning zeigt Retail-Short-" +
-      "Überhang bei fallendem Top-Trader-Interesse\"). Stimmen alle drei überein, ist " +
-      "conflicts ein leeres Array und overallBias entspricht der gemeinsamen Richtung. " +
-      "Erfinde keine zusätzlichen Daten -- nutze ausschliesslich die gelieferten " +
-      "Report-Ergebnisse und Marktdaten. " +
-      "Enthält der Kontext zusätzlich previousMasterReport (generated_at/overallBias/" +
-      "confidence/summary deines eigenen vorherigen Laufs), vergleiche kurz: hat sich " +
-      "overallBias geändert, ist confidence deutlich gestiegen/gefallen, hat sich einer " +
-      "der drei componentBiases gedreht? Schreibe das als 1-2 Sätze in changeSinceLast " +
-      "(z.B. \"Bias von neutral auf bullish gedreht, seit Positioning von Short- auf " +
-      "Long-Überhang gewechselt hat -- Überzeugungsgrad damit von 42 auf 61 gestiegen.\"). Gab " +
-      "es keine relevante Änderung, sag das explizit (\"Kaum Veränderung seit dem letzten " +
-      "Lauf.\"), erfinde keine Bewegung. Fehlt previousMasterReport im Kontext (erster " +
-      "Lauf, oder vorheriger Lauf nicht verfügbar), setze changeSinceLast auf null -- " +
-      "nie erfinden, was vorher war. " +
-      DATA_QUALITY_INSTRUCTION +
-      NUMBER_FORMAT_INSTRUCTION +
-      " Antworte als JSON mit: overallBias (bullish|bearish|neutral|conflicting), " +
-      "confidence (0-100), summary (string, deutsch), conflicts (string[], leer wenn " +
-      "keine), componentBiases ({ marketStructure, positioning, newsMacro } als kurze " +
-      "String-Zusammenfassungen der jeweiligen Einzelrichtung), changeSinceLast (string " +
-      "oder null, siehe oben).",
-    validate: validateMasterReport,
-  },
-
   // YouTube-Gesamtanalyse -- laeuft ueber runTileAnalysis() (tileConfig.ts),
   // Kontext aus den gespeicherten Einzelanalysen
   // (app/api/youtube-monitor/overall-analysis/route.ts).
@@ -496,7 +341,7 @@ export const promptProfiles: Record<string, PromptProfile> = {
   // lib/systemBriefingContext.ts. Die Eskalation liest ihren Trigger aus
   // diesem Snapshot (lib/escalationContext.ts).
   //
-  // Aufbau wie die AI Report Engine: drei kleine, unabhaengige Teil-Aufrufe
+  // Aufbau: drei kleine, unabhaengige Teil-Aufrufe
   // parallel (Regelwerk-Check, Chart-Struktur, Trigger & Szenario), danach
   // EIN kleiner Synthese-Call, der nur die drei Ergebnisse verdichtet --
   // ein einzelner grosser Aufruf scheiterte am 60s-Limit pro
@@ -616,7 +461,7 @@ export const promptProfiles: Record<string, PromptProfile> = {
   "system-briefing-synthese": {
     id: "system-briefing-synthese",
     category: "signal-logic",
-    description: "Teil-Aufruf 4/4 des System-Briefings: verdichtet Regelwerk-Check + Chart-Struktur zu Fazit, prueft auf echten Widerspruch (Konfluenz-Check).",
+    description: "Teil-Aufruf 4/4 des System-Briefings: verdichtet Regelwerk-Check + Chart-Struktur zu Fazit, prueft auf echten Widerspruch (Konfluenz-Check) und vergleicht mit dem vorherigen Lauf.",
     systemPrompt:
       "Du bekommst zwei bereits erstellte Teil-Analysen (regelwerkCheck, chartStruktur, " +
       "je mit eigener regelwerkLeanBias/chartLeanBias-Tendenz) sowie das bereits " +
@@ -639,9 +484,15 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "Sonst null, keine erzwungene Erwaehnung. market_state null? Dann dafuer keinen " +
       "Widerspruch erfinden, einfach null lassen. Regelwerk nur als Referenz, keine " +
       "neuen Regeln erfinden, keine Daten ausserhalb des Kontexts. " +
+      "(3) aenderungSeitLetztem: Enthaelt der Kontext previousBriefing (generated_at/" +
+      "bias/confidence/kernaussage deines vorherigen Laufs), vergleiche kurz: hat sich " +
+      "bias gedreht, ist confidence deutlich gestiegen/gefallen, hat sich die Kernaussage " +
+      "inhaltlich verschoben? 1-2 Saetze. Keine relevante Aenderung? Sag das explizit " +
+      "(\"Kaum Veraenderung seit dem letzten Lauf.\"), erfinde keine Bewegung. " +
+      "previousBriefing null? Dann aenderungSeitLetztem null -- nie erfinden, was vorher war. " +
       NUMBER_FORMAT_INSTRUCTION +
       " JSON (flach): fazit ({ bias, confidence, kernaussage }), konfluenzCheck (string " +
-      "oder null).",
+      "oder null), aenderungSeitLetztem (string oder null).",
     validate: (data) => {
       const errors: string[] = [];
       const fazit = field(data, "fazit");
@@ -658,6 +509,12 @@ export const promptProfiles: Record<string, PromptProfile> = {
       if (konfluenzCheck !== null && !isNonEmptyString(konfluenzCheck)) {
         errors.push(`"konfluenzCheck" muss ein nicht-leerer String oder null sein.`);
       }
+      // Fehlend wird toleriert (wie null), damit ein Modell, das das Feld
+      // auslaesst, nicht den ganzen Lauf scheitern laesst.
+      const aenderung = field(data, "aenderungSeitLetztem");
+      if (aenderung !== undefined && aenderung !== null && !isNonEmptyString(aenderung)) {
+        errors.push(`"aenderungSeitLetztem" muss ein nicht-leerer String oder null sein.`);
+      }
       return errors;
     },
   },
@@ -665,7 +522,7 @@ export const promptProfiles: Record<string, PromptProfile> = {
   // --- Eskalation ("gezielte Eskalation") ----------------------------------
   // Wird NICHT ueber "auto" geroutet, sondern von app/api/escalation/
   // generate/route.ts mit mehreren providerOverride-Werten parallel
-  // aufgerufen -- nur wenn System-Briefing/Divergenz-Radar/Report-Master
+  // aufgerufen -- nur wenn System-Briefing/Divergenz-Radar
   // bereits einen Widerspruch melden (lib/escalationContext.ts). Jeder
   // Provider bekommt DIESELBE rohe Gesamteinschaetzung; Konsens/Divergenz
   // wertet danach lib/escalationConsensus.ts regelbasiert aus.
@@ -805,7 +662,7 @@ export const promptProfiles: Record<string, PromptProfile> = {
 
   // Freie Anfrage: einziges Profil ohne festen Zweck -- der Kontext traegt
   // "user_task" (Freitext) getrennt von "market_data" (derselbe validierte
-  // Kontext wie die Report-Engine). Der System-Prompt legt nur die
+  // Marktkontext aus lib/reportContext.ts). Der System-Prompt legt nur die
   // Leitplanken fest (nur market_data nutzen, nichts erfinden).
   "custom-query": {
     id: "custom-query",

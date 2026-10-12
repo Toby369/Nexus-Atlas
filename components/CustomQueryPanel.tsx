@@ -13,7 +13,7 @@ import PanelInfo from "@/components/PanelInfo";
 
 const INFO_TEXT = [
   "Was das ist: du stellst der KI eine frei formulierte Aufgabe oder Frage (z.B. 'Ist X gerade ein guter Einstieg unter Beruecksichtigung von Y?'). Anders als die anderen KI-Kacheln hat diese keinen festen Zweck -- deine Eingabe bestimmt die Aufgabe.",
-  "Datengrundlage: derselbe strukturierte, validierte Marktkontext wie die grosse Report-Engine (Preis, OI, Funding, Spot-Pressure, Liquidationen, Positionierung, News, ETF-Flows, 14-Faktoren-Gesamtzustand). Die KI erfindet keine Zahlen -- reicht die Datengrundlage fuer deine Frage nicht, sagt sie das explizit statt zu spekulieren.",
+  "Datengrundlage: ein strukturierter, validierter Marktkontext (Preis, OI, Funding, Spot-Pressure, Liquidationen, Positionierung, News, ETF-Flows, 14-Faktoren-Gesamtzustand). Die KI erfindet keine Zahlen -- reicht die Datengrundlage fuer deine Frage nicht, sagt sie das explizit statt zu spekulieren.",
   "Kostenlos: Google primaer, OpenRouter/Groq als Fallback -- alles im Gratis-Tier. Wird NICHT automatisch ausgefuehrt, nur per Klick auf 'Anfrage stellen'.",
   "Kein Handelssignal, keine Anlageberatung -- eine Interpretationshilfe anhand vorhandener Daten, die eigene Entscheidung bleibt bei dir.",
 ].join("\n\n");

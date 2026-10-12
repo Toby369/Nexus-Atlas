@@ -24,8 +24,8 @@ export interface SendReportEmailResult {
  * konfiguriert ist. Wirft NIE -- E-Mail-Versand ist ein optionales Add-on,
  * kein Blocker fuer den eigentlichen Report-Lauf. Ist kein Provider
  * konfiguriert, kommt ein klar als "nicht versucht" markiertes Ergebnis
- * zurueck statt eines stillen No-Ops (siehe app/api/reports/run/route.ts,
- * das email_sent entsprechend in report_runs vermerkt).
+ * zurueck statt eines stillen No-Ops (siehe lib/systemBriefingNotify.ts,
+ * das email_sent entsprechend in system_briefings vermerkt).
  */
 export async function sendReportEmail(message: EmailMessage): Promise<SendReportEmailResult> {
   const provider = getConfiguredEmailProvider();

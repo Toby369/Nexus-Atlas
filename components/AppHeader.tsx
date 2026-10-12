@@ -2,13 +2,12 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import LogoutButton from "@/components/LogoutButton";
 
-// Gemeinsamer Seitenkopf fuer Dashboard, AI Reports, Lernen und Konto:
+// Gemeinsamer Seitenkopf fuer Dashboard, Lernen und Konto:
 // dieselbe Navigation ueberall, aktive Seite hervorgehoben.
-export type AppPage = "dashboard" | "reports" | "lernen" | "account";
+export type AppPage = "dashboard" | "lernen" | "account";
 
 const NAV_ITEMS: { id: AppPage; href: string; label: string }[] = [
   { id: "dashboard", href: "/", label: "Dashboard" },
-  { id: "reports", href: "/reports", label: "AI Reports" },
   { id: "lernen", href: "/lernen", label: "Lernen" },
   { id: "account", href: "/account", label: "Konto" },
 ];

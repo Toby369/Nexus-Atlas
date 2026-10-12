@@ -5,7 +5,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 // NIEMALS aus einer "use client"-Komponente importiert werden (das
 // "server-only"-Paket erzwingt das bereits zur Build-Zeit: ein versehentlicher
 // Import aus Client-Code bricht den Build). Ausschliesslich fuer
-// Server-Routen, die report_configs/report_runs schreiben -- alles Lesen im
+// Server-Routen, die z.B. system_briefings/system_briefing_config schreiben -- alles Lesen im
 // Dashboard laeuft weiterhin ueber den normalen Anon-Key-Client (lib/supabase.ts),
 // RLS "Public read access" reicht dafuer aus (siehe Vorgabe Teil V: Keys nur
 // serverseitig, nie im Client-Bundle).

@@ -5,7 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 // Lesen laeuft direkt ueber den Anon-Key (quiz_cards hat "Public read
 // access" wie alle anderen Marktdaten-Tabellen); Schreiben ausschliesslich
 // hier ueber den Service-Role-Client, gleiches Muster wie
-// /api/reports/config und /api/push/subscribe.
+// /api/system-briefing/config und /api/push/subscribe.
 
 interface CardBody {
   id?: number;
