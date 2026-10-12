@@ -16,13 +16,18 @@ von compute-market-state), `research_swing_setup_chain_results` und alle
 
 ---
 
-## Block 0 — Export (vor allem Löschen)
+## Block 0 — Export (vor allem Löschen) ✅ erledigt
 
-Die Session "Nexus Atlas auf unter 500 MB" hat einen funktionierenden Export über PostgREST
-(seitenweise, ohne 1000-Zeilen-Grenze). Exportiert werden mindestens die Tabellen mit
-Inhalt aus Block 3 und 5: `backtest_states`, `research_pattern_events`,
-`research_dc_events`, `market_commentary`, `report_runs`. Bei den kleinen Tabellen reicht
-auch der Table Editor (→ Export → CSV).
+Die Session "Nexus Atlas auf unter 500 MB" hat am 12.10. um 13:15 UTC alle Tabellen mit
+Inhalt aus Block 4 und 5 exportiert und die Zeilenzahlen gegen die DB geprüft. Ablage:
+`research-python/data/archive/phase7/` (Branch `ccr-99ba062e-i15rwe`, PR #11). Nicht
+exportiert wurden nur Tabellen, die schon leer sind.
+
+- Die Tabellen aus Block 5 haben den Stand von 13:15 UTC. Kommen bis zum Drop noch Zeilen
+  dazu, vorher kurz neu exportieren.
+- Die Screenshots zu `chart_vision_analyses` liegen im Storage-Bucket
+  `chart-vision-screenshots` und gehören nicht zum Archiv. Ob der Bucket mit wegsoll, ist
+  noch offen.
 
 ## Block 1 — Cron-Jobs
 
