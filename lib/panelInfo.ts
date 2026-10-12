@@ -243,9 +243,6 @@ export const economicCalendarInfo = `So liest du das: Deckt gezielt die vier fü
 
 So entsteht der Wert: CPI/PCE/NFP-Termine kommen direkt von FRED (St. Louis Fed, fred/release/dates), der FOMC-Termin aus dem offiziell veröffentlichten Fed-Sitzungskalender – einmal täglich aktualisiert, Kalendertermine ändern sich selten und meist mit Vorlauf. Das Ergebnis selbst stammt aus denselben FRED-Zeitreihen, die auch der Makro-Collector pflegt (CPIAUCSL/PCEPI/PAYEMS, für FOMC die effektive Fed Funds Rate DFF) – kein separater Forecast-/Konsens-Datenanbieter angebunden, der Vergleich erfolgt daher gegen den letzten bekannten Wert, nicht gegen eine Analysten-Erwartung.`;
 
-export const institutionalPlaybookInfo = `So liest du das: Ein reiner Lese-Leitfaden, keine eigene Datenquelle – zeigt, wie die bereits vorhandenen Kacheln (Gesamteinschätzung, Spot Pressure, OI Change, Liquidationen, Marktphase) sinnvoll zusammen gelesen werden können. Die Signal-Matrix greift dieselbe Long-Aufbau/Short-Aufbau/Short-Covering/Long-Abbau-Einteilung wieder auf, die auch die Marktkontext-Kachel verwendet.
-
-So entsteht der Wert: Statischer, fest hinterlegter Text – kein KI-Modell, keine Berechnung, keine Aktualisierung nötig. Die vier Markt-Muster und die Tages-Routine sind Interpretationshilfen zur Orientierung, kein Handelssignal und keine Anlageberatung.`;
 
 // GUSS/VWAP-Vector/CVD (Umsetzungsplan "Exakte Faktoren", Phase 1-3): Tobys
 // eigene TradingView-Indikatoren, serverseitig nachgebaut in

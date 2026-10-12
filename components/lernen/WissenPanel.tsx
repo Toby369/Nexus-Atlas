@@ -10,14 +10,15 @@ import type { LevelStructureZone } from "@/lib/levelStructureContext";
 import { CvdFootprintCard, GussSignalCard, VwapVectorCard } from "@/components/TradingIndicatorsCards";
 import ChartStructureCard from "@/components/ChartStructureCard";
 import LevelStructureCard from "@/components/LevelStructureCard";
-import PlaybookPanel from "@/components/lernen/PlaybookPanel";
+import GrundlagenPanel from "@/components/lernen/GrundlagenPanel";
+import PositionSizeCalculator from "@/components/lernen/grundlagen/PositionSizeCalculator";
 
-// --- Wissen (Welz/Salomon/Mein System) -------------------------------------
+// --- Wissen (Grundlagen/Welz/Salomon/Mein System) --------------------------
 // Nachschlage-Sektion aus knowledge_base (statischer Text, siehe
 // lib/knowledgeBaseContext.ts) + drei Checklisten. Der Checkbox-Zustand ist
 // bewusst nur lokaler React-State -- eine Momentaufnahme je Aufruf.
 
-type WissenModule = "welz" | "salomon" | "mein_system" | "playbook";
+type WissenModule = "grundlagen" | "welz" | "salomon" | "mein_system";
 
 const WELZ_CHECKLIST = [
   "Trading-Journal ist aktuell geführt",
@@ -220,7 +221,7 @@ export default function WissenPanel({
   chartStructureData: ChartStructureData;
   levelStructureZones: LevelStructureZone[];
 }) {
-  const [module, setModule] = useState<WissenModule>("welz");
+  const [module, setModule] = useState<WissenModule>("grundlagen");
   const [checklistHistory, setChecklistHistory] = useState(initialChecklistHistory);
   const entries = knowledgeBase.filter((e) => e.module === module);
 
@@ -239,12 +240,12 @@ export default function WissenPanel({
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-1.5">
+      <div className="flex gap-1.5 flex-wrap">
         {([
+          { id: "grundlagen", label: "Grundlagen" },
           { id: "welz", label: "Welz (Psychologie)" },
           { id: "salomon", label: "Salomon (Chartanalyse)" },
           { id: "mein_system", label: "Mein System" },
-          { id: "playbook", label: "Institutional Playbook" },
         ] as { id: WissenModule; label: string }[]).map((m) => (
           <button
             key={m.id}
@@ -261,7 +262,11 @@ export default function WissenPanel({
         ))}
       </div>
 
-      {module === "playbook" ? <PlaybookPanel /> : <KnowledgeSections entries={entries} />}
+      {module === "grundlagen" ? (
+        <GrundlagenPanel liveFundingPct={meinSystemData.fundingRatePct} livePrice={meinSystemData.closePrice} />
+      ) : (
+        <KnowledgeSections entries={entries} />
+      )}
 
       {module === "welz" && (
         <ChecklistBlock
@@ -284,6 +289,7 @@ export default function WissenPanel({
       {module === "mein_system" && (
         <div className="space-y-3">
           <MeinSystemLiveValues data={meinSystemData} />
+          <PositionSizeCalculator livePrice={meinSystemData.closePrice} />
           <GussSignalCard data={gussData} />
           <VwapVectorCard data={vwapVectorData} />
           <CvdFootprintCard data={cvdData} />

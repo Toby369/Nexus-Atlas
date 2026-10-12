@@ -91,6 +91,12 @@ const VERDICTS: Record<SpotPerpVerdict["key"], Omit<SpotPerpVerdict, "key">> = {
   },
 };
 
+/** Einordnung fuer eine Kombination aus Spot- und Perp-Richtung, z.B. fuer die Lernseite. */
+export function spotPerpVerdict(spot: FlowDirection, perp: FlowDirection): SpotPerpVerdict {
+  const key = `${spot}|${perp}` as const;
+  return { key, ...VERDICTS[key] };
+}
+
 export function classifyFlow(netPct: number | null, thresholdPct: number): FlowDirection | null {
   if (netPct === null || !Number.isFinite(netPct)) return null;
   if (netPct > thresholdPct) return "up";
