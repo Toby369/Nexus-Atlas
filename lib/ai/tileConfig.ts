@@ -39,23 +39,28 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   // promptProfiles.ts); kostenloser Fallback je Teil, kein bezahlter
   // Provider (siehe Anthropic-Linie oben).
   //
-  // Alle vier Teile primaer auf Groq, Fallback Google. Gemessen in den
-  // Vercel-Logs (Live-Laeufe nach Umstellung auf 40s-Limit):
-  // - Groq: 1,5-4s je Teil, jeder Versuch erfolgreich.
-  // - Google (gemini-3.7-flash): 19-44s oder Zeitueberschreitung -- machte
-  //   einen Lauf 1-3 Minuten lang.
-  // - Mistral: jeder Versuch HTTP 429 (Rate limit exceeded).
+  // Verteilung -- gemessen in den Vercel-Logs (Live-Laeufe nach Umstellung
+  // auf 40s-Limit):
+  // - Groq: 1,5-4s je Teil, jeder Versuch erfolgreich -- aber Gratis-Tier
+  //   mit Tageslimit, das auch Eskalation, Trade-Debate-Referee und mehrere
+  //   Fallbacks nutzen. Daher nur die zwei kleinen Teile (Chart, Trigger).
+  // - Google (gemini-3.7-flash): 19-25s, teils Zeitueberschreitung. Traegt
+  //   Regelwerk und Synthese; eigenes Modell statt GOOGLE_MODEL, damit die
+  //   Tagesquota der uebrigen Google-Kacheln nicht mitbelastet wird. Groq
+  //   springt nur bei einem Google-Ausfall ein.
+  // - Mistral: jeder Versuch HTTP 429 (Rate limit exceeded) -- vermutlich
+  //   durch den Mistral-Slot der AI Reports ausgelastet.
   // - OpenRouter: Antwort "User Safety: safe" (Moderations-Modell statt
   //   JSON) oder Zeitueberschreitung; hing schon frueher bei Kursziel-
   //   Szenarien (siehe promptProfiles.ts).
   // Mistral, OpenRouter und DeepSeek (nicht konfiguriert) stehen deshalb in
-  // keiner Briefing-Kette. Google bleibt Ausweiche, falls Groq ein Limit
-  // reisst; ohne aiModel, damit dort GOOGLE_MODEL gilt.
+  // keiner Briefing-Kette.
   "system-briefing-regelwerk": {
     tileId: "system-briefing-regelwerk",
-    aiProvider: "groq",
+    aiProvider: "google",
+    aiModel: "gemini-3.7-flash",
     promptProfile: "system-briefing-regelwerk",
-    fallbackProviders: ["google"],
+    fallbackProviders: ["groq"],
     timeoutMs: BRIEFING_TIMEOUT_MS,
   },
   "system-briefing-chart": {
@@ -74,9 +79,10 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   },
   "system-briefing-synthese": {
     tileId: "system-briefing-synthese",
-    aiProvider: "groq",
+    aiProvider: "google",
+    aiModel: "gemini-3.7-flash",
     promptProfile: "system-briefing-synthese",
-    fallbackProviders: ["google"],
+    fallbackProviders: ["groq"],
     timeoutMs: BRIEFING_TIMEOUT_MS,
   },
   // Eskalation: aiProvider ist nur ein Platzhalter --
