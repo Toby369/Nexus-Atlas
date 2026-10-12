@@ -104,6 +104,18 @@ export function regelwerkLineErrors(text: string): string[] {
   return errors;
 }
 
+// Schlagzeile und Fazit beschreiben den Markt, nicht den Aufbau der Analyse
+// ("Spannungsfeld zwischen Chart und Trendfiltern", Lauf 12.10.2026 16:11 --
+// fuer den Leser unverstaendlich). Diese Begriffe verweisen auf die internen
+// Teil-Aufrufe und fallen dort durch.
+const ANALYSIS_JARGON = /\b(Trendfilter\w*|Regelwerk\w*|Teil-?[Aa]nalyse\w*|Spannungsfeld|Chartstruktur|Konfluenz\w*)\b/i;
+
+export function analysisJargonErrors(value: unknown, key: string): string[] {
+  if (typeof value !== "string") return [];
+  const hit = ANALYSIS_JARGON.exec(value);
+  return hit ? [`"${key}" beschreibt die Analyse statt den Markt ("${hit[0]}") -- Kurs, Zonen, Richtung nennen.`] : [];
+}
+
 // Freitext-Abschnitte der Synthese, gemeinsam fuer Prompt-Validierung und
 // Anzeige (components/SystemBriefingDetails.tsx, lib/systemBriefingNotify.ts).
 export const BRIEFING_REPORT_SECTIONS = [
@@ -488,8 +500,11 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "(marktbewegende Schlagzeilen), market_state und market_context (nur zum Abgleich), " +
       "bewegungsvorrat_ratio_pct, previousBriefing. Abschnitte, jeder mit Kernsatz " +
       "zuerst: " +
-      "schlagzeile: EINE Zeile ohne Punkt am Ende, wie ein Newsletter-Betreff (z.B. 'BTC " +
-      "erholt sich und steht vor moeglichem Ausbruch'). " +
+      "schlagzeile: EINE Zeile ohne Punkt am Ende, wie ein Newsletter-Betreff, die den " +
+      "MARKT beschreibt (Kurs, Zone, Richtung) -- nie den Aufbau dieser Analyse. Gut: " +
+      "'BTC erholt sich und steht vor moeglichem Ausbruch', 'BTC pendelt bei 82'900 USD " +
+      "zwischen Support 82'600 und Widerstand 83'400'. Schlecht: 'Spannungsfeld zwischen " +
+      "Chart und Trendfiltern', 'Regelwerk und Chart uneins'. " +
       "marktupdate: 2-4 Saetze -- Kurs, Veraenderung 24h und 7 Tage, Einordnung " +
       "(z.B. 'Nach dem Boden um 82'000 USD hat sich BTC kraftvoll zurueck zu 84'000 USD " +
       "gearbeitet (+1.2 % in 24 Stunden).'); relevante Schlagzeilen hoechstens in einem " +
@@ -506,7 +521,11 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "fazit: bias (bullish/bearish/neutral -- verdichte regelwerkLeanBias und " +
       "chartLeanBias zu einem Urteil, nur bei echter Richtung, sonst neutral), " +
       "confidence (0-100), kernaussage (1-2 Saetze, verdichtet Regelwerk und Chart; der " +
-      "erste Satz darf bias nicht widersprechen). " +
+      "erste Satz darf bias nicht widersprechen). Auch die kernaussage spricht ueber den " +
+      "Markt, nicht ueber die Analyse: statt 'Pattsituation zwischen stuetzenden " +
+      "Chartmustern und baerischen Trendfiltern' konkret 'BTC haelt die Unterstuetzung " +
+      "bei 82'600 USD, notiert aber unter EMA 200 und Tages-VWAP -- solange 83'400 USD " +
+      "nicht zurueckerobert ist, bleibt der Druck nach unten'. " +
       "konfluenzCheck: NUR bei echtem inhaltlichem Widerspruch (Marktdaten vs. Regelwerk/" +
       "Chart, Aggregat vs. Faktoren, Chart vs. Regelwerk), 1-2 Saetze, sonst null. " +
       "aenderungSeitLetztem: previousBriefing vorhanden? 1-2 Saetze, was sich bei " +
@@ -545,7 +564,9 @@ export const promptProfiles: Record<string, PromptProfile> = {
       }
       errors.push(
         ...technicalIdentifierErrors(data, [...BRIEFING_REPORT_SECTIONS, "konfluenzCheck", "aenderungSeitLetztem"]),
-        ...technicalIdentifierErrors(fazit, ["kernaussage"], "fazit.")
+        ...technicalIdentifierErrors(fazit, ["kernaussage"], "fazit."),
+        ...analysisJargonErrors(field(data, "schlagzeile"), "schlagzeile"),
+        ...analysisJargonErrors(field(fazit, "kernaussage"), "fazit.kernaussage")
       );
       return errors;
     },
