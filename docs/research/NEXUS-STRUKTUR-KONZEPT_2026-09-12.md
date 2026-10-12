@@ -273,3 +273,11 @@ Freie Anfrage 1, YouTube-Gesamtanalyse 2, Eskalation 3, News-Einordnung 5.
 
 **Bleibt:** `options_snapshots` (Options-Faktor der Marktphase), die wöchentlichen
 Confluence-/Regime-Score-Pipelines inklusive ihrer Aktivierungstabellen (Kürzen nicht freigegeben).
+
+### Nachtrag: Preisänderung im Lagebild (12.10.2026)
+
+**Freigegeben (Toby):** Neben dem Live-Preis im Lagebild steht die Veränderung über 1H/4H/1D/1W,
+jeweils in USD (▲/▼) und Prozent (`lib/priceChanges.ts`). Grundlage sind die 5-Minuten-Snapshots
+derselben Börse (Bybit), aktualisiert wie die Gesamteinschätzung. Die eigenständige Kachel
+"BTC Preis" entfällt, ihr Inhalt (Preis, Veränderung zum letzten Datenpunkt, Verlauf der letzten
+Stunden) ist damit im Lagebild abgedeckt.

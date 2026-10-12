@@ -24,8 +24,7 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "leverage-map", title: "Liquidations-/Hebelkarte" },
   { id: "cycle-indicators", title: "Zyklus-Indikatoren" },
   { id: "economic-calendar", title: "Wirtschaftskalender" },
-  // Gemeinsamer State/Polling der vier Preis-Kacheln: LivePriceDataProvider.tsx.
-  { id: "btc-price", title: "BTC Preis", size: "compact" },
+  // Gemeinsamer State/Polling der Preis-Kacheln: LivePriceDataProvider.tsx.
   { id: "oi-change", title: "OI Change", size: "compact" },
   { id: "funding-rate", title: "Funding Rate", size: "compact" },
   { id: "orderbook-walls", title: "Orderbuch-Wände", size: "compact" },

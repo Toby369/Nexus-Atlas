@@ -1,5 +1,5 @@
-// Gemeinsame Formatierungs-Helfer der Preis-Kacheln (BtcPriceCard,
-// OiChangeCard, FundingRateCard) -- State/Polling siehe
+// Gemeinsame Formatierungs-Helfer der Preis-Kacheln (OiChangeCard,
+// FundingRateCard) und des Lagebilds -- State/Polling siehe
 // components/LivePriceDataProvider.tsx.
 
 export function formatUsd(value: number | null, decimals = 2): string {

@@ -25,7 +25,6 @@ export const DASHBOARD_TABS: DashboardTabMeta[] = [
     id: "preis-orderflow-makro",
     label: "Preis, Orderflow & Makro",
     tileIds: [
-      "btc-price",
       "oi-change",
       "funding-rate",
       "orderbook-walls",
