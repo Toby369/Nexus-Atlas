@@ -281,3 +281,11 @@ jeweils in USD (▲/▼) und Prozent (`lib/priceChanges.ts`). Grundlage sind die
 derselben Börse (Bybit), aktualisiert wie die Gesamteinschätzung. Die eigenständige Kachel
 "BTC Preis" entfällt, ihr Inhalt (Preis, Veränderung zum letzten Datenpunkt, Verlauf der letzten
 Stunden) ist damit im Lagebild abgedeckt.
+
+### Nachtrag: Marktphase folgt dem Zeitraum (13.10.2026)
+
+**Freigegeben (Toby):** Die Kachel „Marktphase“ zeigt das Regime für den oben gewählten Zeitraum
+(15M → 15m-Kerzen, 1H → 1h, 4H → 4h, 24H → 1d, 1W/1M → 1w). 1h kommt wie bisher aus
+`market_state_matrix`, die übrigen Zeitrahmen rechnet `compute_market_state_matrix_latest` live aus den
+letzten 400 Kerzen (gleiche Formeln, nichts zusätzlich gespeichert; SQL in
+`MARKTPHASE-ZEITRAHMEN_2026-10-13.md`). Gesamteinschätzung, Briefing, Scores und Push bleiben auf 1H.
