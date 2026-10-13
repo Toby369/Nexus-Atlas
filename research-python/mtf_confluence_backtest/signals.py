@@ -1,10 +1,13 @@
-"""Feature-Aufbau pro Timeframe und Erzeugung der 15m-Setups.
+"""Feature-Aufbau pro Timeframe und Erzeugung der Setups.
+
+Drei Rollen (siehe config.TIMEFRAME_SETS): `high` (Trend + Volume Profile),
+`mid` (Momentum + CVD) und `base` (Sweep/CHoCH-Trigger, Simulation).
 
 Look-Ahead-Regel (zentral fuer alles hier): Ein Wert einer h-Kerze mit
 Open-Time T ist erst zum Schlusszeitpunkt T + h bekannt. Eine Entscheidung
-auf der 15m-Kerze mit Open-Time t faellt zu deren Schluss t + 15m. Die
-Ausrichtung (`align_to_base`) nimmt fuer jede 15m-Kerze den letzten Wert
-mit T + h <= t + 15m -- also nur geschlossene hoehere Kerzen.
+auf der Base-Kerze mit Open-Time t faellt zu deren Schluss t + b. Die
+Ausrichtung (`align_to_base`) nimmt fuer jede Base-Kerze den letzten Wert
+mit T + h <= t + b -- also nur geschlossene hoehere Kerzen.
 """
 
 from __future__ import annotations
@@ -18,14 +21,11 @@ from config import StrategyParams
 from indicators import atr, macd_hist, pivot_high, pivot_low, rsi
 from volume_profile import profile_levels
 
-BASE = pd.Timedelta("15min")
-
-
-def align_to_base(htf: pd.DataFrame, rule: str, base_index: pd.DatetimeIndex) -> pd.DataFrame:
-    """Richtet HTF-Features (Index = Open-Time) auf die 15m-Kerzen aus."""
+def align_to_base(htf: pd.DataFrame, rule: str, base_index: pd.DatetimeIndex, base_rule: str) -> pd.DataFrame:
+    """Richtet HTF-Features (Index = Open-Time) auf die Base-Kerzen aus."""
     known_at = htf.copy()
     known_at.index = known_at.index + pd.Timedelta(rule)
-    decision = pd.DataFrame(index=base_index + BASE)
+    decision = pd.DataFrame(index=base_index + pd.Timedelta(base_rule))
     merged = pd.merge_asof(
         decision, known_at, left_index=True, right_index=True, direction="backward"
     )
@@ -45,30 +45,30 @@ def _last_two(confirmed: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return last, prev
 
 
-def features_4h(perp_15m: pd.DataFrame, perp_4h: pd.DataFrame, p: StrategyParams) -> pd.DataFrame:
-    out = pd.DataFrame(index=perp_4h.index)
-    ph = pivot_high(perp_4h["high"].to_numpy(), p.pivot_len_4h, p.pivot_len_4h)
-    pl = pivot_low(perp_4h["low"].to_numpy(), p.pivot_len_4h, p.pivot_len_4h)
+def features_high(perp_15m: pd.DataFrame, perp_high: pd.DataFrame, high_rule: str, p: StrategyParams) -> pd.DataFrame:
+    out = pd.DataFrame(index=perp_high.index)
+    ph = pivot_high(perp_high["high"].to_numpy(), p.pivot_len_high, p.pivot_len_high)
+    pl = pivot_low(perp_high["low"].to_numpy(), p.pivot_len_high, p.pivot_len_high)
     last_ph, prev_ph = _last_two(ph)
     last_pl, prev_pl = _last_two(pl)
-    close = perp_4h["close"].to_numpy()
+    close = perp_high["close"].to_numpy()
     bull = (last_ph > prev_ph) & (last_pl > prev_pl) & (close > last_pl)
     bear = (last_ph < prev_ph) & (last_pl < prev_pl) & (close < last_ph)
     out["trend"] = np.where(bull, 1, np.where(bear, -1, 0))
     out["last_ph"] = last_ph
     out["last_pl"] = last_pl
-    out["atr"] = atr(perp_4h).to_numpy()
+    out["atr"] = atr(perp_high).to_numpy()
 
-    # Volume Profile ueber die letzten vp_lookback_4h 4h-Kerzen, aus 15m.
+    # Volume Profile ueber die letzten vp_lookback_high Kerzen, immer aus 15m.
     t15 = perp_15m.index
     lows, highs, vols = (perp_15m[c].to_numpy() for c in ("low", "high", "volume"))
-    poc = np.full(len(perp_4h), np.nan)
-    vah = np.full(len(perp_4h), np.nan)
-    val = np.full(len(perp_4h), np.nan)
-    four_h = pd.Timedelta("4h")
-    for i in range(p.vp_lookback_4h - 1, len(perp_4h)):
-        start = perp_4h.index[i - p.vp_lookback_4h + 1]
-        end = perp_4h.index[i] + four_h
+    poc = np.full(len(perp_high), np.nan)
+    vah = np.full(len(perp_high), np.nan)
+    val = np.full(len(perp_high), np.nan)
+    bar_len = pd.Timedelta(high_rule)
+    for i in range(p.vp_lookback_high - 1, len(perp_high)):
+        start = perp_high.index[i - p.vp_lookback_high + 1]
+        end = perp_high.index[i] + bar_len
         a = t15.searchsorted(start, side="left")
         b = t15.searchsorted(end, side="left")
         if b - a < 10:
@@ -80,18 +80,18 @@ def features_4h(perp_15m: pd.DataFrame, perp_4h: pd.DataFrame, p: StrategyParams
     return out
 
 
-def features_1h(perp_1h: pd.DataFrame, spot_1h: pd.DataFrame, p: StrategyParams) -> pd.DataFrame:
-    out = pd.DataFrame(index=perp_1h.index)
-    r = rsi(perp_1h["close"], p.rsi_len)
+def features_mid(perp_mid: pd.DataFrame, spot_mid: pd.DataFrame, p: StrategyParams) -> pd.DataFrame:
+    out = pd.DataFrame(index=perp_mid.index)
+    r = rsi(perp_mid["close"], p.rsi_len)
     out["rsi_min"] = r.rolling(p.rsi_reset_lookback).min()
     out["rsi_max"] = r.rolling(p.rsi_reset_lookback).max()
-    hist = macd_hist(perp_1h["close"])
+    hist = macd_hist(perp_mid["close"])
     out["macd_up"] = hist > hist.shift()
     out["macd_down"] = hist < hist.shift()
 
-    w = p.cvd_window_1h
-    perp_ratio = perp_1h["delta"].rolling(w).sum() / perp_1h["volume"].rolling(w).sum()
-    spot = spot_1h.reindex(perp_1h.index)
+    w = p.cvd_window_mid
+    perp_ratio = perp_mid["delta"].rolling(w).sum() / perp_mid["volume"].rolling(w).sum()
+    spot = spot_mid.reindex(perp_mid.index)
     spot_ratio = spot["delta"].rolling(w).sum() / spot["volume"].rolling(w).sum()
     out["perp_ratio"] = perp_ratio
     out["spot_ratio"] = spot_ratio
@@ -100,7 +100,7 @@ def features_1h(perp_1h: pd.DataFrame, spot_1h: pd.DataFrame, p: StrategyParams)
 
 @dataclass
 class Setup:
-    bar: int  # Index der 15m-Signalkerze (Einstieg zum Open der naechsten)
+    bar: int  # Index der Base-Signalkerze (Einstieg zum Open der naechsten)
     direction: int  # +1 long, -1 short
     stop: float
     trend: bool
@@ -108,23 +108,25 @@ class Setup:
     momentum: bool
     cvd: bool
     vol_spike: bool
-    targets: tuple[float, ...]  # 4h-Level als TP-Kandidaten
+    targets: tuple[float, ...]  # Level des hohen Timeframes als TP-Kandidaten
 
 
-def find_setups(perp_15m: pd.DataFrame, f4: pd.DataFrame, f1: pd.DataFrame, p: StrategyParams) -> list[Setup]:
-    """15m-Trigger: Sweep eines bestaetigten 15m-Pivots (Wick drueber/drunter,
+def find_setups(
+    base: pd.DataFrame, f_high: pd.DataFrame, f_mid: pd.DataFrame, rules: dict[str, str], p: StrategyParams
+) -> list[Setup]:
+    """Trigger: Sweep eines bestaetigten Base-Pivots (Wick drueber/drunter,
     Close zurueck), danach CHoCH = Close jenseits des letzten bestaetigten
     Gegen-Pivots innerhalb von `sweep_valid_bars`. Alle Filter werden nur als
     Flags gespeichert, damit jede Variante dieselben Rohsignale sieht."""
-    o, h, l, c, v = (perp_15m[k].to_numpy() for k in ("open", "high", "low", "close", "volume"))
+    o, h, l, c, v = (base[k].to_numpy() for k in ("open", "high", "low", "close", "volume"))
     n = len(c)
-    atr15 = atr(perp_15m).to_numpy()
+    atr_base = atr(base).to_numpy()
     vol_ma = pd.Series(v).rolling(p.vol_spike_len).mean().shift().to_numpy()
-    last_ph15, _ = _last_two(pivot_high(h, p.pivot_len_15m, p.pivot_len_15m))
-    last_pl15, _ = _last_two(pivot_low(l, p.pivot_len_15m, p.pivot_len_15m))
+    last_ph15, _ = _last_two(pivot_high(h, p.pivot_len_base, p.pivot_len_base))
+    last_pl15, _ = _last_two(pivot_low(l, p.pivot_len_base, p.pivot_len_base))
 
-    a4 = align_to_base(f4, "4h", perp_15m.index)
-    a1 = align_to_base(f1, "1h", perp_15m.index)
+    a4 = align_to_base(f_high, rules["high"], base.index, rules["base"])
+    a1 = align_to_base(f_mid, rules["mid"], base.index, rules["base"])
     trend = a4["trend"].to_numpy()
     poc, vah, val = a4["poc"].to_numpy(), a4["vah"].to_numpy(), a4["val"].to_numpy()
     atr4 = a4["atr"].to_numpy()
@@ -168,7 +170,7 @@ def find_setups(perp_15m: pd.DataFrame, f4: pd.DataFrame, f1: pd.DataFrame, p: S
             if not broke:
                 continue
             active[d] = None
-            stop = extreme - d * p.sl_atr_buffer * atr15[i]
+            stop = extreme - d * p.sl_atr_buffer * atr_base[i]
             if d == 1:
                 mom = bool(rsi_min[i] <= p.rsi_reset_long and macd_up[i])
                 flow = bool(spot_r[i] > 0 and perp_r[i] < spot_r[i])

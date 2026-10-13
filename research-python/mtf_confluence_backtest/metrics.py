@@ -9,7 +9,7 @@ import pandas as pd
 def summarize(trades: pd.DataFrame) -> dict:
     if trades.empty:
         return {"trades": 0, "win_rate": np.nan, "avg_r": np.nan, "t_stat": np.nan, "pf": np.nan,
-                "total_r": 0.0, "max_dd_r": 0.0, "avg_cost_r": np.nan}
+                "total_r": 0.0, "max_dd_r": 0.0, "avg_cost_r": np.nan, "avg_gross_r": np.nan}
     r = trades["r"].to_numpy()
     wins, losses = r[r > 0].sum(), -r[r < 0].sum()
     equity = np.cumsum(r)
@@ -25,4 +25,5 @@ def summarize(trades: pd.DataFrame) -> dict:
         "total_r": float(r.sum()),
         "max_dd_r": float(dd),
         "avg_cost_r": float(trades["cost_r"].mean()),
+        "avg_gross_r": float(trades["gross_r"].mean()),
     }

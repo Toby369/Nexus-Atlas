@@ -12,52 +12,56 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class StrategyParams:
-    # --- 4h Marktstruktur ---
-    # Pivot-Laenge links/rechts fuer Swing-Hochs/-Tiefs auf 4h. Ein Pivot ist
-    # erst nach `pivot_len_4h` weiteren 4h-Kerzen bestaetigt (Annahme).
-    pivot_len_4h: int = 3
+    # Alle Laengen sind in Kerzen des jeweiligen Timeframes angegeben und
+    # skalieren daher mit dem Timeframe-Set (siehe TIMEFRAME_SETS).
 
-    # --- 4h Volume Profile ---
+    # --- Hoher Timeframe: Marktstruktur ---
+    # Pivot-Laenge links/rechts fuer Swing-Hochs/-Tiefs. Ein Pivot ist erst
+    # nach `pivot_len_high` weiteren Kerzen bestaetigt (Annahme).
+    pivot_len_high: int = 3
+
+    # --- Hoher Timeframe: Volume Profile ---
     # "FRVP ueber den letzten signifikanten Trendabschnitt" ist nicht
     # mechanisch definiert -> Annahme: rollierendes Profil ueber die letzten
-    # 90 4h-Kerzen (= 15 Tage), aus 15m-Kerzen aufgebaut.
-    vp_lookback_4h: int = 90
+    # 90 Kerzen des hohen Timeframes (4h: 15 Tage, 1D: 90 Tage), aus
+    # 15m-Kerzen aufgebaut.
+    vp_lookback_high: int = 90
     vp_bins: int = 120
     vp_value_area: float = 0.70
-    # Zone = Level +/- zone_atr_mult * ATR(14, 4h). Ersetzt die starren
+    # Zone = Level +/- zone_atr_mult * ATR(14, hoher TF). Ersetzt die starren
     # +/-0.5 % aus dem Konzept durch eine volatilitaetsabhaengige Breite.
     zone_atr_mult: float = 0.5
 
-    # --- 1h Momentum ---
+    # --- Mittlerer Timeframe: Momentum ---
     rsi_len: int = 14
-    # "RSI-Reset Richtung 40-50": Long nur, wenn der 1h-RSI in den letzten
-    # `rsi_reset_lookback` Stunden <= rsi_reset_long war (Short gespiegelt).
+    # "RSI-Reset Richtung 40-50": Long nur, wenn der RSI in den letzten
+    # `rsi_reset_lookback` Kerzen <= rsi_reset_long war (Short gespiegelt).
     rsi_reset_long: float = 45.0
     rsi_reset_short: float = 55.0
     rsi_reset_lookback: int = 8
 
     # --- Orderflow (Spot vs. Perp) ---
-    # Fenster in 1h-Kerzen fuer die Delta-Summen (Annahme).
-    cvd_window_1h: int = 8
+    # Fenster in Kerzen des mittleren TF fuer die Delta-Summen (Annahme).
+    cvd_window_mid: int = 8
 
-    # --- 15m Trigger ---
-    pivot_len_15m: int = 2
-    # Wie viele 15m-Kerzen nach dem Sweep der CHoCH noch zaehlt (Annahme).
+    # --- Base-Timeframe: Trigger ---
+    pivot_len_base: int = 2
+    # Wie viele Base-Kerzen nach dem Sweep der CHoCH noch zaehlt (Annahme).
     sweep_valid_bars: int = 12
     vol_spike_mult: float = 1.5
     vol_spike_len: int = 20
 
     # --- Risiko / Ausstieg ---
-    # Stop knapp unter/ueber dem Sweep-Extrem: Puffer in ATR(14, 15m).
+    # Stop knapp unter/ueber dem Sweep-Extrem: Puffer in ATR(14, Base-TF).
     sl_atr_buffer: float = 0.1
     # Stops, die enger als dieser Anteil vom Preis sind, werden nicht
     # gehandelt (sonst fressen Gebuehren den Grossteil von 1R).
     min_stop_pct: float = 0.0015
     fixed_rr: float = 2.0
-    # TP-Modus "level": naechstes 4h-Level (POC/VAH/VAL/Pivot) mit mindestens
+    # TP-Modus "level": naechstes Level des hohen TF (POC/VAH/VAL/Pivot) mit mindestens
     # diesem CRV, sonst wird der Trade ausgelassen.
     level_min_rr: float = 1.5
-    # Zeitstopp in 15m-Kerzen (48 h), Annahme.
+    # Zeitstopp in Base-Kerzen (15m: 48 h, 1h: 8 Tage), Annahme.
     max_hold_bars: int = 192
 
 
@@ -68,6 +72,13 @@ class CostParams:
     # Slippage pro Seite bei Markt-/Stop-Orders (Annahme).
     slippage_pct_per_side: float = 0.0002
 
+
+# Timeframe-Sets: Trigger (base), Filter (mid), Trend/Zone (high).
+TIMEFRAME_SETS = {
+    "15m": {"base": "15min", "mid": "1h", "high": "4h"},
+    "1h": {"base": "1h", "mid": "4h", "high": "1D"},
+}
+TF_LABELS = {"15min": "15m", "1h": "1h", "4h": "4h", "1D": "1D"}
 
 START_MONTH = "2020-01"
 END_MONTH = "2026-09"

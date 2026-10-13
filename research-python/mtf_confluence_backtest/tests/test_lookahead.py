@@ -16,12 +16,23 @@ def _base(n: int, start: str = "2024-01-01") -> pd.DatetimeIndex:
 def test_align_uses_only_closed_htf_bars():
     base = _base(32)  # 8 Stunden
     htf = pd.DataFrame({"x": [1.0, 2.0]}, index=pd.date_range("2024-01-01", periods=2, freq="4h", tz="UTC"))
-    aligned = align_to_base(htf, "4h", base)["x"]
+    aligned = align_to_base(htf, "4h", base, "15min")["x"]
     # Die 4h-Kerze 00:00-04:00 ist erst zum Close der 15m-Kerze 03:45 bekannt.
     assert aligned.iloc[:15].isna().all()
     assert aligned.loc["2024-01-01 03:45"] == 1.0
     assert aligned.loc["2024-01-01 07:30"] == 1.0
     assert aligned.loc["2024-01-01 07:45"] == 2.0
+
+
+def test_align_daily_onto_hourly_base():
+    base = pd.date_range("2024-01-01", periods=48, freq="1h", tz="UTC")
+    htf = pd.DataFrame({"x": [1.0, 2.0]}, index=pd.date_range("2024-01-01", periods=2, freq="1D", tz="UTC"))
+    aligned = align_to_base(htf, "1D", base, "1h")["x"]
+    # Die Tageskerze vom 1.1. ist erst zum Close der 1h-Kerze 23:00 bekannt.
+    assert aligned.iloc[:23].isna().all()
+    assert aligned.loc["2024-01-01 23:00"] == 1.0
+    assert aligned.loc["2024-01-02 22:00"] == 1.0
+    assert aligned.loc["2024-01-02 23:00"] == 2.0
 
 
 def test_pivots_are_revealed_after_right_bars():
