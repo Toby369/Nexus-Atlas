@@ -1,7 +1,8 @@
 # Marktphase je Zeitrahmen — SQL für den Supabase-Editor (13.10.2026)
 
-Die Kachel „Marktphase“ folgt der Zeitraum-Auswahl oben (15M → 15m-Kerzen, 1H → 1h,
-4H → 4h, 24H → 1d, 1W/1M → 1w). Für 1h bleibt alles wie bisher: Die Kachel liest die
+Die Kachel „Marktphase“ folgt der Zeitraum-Auswahl oben (15M und 1H → 1h-Kerzen,
+4H → 4h, 24H → 1d, 1W/1M → 1w). 15m ist bewusst nicht dabei (Entscheid Toby 13.10.2026:
+für Stundenkerzen gewählte Schwellen schlagen dort zu oft um). Für 1h bleibt alles wie bisher: Die Kachel liest die
 gespeicherte Tabelle `market_state_matrix`. Für die anderen Zeitrahmen rechnet die neue
 Funktion `compute_market_state_matrix_latest` den aktuellen Wert live aus den letzten 400
 Kerzen. Es wird nichts zusätzlich gespeichert, und es gibt keinen neuen Cron-Job.
@@ -218,10 +219,10 @@ $function$;
 
 grant execute on function public.compute_market_state_matrix_latest(text, text, text, integer) to anon, authenticated;
 
--- Kontrolle: je eine Zeile, z.B. 15m aktuell, 4h und 1d
-select '15m' tf, timestamp_utc, regime, round(adx_14, 1) adx from public.compute_market_state_matrix_latest('BTCUSDT', '15m')
+-- Kontrolle: je eine Zeile fuer 4h, 1d und 1w
+select '4h' tf, timestamp_utc, regime, round(adx_14, 1) adx from public.compute_market_state_matrix_latest('BTCUSDT', '4h')
 union all
-select '4h', timestamp_utc, regime, round(adx_14, 1) from public.compute_market_state_matrix_latest('BTCUSDT', '4h')
+select '1d', timestamp_utc, regime, round(adx_14, 1) from public.compute_market_state_matrix_latest('BTCUSDT', '1d')
 union all
-select '1d', timestamp_utc, regime, round(adx_14, 1) from public.compute_market_state_matrix_latest('BTCUSDT', '1d');
+select '1w', timestamp_utc, regime, round(adx_14, 1) from public.compute_market_state_matrix_latest('BTCUSDT', '1w');
 ```

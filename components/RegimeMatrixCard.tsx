@@ -116,8 +116,8 @@ export default function RegimeMatrixCard({
   // Zeitrahmen geladen (app/page.tsx).
   timeframe: TimeframeId;
   initialMatrix: MarketStateMatrix | null;
-  // MTF-Ampel (lib/mtfSignal.ts) -- unabhaengig von initialMatrix (nur die
-  // 1H-Regime-Engine), deckt 15M/1H/4H/1D/1W ab.
+  // MTF-Ampel (lib/mtfSignal.ts) -- unabhaengig von initialMatrix (ein
+  // Zeitrahmen), deckt 15M/1H/4H/1D/1W ab.
   initialMtfDots: MtfTimeframeDot[];
   // Kurzfristiger Seitwaerts-Check -- unabhaengig von initialMatrix, kann null
   // sein (z.B. zu wenig 15m-Historie fuer die letzten 16 Bars).

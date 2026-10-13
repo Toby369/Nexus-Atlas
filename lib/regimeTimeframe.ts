@@ -9,10 +9,12 @@ import type { TimeframeId } from "./timeframes";
 // letzten 400 Kerzen -- gleiche Formeln, nichts zusaetzlich gespeichert
 // (siehe docs/research/MARKTPHASE-ZEITRAHMEN_2026-10-13.md).
 
-export type RegimeInterval = "15m" | "1h" | "4h" | "1d" | "1w";
+// 15M zeigt bewusst 1H (Entscheid Toby 13.10.2026): auf 15m-Kerzen schlaegt
+// die fuer Stundenkerzen gewaehlte Schwelle zu oft um.
+export type RegimeInterval = "1h" | "4h" | "1d" | "1w";
 
 const INTERVAL_BY_TIMEFRAME: Record<TimeframeId, RegimeInterval> = {
-  "15M": "15m",
+  "15M": "1h",
   "1H": "1h",
   "4H": "4h",
   "24H": "1d",
@@ -21,7 +23,6 @@ const INTERVAL_BY_TIMEFRAME: Record<TimeframeId, RegimeInterval> = {
 };
 
 export const REGIME_INTERVAL_LABEL: Record<RegimeInterval, string> = {
-  "15m": "15M",
   "1h": "1H",
   "4h": "4H",
   "1d": "1D",
