@@ -604,7 +604,7 @@ export default async function Home({
   // Aussetzer) -- MarketContextCard/SpotPressurePanel und der
   // "Positionierung"-Faktor in HeroHeader zeigen dann ihre jeweiligen
   // "keine Daten"-Zustaende, statt dass die ganze Seite abstuerzt. Der
-  // naechste 30s-Poll im DashboardPollProvider versucht es erneut.
+  // naechste 60s-Poll im DashboardPollProvider versucht es erneut.
   const initialDashboardBundle: DashboardPollBundle = dashboardBundle ?? {
     oi_series: [],
     oi_reference: null,

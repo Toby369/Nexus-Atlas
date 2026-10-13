@@ -180,7 +180,7 @@ export interface OiChangeByExchange {
 }
 
 // Rueckgabe der get_dashboard_poll_bundle-RPC (Phase 2, Punkt 3): buendelt
-// die 30s-Polls von MarketContextCard, SpotPressurePanel und
+// die 60s-Polls von MarketContextCard, SpotPressurePanel und
 // PositioningPanel (vorher 10 unabhaengige Einzel-Requests) zu einem
 // einzigen jsonb-Objekt -- siehe components/DashboardPollProvider.tsx.
 export interface DashboardPollBundle {

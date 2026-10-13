@@ -69,6 +69,27 @@ reine Uhr-/Zeitanzeigen (`TradingHoursBadge`, `ClientTimestamp`, Freshness-Check
 `HeroHeader`, Stale-Check im `LivePriceDataProvider`) und `OfflineBanner` (war schon
 sichtbarkeitsabhängig). Wirkt erst nach dem Vercel-Deploy von `main`; Messung danach.
 
+### Messung 13.10.2026 (24 h, 12.10. 17:30 – 13.10. 17:30 UTC, nach Phase 1 + 3)
+
+| Quelle | 12.10. (Ausgangslage) | 13.10. | Veränderung |
+|---|---|---|---|
+| API-Gateway (`edge_logs`) | 28'850 (davon ~2'750 einmaliger Export) | 18'736 | −35 % (−28 % ohne Export) |
+| Postgres | 8'236 | 6'257 | −24 % |
+| Edge Functions (Konsole) | 5'656 | 4'345 | −23 % |
+| Edge Functions (Aufrufe) | 2'620 | 1'875 | −28 % |
+
+- **News-Funktionen:** nicht mehr unter den 25 grössten Posten (vorher ~8'700/Tag).
+- **Pause bei verstecktem Tab wirkt:** zwischen 19 und 05 UTC kein einziger Browser-Aufruf.
+- **Neuer Hauptposten ist der sichtbare Browser:** ~10'200 Aufrufe an diesem Tag, bis zu
+  ~1'900 pro Stunde bei offener App (1 Gerät). Treiber sind die 30-Sekunden-Abfragen in
+  `LivePriceDataProvider` (3 Abfrageschleifen, 5 Endpunkte) und `DashboardPollProvider`
+  plus CORS-Preflights (`OPTIONS`), obwohl die zugrundeliegenden Sammler nur alle
+  5 Minuten neue Daten schreiben.
+
+**Entscheid Toby 13.10.:** 30-s-Abfragen auf 60 s (`DashboardPollProvider`,
+`LivePriceDataProvider`) → halbiert den grössten verbleibenden Posten; Daten erscheinen
+bis zu 60 s statt 30 s nach dem Sammeln. Umgesetzt im selben PR wie diese Messung.
+
 ## Phase 4 – Takt der Sammler (Entscheid Toby)
 
 5-Min-Sammler (btc, positioning, liquidations, spot-pressure, orderbook,

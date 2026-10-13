@@ -9,7 +9,7 @@ import { ShortDate } from "@/components/ClientTimestamp";
 import { setVisibleInterval } from "@/lib/visibleInterval";
 
 // ETF-Flow-Daten aendern sich hoechstens 1x/Tag (T+1) -- seltenes Polling
-// reicht, kein 30s-Live-Takt noetig wie bei Preis/Positioning.
+// reicht, kein 60s-Live-Takt noetig wie bei Preis/Positioning.
 const REFRESH_INTERVAL_MS = 5 * 60_000;
 const FLOW_LIMIT = 10;
 const CUMULATIVE_DAYS = 5;

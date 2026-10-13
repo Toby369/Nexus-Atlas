@@ -67,7 +67,7 @@ export default function MarketContextCard({
   timeframe: TimeframeId;
 }) {
   // Datenquelle: DashboardPollProvider (Phase 2, Punkt 3) statt eigenem
-  // 30s-Poll -- siehe dortiger Kommentar zur Buendelung mit
+  // 60s-Poll -- siehe dortiger Kommentar zur Buendelung mit
   // PositioningPanel.
   const { bundle, fetchedSinceIso, fetchedAtMs, isLoading } = useDashboardPoll();
   const tf = getTimeframe(timeframe);

@@ -16,7 +16,7 @@ import { setVisibleInterval } from "@/lib/visibleInterval";
 
 // Kalendertermine aendern sich selten und fast immer mit Vorlauf -- deutlich
 // laengeres Poll-Intervall als bei den uebrigen, minuetlich schwankenden
-// Kacheln (vgl. REFRESH_INTERVAL_MS in LivePricePanel.tsx: 30s). Der
+// Kacheln (vgl. REFRESH_INTERVAL_MS in LivePriceDataProvider.tsx: 60s). Der
 // Collector selbst laeuft ohnehin nur 1x taeglich (siehe collect-economic-
 // calendar), haeufigeres Polling waere reine Verschwendung. macro_snapshots
 // (fuer das Ergebnis, siehe fetchLatestMacroValue unten) wird von collect-
