@@ -86,9 +86,9 @@ sichtbarkeitsabhängig). Wirkt erst nach dem Vercel-Deploy von `main`; Messung d
   plus CORS-Preflights (`OPTIONS`), obwohl die zugrundeliegenden Sammler nur alle
   5 Minuten neue Daten schreiben.
 
-Nächster Hebel (Entscheid Toby, Datenaktualität): 30-s-Abfragen auf 60 s → halbiert den
-grössten verbleibenden Posten; Daten erscheinen dann bis zu 60 s statt 30 s nach dem
-Sammeln.
+**Entscheid Toby 13.10.:** 30-s-Abfragen auf 60 s (`DashboardPollProvider`,
+`LivePriceDataProvider`) → halbiert den grössten verbleibenden Posten; Daten erscheinen
+bis zu 60 s statt 30 s nach dem Sammeln. Umgesetzt im selben PR wie diese Messung.
 
 ## Phase 4 – Takt der Sammler (Entscheid Toby)
 

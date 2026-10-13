@@ -28,11 +28,13 @@ import { setVisibleInterval } from "@/lib/visibleInterval";
 // Komponente liest per useLivePriceData() nur den Ausschnitt, den sie
 // braucht, und bleibt unabhaengig verschieb-/groessenbar (DashboardLayout).
 //
-// Absichtlich ein EIGENER Provider statt Anbindung an das 30s-Bundle von
+// Absichtlich ein EIGENER Provider statt Anbindung an das 60s-Bundle von
 // DashboardPollProvider.tsx: die Boersen-Auswahl hier ist nutzergesteuert
 // (nicht immer DEFAULT_SERIES_EXCHANGE).
 
-const REFRESH_INTERVAL_MS = 30_000;
+// 60 s: die Sammler schreiben nur alle 5 Min neue Daten; jeder Abruf ist ein
+// Supabase-Log-Eintrag (Log Ingestion), 30 s holten meist unveraenderte Werte.
+const REFRESH_INTERVAL_MS = 60_000;
 const HISTORY_LIMIT = 180; // ~15 Std bei 5-Min-Takt
 const REFERENCE_EXCHANGE = "bybit";
 const SERIES_MAX_POINTS = 500;
@@ -200,7 +202,7 @@ export default function LivePriceDataProvider({
     isFirstRun.current = false;
 
     // showLoading nur beim allerersten Laden eines Zeitraums true -- sonst
-    // wuerde jeder 30s-Hintergrund-Refresh den Chart kurz durch den
+    // wuerde jeder 60s-Hintergrund-Refresh den Chart kurz durch den
     // "Lade..."-Platzhalter ersetzen (Flackern).
     const load = async (showLoading: boolean) => {
       if (showLoading) setSeriesLoading(true);
