@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { supabase } from "@/lib/supabase";
 import { fetchPriceReferences } from "@/lib/priceChanges";
+import { fetchRegimeMatrix, regimeIntervalFor } from "@/lib/regimeTimeframe";
 import type {
   DashboardPollBundle,
   EconomicCalendarEvent,
@@ -563,6 +564,7 @@ export default async function Home({
     oiByExchange,
     latestTradingViewSignal,
     priceReferences,
+    regimeMatrixForTimeframe,
   ] = await Promise.all([
     getSnapshotHistory(),
     getLatestMarketState(),
@@ -595,6 +597,7 @@ export default async function Home({
     getOiChangeByExchange(timeframeSinceIsoValue),
     getLatestTradingViewSignal(),
     fetchPriceReferences(),
+    fetchRegimeMatrix(regimeIntervalFor(timeframe)),
   ]);
 
   // Fallback, falls das Bundle-RPC fehlschlaegt (z.B. kurzzeitiger DB-
@@ -687,7 +690,8 @@ export default async function Home({
                     "market-context": <MarketContextCard timeframe={timeframe} />,
                     "regime-matrix": (
                       <RegimeMatrixCard
-                        initialMatrix={marketStateMatrix}
+                        timeframe={timeframe}
+                        initialMatrix={regimeMatrixForTimeframe.data}
                         initialMtfDots={mtfDots}
                         initialShortTermRangeCheck={shortTermRangeCheck}
                         marketState={marketState}

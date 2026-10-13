@@ -40,6 +40,8 @@ import { RelativeTime } from "@/components/ClientTimestamp";
 import { fetchMtfDots, type MtfTimeframeDot } from "@/lib/mtfSignal";
 import MtfDotsRow from "@/components/MtfDotsRow";
 import { setVisibleInterval } from "@/lib/visibleInterval";
+import type { TimeframeId } from "@/lib/timeframes";
+import { fetchRegimeMatrix, regimeIntervalFor, REGIME_INTERVAL_LABEL } from "@/lib/regimeTimeframe";
 
 // Regime-Daten aendern sich hoechstens stuendlich (1H-Kerzen-Raster, siehe
 // compute_market_state_matrix_series) -- kein 30s-Live-Takt noetig wie bei
@@ -65,21 +67,6 @@ function SignalBadge({ direction }: { direction: SignalDirection }) {
       ({SIGNAL_DIRECTION_LABEL[direction]})
     </span>
   );
-}
-
-async function fetchLatestMatrix(): Promise<{ data: MarketStateMatrix | null; ok: boolean }> {
-  const { data, error } = await supabase
-    .from("market_state_matrix")
-    .select("*")
-    .order("timestamp_utc", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error("Fehler beim Laden der Market State Matrix:", error.message);
-    return { data: null, ok: false };
-  }
-  return { data, ok: true };
 }
 
 // Kurzfristiger Seitwaerts-Check (siehe lib/types.ts::ShortTermRangeCheck) --
@@ -117,15 +104,20 @@ async function fetchLatestTradingViewSignal(): Promise<TradingViewSignal | null>
 }
 
 export default function RegimeMatrixCard({
+  timeframe,
   initialMatrix,
   initialMtfDots,
   initialShortTermRangeCheck,
   marketState,
   initialTradingViewSignal,
 }: {
+  // Zeitraum-Auswahl oben -> Kerzen-Intervall der Marktphase
+  // (lib/regimeTimeframe.ts). initialMatrix ist bereits fuer diesen
+  // Zeitrahmen geladen (app/page.tsx).
+  timeframe: TimeframeId;
   initialMatrix: MarketStateMatrix | null;
-  // MTF-Ampel (lib/mtfSignal.ts) -- unabhaengig von initialMatrix (nur die
-  // 1H-Regime-Engine), deckt 15M/1H/4H/1D/1W ab.
+  // MTF-Ampel (lib/mtfSignal.ts) -- unabhaengig von initialMatrix (ein
+  // Zeitrahmen), deckt 15M/1H/4H/1D/1W ab.
   initialMtfDots: MtfTimeframeDot[];
   // Kurzfristiger Seitwaerts-Check -- unabhaengig von initialMatrix, kann null
   // sein (z.B. zu wenig 15m-Historie fuer die letzten 16 Bars).
@@ -144,11 +136,20 @@ export default function RegimeMatrixCard({
   const [expanded, setExpanded] = useState(false);
   const [tradingViewSignal, setTradingViewSignal] = useState(initialTradingViewSignal);
   const [shortTermRangeCheck, setShortTermRangeCheck] = useState(initialShortTermRangeCheck);
+  const interval = regimeIntervalFor(timeframe);
+  const intervalLabel = REGIME_INTERVAL_LABEL[interval];
+
+  // Neue Zeitraum-Auswahl -> neuer Server-Render mit passender initialMatrix.
+  const [prevInitialMatrix, setPrevInitialMatrix] = useState(initialMatrix);
+  if (initialMatrix !== prevInitialMatrix) {
+    setPrevInitialMatrix(initialMatrix);
+    setMatrix(initialMatrix);
+  }
 
   useEffect(() => {
     const load = async () => {
       const [{ data, ok }, signal, rangeCheck, dots] = await Promise.all([
-        fetchLatestMatrix(),
+        fetchRegimeMatrix(interval),
         fetchLatestTradingViewSignal(),
         fetchShortTermRangeCheck(),
         fetchMtfDots(),
@@ -161,21 +162,21 @@ export default function RegimeMatrixCard({
     };
     const stopPolling = setVisibleInterval(load, REFRESH_INTERVAL_MS);
     return () => stopPolling();
-  }, []);
+  }, [interval]);
 
   if (!matrix) {
     return (
       <section className="rounded-lg border border-border bg-surface p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
-            Marktphase
+            Marktphase · {intervalLabel}
           </h2>
           <div className="flex items-center gap-2">
             <MtfDotsRow dots={mtfDots} />
             <PanelInfo title="Marktphase" content={marketStateMatrixInfo} />
           </div>
         </div>
-        <p className="text-sm text-text-faint mt-3">Noch keine Regime-Daten vorhanden.</p>
+        <p className="text-sm text-text-faint mt-3">Keine Regime-Daten für {intervalLabel} vorhanden.</p>
       </section>
     );
   }
@@ -215,6 +216,7 @@ export default function RegimeMatrixCard({
   // Trendausweitung zeigt UND diese nicht schon durch die Confidence-Sperre
   // als "Unklar" angezeigt wird (suppressDirectional).
   const showStaleTrendHint =
+    interval === "1h" &&
     !suppressDirectional && isTrendingRegime(matrix.regime) && shortTermRangeCheck?.is_ranging === true;
 
   // Richtungs-Badges fuer die Saeulen-Kennzahlen (siehe lib/marketRegime.ts
@@ -236,7 +238,7 @@ export default function RegimeMatrixCard({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">
-            Marktphase
+            Marktphase · {intervalLabel}
           </h2>
         </div>
         <div className="flex items-center gap-2">
@@ -318,7 +320,7 @@ export default function RegimeMatrixCard({
 
       <p className="text-xs text-text-faint">
         Datenabdeckung:{" "}
-        {matrix.data_coverage_pct !== null ? Math.round(matrix.data_coverage_pct) : "—"}% · 1H-Kerzen
+        {matrix.data_coverage_pct !== null ? Math.round(matrix.data_coverage_pct) : "—"}% · {intervalLabel}-Kerzen
         (Binance)
       </p>
 
