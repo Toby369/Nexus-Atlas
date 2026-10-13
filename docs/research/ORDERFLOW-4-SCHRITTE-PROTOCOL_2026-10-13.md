@@ -252,3 +252,38 @@ Umfeld-Filter gegen V4 getestet (V5 > V4), mit eigenem Nachtrag zu diesem Protok
     Timeout, Tagesregel
   - Übereinstimmung der 1h-Struktur mit `market_features` (Quote im Bericht)
 - Bericht: `docs/research/ORDERFLOW-4-SCHRITTE-RESULTS_<Datum>.md`.
+
+---
+
+## Nachtrag 13.10.2026 — Präzisierungen bei der Umsetzung (vor jedem Ergebnis-Blick)
+
+Beim Bau von `research-python/orderflow_4step/` geklärt. Bis zu diesem Zeitpunkt wurden
+nur Signal-**Anzahlen** gezählt, kein R, keine Trefferquote, kein Trade-Ergebnis.
+
+1. **1h-Struktur hat Lookahead in `market_features`.** `collect-candles::
+   computeMarketStructure` trägt einen Fraktal-Swing bei Kerze j ein, obwohl er erst nach
+   Kerze j+5 feststeht. Weil jeder Lauf die letzten 250 Zeilen neu schreibt, enthält die
+   gespeicherte Historie diesen Blick in die Zukunft. Der Backtest nutzt deshalb
+   `features.causal_structure_trend` (Swing wird erst bei j+5 verarbeitet, sonst
+   identisch). Abgleich: Der 1:1-Port des Originals stimmt zu 100 % mit
+   `market_features.structure_trend` (1h) überein. Die kausale Version weicht bei 12 %
+   der Kerzen ab. Der Live-Wert der jüngsten Kerze ist davon nicht betroffen, nur die
+   Historie.
+2. **Fehlende Regime-Eingänge:** `classify_market_regime` gibt bei fehlenden Werten
+   `UNRESOLVED_NEUTRAL` zurück. Gemäss Abschnitt 2 („fehlende Eingangswerte → kein
+   Long“) wird das als eigenes Label `MISSING` geführt.
+3. **Restposition nach Ziel 1:** Einstands-Stop und Ziel 2 werden ab der Kerze **nach**
+   dem Ziel-1-Treffer geprüft (die Reihenfolge innerhalb der Treffer-Kerze ist unbekannt,
+   und die Einstiegskerze hat ihr Tief immer unter dem Open).
+4. **Stop-Füllung bei Kurslücke:** Öffnet eine Kerze unter dem Stop, wird zum Open
+   gefüllt (schlechter als der Stop). Ziele werden genau zum Zielpreis gefüllt.
+5. **Gleichstände:** POC bei gleichem Volumen = tiefster Preis. Value Area bei gleich
+   grossen Nachbarn = oberer zuerst. Delta-z mit Stichproben-Standardabweichung (ddof=1).
+6. **Volumenprofil für Ziel 1** = Profil der 96 Kerzen vor der Bestätigungskerze
+   (dieselbe Definition wie beim Ort, nur an der Bestätigungskerze ausgewertet).
+7. **Funding-Z-Score nach dem 13.09.2026:** Der As-of-Join liefert den letzten bekannten
+   Wert. Im Test-Abschnitt sind die letzten 2,5 Wochen damit veraltet. Wird im Bericht
+   genannt.
+8. **Einseitiger p-Wert:** `moving_block_bootstrap` liefert einen zweiseitigen Wert. Hier
+   wird einseitig gerechnet: p = Anteil der Replikate mit (Replikat − beobachtet) ≥
+   (beobachtet − 0).
