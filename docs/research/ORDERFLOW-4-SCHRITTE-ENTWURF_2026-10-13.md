@@ -215,14 +215,16 @@ statistischen Edge Wert), aber kein Live-Signal.
 | 4 (optional) | GEX aus `options_snapshots` als zusätzlicher Umfeld-Filter testen | Zusatzbericht |
 | 5 | Nur bei PASS: Live-RPC + Dashboard-Kachel | PR |
 
-## 8. Offene Fragen an Toby
+## 8. Entscheidungen (13.10.2026)
 
-1. **Zeitrahmen:** 4h/1h Kontext und 15m Auslöser einverstanden? Feiner (5m/1m) geht
-   nur mit externen Daten.
-2. **Richtung:** Erst nur Long testen (weniger Varianten, sauberere Statistik) oder von
-   Anfang an beide Richtungen?
-3. **Session-Anker:** Tages-VWAP ab 00:00 UTC oder ab US-Eröffnung (14:30 UTC)?
-4. **Stop/CRV:** Eigene Stop-Logik wie oben oder deine bestehenden Setup-Parameter
-   (20x, SL −0,5 %, TP +1,75 % aus dem Confluence-Protokoll) übernehmen, damit die
-   Ergebnisse vergleichbar sind?
-5. **GEX:** Phase 4 überhaupt, oder gleich streichen?
+Toby hat die offenen Fragen so beantwortet:
+
+1. **Zeitrahmen:** 4h/1h Kontext, 15m Auslöser, wie vorgeschlagen.
+2. **Richtung:** nur Long.
+3. **Session-Anker:** Tages-VWAP ab US-Börseneröffnung (09:30 New York).
+4. **Stop/CRV:** eigene Stop-Logik wie in Abschnitt 4.
+5. **GEX:** als optionale Phase behalten. Phase 0 hat gezeigt, dass `options_snapshots`
+   keine Gamma-Daten je Strike enthält. GEX braucht deshalb einen neuen Sammler (siehe
+   Protokoll, Abschnitt 9).
+
+Verbindliche Fassung: `ORDERFLOW-4-SCHRITTE-PROTOCOL_2026-10-13.md`.
