@@ -323,3 +323,41 @@ der Aufteilung aus Abschnitt 1 also nicht erreichbar, und der Test wäre sicher
 5. **Einmaliger Lauf:** Die Auswertung läuft genau einmal, aus einem sauberen, gepushten
    Commit. Der Commit-Hash steht im Bericht. Danach sind keine Regeländerungen mehr
    zulässig.
+
+---
+
+## Nachtrag 3 — 14.10.2026: Short-Setup (Wunsch Toby, vor dem Blick auf die Long-Ergebnisse)
+
+Geschrieben, während der Long-Bestätigungslauf (Commit `9dfa16e`) noch rechnete. Dessen
+Ergebnisse waren zu diesem Zeitpunkt nicht angesehen, und sie fliessen nicht in diese
+Regeln ein. Das Short-Setup ist die **exakte Spiegelung** des Long-Setups
+(einschliesslich Nachtrag 1 und 2) mit eigener Hypothesenfamilie.
+
+| Schritt | Long (bisher) | Short (neu) |
+|---|---|---|
+| Umfeld, 4h-Regime normal | `TREND_*_BULLISH` | `TREND_EXPANSION_BEARISH`, `TREND_FORMING_BEARISH` |
+| Umfeld, 4h-Regime streng | Squeeze, Neutral, High-Vola-Reversion | dieselben drei |
+| Umfeld, gesperrt | bärische Regime, `MISSING` | bullische Regime, `MISSING` |
+| Umfeld, 1h-Struktur | nicht `bearish` | nicht `bullish` |
+| Umfeld, Funding | kein Long bei z > 2,5 | kein Short bei z < −2,5 (überfüllte Short-Seite) |
+| Ort | Tief ≤ VWAP − kσ oder Tief < VAL | Hoch ≥ VWAP + kσ oder Hoch > VAH (k = 0,5 normal, 1,0 streng) |
+| Absorption | neues Tief unter den 5 Vorkerzen, Delta-z < −1,0, Schluss in oberer Hälfte | neues Hoch über den 5 Vorkerzen, Delta-z > +1,0, Schluss in unterer Hälfte: (Hoch − Schluss)/(Hoch − Tief) ≥ 0,5 |
+| Bestätigung (≤ 3 Kerzen) | Schluss über Absorptions-Hoch, Delta > 0; Verfall bei Tief unter Absorptions-Tief | Schluss unter Absorptions-Tief, Delta < 0; Verfall bei Hoch über Absorptions-Hoch |
+| Stop | Absorptions-Tief − 0,1·ATR | Absorptions-Hoch + 0,1·ATR |
+| Ziel 1 | näherer von VWAP/POC **über** dem Einstieg | näherer von VWAP/POC **unter** dem Einstieg |
+| Ziel 2 | letztes bestätigtes 1h-Swing-Hoch über Ziel 1 | letztes bestätigtes 1h-Swing-Tief (Fraktal, Lookback 20) unter Ziel 1 |
+| Einstands-Stop, Timeout, CRV ≥ 1,5, Stop-zuerst-Regel, Lücken-Füllung | wie Long | gespiegelt |
+| Funding | Long zahlt positive Raten | Short zahlt negative Raten (erhält positive) |
+| Kosten | 0,06 % je Seite | dieselben |
+
+**Kette:** Long und Short laufen als **getrennte** Ketten (je höchstens ein offener Trade
+pro Richtung), wie im Confluence-Protokoll. Die Tagesregel (V4) zählt Verluste je
+Richtung getrennt.
+
+**Varianten und Tests:** V0–V4 und H1–H5 wie in Abschnitt 6/7, angewendet auf die
+Short-Kette. V0-Short: Zufallseinstieg mit Stop = höchstes Hoch der 3 Vorkerzen +
+0,1·ATR. **Eigene Holm-Familie** (H1–H5 Short), Mindest-n 100, Gesamtprobe
+10/2022–09/2026, Zeitabschnitte beschreibend. Zusätzlich beschreibend: die kombinierte
+Long+Short-Tagesreihe für V4.
+
+**Einmaliger Lauf** aus einem sauberen, gepushten Commit, wie Nachtrag 2 Punkt 5.
