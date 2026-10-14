@@ -537,7 +537,10 @@ export function sliceForTrigger(ctx: SystemBriefingContext) {
   const { btc_markt, keyLevels, mein_system_checklist, trading_indicators } = ctx;
   // Tobys TP-Standard je Richtung nach Abstand zum naechsten Keylevel
   // (lib/tpStandard.ts) -- dieselbe Rechnung wie im Lagebild.
-  const tp_standard = computeTpSuggestions(keyLevels, btc_markt.kurs_usd).map(formatTpSuggestion);
+  const daily = (ctx.market_state?.mtf_alignment as { timeframes?: Record<string, number> } | null | undefined)
+    ?.timeframes?.["1d"];
+  const dailyTrend = daily === 1 ? "bullish" : daily === -1 ? "bearish" : null;
+  const tp_standard = computeTpSuggestions(keyLevels, btc_markt.kurs_usd, dailyTrend).map(formatTpSuggestion);
   return { btc_markt, keyLevels, mein_system_checklist, trading_indicators, tp_standard };
 }
 

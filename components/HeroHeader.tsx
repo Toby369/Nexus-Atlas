@@ -424,6 +424,9 @@ export default function HeroHeader({
   );
 
   const mtfCounts = countMtfDirections(mtfDots);
+  // 1D-Trend fuer den TP-Standard (Regelwerk Punkt 13: Gegentrend nur Standard 4).
+  const dailyStatus = mtfDots.find((d) => d.timeframe === "1D")?.status ?? "no_data";
+  const dailyTrend = dailyStatus.startsWith("bullish") ? "bullish" : dailyStatus.startsWith("bearish") ? "bearish" : null;
   const mtfConflict = detectMtfStateConflict(state.overall_state, suppressed, mtfDots);
   const lead = setupLead(setupScore);
   const lean = regimeLean(regimeScore);
@@ -519,7 +522,7 @@ export default function HeroHeader({
       <TradingHoursBadge events={upcomingEconomicEvents} />
       <EconomicHeroBadge events={upcomingEconomicEvents} />
       <DivergenceHeroBadge />
-      <TpStandardBadge suggestions={computeTpSuggestions(keyLevels, livePrice)} />
+      <TpStandardBadge suggestions={computeTpSuggestions(keyLevels, livePrice, dailyTrend)} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
         <div className="rounded-md border border-border bg-surface p-3 space-y-1">
