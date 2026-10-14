@@ -26,7 +26,7 @@ function fixtureContext(overrides: Record<string, unknown> = {}): SystemBriefing
     etf_flows: { cumulative_usd_m: 10, days: 5 },
     positioning: { confidence: 50 },
     news: { count: 2, lookback_hours: 72, schlagzeilen: ["a", "b"] },
-    btc_markt: { kurs_usd: 84250, veraenderung_24h_pct: 1.2, veraenderung_7d_pct: -2.3, hoch_7d_usd: 86000, tief_7d_usd: 82000 },
+    btc_markt: { kurs_usd: 84250, stand_schweiz: "14:30 Uhr", veraenderung_24h_pct: 1.2, veraenderung_7d_pct: -2.3, hoch_7d_usd: 86000, tief_7d_usd: 82000 },
     rsi: { "4h": { aktuell: 56.5, vorher: 45.4 }, "1d": { aktuell: 54.6, vorher: 51.7 } },
     wirtschaftskalender: [],
     triangle: null,
