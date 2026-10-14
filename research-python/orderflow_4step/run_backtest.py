@@ -1,11 +1,11 @@
-"""Ablation V0-V4, Hypothesentests und Sensitivitaet (Protokoll Abschnitte 6-8).
+"""Ablation V0-V4, Hypothesentests und Sensitivitaet (Protokoll Abschnitte 6-8, Nachtrag 2).
 
-Aufruf aus research-python/:
-    python -m orderflow_4step.run_backtest                 # Train + Validation
-    python -m orderflow_4step.run_backtest --open-test     # zusaetzlich Test (einmalig!)
+Aufruf aus research-python/ (einmaliger Bestaetigungslauf, Nachtrag 2 Punkt 5):
+    python -m orderflow_4step.run_backtest --report <pfad.md>
 
-`--open-test` laeuft nur bei sauberem Git-Arbeitsbaum und schreibt den
-Commit-Hash in den Bericht (Protokoll Abschnitt 1).
+Laeuft nur bei sauberem Git-Arbeitsbaum und schreibt den Commit-Hash in den
+Bericht. `--smoke` (nur fuer Entwicklung) erlaubt einen schmutzigen Baum,
+rechnet 2 V0-Laeufe und schreibt nichts aus.
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ def one_sided_p(values: np.ndarray, seed: int) -> tuple[float, float, float, flo
 def describe(trades: pd.DataFrame, days: pd.Series) -> dict:
     if trades.empty:
         return {"trades": 0}
-    monthly = trades.groupby(trades["exit_time"].dt.to_period("M"))["r"].sum()
+    monthly = trades.groupby(trades["exit_time"].dt.tz_localize(None).dt.to_period("M"))["r"].sum()
     equity = trades["r"].cumsum()
     return {
         "trades": len(trades),
@@ -71,24 +71,22 @@ def describe(trades: pd.DataFrame, days: pd.Series) -> dict:
     }
 
 
-def evaluate_split(ds: Dataset, bars: Bars, setups: pd.DataFrame, name: str, v0_runs: int) -> dict:
-    start, end = C.SPLITS[name]
-    split_setups = in_split(setups, start, end)
+def evaluate_period(ds: Dataset, bars: Bars, setups: pd.DataFrame, name: str, start: pd.Timestamp,
+                    end: pd.Timestamp, v0_runs: int, with_tests: bool) -> dict:
+    period_setups = in_split(setups, start, end)
     result: dict = {"name": name, "signals": {}, "variants": {}, "daily": {}, "trades": {}}
     for v in VARIANTS:
-        sel = select_variant(split_setups, v)
-        result["signals"][v] = len(sel)
-        trades = run_variant(ds, bars, split_setups, v)
+        result["signals"][v] = len(select_variant(period_setups, v))
+        trades = run_variant(ds, bars, period_setups, v)
         days = daily_r(trades, start, end)
         result["trades"][v] = trades
         result["daily"][v] = days
         result["variants"][v] = describe(trades, days)
         if not trades.empty:
-            regime_of = split_setups.set_index("entry_pos")["regime"]
+            regime_of = period_setups.set_index("entry_pos")["regime"]
             by_regime = trades.assign(regime=trades["entry_pos"].map(regime_of)).groupby("regime")["r"]
             result["variants"][v]["je_regime"] = by_regime.agg(["count", "mean"]).round(3).to_dict("index")
 
-    rng = np.random.default_rng(C.BOOTSTRAP_SEED)
     n_attempts = result["signals"]["V1"]
     v0_means = []
     for run in range(v0_runs):
@@ -96,8 +94,7 @@ def evaluate_split(ds: Dataset, bars: Bars, setups: pd.DataFrame, name: str, v0_
         trades = trades_frame(run_chain(bars, ds.funding, rs, ds.swing_highs, daily_rule=False))
         v0_means.append(daily_r(trades, start, end).mean())
     result["v0_means"] = np.array(v0_means)
-    del rng
-    result["hypotheses"] = hypotheses(result)
+    result["hypotheses"] = hypotheses(result) if with_tests else None
     return result
 
 
@@ -132,8 +129,7 @@ def hypotheses(result: dict) -> pd.DataFrame:
 
 
 def sensitivity(ds: Dataset, bars: Bars) -> tuple[pd.DataFrame, float | None]:
-    start = C.SPLITS["train"][0]
-    end = C.SPLITS["validation"][1]
+    start, end = C.CONFIRMATORY
     rows = []
     daily_cols = {}
     for dz in C.GRID_DELTA_Z:
@@ -206,39 +202,48 @@ def fmt_split(result: dict) -> str:
                       f"5–95 %: {np.percentile(v0, 5):+.4f} bis {np.percentile(v0, 95):+.4f}"]
     lines += ["", "Ausstiegsgründe V4: " + str(result["variants"]["V4"].get("ausstiege", {})),
               "", "V4 je 4h-Regime (Anzahl, mittleres R): " + str(result["variants"]["V4"].get("je_regime", {})),
-              "", result["hypotheses"].to_markdown(index=False, floatfmt=".4f"), ""]
+              ""]
+    if result["hypotheses"] is not None:
+        lines += [result["hypotheses"].to_markdown(index=False, floatfmt=".4f"), ""]
     return "\n".join(lines)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--open-test", action="store_true")
-    parser.add_argument("--v0-runs", type=int, default=C.V0_RUNS)
-    parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--report", type=Path)
+    parser.add_argument("--smoke", action="store_true")
     args = parser.parse_args()
 
     head, dirty = git_state()
-    splits = ["train", "validation"]
-    if args.open_test:
-        if dirty:
-            raise SystemExit("Test-Abschnitt nur bei sauberem Git-Arbeitsbaum oeffnen (Protokoll Abschnitt 1).")
-        splits.append("test")
+    if dirty and not args.smoke:
+        raise SystemExit("Bestaetigungslauf nur bei sauberem Git-Arbeitsbaum (Nachtrag 2 Punkt 5).")
+    if not args.smoke and args.report is None:
+        raise SystemExit("--report angeben.")
+    v0_runs = 2 if args.smoke else C.V0_RUNS
 
     ds = Dataset.load()
     bars = Bars.from_frame(ds.df15)
     setups = build_setups(ds)
-    parts = [f"Commit: `{head}`{' (Arbeitsbaum mit Änderungen)' if dirty else ''}", "",
-             structure_agreement(ds), ""]
-    for name in splits:
-        result = evaluate_split(ds, bars, setups, name, args.v0_runs)
-        parts.append(fmt_split(result))
-        for v in VARIANTS:
-            result["trades"][v].to_csv(ensure_output_dir() / f"trades_{name}_{v}.csv",
-                                       index=False)
+    parts = [f"Commit: `{head}`", "", structure_agreement(ds), "", "## Bestätigungsprobe", ""]
+    start, end = C.CONFIRMATORY
+    main_result = evaluate_period(ds, bars, setups, "Gesamt 10/2022–09/2026", start, end, v0_runs, True)
+    parts.append(fmt_split(main_result))
+    results = {"gesamt": main_result}
+    parts += ["## Zeitabschnitte (beschreibend)", ""]
+    for name, (p_start, p_end) in C.SPLITS.items():
+        results[name] = evaluate_period(ds, bars, setups, name, p_start, p_end, 0, False)
+        parts.append(fmt_split(results[name]))
     table, pbo = sensitivity(ds, bars)
-    parts += ["### Sensitivität V4 (Train + Validation, deskriptiv)", "",
+    parts += ["## Sensitivität V4 (Gesamtprobe, beschreibend)", "",
               table.to_markdown(index=False, floatfmt=".4f"), "",
               f"PBO (CSCV, {C.PBO_GROUPS} Gruppen): {pbo if pbo is not None else 'nicht berechenbar'}", ""]
+    if args.smoke:
+        print("Smoke-Lauf ohne Fehler beendet.")
+        return
+    out = ensure_output_dir()
+    for name, res in results.items():
+        for v in VARIANTS:
+            res["trades"][v].to_csv(out / f"trades_{name}_{v}.csv", index=False)
     args.report.write_text("\n".join(parts))
     print("\n".join(parts))
 

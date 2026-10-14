@@ -16,6 +16,8 @@ SPLITS: dict[str, tuple[pd.Timestamp, pd.Timestamp]] = {
     "validation": (pd.Timestamp("2024-10-01", tz="UTC"), pd.Timestamp("2025-10-01", tz="UTC")),
     "test": (pd.Timestamp("2025-10-01", tz="UTC"), pd.Timestamp("2026-10-01", tz="UTC")),
 }
+# Nachtrag 2 (14.10.2026): Bestaetigungsprobe = ganze Historie; SPLITS nur noch beschreibend
+CONFIRMATORY = (pd.Timestamp("2022-10-01", tz="UTC"), pd.Timestamp("2026-10-01", tz="UTC"))
 
 # --- Abschnitt 2: Umfeld ----------------------------------------------------
 REGIMES_NORMAL = ("TREND_EXPANSION_BULLISH", "TREND_FORMING_BULLISH")
@@ -38,8 +40,8 @@ VALUE_AREA_SHARE = 0.70
 
 # --- Abschnitt 4: Bestaetigung ----------------------------------------------
 DELTA_Z_WINDOW = 96
-DELTA_Z_MAX = -1.5
-NEW_LOW_LOOKBACK = 8
+DELTA_Z_MAX = -1.0  # Nachtrag 2: vorher -1.5
+NEW_LOW_LOOKBACK = 5  # Nachtrag 2: vorher 8
 CLOSE_POSITION_MIN = 0.5
 CONFIRM_WITHIN = 3
 

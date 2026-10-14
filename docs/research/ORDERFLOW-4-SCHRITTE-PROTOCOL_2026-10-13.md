@@ -287,3 +287,39 @@ nur Signal-**Anzahlen** gezählt, kein R, keine Trefferquote, kein Trade-Ergebni
 8. **Einseitiger p-Wert:** `moving_block_bootstrap` liefert einen zweiseitigen Wert. Hier
    wird einseitig gerechnet: p = Anteil der Replikate mit (Replikat − beobachtet) ≥
    (beobachtet − 0).
+
+---
+
+## Nachtrag 2 — 14.10.2026: Stichprobe (Entscheid Toby, vor jedem Ergebnis-Blick)
+
+**Anlass:** Beim Zählen der Signale (nur Anzahlen, kein Ergebnis) zeigte sich, dass V3
+im gesperrten Test-Jahr nur 11 Signale hat. Auch mit den lockersten Parametern aus
+Abschnitt 8 sind es höchstens rund 50. Das Mindest-n von 100 Trades (Abschnitt 7) ist mit
+der Aufteilung aus Abschnitt 1 also nicht erreichbar, und der Test wäre sicher
+`INSUFFICIENT_DATA` gewesen.
+
+| Variante (Signale) | Train | Validation | Test |
+|---|---|---|---|
+| Original (z ≤ −1,5, Lookback 8): V1 / V3 | 155 / 36 | 74 / 14 | 75 / 11 |
+| Neu (z ≤ −1,0, Lookback 5): V1 / V3 | 292 / 61 | 133 / 24 | 137 / 21 |
+
+**Änderungen:**
+
+1. **Ganze Historie als eine Bestätigungsprobe:** 01.10.2022 – 30.09.2026. Das ist
+   zulässig, weil keine Parameter an Daten angepasst werden. Train und Validation wurden
+   bisher nur für Code-Tests auf synthetischen Daten und zum Zählen von Signalen
+   genutzt, nie für Ergebnisse. Die Hypothesen H1–H5 (Abschnitt 7) werden auf dieser
+   Gesamtprobe getestet. Die drei Zeitabschnitte werden zusätzlich **beschreibend**
+   ausgewiesen (Stabilität über die Zeit).
+2. **Auslöser nur wegen der Häufigkeit gelockert:** Delta-z-Schwelle −1,0 statt −1,5,
+   Lookback für neues Tief 5 statt 8. Beide Werte kommen aus dem schon vorregistrierten
+   Raster (Abschnitt 8). Gewählt wurde allein nach der Signalanzahl, ohne Blick auf
+   Ergebnisse. σ-Abstand bleibt 0,5.
+3. **Unverändert:** Mindest-n = 100 Trades (V4 bzw. kleinere Variante je Vergleich),
+   Holm-Korrektur, Bootstrap-Einstellungen, alle übrigen Regeln. Wird das Mindest-n nicht
+   erreicht, lautet das Ergebnis `INSUFFICIENT_DATA`.
+4. **Sensitivität (Abschnitt 8)** wird auf der Gesamtprobe gerechnet, weiterhin nur
+   beschreibend, mit PBO.
+5. **Einmaliger Lauf:** Die Auswertung läuft genau einmal, aus einem sauberen, gepushten
+   Commit. Der Commit-Hash steht im Bericht. Danach sind keine Regeländerungen mehr
+   zulässig.
