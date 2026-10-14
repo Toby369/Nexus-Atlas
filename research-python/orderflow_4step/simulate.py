@@ -65,22 +65,28 @@ def pick_targets(entry: float, vwap: float, poc: float, swing_prices: np.ndarray
     return t1, t2
 
 
-def _funding_cost(funding: pd.Series, start: pd.Timestamp, end: pd.Timestamp) -> float:
-    """Summe der Funding-Raten fuer alle 8h-Zeitpunkte in (start, end]; Long zahlt positive Raten."""
+def _funding_cost(funding: pd.Series, start: pd.Timestamp, end: pd.Timestamp,
+                  fallback: float = C.FUNDING_FALLBACK) -> float:
+    """Summe der Funding-Raten fuer alle 8h-Zeitpunkte in (start, end]; Long zahlt positive Raten.
+
+    Fuer Short wird die gespiegelte (negierte) Reihe mit negiertem Ersatzwert uebergeben.
+    """
     first = start.floor("8h") + pd.Timedelta(hours=8)
     if first > end:
         return 0.0
     times = pd.date_range(first, end, freq="8h")
     rates = funding.reindex(times)
-    return float(rates.fillna(C.FUNDING_FALLBACK).sum())
+    return float(rates.fillna(fallback).sum())
 
 
 def _half_return(entry: float, exit_price: float, funding_paid: float) -> float:
-    return (exit_price - entry) / entry - COST_PER_SIDE * (1.0 + exit_price / entry) - funding_paid
+    """Netto-Rendite einer Haelfte. Mit abs(entry) gilt die Formel auch fuer gespiegelte
+    (negierte) Short-Preise: (-X + E) / E = Short-Gewinn."""
+    return (exit_price - entry) / abs(entry) - COST_PER_SIDE * (1.0 + exit_price / entry) - funding_paid
 
 
-def simulate_trade(bars: Bars, funding: pd.Series, entry_pos: int, stop: float, t1: float, t2: float
-                   ) -> Trade | None:
+def simulate_trade(bars: Bars, funding: pd.Series, entry_pos: int, stop: float, t1: float, t2: float,
+                   funding_fallback: float = C.FUNDING_FALLBACK) -> Trade | None:
     """Einen Trade ab Open von `entry_pos` durchspielen. None, wenn er nach den Einstiegsregeln entfaellt."""
     n = len(bars.open)
     if entry_pos >= n:
@@ -135,15 +141,15 @@ def simulate_trade(bars: Bars, funding: pd.Series, entry_pos: int, stop: float, 
     r_total = 0.0
     for price, pos in exits:
         exit_time = bars.open_time[pos] + pd.Timedelta(minutes=15)
-        paid = _funding_cost(funding, entry_time, exit_time)
-        r_total += C.PARTIAL_SHARE * _half_return(entry, price, paid) / (risk / entry)
+        paid = _funding_cost(funding, entry_time, exit_time, funding_fallback)
+        r_total += C.PARTIAL_SHARE * _half_return(entry, price, paid) / (risk / abs(entry))
     final_pos = max(pos for _, pos in exits)
     return Trade(entry_pos, entry_time, bars.open_time[final_pos] + pd.Timedelta(minutes=15), final_pos, entry,
                  stop, t1, t2, r_total, is_loss, reason)
 
 
 def run_chain(bars: Bars, funding: pd.Series, setups: pd.DataFrame, swing_highs: pd.DataFrame,
-              daily_rule: bool) -> list[Trade]:
+              daily_rule: bool, funding_fallback: float = C.FUNDING_FALLBACK) -> list[Trade]:
     """Setups sequenziell abarbeiten: hoechstens ein offener Trade, optional Tagesregel.
 
     `setups` braucht Spalten entry_pos, stop, vwap_c, poc_c, sortiert nach entry_pos.
@@ -166,7 +172,7 @@ def run_chain(bars: Bars, funding: pd.Series, setups: pd.DataFrame, swing_highs:
             continue
         known = pivot_prices[pivot_confirm <= entry_time.to_datetime64()]
         t1, t2 = pick_targets(float(bars.open[e]), row.vwap_c, row.poc_c, known)
-        trade = simulate_trade(bars, funding, e, float(row.stop), t1, t2)
+        trade = simulate_trade(bars, funding, e, float(row.stop), t1, t2, funding_fallback)
         if trade is None:
             continue
         trades.append(trade)
@@ -180,7 +186,12 @@ def run_chain(bars: Bars, funding: pd.Series, setups: pd.DataFrame, swing_highs:
 
 
 def trades_frame(trades: list[Trade]) -> pd.DataFrame:
-    return pd.DataFrame([t.__dict__ for t in trades])
+    """Preise als Betraege (bei Short liegen sie in der Simulation gespiegelt/negiert vor)."""
+    df = pd.DataFrame([t.__dict__ for t in trades])
+    for col in ("entry", "stop", "t1", "t2"):
+        if col in df:
+            df[col] = df[col].abs()
+    return df
 
 
 def daily_r(trades: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> pd.Series:

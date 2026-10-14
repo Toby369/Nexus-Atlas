@@ -20,7 +20,7 @@ from statsmodels.stats.multitest import multipletests
 
 from orderflow_4step import config as C
 from orderflow_4step.signals import (
-    Dataset, build_setups, ensure_output_dir, in_split, random_setups, select_variant,
+    Dataset, build_setups, ensure_output_dir, in_split, mirror_regime, mirrored, random_setups, select_variant,
 )
 from orderflow_4step.simulate import Bars, daily_r, run_chain, trades_frame
 from src.validation.block_bootstrap import moving_block_bootstrap
@@ -31,7 +31,8 @@ VARIANTS = ("V1", "V2", "V3", "V4")
 
 def run_variant(ds: Dataset, bars: Bars, setups: pd.DataFrame, variant: str) -> pd.DataFrame:
     chosen = select_variant(setups, variant)
-    return trades_frame(run_chain(bars, ds.funding, chosen, ds.swing_highs, daily_rule=variant == "V4"))
+    return trades_frame(run_chain(bars, ds.funding, chosen, ds.swing_highs, daily_rule=variant == "V4",
+                                 funding_fallback=ds.funding_fallback))
 
 
 def one_sided_p(values: np.ndarray, seed: int) -> tuple[float, float, float, float]:
@@ -84,6 +85,8 @@ def evaluate_period(ds: Dataset, bars: Bars, setups: pd.DataFrame, name: str, st
         result["variants"][v] = describe(trades, days)
         if not trades.empty:
             regime_of = period_setups.set_index("entry_pos")["regime"]
+            if ds.direction == "short":  # Labels zurueck in Marktrichtung
+                regime_of = regime_of.map(mirror_regime)
             by_regime = trades.assign(regime=trades["entry_pos"].map(regime_of)).groupby("regime")["r"]
             result["variants"][v]["je_regime"] = by_regime.agg(["count", "mean"]).round(3).to_dict("index")
 
@@ -91,7 +94,8 @@ def evaluate_period(ds: Dataset, bars: Bars, setups: pd.DataFrame, name: str, st
     v0_means = []
     for run in range(v0_runs):
         rs = random_setups(ds, start, end, n_attempts, np.random.default_rng(run))
-        trades = trades_frame(run_chain(bars, ds.funding, rs, ds.swing_highs, daily_rule=False))
+        trades = trades_frame(run_chain(bars, ds.funding, rs, ds.swing_highs, daily_rule=False,
+                                        funding_fallback=ds.funding_fallback))
         v0_means.append(daily_r(trades, start, end).mean())
     result["v0_means"] = np.array(v0_means)
     result["hypotheses"] = hypotheses(result) if with_tests else None
@@ -175,6 +179,29 @@ def structure_agreement(ds: Dataset) -> str:
             f"Kausal um {C.STRUCTURE_SWING_LOOKBACK} Kerzen vorgezogen vs. gespeichert: {same_shift:.1%}.")
 
 
+def combined_v4(long_ds: Dataset, short_result: dict) -> list[str]:
+    """Long+Short V4 zusammen (beschreibend, Nachtrag 3). Rechnet Long V4 neu und prueft,
+    dass es mit dem gespeicherten Long-Lauf uebereinstimmt (Regressionstest der Spiegelung)."""
+    start, end = C.CONFIRMATORY
+    bars = Bars.from_frame(long_ds.df15)
+    long_trades = run_variant(long_ds, bars, in_split(build_setups(long_ds), start, end), "V4")
+    saved = ensure_output_dir() / "trades_gesamt_V4.csv"
+    check = "keine gespeicherte Long-Datei gefunden"
+    if saved.exists():
+        stored = pd.read_csv(saved)
+        same = len(stored) == len(long_trades) and np.allclose(stored["r"].to_numpy(), long_trades["r"].to_numpy())
+        check = "identisch mit dem Long-Lauf" if same else "**ABWEICHUNG zum Long-Lauf**"
+    long_days = daily_r(long_trades, start, end)
+    short_days = short_result["daily"]["V4"]
+    both = long_days.add(short_days, fill_value=0.0)
+    obs, lo, hi, p = one_sided_p(both.to_numpy(), C.BOOTSTRAP_SEED)
+    return ["## Long + Short V4 kombiniert (beschreibend)", "",
+            f"Long-V4 neu gerechnet: {len(long_trades)} Trades, {check}.",
+            f"Kombiniert: {len(long_trades) + short_result['variants']['V4'].get('trades', 0)} Trades, "
+            f"R je Tag {obs:+.4f} (95 %-KI {lo:+.4f} bis {hi:+.4f}), einseitiges p {p:.4f}, R Summe {both.sum():+.2f}.",
+            ""]
+
+
 def git_state() -> tuple[str, bool]:
     root = Path(__file__).resolve().parents[2]
     head = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
@@ -212,6 +239,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--report", type=Path)
     parser.add_argument("--smoke", action="store_true")
+    parser.add_argument("--direction", choices=("long", "short"), default="long")
     args = parser.parse_args()
 
     head, dirty = git_state()
@@ -221,10 +249,12 @@ def main() -> None:
         raise SystemExit("--report angeben.")
     v0_runs = 2 if args.smoke else C.V0_RUNS
 
-    ds = Dataset.load()
+    long_ds = Dataset.load()
+    ds = long_ds if args.direction == "long" else mirrored(long_ds)
     bars = Bars.from_frame(ds.df15)
     setups = build_setups(ds)
-    parts = [f"Commit: `{head}`", "", structure_agreement(ds), "", "## Bestätigungsprobe", ""]
+    parts = [f"Commit: `{head}` · Richtung: **{args.direction}**", "", structure_agreement(long_ds), "",
+             "## Bestätigungsprobe", ""]
     start, end = C.CONFIRMATORY
     main_result = evaluate_period(ds, bars, setups, "Gesamt 10/2022–09/2026", start, end, v0_runs, True)
     parts.append(fmt_split(main_result))
@@ -233,6 +263,8 @@ def main() -> None:
     for name, (p_start, p_end) in C.SPLITS.items():
         results[name] = evaluate_period(ds, bars, setups, name, p_start, p_end, 0, False)
         parts.append(fmt_split(results[name]))
+    if args.direction == "short":
+        parts += combined_v4(long_ds, main_result)
     table, pbo = sensitivity(ds, bars)
     parts += ["## Sensitivität V4 (Gesamtprobe, beschreibend)", "",
               table.to_markdown(index=False, floatfmt=".4f"), "",
@@ -243,7 +275,8 @@ def main() -> None:
     out = ensure_output_dir()
     for name, res in results.items():
         for v in VARIANTS:
-            res["trades"][v].to_csv(out / f"trades_{name}_{v}.csv", index=False)
+            suffix = "" if args.direction == "long" else "_short"
+            res["trades"][v].to_csv(out / f"trades_{name}_{v}{suffix}.csv", index=False)
     args.report.write_text("\n".join(parts))
     print("\n".join(parts))
 

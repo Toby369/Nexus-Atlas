@@ -33,6 +33,8 @@ class Dataset:
     funding_z: pd.Series = field(init=False)
     swing_highs: pd.DataFrame = field(init=False)
     profile: pd.DataFrame | None = None
+    direction: str = "long"
+    funding_fallback: float = C.FUNDING_FALLBACK
 
     def __post_init__(self) -> None:
         self.vwap = F.session_vwap(self.df15)
@@ -62,6 +64,58 @@ class Dataset:
         if cache_profile and profile is None:
             ds.profile.to_csv(cache)
         return ds
+
+
+_REGIME_MIRROR = {
+    "TREND_EXPANSION_BULLISH": "TREND_EXPANSION_BEARISH",
+    "TREND_EXPANSION_BEARISH": "TREND_EXPANSION_BULLISH",
+    "TREND_FORMING_BULLISH": "TREND_FORMING_BEARISH",
+    "TREND_FORMING_BEARISH": "TREND_FORMING_BULLISH",
+}
+
+
+def mirror_regime(regime: object) -> object:
+    return _REGIME_MIRROR.get(regime, regime)
+
+
+def _mirror_ohlc(df: pd.DataFrame) -> pd.DataFrame:
+    out = pd.DataFrame(
+        {"open": -df["open"], "high": -df["low"], "low": -df["high"], "close": -df["close"], "volume": df["volume"]},
+        index=df.index,
+    )
+    if "taker_buy_base_vol" in df:
+        out["taker_buy_base_vol"] = df["volume"] - df["taker_buy_base_vol"]
+    return out
+
+
+def mirrored(ds: Dataset) -> Dataset:
+    """Short-Sicht (Protokoll Nachtrag 3): Hoch/Tief getauscht, Preise und Delta negiert,
+    Funding negiert, Regime-Richtungen getauscht. Damit gelten die Long-Regeln 1:1 als
+    gespiegelte Short-Regeln. 4h-Regime und Volumenprofil werden aus dem Original
+    uebernommen und nur umbenannt bzw. gespiegelt (Bollinger-Bandbreite und
+    Bucket-Raster sind fuer negative Preise nicht definiert).
+    """
+    m = object.__new__(Dataset)
+    m.df15 = _mirror_ohlc(ds.df15)
+    m.df1h = _mirror_ohlc(ds.df1h)
+    m.df4h = ds.df4h
+    m.funding = -ds.funding
+    m.vwap = pd.DataFrame({"vwap": -ds.vwap["vwap"], "vwap_sigma": ds.vwap["vwap_sigma"],
+                           "vwap_bars": ds.vwap["vwap_bars"]}, index=ds.vwap.index)
+    m.delta = -ds.delta
+    m.delta_z = -ds.delta_z
+    m.atr = ds.atr
+    m.regime4h = ds.regime4h.map(mirror_regime)
+    m.structure1h = pd.Series(
+        F.causal_structure_trend(m.df1h["high"].to_numpy(), m.df1h["low"].to_numpy()), index=ds.df1h.index
+    )
+    m.funding_z = -ds.funding_z
+    m.swing_highs = F.confirmed_swing_highs(m.df1h)
+    m.profile = pd.DataFrame({"poc": -ds.profile["poc"], "val": -ds.profile["vah"], "vah": -ds.profile["val"]},
+                             index=ds.profile.index)
+    m.direction = "short"
+    m.funding_fallback = -C.FUNDING_FALLBACK
+    return m
 
 
 def env_class(regime: object) -> str:
