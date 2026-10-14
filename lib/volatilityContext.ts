@@ -19,11 +19,14 @@ import {
   classifyIvRvSpread,
   classifySkew,
   expectedDailyMovePct,
+  expectedRange,
   percentileRank,
   realizedVolPct,
   thirtyDayOptions,
   type Assessment,
   type DeribitOptionSummary,
+  type ExpectedRange,
+  type SkewAssessment,
   type ThirtyDayOptions,
 } from "./volatility";
 
@@ -33,6 +36,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // Einordnung des DVOL gegen das letzte Jahr (Tagesschluesse).
 const DVOL_HISTORY_DAYS = 365;
 const RV_SHORT_HOURS = 7 * 24;
+const RANGE_DAYS = [1, 7, 30];
 const RV_LONG_HOURS = 30 * 24;
 
 export interface VolatilitySnapshot {
@@ -42,8 +46,10 @@ export interface VolatilitySnapshot {
   dvolAssessment: Assessment | null;
   expectedDailyMovePct: number | null;
   expectedDailyMoveUsd: number | null;
+  // 1-Sigma-Spannen fuer 1, 7 und 30 Tage aus dem DVOL (30-Tage-Erwartung).
+  expectedRanges: ExpectedRange[];
   options30d: ThirtyDayOptions | null;
-  skewAssessment: Assessment | null;
+  skewAssessment: SkewAssessment | null;
   realizedVol7d: number | null;
   realizedVol30d: number | null;
   ivRvSpread: number | null;
@@ -145,6 +151,8 @@ export async function buildVolatilitySnapshot(nowMs: number = Date.now()): Promi
     dvolAssessment: dvolPercentile1y !== null && history.length >= 180 ? classifyDvolPercentile(dvolPercentile1y) : null,
     expectedDailyMovePct: dailyMovePct,
     expectedDailyMoveUsd: dailyMovePct !== null && price !== null ? (price * dailyMovePct) / 100 : null,
+    expectedRanges:
+      dvol !== null && price !== null ? RANGE_DAYS.map((d) => expectedRange(price, dvol, d)) : [],
     options30d,
     skewAssessment: options30d?.skew != null ? classifySkew(options30d.skew) : null,
     realizedVol7d,

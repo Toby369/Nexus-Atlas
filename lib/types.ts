@@ -460,7 +460,7 @@ export interface KnowledgeBaseEntry {
 // create_checklist_runs_table.
 export interface ChecklistRun {
   id: number;
-  module: "welz" | "salomon" | "mein_system";
+  module: "welz" | "salomon" | "mein_system" | "orderflow";
   checked_items: string[];
   checked_count: number;
   total_count: number;

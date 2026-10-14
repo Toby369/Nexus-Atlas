@@ -157,9 +157,33 @@ export function expectedDailyMovePct(annualVolPct: number): number {
   return annualVolPct / Math.sqrt(365);
 }
 
+export interface ExpectedRange {
+  days: number;
+  movePct: number;
+  low: number;
+  high: number;
+}
+
+// 1-Sigma-Spanne (rund 68 % Wahrscheinlichkeit laut Optionspreisen) fuer
+// `days` Tage aus einer annualisierten Volatilitaet. Log-symmetrisch
+// (Kurs * e^(+/- sigma * sqrt(t))), wie bei Optionsmodellen ueblich -- eine
+// einfache +/- Rechnung wuerde die Spanne nach unten leicht ueberzeichnen.
+export function expectedRange(price: number, annualVolPct: number, days: number): ExpectedRange {
+  const sigma = (annualVolPct / 100) * Math.sqrt(days / 365);
+  return { days, movePct: sigma * 100, low: price * Math.exp(-sigma), high: price * Math.exp(sigma) };
+}
+
+export type SkewDirection = "up" | "down" | "flat";
+
 export interface Assessment {
   tone: VolTone;
   label: string;
+}
+
+export interface SkewAssessment extends Assessment {
+  // Richtung, in die der Optionsmarkt gerade eher Geld setzt (Stimmung, keine
+  // Prognose): Calls teurer -> "up", Puts teurer -> "down", sonst "flat".
+  direction: SkewDirection;
 }
 
 export function classifyDvolPercentile(pct: number): Assessment {
@@ -176,8 +200,8 @@ export function classifyIvRvSpread(spread: number): Assessment {
 }
 
 // Skew = IV(Put 10 % OTM) - IV(Call 10 % OTM), in Volatilitaetspunkten.
-export function classifySkew(skew: number): Assessment {
-  if (skew > 5) return { tone: "watch", label: "Puts teurer – Absicherung nach unten gefragt" };
-  if (skew < -2) return { tone: "watch", label: "Calls teurer – Spekulation nach oben gefragt" };
-  return { tone: "calm", label: "Ausgeglichen" };
+export function classifySkew(skew: number): SkewAssessment {
+  if (skew > 5) return { tone: "watch", label: "Puts teurer – Absicherung nach unten gefragt", direction: "down" };
+  if (skew < -2) return { tone: "watch", label: "Calls teurer – Spekulation nach oben gefragt", direction: "up" };
+  return { tone: "calm", label: "Ausgeglichen", direction: "flat" };
 }

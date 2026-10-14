@@ -13,12 +13,12 @@ import LevelStructureCard from "@/components/LevelStructureCard";
 import GrundlagenPanel from "@/components/lernen/GrundlagenPanel";
 import PositionSizeCalculator from "@/components/lernen/grundlagen/PositionSizeCalculator";
 
-// --- Wissen (Grundlagen/Welz/Salomon/Mein System) --------------------------
+// --- Wissen (Grundlagen/Welz/Salomon/Mein System/Orderflow) ---------------
 // Nachschlage-Sektion aus knowledge_base (statischer Text, siehe
-// lib/knowledgeBaseContext.ts) + drei Checklisten. Der Checkbox-Zustand ist
+// lib/knowledgeBaseContext.ts) + vier Checklisten. Der Checkbox-Zustand ist
 // bewusst nur lokaler React-State -- eine Momentaufnahme je Aufruf.
 
-type WissenModule = "grundlagen" | "welz" | "salomon" | "mein_system";
+type WissenModule = "grundlagen" | "welz" | "salomon" | "mein_system" | "orderflow";
 
 const WELZ_CHECKLIST = [
   "Trading-Journal ist aktuell geführt",
@@ -43,6 +43,72 @@ const MEIN_SYSTEM_MANUAL_CHECKLIST = [
   "RSI/StochRSI-Divergenz-Check auf 4H",
 ];
 
+// Orderflow-4-Schritte (Video Chris Creamer, "Robbins Cup"-Strategie). Als
+// Prozess-Disziplin gedacht, NICHT als belegter Edge: der Backtest
+// (docs/research/ORDERFLOW-4-SCHRITTE-RESULTS_2026-10-14.md und
+// ORDERFLOW-VARIANTEN-B-C-RESULTS_2026-10-14.md) fand auf BTC-Perps keinen
+// Vorteil, Ort- und Umfeld-Filter brachten in keinem Lauf einen Mehrwert.
+const ORDERFLOW_SECTIONS: { title: string; items: string[] }[] = [
+  {
+    title: "1 · Umfeld",
+    items: [
+      "Struktur auf 4h/1h bestimmt (höhere Hochs/Tiefs, tiefere oder Range)",
+      "Handelsrichtung für heute festgelegt – oder bewusst kein Trade",
+      "Volatilitäts-Lage geprüft (DVOL-Perzentil, Implizit vs. realisiert, Skew)",
+      "Funding nicht extrem gegen meine Richtung (keine überfüllte Seite)",
+    ],
+  },
+  {
+    title: "2 · Ort",
+    items: [
+      "VWAP, Value Area (VAH/POC/VAL) und letzte Hochs/Tiefs eingezeichnet",
+      "Long nur im Discount (unter VWAP/VAL), Short nur im Premium",
+      "Kurs ist tatsächlich in der Zone – sonst warten",
+    ],
+  },
+  {
+    title: "3 · Bestätigung",
+    items: [
+      "Absorption sichtbar: neues Extrem mit starkem Gegen-Delta, Kerze schliesst weg vom Extrem",
+      "Dominanzwechsel: kein neues Extrem mehr, Delta dreht, Schluss über/unter der Absorptionskerze",
+      "Einstieg erst nach der Bestätigung, nicht beim ersten Kontakt mit der Zone",
+    ],
+  },
+  {
+    title: "4 · Risiko",
+    items: [
+      "Stop hinter dem gescheiterten Extrem (+ kleiner Puffer)",
+      "Ziel 1 (POC/VWAP) und Ziel 2 (Swing / anderer VA-Rand) gesetzt",
+      "Chance-Risiko mindestens 1,5 bis Ziel 1 – sonst kein Trade",
+      "Positionsgrösse aus dem Risiko berechnet, nicht aus dem Bauch",
+      "Heute noch keine 2 Verluste in Folge (sonst Schluss für heute)",
+    ],
+  },
+];
+const ORDERFLOW_CHECKLIST = ORDERFLOW_SECTIONS.flatMap((s) => s.items);
+
+function OrderflowIntro() {
+  return (
+    <div className="rounded-lg border border-border bg-surface-raised p-3 space-y-1.5">
+      <p className="text-xs font-medium text-text">Orderflow in 4 Schritten</p>
+      <p className="text-xs text-text-muted">
+        Umfeld → Ort → Bestätigung → Risiko. Jeder Schritt filtert, der nächste kommt erst, wenn der vorherige erfüllt
+        ist. Ein Trade ist gut ausgeführt, wenn alle Punkte erfüllt waren – unabhängig davon, wie er ausgeht.
+      </p>
+      <p className="text-xs text-text-muted">
+        Die Checkliste ist ein Prozess-Raster, kein belegter Vorteil: Im Nexus-Backtest auf BTC-Perps (2022–2026) war
+        das Setup nicht profitabel, und Ort- und Umfeld-Filter haben in keiner Variante geholfen. Nach der Bestätigung
+        liegt der Kurs oft schon so nah am Ziel, dass das Chance-Risiko nicht mehr aufgeht – genau das prüft der
+        letzte Block.
+      </p>
+      <p className="text-[10px] text-text-faint">
+        Quelle: Video „Trading World Champion Reveals the Orderflow Strategy“ (Chris Creamer); Backtest siehe
+        docs/research/ORDERFLOW-*.
+      </p>
+    </div>
+  );
+}
+
 // Der Haken-Zustand bleibt lokaler State (kein Autosave pro Klick); ein
 // "Fertig"-Klick schreibt einen Snapshot nach checklist_runs (siehe
 // /api/checklist/runs). Nur "wann wie vollstaendig durchgegangen" -- bewusst
@@ -53,16 +119,25 @@ function ChecklistBlock({
   module,
   history,
   onSaved,
+  sections,
 }: {
   title: string;
   items: string[];
   module: WissenModule;
   history: ChecklistRun[];
   onSaved: () => void;
+  // Optionale Zwischentitel: die Punkte stehen in `items` in derselben Reihenfolge.
+  sections?: { title: string; items: string[] }[];
 }) {
   const [checked, setChecked] = useState<Record<number, boolean>>({});
   const [saving, setSaving] = useState(false);
   const doneCount = Object.values(checked).filter(Boolean).length;
+  const sectionStarts = new Map<number, string>();
+  let offset = 0;
+  for (const section of sections ?? []) {
+    sectionStarts.set(offset, section.title);
+    offset += section.items.length;
+  }
 
   async function save() {
     if (saving) return;
@@ -96,17 +171,25 @@ function ChecklistBlock({
           {saving ? "Speichern…" : "Fertig"}
         </button>
       </div>
-      {items.map((item, i) => (
-        <label key={i} className="flex items-start gap-2 text-xs text-text-muted cursor-pointer">
-          <input
-            type="checkbox"
-            checked={checked[i] ?? false}
-            onChange={(e) => setChecked((prev) => ({ ...prev, [i]: e.target.checked }))}
-            className="mt-0.5"
-          />
-          <span className={checked[i] ? "line-through text-text-faint" : ""}>{item}</span>
-        </label>
-      ))}
+      {items.map((item, i) => {
+        const heading = sectionStarts.get(i);
+        return (
+          <div key={i}>
+            {heading && (
+              <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint pt-1.5">{heading}</p>
+            )}
+            <label className="flex items-start gap-2 text-xs text-text-muted cursor-pointer">
+              <input
+                type="checkbox"
+                checked={checked[i] ?? false}
+                onChange={(e) => setChecked((prev) => ({ ...prev, [i]: e.target.checked }))}
+                className="mt-0.5"
+              />
+              <span className={checked[i] ? "line-through text-text-faint" : ""}>{item}</span>
+            </label>
+          </div>
+        );
+      })}
       {history.length > 0 && (
         <div className="pt-1.5 mt-1.5 border-t border-border/60 space-y-0.5">
           <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Verlauf</p>
@@ -246,6 +329,7 @@ export default function WissenPanel({
           { id: "welz", label: "Welz (Psychologie)" },
           { id: "salomon", label: "Salomon (Chartanalyse)" },
           { id: "mein_system", label: "Mein System" },
+          { id: "orderflow", label: "Orderflow (4 Schritte)" },
         ] as { id: WissenModule; label: string }[]).map((m) => (
           <button
             key={m.id}
@@ -264,6 +348,8 @@ export default function WissenPanel({
 
       {module === "grundlagen" ? (
         <GrundlagenPanel liveFundingPct={meinSystemData.fundingRatePct} livePrice={meinSystemData.closePrice} />
+      ) : module === "orderflow" ? (
+        <OrderflowIntro />
       ) : (
         <KnowledgeSections entries={entries} />
       )}
@@ -283,6 +369,16 @@ export default function WissenPanel({
           items={SALOMON_CHECKLIST}
           module="salomon"
           history={historyFor("salomon")}
+          onSaved={refetchChecklistHistory}
+        />
+      )}
+      {module === "orderflow" && (
+        <ChecklistBlock
+          title="Orderflow-Checkliste"
+          items={ORDERFLOW_CHECKLIST}
+          sections={ORDERFLOW_SECTIONS}
+          module="orderflow"
+          history={historyFor("orderflow")}
           onSaved={refetchChecklistHistory}
         />
       )}
