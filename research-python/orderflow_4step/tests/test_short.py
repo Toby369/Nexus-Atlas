@@ -108,3 +108,17 @@ def test_mirrored_location_uses_vah_and_upper_band():
     # Hoch 103 liegt klar ueber VAH -> Premium (gespiegelt: loc_normal)
     row = build_setups(short).set_index("abs_pos").loc[a]
     assert bool(row["loc_normal"])
+
+
+def test_target_candidates_va_edge_uses_opposite_value_area_edge():
+    from orderflow_4step.signals import target_candidates
+
+    ds, a = _dataset_with_short_absorption()
+    pos = np.array([a])
+    long_a, long_b = target_candidates(ds, pos, "va_edge")
+    assert long_a[0] == pytest.approx(ds.profile["vah"].iloc[a])
+    assert np.isnan(long_b[0])
+    short_a, _ = target_candidates(mirrored(ds), pos, "va_edge")
+    assert -short_a[0] == pytest.approx(ds.profile["val"].iloc[a])  # Short-Ziel = VAL
+    vwap_a, poc_b = target_candidates(ds, pos, "vwap_poc")
+    assert (vwap_a[0], poc_b[0]) == pytest.approx((ds.vwap["vwap"].iloc[a], ds.profile["poc"].iloc[a]))

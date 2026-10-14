@@ -27,6 +27,7 @@ from src.validation.block_bootstrap import moving_block_bootstrap
 from src.validation.walk_forward import compute_pbo
 
 VARIANTS = ("V1", "V2", "V3", "V4")
+MODE = {"target": C.TARGET_MODE}  # per --target-mode gesetzt
 
 
 def run_variant(ds: Dataset, bars: Bars, setups: pd.DataFrame, variant: str) -> pd.DataFrame:
@@ -93,7 +94,7 @@ def evaluate_period(ds: Dataset, bars: Bars, setups: pd.DataFrame, name: str, st
     n_attempts = result["signals"]["V1"]
     v0_means = []
     for run in range(v0_runs):
-        rs = random_setups(ds, start, end, n_attempts, np.random.default_rng(run))
+        rs = random_setups(ds, start, end, n_attempts, np.random.default_rng(run), MODE["target"])
         trades = trades_frame(run_chain(bars, ds.funding, rs, ds.swing_highs, daily_rule=False,
                                         funding_fallback=ds.funding_fallback))
         v0_means.append(daily_r(trades, start, end).mean())
@@ -139,7 +140,7 @@ def sensitivity(ds: Dataset, bars: Bars) -> tuple[pd.DataFrame, float | None]:
     for dz in C.GRID_DELTA_Z:
         for sig in C.GRID_SIGMA:
             for lb in C.GRID_NEW_LOW_LOOKBACK:
-                setups = in_split(build_setups(ds, dz, sig, lb), start, end)
+                setups = in_split(build_setups(ds, dz, sig, lb, target_mode=MODE["target"]), start, end)
                 trades = run_variant(ds, bars, setups, "V4")
                 days = daily_r(trades, start, end)
                 key = f"z{dz}_s{sig}_l{lb}"
@@ -184,8 +185,8 @@ def combined_v4(long_ds: Dataset, short_result: dict) -> list[str]:
     dass es mit dem gespeicherten Long-Lauf uebereinstimmt (Regressionstest der Spiegelung)."""
     start, end = C.CONFIRMATORY
     bars = Bars.from_frame(long_ds.df15)
-    long_trades = run_variant(long_ds, bars, in_split(build_setups(long_ds), start, end), "V4")
-    saved = ensure_output_dir() / "trades_gesamt_V4.csv"
+    long_trades = run_variant(long_ds, bars, in_split(build_setups(long_ds, target_mode=MODE["target"]), start, end), "V4")
+    saved = ensure_output_dir() / f"trades_gesamt_V4{mode_suffix()}.csv"
     check = "keine gespeicherte Long-Datei gefunden"
     if saved.exists():
         stored = pd.read_csv(saved)
@@ -200,6 +201,10 @@ def combined_v4(long_ds: Dataset, short_result: dict) -> list[str]:
             f"Kombiniert: {len(long_trades) + short_result['variants']['V4'].get('trades', 0)} Trades, "
             f"R je Tag {obs:+.4f} (95 %-KI {lo:+.4f} bis {hi:+.4f}), einseitiges p {p:.4f}, R Summe {both.sum():+.2f}.",
             ""]
+
+
+def mode_suffix() -> str:
+    return "" if MODE["target"] == "vwap_poc" else f"_{MODE['target']}"
 
 
 def git_state() -> tuple[str, bool]:
@@ -240,6 +245,7 @@ def main() -> None:
     parser.add_argument("--report", type=Path)
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--direction", choices=("long", "short"), default="long")
+    parser.add_argument("--target-mode", choices=("vwap_poc", "va_edge"), default=C.TARGET_MODE)
     args = parser.parse_args()
 
     head, dirty = git_state()
@@ -249,11 +255,12 @@ def main() -> None:
         raise SystemExit("--report angeben.")
     v0_runs = 2 if args.smoke else C.V0_RUNS
 
+    MODE["target"] = args.target_mode
     long_ds = Dataset.load()
     ds = long_ds if args.direction == "long" else mirrored(long_ds)
     bars = Bars.from_frame(ds.df15)
-    setups = build_setups(ds)
-    parts = [f"Commit: `{head}` · Richtung: **{args.direction}**", "", structure_agreement(long_ds), "",
+    setups = build_setups(ds, target_mode=MODE["target"])
+    parts = [f"Commit: `{head}` · Richtung: **{args.direction}** · Ziel-1-Modus: **{MODE['target']}**", "", structure_agreement(long_ds), "",
              "## Bestätigungsprobe", ""]
     start, end = C.CONFIRMATORY
     main_result = evaluate_period(ds, bars, setups, "Gesamt 10/2022–09/2026", start, end, v0_runs, True)
@@ -275,7 +282,7 @@ def main() -> None:
     out = ensure_output_dir()
     for name, res in results.items():
         for v in VARIANTS:
-            suffix = "" if args.direction == "long" else "_short"
+            suffix = mode_suffix() + ("" if args.direction == "long" else "_short")
             res["trades"][v].to_csv(out / f"trades_{name}_{v}{suffix}.csv", index=False)
     args.report.write_text("\n".join(parts))
     print("\n".join(parts))

@@ -113,7 +113,7 @@ def _losing_chain_bars():
 
 
 def _setups(positions):
-    return pd.DataFrame({"entry_pos": positions, "stop": 98.0, "vwap_c": 103.0, "poc_c": np.nan})
+    return pd.DataFrame({"entry_pos": positions, "stop": 98.0, "target_a": 103.0, "target_b": np.nan})
 
 
 NO_SWINGS = pd.DataFrame({"pivot_time": pd.DatetimeIndex([], tz="UTC"),

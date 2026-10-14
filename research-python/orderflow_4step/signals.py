@@ -126,8 +126,22 @@ def env_class(regime: object) -> str:
     return "none"
 
 
+def target_candidates(ds: Dataset, pos: np.ndarray, target_mode: str) -> tuple[np.ndarray, np.ndarray]:
+    """Kandidaten fuer Ziel 1 an Position `pos`.
+
+    vwap_poc: Grund-Protokoll (naeherer von VWAP/POC). va_edge: Variante B,
+    gegenueberliegender Value-Area-Rand (Long: VAH; in der gespiegelten Short-Sicht
+    ist vah = -VAL, also VAL).
+    """
+    if target_mode == "vwap_poc":
+        return ds.vwap["vwap"].to_numpy()[pos], ds.profile["poc"].to_numpy()[pos]
+    if target_mode == "va_edge":
+        return ds.profile["vah"].to_numpy()[pos], np.full(len(pos), np.nan)
+    raise ValueError(target_mode)
+
+
 def build_setups(ds: Dataset, delta_z_max: float = C.DELTA_Z_MAX, sigma_normal: float = C.SIGMA_NORMAL,
-                 new_low_lookback: int = C.NEW_LOW_LOOKBACK) -> pd.DataFrame:
+                 new_low_lookback: int = C.NEW_LOW_LOOKBACK, target_mode: str = C.TARGET_MODE) -> pd.DataFrame:
     df15 = ds.df15
     absorption = F.absorption_bars(df15, ds.delta_z, delta_z_max, new_low_lookback)
     pairs = F.find_confirmations(df15, ds.delta, absorption)
@@ -162,8 +176,8 @@ def build_setups(ds: Dataset, delta_z_max: float = C.DELTA_Z_MAX, sigma_normal: 
             "entry_pos": c + 1,
             "signal_time": idx[c] + F.BAR_15M,
             "stop": low[a] - C.STOP_ATR_BUFFER * atr[c],
-            "vwap_c": vwap[c],
-            "poc_c": poc[c],
+            "target_a": target_candidates(ds, c, target_mode)[0],
+            "target_b": target_candidates(ds, c, target_mode)[1],
             "regime": regime,
             "env_class": classes,
             "structure_1h": structure,
@@ -195,8 +209,8 @@ def in_split(setups: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> pd
     return setups[(t >= start) & (t < end)]
 
 
-def random_setups(ds: Dataset, start: pd.Timestamp, end: pd.Timestamp, n: int, rng: np.random.Generator
-                  ) -> pd.DataFrame:
+def random_setups(ds: Dataset, start: pd.Timestamp, end: pd.Timestamp, n: int, rng: np.random.Generator,
+                  target_mode: str = C.TARGET_MODE) -> pd.DataFrame:
     """V0: n zufaellige Einstiegskerzen im Abschnitt, Stop aus den 3 Vorkerzen."""
     idx = ds.df15.index
     candidates = np.flatnonzero((idx >= start) & (idx < end))
@@ -209,8 +223,8 @@ def random_setups(ds: Dataset, start: pd.Timestamp, end: pd.Timestamp, n: int, r
         {
             "entry_pos": e,
             "stop": prior_low - C.STOP_ATR_BUFFER * ds.atr.to_numpy()[e - 1],
-            "vwap_c": ds.vwap["vwap"].to_numpy()[e - 1],
-            "poc_c": ds.profile["poc"].to_numpy()[e - 1],
+            "target_a": target_candidates(ds, e - 1, target_mode)[0],
+            "target_b": target_candidates(ds, e - 1, target_mode)[1],
         }
     )
     return out[np.isfinite(out["stop"])].reset_index(drop=True)

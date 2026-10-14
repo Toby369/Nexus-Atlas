@@ -152,7 +152,8 @@ def run_chain(bars: Bars, funding: pd.Series, setups: pd.DataFrame, swing_highs:
               daily_rule: bool, funding_fallback: float = C.FUNDING_FALLBACK) -> list[Trade]:
     """Setups sequenziell abarbeiten: hoechstens ein offener Trade, optional Tagesregel.
 
-    `setups` braucht Spalten entry_pos, stop, vwap_c, poc_c, sortiert nach entry_pos.
+    `setups` braucht Spalten entry_pos, stop, target_a, target_b (Kandidaten fuer Ziel 1,
+    NaN = keiner), sortiert nach entry_pos.
     """
     confirm_ns = swing_highs["confirm_time"].values.astype("datetime64[ns]")
     order = np.argsort(swing_highs["pivot_time"].values)
@@ -171,7 +172,7 @@ def run_chain(bars: Bars, funding: pd.Series, setups: pd.DataFrame, swing_highs:
         if daily_rule and locked_until is not None and entry_time < locked_until:
             continue
         known = pivot_prices[pivot_confirm <= entry_time.to_datetime64()]
-        t1, t2 = pick_targets(float(bars.open[e]), row.vwap_c, row.poc_c, known)
+        t1, t2 = pick_targets(float(bars.open[e]), row.target_a, row.target_b, known)
         trade = simulate_trade(bars, funding, e, float(row.stop), t1, t2, funding_fallback)
         if trade is None:
             continue

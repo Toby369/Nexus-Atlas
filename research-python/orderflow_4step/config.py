@@ -57,6 +57,9 @@ FEE_PER_SIDE = 0.0005
 SLIPPAGE_PER_SIDE = 0.0001
 FUNDING_FALLBACK = 0.0001  # je 8h, wenn keine Rate vorliegt
 
+# Ziel-1-Modus: "vwap_poc" (Grund-Protokoll) oder "va_edge" (Variante B, explorativ)
+TARGET_MODE = "vwap_poc"
+
 # --- Abschnitt 6/7: Varianten und Statistik ---------------------------------
 V0_RUNS = 1000
 V0_STOP_LOOKBACK = 3
