@@ -35,41 +35,43 @@ beforeEach(() => {
 });
 
 describe("runTileAnalysis mit googleModels", () => {
-  it("probiert erst alle Gemini-Modelle, dann Groq -- ohne Wiederholungen davor", async () => {
+  it("probiert erst alle Gemini-Modelle, dann Mistral und Groq -- ohne Wiederholungen davor", async () => {
     failing = new Set([
+      "mistral",
       `google:${GEMINI_MODELS.flash38}`,
-      `google:${GEMINI_MODELS.flash25}`,
-      `google:${GEMINI_MODELS.flashLite25}`,
+      `google:${GEMINI_MODELS.flashLite35}`,
+      `google:${GEMINI_MODELS.flash36}`,
     ]);
     const result = await runTileAnalysis("system-briefing-synthese", { context: "x" });
     expect(result.provider).toBe("groq");
     expect(calls.map((c) => (c.model ? `${c.provider}:${c.model}` : c.provider))).toEqual([
       `google:${GEMINI_MODELS.flash38}`,
-      `google:${GEMINI_MODELS.flash25}`,
-      `google:${GEMINI_MODELS.flashLite25}`,
+      `google:${GEMINI_MODELS.flashLite35}`,
+      `google:${GEMINI_MODELS.flash36}`,
+      "mistral",
       "groq",
     ]);
-    expect(calls.map((c) => c.retryOnOverload)).toEqual([false, false, false, true]);
+    expect(calls.map((c) => c.retryOnOverload)).toEqual([false, false, false, false, true]);
   });
 
   it("stoppt beim ersten Gemini-Modell, das antwortet", async () => {
     failing = new Set([`google:${GEMINI_MODELS.flash37}`]);
     const result = await runTileAnalysis("system-briefing-regelwerk", { context: "x" });
-    expect(result.model).toBe(GEMINI_MODELS.flash25);
+    expect(result.model).toBe(GEMINI_MODELS.flashLite35);
     expect(calls).toHaveLength(2);
   });
 
   it("nutzt Gemini als Ersatz nur mit den geteilten Modellen", async () => {
-    failing = new Set(["groq"]);
+    failing = new Set(["groq", "mistral"]);
     const result = await runTileAnalysis("system-briefing-chart", { context: "x" });
-    expect(result.model).toBe(GEMINI_MODELS.flash25);
+    expect(result.model).toBe(GEMINI_MODELS.flashLite35);
     expect(calls[0]).toMatchObject({ provider: "groq", retryOnOverload: false });
   });
 
   it("springt nach einer Gemini-Zeitueberschreitung direkt zum naechsten Provider", async () => {
     timingOut = new Set([`google:${GEMINI_MODELS.flash38}`]);
     const result = await runTileAnalysis("system-briefing-synthese", { context: "x" });
-    expect(result.provider).toBe("groq");
-    expect(calls.map((c) => c.provider)).toEqual(["google", "groq"]);
+    expect(result.provider).toBe("mistral");
+    expect(calls.map((c) => c.provider)).toEqual(["google", "mistral"]);
   });
 });
