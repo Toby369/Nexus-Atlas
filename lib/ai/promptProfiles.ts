@@ -602,6 +602,35 @@ export const promptProfiles: Record<string, PromptProfile> = {
     validate: (data) => validateBiasSummary(data),
   },
 
+  // Ergebnis eines Wirtschaftstermins aus den ersten Schlagzeilen danach
+  // (lib/economicEventResult.ts, app/api/economic-result/generate/route.ts).
+  "economic-event-result": {
+    id: "economic-event-result",
+    category: "signal-logic",
+    description:
+      "1-2 Saetze und bullish/bearish fuer BTC zu einem frisch veroeffentlichten US-Wirtschaftstermin (CPI/PCE/NFP/FOMC), nur aus den Schlagzeilen danach.",
+    systemPrompt:
+      "Ein US-Wirtschaftstermin (event: label, Uhrzeit Schweiz) ist soeben veroeffentlicht " +
+      "worden. Du bekommst die ersten Schlagzeilen danach (headlines, teils englisch). " +
+      "Fasse das Ergebnis in summary in 1-2 kurzen deutschen Saetzen zusammen: zuerst die " +
+      "Zahl bzw. der Entscheid und ob hoeher/tiefer als erwartet (nur wenn die Schlagzeilen " +
+      "es sagen), dann falls berichtet die erste BTC-Reaktion. bias: bearish, wenn das " +
+      "Ergebnis fuer BTC belastend gelesen wird (z.B. Inflation oder Jobs staerker als " +
+      "erwartet, Zinsen hoeher/laenger hoch), bullish im umgekehrten Fall, neutral wenn " +
+      "im Rahmen der Erwartung oder widerspruechlich. Erfinde keine Zahlen, die nicht in " +
+      "den Schlagzeilen stehen; Quellennamen (CoinDesk usw.) weglassen. " +
+      NUMBER_FORMAT_INSTRUCTION +
+      " Antworte als JSON mit: bias (bullish|bearish|neutral), summary (string, deutsch, " +
+      "1-2 Saetze, hoechstens 220 Zeichen).",
+    validate: (data) => {
+      const errors: string[] = [];
+      if (!isEnum(field(data, "bias"), BIAS_3)) errors.push(`"bias" muss einer von [${BIAS_3.join(", ")}] sein`);
+      const summary = field(data, "summary");
+      if (typeof summary !== "string" || summary.trim().length === 0) errors.push('"summary" fehlt');
+      return errors;
+    },
+  },
+
   // --- Trade-Debate (TradingAgents-Architektur [arXiv:2412.20138]) ---------
   // Zwei gegensaetzlich geprompte Analysten (Bull/Bear) + ein Referee. Werden
   // von app/api/trade-debate/generate/route.ts mit expliziten

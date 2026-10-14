@@ -55,6 +55,8 @@ export function isPublicPath(pathname: string): boolean {
 //   direkt nach compute_signal_stats()).
 // - /api/divergence-radar/snapshot: divergence-radar-scheduler (alle 15 Min,
 //   persistiert einen Radar-Snapshot).
+// - /api/economic-result/generate: send-state-change-push (alle 15 Min,
+//   KI-Einordnung eines frisch veroeffentlichten Wirtschaftstermins).
 //
 // Bewusst ein dediziertes, eng geschnittenes CRON_SECRET statt des
 // SUPABASE_SERVICE_ROLE_KEY: der Service-Role-Key (voller DB-Bypass) als
@@ -66,6 +68,7 @@ export const SERVICE_ROLE_BEARER_PATHS: ReadonlySet<string> = new Set([
   "/api/youtube-monitor/generate",
   "/api/signal-review/generate",
   "/api/divergence-radar/snapshot",
+  "/api/economic-result/generate",
 ]);
 
 export function isAuthorizedServiceRoleRequest(

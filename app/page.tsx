@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { NEWS_TILE_CATEGORIES } from "@/lib/newsCategories";
 import { supabase } from "@/lib/supabase";
 import { fetchPriceReferences } from "@/lib/priceChanges";
 import { fetchRegimeMatrix, regimeIntervalFor } from "@/lib/regimeTimeframe";
@@ -195,7 +196,7 @@ async function getLatestTradingViewSignal(): Promise<TradingViewSignal | null> {
   return data;
 }
 
-// Nur markbewegende News der letzten 72h, max. 5 - bewusst kompakt statt
+// Nur markbewegende Fed-/CPI-News der letzten 72h, max. 5 - bewusst kompakt statt
 // einer Rohdaten-Flut.
 async function getHighImpactNews(): Promise<NewsEvent[]> {
   const cutoff = new Date(
@@ -206,6 +207,7 @@ async function getHighImpactNews(): Promise<NewsEvent[]> {
     .from("news_events")
     .select("*")
     .eq("is_market_moving", true)
+    .in("category", NEWS_TILE_CATEGORIES)
     .gte("published_at", cutoff)
     .order("published_at", { ascending: false })
     .limit(NEWS_LIMIT);

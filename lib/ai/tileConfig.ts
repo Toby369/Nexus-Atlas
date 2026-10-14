@@ -115,6 +115,15 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     fallbackProviders: [],
     googleModels: GEMINI_SHARED,
   },
+  // Wirtschaftstermin-Ergebnis (lib/economicEventResult.ts): ein kleiner
+  // Aufruf pro Termin, Groq zuerst (schnell), Gemini nur als letzter Ersatz.
+  "economic-event-result": {
+    tileId: "economic-event-result",
+    aiProvider: "groq",
+    promptProfile: "economic-event-result",
+    fallbackProviders: ["mistral", "google"],
+    googleModels: GEMINI_SHARED,
+  },
   // Trade-Debate: app/api/trade-debate/generate/route.ts ruft Bull und Bear
   // mit ABSICHTLICH unterschiedlichem primaeren Vendor auf (kein gemeinsamer
   // Modell-Bias), danach den Referee mit beiden Ergebnissen. Anders als bei
