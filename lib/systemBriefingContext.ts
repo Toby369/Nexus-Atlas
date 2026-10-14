@@ -40,8 +40,8 @@ import type {
 
 const LIQUIDATION_LOOKBACK_HOURS = 6;
 const LIQUIDATION_BUCKET_MINUTES = 15;
-// Dieselbe Kalibrierung wie components/LiquidationPanel.tsx -- keine zweite,
-// abweichende Definition derselben Kennzahl.
+// Gleiche $200-Buckets wie Key Levels und Spot-Volumen-Profil -- keine
+// zweite, abweichende Definition derselben Kennzahl.
 const LIQUIDATION_PRICE_BUCKET_USD = 200;
 const TOP_CLUSTERS_COUNT = 4;
 

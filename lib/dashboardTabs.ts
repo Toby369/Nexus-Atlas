@@ -29,7 +29,6 @@ export const DASHBOARD_TABS: DashboardTabMeta[] = [
       "funding-rate",
       "orderbook-walls",
       "leverage-map",
-      "liquidations",
       "cycle-indicators",
       "economic-calendar",
       "etf-flow",

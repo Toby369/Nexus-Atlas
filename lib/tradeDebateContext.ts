@@ -15,7 +15,7 @@ import type { MarketState } from "./types";
 const SYMBOL = "BTCUSDT";
 type Timeframe = "1h" | "4h" | "1d";
 
-// Dieselben Lookback-/Bucket-Werte wie LiquidationPanel.tsx bzw.
+// Dieselben Lookback-/Bucket-Werte wie lib/systemBriefingContext.ts bzw.
 // compute-market-state -- keine zweite, abweichende Kalibrierung derselben
 // Kennzahlen.
 const LIQUIDATION_LOOKBACK_HOURS = 6;
