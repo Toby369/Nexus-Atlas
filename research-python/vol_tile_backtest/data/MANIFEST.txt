@@ -1,0 +1,2 @@
+dvol_daily.csv	2023	24ea6bb81110d164a403eb70da346636aa34ba474c3433e2b0871e1a72f4c2b1
+Quelle: Deribit public/get_volatility_index_data, currency=BTC, resolution=1D, 01.04.2021-14.10.2026, abgerufen 14.10.2026 via Supabase pg_net; MD5 der Rohantwort (ts,close;...) d7b70a06c0d72d9eff78f689224a5822

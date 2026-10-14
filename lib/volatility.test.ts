@@ -5,6 +5,8 @@ import {
   classifySkew,
   expectedDailyMovePct,
   expectedRange,
+  oneDayWindowType,
+  widenRange,
   parseOption,
   percentileRank,
   realizedVolPct,
@@ -133,6 +135,29 @@ describe("expectedRange", () => {
   });
 });
 
+describe("widenRange", () => {
+  it("verbreitert um den Faktor, gleicher Kurs in der Mitte", () => {
+    const base = expectedRange(100000, 40, 1);
+    const wide = widenRange(base, 1.5);
+    expect(wide.movePct).toBeCloseTo(1.5 * base.movePct, 10);
+    expect(wide.low).toBeCloseTo(100000 * Math.exp(-1.5 * base.movePct / 100), 6);
+    expect(wide.high).toBeCloseTo(100000 * Math.exp(1.5 * base.movePct / 100), 6);
+    expect(wide.days).toBe(1);
+  });
+});
+
+describe("oneDayWindowType", () => {
+  it.each([
+    [Date.UTC(2026, 9, 14, 12), "weekday"], // Mi Mittag
+    [Date.UTC(2026, 9, 16, 11), "weekday"], // Fr 11:00 -> Mitte Fr 23:00
+    [Date.UTC(2026, 9, 16, 12), "weekend"], // Fr 12:00 -> Mitte Sa 00:00
+    [Date.UTC(2026, 9, 18, 11), "weekend"], // So 11:00 -> Mitte So 23:00
+    [Date.UTC(2026, 9, 18, 12), "weekday"], // So 12:00 -> Mitte Mo 00:00
+  ])("%s -> %s", (ms, type) => {
+    expect(oneDayWindowType(ms)).toBe(type);
+  });
+});
+
 describe("Einordnungen", () => {
   it.each([
     [10, "watch"],
@@ -144,8 +169,9 @@ describe("Einordnungen", () => {
   it.each([
     [15, "watch"],
     [0, "calm"],
-    [-8, "risk"],
+    [-8, "watch"],
   ])("IV-RV-Spread %s -> %s", (spread, tone) => {
+    // -8: seit Backtest 14.10.2026 nur noch "watch" (keine Aussage "zu billig")
     expect(classifyIvRvSpread(spread).tone).toBe(tone);
   });
   it.each([

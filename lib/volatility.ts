@@ -157,6 +157,45 @@ export function expectedDailyMovePct(annualVolPct: number): number {
   return annualVolPct / Math.sqrt(365);
 }
 
+// Gemessene Trefferquote der 1-Sigma-Spanne (DVOL), Backtest 14.10.2026,
+// 09/2022-10/2026, docs/research/VOLATILITAETS-KACHEL-BACKTEST_RESULTS_2026-10-14.md.
+// 1 und 7 Tage signifikant ueber 68 % (Spanne zu breit), 30 Tage nicht
+// signifikant (null = keine belastbare Abweichung, Anzeige bleibt 68 %).
+export const HISTORICAL_COVERAGE: Record<number, number | null> = { 1: 0.8, 7: 0.78, 30: null };
+
+// 1-Tages-Spanne nach Wochentag (Nachtrag 14.10.2026, beschreibend,
+// docs/research/VOLATILITAETS-KACHEL-BERUEHRUNG_2026-10-14.md): DVOL verteilt
+// die Schwankung gleichmaessig auf 365 Tage, BTC bewegt sich werktags aber
+// deutlich mehr -> werktags viel oefter beruehrt als am Wochenende.
+// touched = Hoch/Tief beruehrt die Spanne irgendwann, endInside = Kurs nach 24 h drin.
+export type DayType = "weekday" | "weekend";
+export const ONE_DAY_BY_DAYTYPE: Record<DayType, { touched: number; endInside: number }> = {
+  weekday: { touched: 0.53, endInside: 0.75 },
+  weekend: { touched: 0.17, endInside: 0.92 },
+};
+
+// Die naechsten 24 h gelten als Wochenende, wenn ihre Mitte (jetzt + 12 h)
+// auf Samstag oder Sonntag UTC faellt -- gemessen wurde mit Tagen ab 00:00 UTC.
+export function oneDayWindowType(nowMs: number): DayType {
+  const day = new Date(nowMs + 12 * 60 * 60 * 1000).getUTCDay();
+  return day === 0 || day === 6 ? "weekend" : "weekday";
+}
+
+// Stopp-Abstand werktags: 1,5-fache 1-Tages-Spanne. Werktage 09/2022-10/2026
+// (Fenster 24 h ab 00:00 UTC, 1h-Hoch/-Tief): je Seite an 13 % der Tage
+// erreicht (unten 13,4 %, oben 12,6 %), irgendeine Seite 26 %. Faktor auf
+// 2022-24 bestimmt, 2025-26 geprueft: je Seite 12-16 %.
+// docs/research/VOLATILITAETS-KACHEL-BERUEHRUNG_2026-10-14.md
+export const WEEKDAY_STOP_FACTOR = 1.5;
+export const WEEKDAY_STOP_HIT_PER_SIDE = 0.13;
+
+// Spanne um `factor` verbreitert, gleicher Mittelpunkt im Log-Raum.
+export function widenRange(range: ExpectedRange, factor: number): ExpectedRange {
+  const price = Math.sqrt(range.low * range.high);
+  const sigma = (range.movePct / 100) * factor;
+  return { days: range.days, movePct: sigma * 100, low: price * Math.exp(-sigma), high: price * Math.exp(sigma) };
+}
+
 export interface ExpectedRange {
   days: number;
   movePct: number;
@@ -187,7 +226,9 @@ export interface SkewAssessment extends Assessment {
 }
 
 export function classifyDvolPercentile(pct: number): Assessment {
-  if (pct < 20) return { tone: "watch", label: "Sehr ruhig – auf tiefe Volatilität folgt oft eine Ausdehnung" };
+  // Backtest 14.10.2026 (H-B): Auf tiefe Perzentile folgte NICHT signifikant
+  // mehr Ausdehnung -> keine Erwartungsaussage mehr, nur die Einordnung.
+  if (pct < 20) return { tone: "watch", label: "Sehr ruhig – unteres Fünftel des letzten Jahres" };
   if (pct > 80) return { tone: "risk", label: "Angespannt – der Markt preist grosse Bewegungen ein" };
   return { tone: "calm", label: "Normal" };
 }
@@ -195,7 +236,9 @@ export function classifyDvolPercentile(pct: number): Assessment {
 // Differenz implizit minus realisiert, in Volatilitaetspunkten.
 export function classifyIvRvSpread(spread: number): Assessment {
   if (spread > 10) return { tone: "watch", label: "Optionen teuer – erwartet wird mehr Bewegung als zuletzt" };
-  if (spread < -5) return { tone: "risk", label: "Optionen billig – der Kurs bewegt sich mehr als eingepreist" };
+  // Backtest 14.10.2026 (H-C2): Danach war die Bewegung im Mittel KLEINER als
+  // eingepreist -> keine Aussage "Optionen zu billig", nur der Vergleich.
+  if (spread < -5) return { tone: "watch", label: "Optionen billiger als die Bewegung der letzten 30 Tage" };
   return { tone: "calm", label: "Eingepreiste und tatsächliche Bewegung passen zusammen" };
 }
 

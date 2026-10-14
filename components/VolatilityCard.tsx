@@ -1,5 +1,13 @@
 import type { VolatilitySnapshot } from "@/lib/volatilityContext";
-import type { Assessment, ExpectedRange, SkewDirection, VolTone } from "@/lib/volatility";
+import {
+  HISTORICAL_COVERAGE,
+  ONE_DAY_BY_DAYTYPE,
+  WEEKDAY_STOP_FACTOR,
+  WEEKDAY_STOP_HIT_PER_SIDE,
+  oneDayWindowType,
+  widenRange,
+} from "@/lib/volatility";
+import type { Assessment, DayType, ExpectedRange, SkewDirection, VolTone } from "@/lib/volatility";
 import PanelInfo from "@/components/PanelInfo";
 
 // Volatilitaets-Lage: Server-Component-Render, Daten aus
@@ -7,12 +15,14 @@ import PanelInfo from "@/components/PanelInfo";
 
 const INFO = [
   "Ersatz für die Gamma-Lage aus Orderflow-Setups (GEX): Für BTC gibt es keine verlässliche, frei verfügbare Gamma-Messung. Diese Kachel beantwortet dieselbe Frage indirekt: Wird gerade viel oder wenig Bewegung erwartet, und passt das zur tatsächlichen Bewegung?",
-  "DVOL: Volatilitätsindex von Deribit, die vom Optionsmarkt erwartete Schwankung der nächsten 30 Tage (annualisiert, %). DVOL ÷ √365 ≈ typische Tagesbewegung (1 Sigma, also an etwa 2 von 3 Tagen kleiner). Das Perzentil vergleicht mit den Tagesschlüssen des letzten Jahres.",
-  "Implizit vs. realisiert: 30-Tage-ATM-IV (Optionen am Geld, aus den beiden Verfällen um 30 Tage auf genau 30 Tage interpoliert, Methode wie beim VIX) minus tatsächliche Schwankung der letzten 30 Tage aus den Binance-1h-Kerzen. Deutlich positiv = Optionen teuer, der Markt erwartet mehr Bewegung als zuletzt. Negativ = der Kurs bewegt sich mehr als eingepreist.",
+  "DVOL: Volatilitätsindex von Deribit, die vom Optionsmarkt erwartete Schwankung der nächsten 30 Tage (annualisiert, %). DVOL ÷ √365 ≈ typische Tagesbewegung (1 Sigma, also an etwa 2 von 3 Tagen kleiner). Das Perzentil vergleicht mit den Tagesschlüssen des letzten Jahres. Backtest 09/2022–10/2026: Auf ein tiefes Perzentil folgte nicht messbar mehr Bewegung.",
+  "Implizit vs. realisiert: 30-Tage-ATM-IV (Optionen am Geld, aus den beiden Verfällen um 30 Tage auf genau 30 Tage interpoliert, Methode wie beim VIX) minus tatsächliche Schwankung der letzten 30 Tage aus den Binance-1h-Kerzen. Deutlich positiv (> +10) = Optionen teuer, der Markt erwartet mehr Bewegung als zuletzt; im Backtest 09/2022–10/2026 war die Bewegung danach tatsächlich deutlich grösser. Negativ (< −5) = Optionen billiger als die zuletzt tatsächliche Bewegung; im Backtest beruhigte sich der Kurs danach eher, die Optionen waren also nicht zu billig.",
   "Skew: Volatilität eines Puts 10 % unter minus eines Calls 10 % über dem Forward, gleicher Verfall. Positiv = Absicherung nach unten gefragt, negativ = Spekulation nach oben.",
-  "Erwartete Spanne: Bereich, in dem der Kurs laut Optionspreisen (DVOL) nach 1, 7 bzw. 30 Tagen mit rund 68 % Wahrscheinlichkeit liegt (1 Sigma). In etwa jedem dritten Fall landet er ausserhalb. Breite wächst mit der Wurzel der Zeit. Der Strich markiert den aktuellen Kurs.",
+  "Erwartete Spanne: Bereich, in dem der Kurs laut Optionspreisen (DVOL) nach 1, 7 bzw. 30 Tagen mit rund 68 % Wahrscheinlichkeit liegt (1 Sigma). Breite wächst mit der Wurzel der Zeit. Der Strich markiert den aktuellen Kurs. Backtest 09/2022–10/2026: Tatsächlich lag der Kurs nach 1 Tag in 80 %, nach 7 Tagen in 78 % und nach 30 Tagen in 72 % der Fälle in der Spanne. Kurzfristig überschätzen die Optionen die Bewegung also meist (Volatilitäts-Risikoprämie), dafür sind grosse Ausreisser häufiger als im Modell. Die Spanne gilt für den Endstand, nicht für den Weg: Unterwegs berührt der Kurs die 1-Tages-Spanne an rund 43 % der Tage.",
+  "Werktag/Wochenende: DVOL verteilt die Schwankung gleichmässig auf alle 365 Tage, BTC bewegt sich unter der Woche aber deutlich mehr. Werktags wird die 1-Tages-Spanne deshalb unterwegs viel öfter berührt (53 %, am Ende drin 75 %) als am Wochenende (17 %, am Ende drin 92 %). Messung 09/2022–10/2026, Tage ab 00:00 UTC. Ein Stopp genau an der Spannengrenze wäre werktags an jedem zweiten Tag ausgelöst worden.",
+  "Stopp-Abstand (nur werktags): 1,5-fache 1-Tages-Spanne, im Balken als rote Striche. Werktage 09/2022–10/2026, 24 h ab 00:00 UTC: Der Long-Stopp unten wurde an 13 % der Tage erreicht, der Short-Stopp oben an 13 %. Faktor an 2022–24 bestimmt, an 2025–26 geprüft (12–16 % je Seite). Gilt für eine Haltedauer bis 24 h; kein Signal, nur ein Anhaltspunkt für den Abstand. Am Wochenende ausgeblendet.",
   "Pfeil: Stimmung im Optionsmarkt aus dem Skew. Grün ↑ = Calls teurer (Markt setzt eher auf steigende Kurse), rot ↓ = Puts teurer (Markt sichert sich gegen fallende Kurse ab), grau → = ausgeglichen. Das zeigt, wohin das Geld im Optionsmarkt gerade fliesst – keine Kursprognose. Starke Angst (sehr teure Puts) fällt historisch oft mit Tiefs zusammen, also auch als Gegenindikator lesbar.",
-  "Alle Einordnungen sind gängige Faustregeln, nicht im Backtest geprüft. Kein Handelssignal.",
+  "Schwellen sind gängige Faustregeln. Geprüft (Backtest 14.10.2026, docs/research/VOLATILITAETS-KACHEL-BACKTEST_RESULTS_2026-10-14.md): Spanne und die Einordnungen von DVOL und Implizit vs. realisiert. Nicht geprüft: Skew-Pfeil (keine historischen Daten, wird seit 14.10.2026 gesammelt). Kein Handelssignal.",
 ].join("\n\n");
 
 const TONE_STYLES: Record<VolTone, string> = {
@@ -52,7 +62,21 @@ function usd(value: number): string {
 
 // Horizontale Spannen-Balken auf einer gemeinsamen Skala (der breitesten
 // Spanne), damit die Zeithorizonte direkt vergleichbar sind.
-function ExpectedRanges({ ranges, price }: { ranges: ExpectedRange[]; price: number }) {
+function coverageFor(days: number, dayType: DayType): number | null {
+  return days === 1 ? ONE_DAY_BY_DAYTYPE[dayType].endInside : HISTORICAL_COVERAGE[days];
+}
+
+function ExpectedRanges({
+  ranges,
+  price,
+  dayType,
+  stop,
+}: {
+  ranges: ExpectedRange[];
+  price: number;
+  dayType: DayType;
+  stop: ExpectedRange | null;
+}) {
   const widest = ranges.reduce((a, b) => (b.high - b.low > a.high - a.low ? b : a));
   const pad = (widest.high - widest.low) * 0.04;
   const min = widest.low - pad;
@@ -67,13 +91,15 @@ function ExpectedRanges({ ranges, price }: { ranges: ExpectedRange[]; price: num
           className="space-y-1"
           title={`${label(r.days)}: ${usd(r.low)} – ${usd(r.high)} (± ${fmt(r.movePct, 1)} %), rund 68 % Wahrscheinlichkeit`}
         >
-          <div className="flex items-baseline justify-between gap-3 text-xs">
-            <span className="text-text-faint">{label(r.days)}</span>
-            <span className="text-right">
-              <span className="text-text font-medium">
-                {usd(r.low)} – {usd(r.high)}
-              </span>
-              <span className="text-text-faint"> · ± {fmt(r.movePct, 1)} %</span>
+          <div className="flex items-baseline justify-between gap-2 text-xs">
+            <span className="text-text-faint whitespace-nowrap">
+              {label(r.days)} ±{fmt(r.movePct, 1)} %
+              {coverageFor(r.days, dayType) != null && (
+                <span className="text-[10px]"> · hist. {fmt(coverageFor(r.days, dayType)! * 100, 0)} %</span>
+              )}
+            </span>
+            <span className="text-text font-medium whitespace-nowrap">
+              {usd(r.low)} – {usd(r.high)}
             </span>
           </div>
           <div className="relative h-2 rounded-full bg-border/40">
@@ -81,6 +107,14 @@ function ExpectedRanges({ ranges, price }: { ranges: ExpectedRange[]; price: num
               className="absolute inset-y-0 rounded-full bg-accent/50"
               style={{ left: `${pos(r.low)}%`, width: `${pos(r.high) - pos(r.low)}%` }}
             />
+            {stop && r.days === 1 &&
+              [stop.low, stop.high].map((v) => (
+                <div
+                  key={v}
+                  className="absolute -inset-y-0.5 w-0.5 rounded-full bg-down"
+                  style={{ left: `calc(${pos(v)}% - 1px)` }}
+                />
+              ))}
             <div
               className="absolute -inset-y-0.5 w-0.5 rounded-full bg-text ring-2 ring-surface"
               style={{ left: `calc(${pos(price)}% - 1px)` }}
@@ -115,6 +149,9 @@ function Row({ label, value, detail }: { label: string; value: string; detail?: 
 
 export default function VolatilityCard({ data }: { data: VolatilitySnapshot }) {
   const o = data.options30d;
+  const dayType = oneDayWindowType(Date.parse(data.fetchedAt));
+  const oneDay = data.expectedRanges.find((r) => r.days === 1);
+  const stop = dayType === "weekday" && oneDay ? widenRange(oneDay, WEEKDAY_STOP_FACTOR) : null;
   return (
     <div className="rounded-lg border border-border bg-surface p-5 space-y-4">
       <span className="flex items-center gap-1.5">
@@ -149,7 +186,21 @@ export default function VolatilityCard({ data }: { data: VolatilitySnapshot }) {
           <p className="text-xs font-medium text-text">
             Erwartete Spanne <span className="text-text-faint font-normal">(68 %, aus DVOL)</span>
           </p>
-          <ExpectedRanges ranges={data.expectedRanges} price={data.price} />
+          <ExpectedRanges ranges={data.expectedRanges} price={data.price} dayType={dayType} stop={stop} />
+          {stop && (
+            <div className="space-y-1 pt-1">
+              <p className="text-xs font-medium text-text">
+                Stopp-Abstand werktags{" "}
+                <span className="text-text-faint font-normal">({fmt(WEEKDAY_STOP_FACTOR, 1)} × 1 Tag)</span>
+              </p>
+              <Row label="Long-Stopp unter" value={usd(stop.low)} detail={`− ${fmt(stop.movePct, 1)} %`} />
+              <Row label="Short-Stopp über" value={usd(stop.high)} detail={`+ ${fmt(stop.movePct, 1)} %`} />
+              <p className="text-[11px] text-text-faint">
+                Innerhalb von 24 h je Seite an rund {fmt(WEEKDAY_STOP_HIT_PER_SIDE * 100, 0)} % der Werktage erreicht. Die
+                68-%-Spanne selbst wird unterwegs an {fmt(ONE_DAY_BY_DAYTYPE.weekday.touched * 100, 0)} % berührt.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
