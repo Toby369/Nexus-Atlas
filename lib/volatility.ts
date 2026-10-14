@@ -181,6 +181,21 @@ export function oneDayWindowType(nowMs: number): DayType {
   return day === 0 || day === 6 ? "weekend" : "weekday";
 }
 
+// Stopp-Abstand werktags: 1,5-fache 1-Tages-Spanne. Werktage 09/2022-10/2026
+// (Fenster 24 h ab 00:00 UTC, 1h-Hoch/-Tief): je Seite an 13 % der Tage
+// erreicht (unten 13,4 %, oben 12,6 %), irgendeine Seite 26 %. Faktor auf
+// 2022-24 bestimmt, 2025-26 geprueft: je Seite 12-16 %.
+// docs/research/VOLATILITAETS-KACHEL-BERUEHRUNG_2026-10-14.md
+export const WEEKDAY_STOP_FACTOR = 1.5;
+export const WEEKDAY_STOP_HIT_PER_SIDE = 0.13;
+
+// Spanne um `factor` verbreitert, gleicher Mittelpunkt im Log-Raum.
+export function widenRange(range: ExpectedRange, factor: number): ExpectedRange {
+  const price = Math.sqrt(range.low * range.high);
+  const sigma = (range.movePct / 100) * factor;
+  return { days: range.days, movePct: sigma * 100, low: price * Math.exp(-sigma), high: price * Math.exp(sigma) };
+}
+
 export interface ExpectedRange {
   days: number;
   movePct: number;

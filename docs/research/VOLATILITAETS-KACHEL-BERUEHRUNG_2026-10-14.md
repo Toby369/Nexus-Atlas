@@ -73,9 +73,27 @@ Auf Tobys Wunsch zeigt die Kachel die Messung jetzt als Hinweis an
 
 - Bei der 1-Tages-Spanne steht die historische Quote „am Ende drin“ je nach Tagesart:
   werktags 75 %, am Wochenende 92 %.
-- Unter den Spannen steht eine Zeile: werktags „mehr Bewegung als im Schnitt – unterwegs an
-  53 % berührt“, am Wochenende „weniger Bewegung – nur an 17 % berührt“.
+- ~~Hinweiszeile werktags/Wochenende~~ ersetzt durch den Stopp-Abstand (siehe unten).
 - Als Wochenende gilt, wenn die Mitte der nächsten 24 h (jetzt + 12 h) auf Samstag oder
   Sonntag UTC fällt.
 
 Die Spanne selbst wird nicht umgerechnet, sie kommt weiterhin unverändert aus dem DVOL.
+
+## Nachtrag 14.10.2026: Stopp-Abstand werktags
+
+Auf Tobys Wunsch (handelt nur werktags) zeigt die Kachel werktags einen Stopp-Abstand:
+**1,5-fache 1-Tages-Spanne** (`WEEKDAY_STOP_FACTOR`, `widenRange`), im 1-Tages-Balken als
+rote Striche. Am Wochenende ist er ausgeblendet, ebenso der Wochenend-Hinweis.
+
+Messung, nur Werktage, 24 h ab 00:00 UTC, 1h-Hoch/-Tief:
+
+| Zeitraum | Tage | Long-Stopp (unten) erreicht | Short-Stopp (oben) erreicht | irgendeine Seite |
+|---|---|---|---|---|
+| alle 09/2022–10/2026 | 1'071 | 13,4 % | 12,6 % | 25,8 % |
+| 2022–2024 (Faktor bestimmt) | 607 | 11,2 % | 13,2 % | 24,2 % |
+| 2025–2026 (Prüfung) | 464 | 16,2 % | 11,9 % | 27,8 % |
+
+Der Faktor wurde an 2022–2024 auf rund 25 % Berührung irgendeiner Seite bestimmt (1,48,
+gerundet 1,5) und hielt 2025–2026 ungefähr. Für den Endstand liess sich keine stabile
+Umrechnung der Spanne finden: Ein Wochenend-Faktor aus 2022–24 traf 2025–26 nur 55 % statt
+68 %. Die Spanne bleibt deshalb unverändert.

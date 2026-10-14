@@ -6,6 +6,7 @@ import {
   expectedDailyMovePct,
   expectedRange,
   oneDayWindowType,
+  widenRange,
   parseOption,
   percentileRank,
   realizedVolPct,
@@ -131,6 +132,17 @@ describe("expectedRange", () => {
     const one = expectedRange(80000, 40, 1).movePct;
     expect(expectedRange(80000, 40, 4).movePct).toBeCloseTo(2 * one, 10);
     expect(one).toBeCloseTo(expectedDailyMovePct(40), 10);
+  });
+});
+
+describe("widenRange", () => {
+  it("verbreitert um den Faktor, gleicher Kurs in der Mitte", () => {
+    const base = expectedRange(100000, 40, 1);
+    const wide = widenRange(base, 1.5);
+    expect(wide.movePct).toBeCloseTo(1.5 * base.movePct, 10);
+    expect(wide.low).toBeCloseTo(100000 * Math.exp(-1.5 * base.movePct / 100), 6);
+    expect(wide.high).toBeCloseTo(100000 * Math.exp(1.5 * base.movePct / 100), 6);
+    expect(wide.days).toBe(1);
   });
 });
 
