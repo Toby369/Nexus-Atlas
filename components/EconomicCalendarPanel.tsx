@@ -6,25 +6,24 @@ import type { EconomicCalendarEvent } from "@/lib/types";
 import PanelInfo from "@/components/PanelInfo";
 import { economicCalendarInfo } from "@/lib/panelInfo";
 import {
+  AWAITING_MAX_MS,
   ECONOMIC_EVENT_INTERPRETATION,
-  EVENT_FRED_SYMBOL,
   economicDirectionLegend,
-  economicDirectionMeaning,
   economicEventMarkMs,
   formatZurichTime,
 } from "@/lib/economicCalendar";
-import { ShortDate, DaysUntil, FullDateTime } from "@/components/ClientTimestamp";
+import { fetchEconomicResult, resultBiasDisplay, type EconomicEventResult } from "@/lib/economicEventResult";
+import { ShortDate, DaysUntil, RelativeTime } from "@/components/ClientTimestamp";
 import { setVisibleInterval } from "@/lib/visibleInterval";
 
 // Kalendertermine aendern sich selten und fast immer mit Vorlauf -- deutlich
 // laengeres Poll-Intervall als bei den uebrigen, minuetlich schwankenden
 // Kacheln (vgl. REFRESH_INTERVAL_MS in LivePriceDataProvider.tsx: 60s). Der
 // Collector selbst laeuft ohnehin nur 1x taeglich (siehe collect-economic-
-// calendar), haeufigeres Polling waere reine Verschwendung. macro_snapshots
-// (fuer das Ergebnis, siehe fetchLatestMacroValue unten) wird von collect-
-// macro alle 30 Min aktualisiert -- 10 Min Poll hier reicht, um ein frisch
-// veroeffentlichtes Ergebnis zeitnah zu zeigen, ohne zu haeufig abzufragen.
-const REFRESH_INTERVAL_MS = 10 * 60_000;
+// calendar), haeufigeres Polling waere reine Verschwendung. Das Ergebnis
+// erzeugt das Lagebild bzw. der Push-Cron (alle 15 Min) -- 5 Min Poll hier
+// reicht, um es zeitnah zu zeigen.
+const REFRESH_INTERVAL_MS = 5 * 60_000;
 
 async function fetchUpcomingEvents(): Promise<EconomicCalendarEvent[]> {
   const todayIso = new Date().toISOString().slice(0, 10);
@@ -41,43 +40,26 @@ async function fetchUpcomingEvents(): Promise<EconomicCalendarEvent[]> {
   return data ?? [];
 }
 
-// Letzter bekannter Wert je FRED-Serie aus macro_snapshots (collect-macro) --
-// dieselbe Quelle wie die "Resultat"-Push-Benachrichtigung
-// (send-state-change-push). Bewusst ohne die Pruefung "neuer als der Termin":
-// das angezeigte Datum (Stand) zeigt selbst, ob der Wert frisch ist.
-interface MacroSnapshotLite {
-  last_price: number | null;
-  prev_close: number | null;
-  timestamp_utc: string;
-}
+// Ergebnis (KI-Einordnung der ersten Schlagzeilen, lib/economicEventResult.ts)
+// fuer Termine, deren Zeitpunkt schon erreicht ist; "pending" = noch keine
+// Einordnung, Termin hoechstens 6h her.
+type ResultState = EconomicEventResult | "pending" | null;
 
-async function fetchLatestMacroValue(symbol: string): Promise<MacroSnapshotLite | null> {
-  const { data, error } = await supabase
-    .from("macro_snapshots")
-    .select("last_price, prev_close, timestamp_utc")
-    .eq("symbol", symbol)
-    .eq("status", "ok")
-    .order("timestamp_utc", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error(`Fehler beim Laden des Wirtschaftsdaten-Ergebnisses (${symbol}):`, error.message);
-    return null;
-  }
-  return data;
-}
-
-async function fetchLatestMacroValues(eventKeys: string[]): Promise<Record<string, MacroSnapshotLite | null>> {
-  const uniqueKeys = Array.from(new Set(eventKeys)).filter((k) => EVENT_FRED_SYMBOL[k]);
+async function fetchResults(events: EconomicCalendarEvent[]): Promise<Record<string, ResultState>> {
+  const nowMs = Date.now();
+  const due = events.filter((e) => {
+    const markMs = economicEventMarkMs(e.event_key, e.event_date);
+    return markMs !== null && markMs <= nowMs;
+  });
   const rows = await Promise.all(
-    uniqueKeys.map(async (key) => [key, await fetchLatestMacroValue(EVENT_FRED_SYMBOL[key])] as const)
+    due.map(async (e) => {
+      const result = await fetchEconomicResult(e.event_key, e.event_date);
+      const markMs = economicEventMarkMs(e.event_key, e.event_date) as number;
+      const state: ResultState = result ?? (nowMs - markMs <= AWAITING_MAX_MS ? "pending" : null);
+      return [`${e.event_key}|${e.event_date}`, state] as const;
+    })
   );
   return Object.fromEntries(rows);
-}
-
-function fmtMacroValue(v: number): string {
-  return Math.abs(v) >= 100 ? v.toFixed(1) : v.toFixed(2);
 }
 
 export default function EconomicCalendarPanel({
@@ -86,10 +68,10 @@ export default function EconomicCalendarPanel({
   initialEvents: EconomicCalendarEvent[];
 }) {
   const [events, setEvents] = useState(initialEvents);
-  const [macroValues, setMacroValues] = useState<Record<string, MacroSnapshotLite | null>>({});
+  const [results, setResults] = useState<Record<string, ResultState>>({});
 
   useEffect(() => {
-    fetchLatestMacroValues(initialEvents.map((e) => e.event_key)).then(setMacroValues);
+    fetchResults(initialEvents).then(setResults);
     // initialEvents aendert sich nach dem ersten Render nicht mehr (kommt
     // als Server-Prop) -- bewusst nur beim Mount, der Poll unten uebernimmt
     // danach fortlaufende Aktualisierungen.
@@ -100,7 +82,7 @@ export default function EconomicCalendarPanel({
     const stopPolling = setVisibleInterval(async () => {
       const freshEvents = await fetchUpcomingEvents();
       setEvents(freshEvents);
-      setMacroValues(await fetchLatestMacroValues(freshEvents.map((e) => e.event_key)));
+      setResults(await fetchResults(freshEvents));
     }, REFRESH_INTERVAL_MS);
     return () => stopPolling();
   }, []);
@@ -119,11 +101,11 @@ export default function EconomicCalendarPanel({
       ) : (
         <div className="space-y-4">
           {events.map((event) => {
-            const macro = macroValues[event.event_key];
-            const lastPrice = macro?.last_price !== null && macro?.last_price !== undefined ? Number(macro.last_price) : null;
-            const prevClose = macro?.prev_close !== null && macro?.prev_close !== undefined ? Number(macro.prev_close) : null;
-            const direction = prevClose === null || lastPrice === null ? null : lastPrice > prevClose ? "up" : lastPrice < prevClose ? "down" : "flat";
-            const resultMeaning = direction ? economicDirectionMeaning(event.event_key, direction) : null;
+            const markMs = economicEventMarkMs(event.event_key, event.event_date);
+            const state = results[`${event.event_key}|${event.event_date}`] ?? null;
+            const awaiting = state === "pending";
+            const result = state === "pending" ? null : state;
+            const bias = result ? resultBiasDisplay(result.bias) : null;
 
             return (
               <div key={event.event_key} className="border-b border-border/60 pb-3 last:border-0 last:pb-0">
@@ -131,13 +113,9 @@ export default function EconomicCalendarPanel({
                   <span className="text-sm text-text font-medium">{event.label}</span>
                   <span className="text-xs text-text-faint whitespace-nowrap">
                     <ShortDate iso={event.event_date} />
-                    {(() => {
-                      // Immer Schweizer Zeit (Toby 14.10.2026); typical_time_et nur,
-                      // wenn fuer den Termin keine feste Uhrzeit hinterlegt ist.
-                      const markMs = economicEventMarkMs(event.event_key, event.event_date);
-                      if (markMs !== null) return <> · {formatZurichTime(markMs)}</>;
-                      return event.typical_time_et ? <> · {event.typical_time_et}</> : null;
-                    })()}
+                    {/* Immer Schweizer Zeit (Toby 14.10.2026); typical_time_et nur,
+                        wenn fuer den Termin keine feste Uhrzeit hinterlegt ist. */}
+                    {markMs !== null ? <> · {formatZurichTime(markMs)}</> : event.typical_time_et ? <> · {event.typical_time_et}</> : null}
                     {" · "}
                     <DaysUntil iso={event.event_date} dateOnly />
                   </span>
@@ -147,22 +125,15 @@ export default function EconomicCalendarPanel({
                     "Keine Einordnung für dieses Ereignis hinterlegt."}
                 </p>
                 <p className="text-xs text-text-faint mt-1">{economicDirectionLegend(event.event_key)}</p>
-                {resultMeaning && lastPrice !== null && (
+                {result && bias && (
                   <p className="text-xs mt-1">
-                    <span className="text-text-faint">Letzter bekannter Wert: </span>
-                    <span className="text-text font-medium">
-                      {fmtMacroValue(lastPrice)}
-                      {prevClose !== null && <span className="text-text-faint"> (vorher {fmtMacroValue(prevClose)})</span>}
-                    </span>{" "}
-                    <span>{resultMeaning.arrow} {resultMeaning.emoji}</span>{" "}
-                    <span className={resultMeaning.meaning === "bärisch" ? "text-down" : resultMeaning.meaning === "bullisch" ? "text-up" : "text-text-faint"}>
-                      {resultMeaning.meaning}
-                    </span>{" "}
-                    <span className="text-text-faint">
-                      für BTC, Stand <FullDateTime iso={macro!.timestamp_utc} />
-                    </span>
+                    <span className="text-text-faint">Ergebnis: </span>
+                    {bias.emoji} <span className={`${bias.colorClass} font-medium`}>{bias.label}</span>{" "}
+                    <span className="text-text">{result.summary}</span>{" "}
+                    <RelativeTime iso={result.created_at} className="text-text-faint" />
                   </p>
                 )}
+                {awaiting && <p className="text-xs mt-1 text-text-faint">Ergebnis steht noch aus.</p>}
               </div>
             );
           })}
