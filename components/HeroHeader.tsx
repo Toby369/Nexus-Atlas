@@ -58,6 +58,8 @@ import StatusLineSummary, { type StatusLineItem } from "@/components/StatusLineS
 import TradingHoursBadge from "@/components/TradingHoursBadge";
 import EconomicHeroBadge from "@/components/EconomicHeroBadge";
 import DivergenceHeroBadge from "@/components/DivergenceHeroBadge";
+import TpStandardBadge from "@/components/TpStandardBadge";
+import { computeTpSuggestions } from "@/lib/tpStandard";
 import BriefingScheduleSettings from "@/components/BriefingScheduleSettings";
 import PanelInfo from "@/components/PanelInfo";
 import SystemBriefingDetails, { isValidSystemBriefingResult } from "@/components/SystemBriefingDetails";
@@ -178,6 +180,7 @@ export default function HeroHeader({
   initialBriefingConfig,
   initialMtfDots,
   initialPriceReferences,
+  keyLevels,
   setupScore,
   regimeScore,
   scoreDetails,
@@ -208,6 +211,9 @@ export default function HeroHeader({
   // Kurs vor 1H/4H/1D/1W (lib/priceChanges.ts), die Veraenderung rechnet
   // gegen den Live-Preis.
   initialPriceReferences: PriceReference[];
+  // Keylevels (Preis + Seite) aus getChartStructureData(), statisch pro
+  // Seitenaufruf -- der TP-Standard-Vorschlag rechnet mit dem Live-Preis.
+  keyLevels: { price: number; side: "resistance" | "support" }[];
   // Setup-/Regime-Score als Kennzahlen oben, die vollstaendigen Karten
   // (scoreDetails) im Aufklapper "Warum?".
   setupScore: ConfluenceScoreResult;
@@ -513,6 +519,7 @@ export default function HeroHeader({
       <TradingHoursBadge events={upcomingEconomicEvents} />
       <EconomicHeroBadge events={upcomingEconomicEvents} />
       <DivergenceHeroBadge />
+      <TpStandardBadge suggestions={computeTpSuggestions(keyLevels, livePrice)} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
         <div className="rounded-md border border-border bg-surface p-3 space-y-1">

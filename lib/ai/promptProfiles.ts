@@ -446,7 +446,9 @@ export const promptProfiles: Record<string, PromptProfile> = {
       BRIEFING_STYLE_INSTRUCTION +
       "Daten: btc_markt (aktueller Kurs), keyLevels (Preis, Seite, Bestaetigungen), " +
       "mein_system_checklist (Funding, OI, EMA 13/50/200, Tagesschluss), " +
-      "trading_indicators (GUSS-Regime, VWAP, CVD). Fuer bullish und bearish je: " +
+      "trading_indicators (GUSS-Regime, VWAP, CVD), tp_standard (Tobys TP-Standard je " +
+      "Richtung nach Abstand zum naechsten Keylevel; 'kein Trade' heisst Level naeher als " +
+      "1 %, dann in der bedingungen-Liste der Richtung erwaehnen). Fuer bullish und bearish je: " +
       "text = 1-2 ganze Saetze wie in einem Marktbericht, erster Satz als Kernaussage, " +
       "z.B. bullish 'Ueberwindet BTC die Zone 84'300-84'500 USD nachhaltig, koennte der " +
       "Abverkauf schnell aufgeholt werden. Dann rueckt die Zone um 85'000 USD in den " +
