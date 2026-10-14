@@ -163,6 +163,24 @@ export function expectedDailyMovePct(annualVolPct: number): number {
 // signifikant (null = keine belastbare Abweichung, Anzeige bleibt 68 %).
 export const HISTORICAL_COVERAGE: Record<number, number | null> = { 1: 0.8, 7: 0.78, 30: null };
 
+// 1-Tages-Spanne nach Wochentag (Nachtrag 14.10.2026, beschreibend,
+// docs/research/VOLATILITAETS-KACHEL-BERUEHRUNG_2026-10-14.md): DVOL verteilt
+// die Schwankung gleichmaessig auf 365 Tage, BTC bewegt sich werktags aber
+// deutlich mehr -> Spanne werktags zu eng, am Wochenende zu breit.
+// touched = Hoch/Tief beruehrt die Spanne irgendwann, endInside = Kurs nach 24 h drin.
+export type DayType = "weekday" | "weekend";
+export const ONE_DAY_BY_DAYTYPE: Record<DayType, { touched: number; endInside: number }> = {
+  weekday: { touched: 0.53, endInside: 0.75 },
+  weekend: { touched: 0.17, endInside: 0.92 },
+};
+
+// Die naechsten 24 h gelten als Wochenende, wenn ihre Mitte (jetzt + 12 h)
+// auf Samstag oder Sonntag UTC faellt -- gemessen wurde mit Tagen ab 00:00 UTC.
+export function oneDayWindowType(nowMs: number): DayType {
+  const day = new Date(nowMs + 12 * 60 * 60 * 1000).getUTCDay();
+  return day === 0 || day === 6 ? "weekend" : "weekday";
+}
+
 export interface ExpectedRange {
   days: number;
   movePct: number;

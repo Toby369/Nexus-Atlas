@@ -1,7 +1,8 @@
 # Volatilitäts-Kachel — Wie oft wird die Spanne berührt? (14.10.2026)
 
 Nachtrag zu `VOLATILITAETS-KACHEL-BACKTEST_RESULTS_2026-10-14.md`. **Beschreibende
-Messung, keine vorregistrierte Hypothese**, die Kachel wurde deshalb nicht angepasst.
+Messung, keine vorregistrierte Hypothese.** Auf Wunsch zeigt die Kachel die Werte als
+Hinweis an (siehe Nachtrag unten).
 Code: `research-python/vol_tile_backtest/touch.py` (Tests: `tests/test_touch.py`),
 gleiche Daten und gleicher Zeitraum wie der Hauptbacktest: **05.09.2022 – 13.10.2026,
 1'500 Tage**.
@@ -63,3 +64,17 @@ Unterschied.
   Beispiel US-Eröffnung im Fenster oder nicht).
 - Hoch und Tief stammen aus Binance-Futures. Einzelne Dochte (kurze Ausschläge) zählen als
   Berührung.
+
+## Nachtrag 14.10.2026: Hinweis in der Kachel
+
+Auf Tobys Wunsch zeigt die Kachel die Messung jetzt als Hinweis an
+(`lib/volatility.ts::ONE_DAY_BY_DAYTYPE`, `oneDayWindowType`):
+
+- Bei der 1-Tages-Spanne steht die historische Quote „am Ende drin“ je nach Tagesart:
+  werktags 75 %, am Wochenende 92 %.
+- Unter den Spannen steht eine Zeile: werktags „eher zu eng – unterwegs an 53 % berührt“,
+  am Wochenende „eher zu breit – nur an 17 % berührt“.
+- Als Wochenende gilt, wenn die Mitte der nächsten 24 h (jetzt + 12 h) auf Samstag oder
+  Sonntag UTC fällt.
+
+Die Spanne selbst wird nicht umgerechnet, sie kommt weiterhin unverändert aus dem DVOL.

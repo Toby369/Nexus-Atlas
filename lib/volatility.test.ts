@@ -5,6 +5,7 @@ import {
   classifySkew,
   expectedDailyMovePct,
   expectedRange,
+  oneDayWindowType,
   parseOption,
   percentileRank,
   realizedVolPct,
@@ -130,6 +131,18 @@ describe("expectedRange", () => {
     const one = expectedRange(80000, 40, 1).movePct;
     expect(expectedRange(80000, 40, 4).movePct).toBeCloseTo(2 * one, 10);
     expect(one).toBeCloseTo(expectedDailyMovePct(40), 10);
+  });
+});
+
+describe("oneDayWindowType", () => {
+  it.each([
+    [Date.UTC(2026, 9, 14, 12), "weekday"], // Mi Mittag
+    [Date.UTC(2026, 9, 16, 11), "weekday"], // Fr 11:00 -> Mitte Fr 23:00
+    [Date.UTC(2026, 9, 16, 12), "weekend"], // Fr 12:00 -> Mitte Sa 00:00
+    [Date.UTC(2026, 9, 18, 11), "weekend"], // So 11:00 -> Mitte So 23:00
+    [Date.UTC(2026, 9, 18, 12), "weekday"], // So 12:00 -> Mitte Mo 00:00
+  ])("%s -> %s", (ms, type) => {
+    expect(oneDayWindowType(ms)).toBe(type);
   });
 });
 
