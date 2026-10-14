@@ -25,9 +25,10 @@ const BRIEFING_TIMEOUT_MS = 40_000;
 // Gemini-Gratis-Tarif: jedes Modell hat ein EIGENES Limit von 20 Anfragen pro
 // Tag und 5 pro Minute (Google AI Studio, Stand 14.10.2026). Bis dahin lagen
 // fast alle Aufrufe auf 3.6/3.7/3.8 Flash und rissen deren Tageslimit (30/20,
-// 30/20, 23/20), waehrend 2.5 Flash und 2.5 Flash Lite ungenutzt blieben.
-// Deshalb feste Zuteilung je Aufgabe und eine Gemini-interne Ausweichkette
-// (googleModels), bevor ein anderer Provider einspringt.
+// 30/20, 23/20). Deshalb feste Zuteilung je Aufgabe und eine Gemini-interne
+// Ausweichkette (googleModels), bevor ein anderer Provider einspringt.
+// gemini-2.5-flash und gemini-2.5-flash-lite antworten fuer neue Nutzer mit
+// 404 ("no longer available"), Google empfiehlt gemini-3.5-flash-lite.
 export const GEMINI_MODELS = {
   /** Briefing: Regelwerk. */
   flash37: "gemini-3.7-flash",
@@ -35,13 +36,13 @@ export const GEMINI_MODELS = {
   flash38: "gemini-3.8-flash",
   /** YouTube-Monitor (Video per URL, viele Tokens) -- siehe youtubeVideoAnalysis.ts. */
   flash36: "gemini-3.6-flash",
-  /** Trade-Debate, Rueckblick, Eskalation und Ersatz fuers Briefing. */
-  flash25: "gemini-2.5-flash",
-  /** Letzter Gemini-Ersatz (10 Anfragen pro Minute). */
-  flashLite25: "gemini-2.5-flash-lite",
+  /** Trade-Debate, Rueckblick, Eskalation und erster Ersatz fuers Briefing. */
+  flashLite35: "gemini-3.5-flash-lite",
 } as const;
 
-const GEMINI_SHARED = [GEMINI_MODELS.flash25, GEMINI_MODELS.flashLite25];
+// Ersatz-Kette fuer alle uebrigen Google-Aufrufe: 3.5 Flash Lite, dann 3.6
+// Flash (YouTube laeuft nur noch auf Abruf und laesst dort Luft).
+const GEMINI_SHARED = [GEMINI_MODELS.flashLite35, GEMINI_MODELS.flash36];
 
 export const tileConfigs: Record<string, TileAIConfig> = {
   // System-Briefing (siehe promptProfiles.ts/systemBriefingContext.ts):
@@ -56,29 +57,31 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   //   mit Tageslimit, das auch Eskalation, Trade-Debate-Referee und mehrere
   //   Fallbacks nutzen. Daher nur die zwei kleinen Teile (Chart, Trigger).
   // - Google: 19-25s, teils Zeitueberschreitung. Traegt Regelwerk (3.7 Flash)
-  //   und Synthese (3.8 Flash), je mit 2.5 Flash und 2.5 Flash Lite als
+  //   und Synthese (3.8 Flash), je mit 3.5 Flash Lite und 3.6 Flash als
   //   Gemini-Ersatz (siehe GEMINI_MODELS). Groq springt erst ein, wenn kein
   //   Gemini-Modell antwortet.
-  // - Mistral: jeder Versuch HTTP 429 (Rate limit exceeded) -- vermutlich
-  //   durch den frueheren Mistral-Slot der AI Reports ausgelastet.
+  // - Mistral: frueher jeder Versuch HTTP 429, solange die AI Reports das
+  //   Limit belegten. Seit deren Entfernung (12.10.2026) zweiter Ersatz fuer
+  //   alle Briefing-Teile (14.10.2026), damit bei einem Gemini-Ausfall nicht
+  //   alle Teile gleichzeitig Groqs 8000-Token-pro-Minute-Grenze reissen.
   // - OpenRouter: Antwort "User Safety: safe" (Moderations-Modell statt
   //   JSON) oder Zeitueberschreitung; hing schon frueher bei Kursziel-
   //   Szenarien (siehe promptProfiles.ts).
-  // Mistral, OpenRouter und DeepSeek (nicht konfiguriert) stehen deshalb in
-  // keiner Briefing-Kette.
+  // OpenRouter und DeepSeek (nicht konfiguriert) stehen deshalb in keiner
+  // Briefing-Kette.
   "system-briefing-regelwerk": {
     tileId: "system-briefing-regelwerk",
     aiProvider: "google",
     googleModels: [GEMINI_MODELS.flash37, ...GEMINI_SHARED],
     promptProfile: "system-briefing-regelwerk",
-    fallbackProviders: ["groq"],
+    fallbackProviders: ["mistral", "groq"],
     timeoutMs: BRIEFING_TIMEOUT_MS,
   },
   "system-briefing-chart": {
     tileId: "system-briefing-chart",
     aiProvider: "groq",
     promptProfile: "system-briefing-chart",
-    fallbackProviders: ["google"],
+    fallbackProviders: ["mistral", "google"],
     googleModels: GEMINI_SHARED,
     timeoutMs: BRIEFING_TIMEOUT_MS,
   },
@@ -86,7 +89,7 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     tileId: "system-briefing-trigger",
     aiProvider: "groq",
     promptProfile: "system-briefing-trigger",
-    fallbackProviders: ["google"],
+    fallbackProviders: ["mistral", "google"],
     googleModels: GEMINI_SHARED,
     timeoutMs: BRIEFING_TIMEOUT_MS,
   },
@@ -95,7 +98,7 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     aiProvider: "google",
     googleModels: [GEMINI_MODELS.flash38, ...GEMINI_SHARED],
     promptProfile: "system-briefing-synthese",
-    fallbackProviders: ["groq"],
+    fallbackProviders: ["mistral", "groq"],
     timeoutMs: BRIEFING_TIMEOUT_MS,
   },
   // Eskalation: aiProvider ist nur ein Platzhalter --

@@ -7,7 +7,7 @@ import type {
 import { extractJson } from "../extractJson";
 import { PROVIDER_TIMEOUT_MS } from "../fetchWithRetry";
 
-// Laengste Wartezeit, die bei einem 429 noch abgewartet wird. Groq nennt beim
+// Laengste gesamte Wartezeit, die bei 429 noch abgewartet wird. Groq nennt beim
 // 8000-TPM-Limit bis zu ~30s (Vorfaelle 13.10. 16:15 und 14.10. 06:30: 25,3s
 // und 30,3s, beide knapp ueber der frueheren Grenze von 25s, Briefing fiel
 // aus). Die Wartezeit zaehlt nicht zum Zeitlimit je Versuch (40s); Worst
@@ -93,15 +93,22 @@ export function createOpenAiCompatibleProvider(
 
       let res = await send();
       // Minutenlimit (HTTP 429, z.B. Groqs Token-pro-Minute-Grenze): nennt der
-      // Anbieter eine kurze Wartezeit, einmal warten und erneut senden, statt
-      // die Kette scheitern zu lassen (Vorfall 12.10.2026: Briefing-Teile
-      // parallel auf Groq rissen das 8000-TPM-Limit, "try again in 18.5s").
-      if (res.status === 429) {
+      // Anbieter eine kurze Wartezeit, warten und erneut senden, statt die
+      // Kette scheitern zu lassen (Vorfall 12.10.2026: Briefing-Teile parallel
+      // auf Groq rissen das 8000-TPM-Limit, "try again in 18.5s"). Bis zu zwei
+      // Mal, mit etwas Zufall: laufen mehrere Teile parallel auf Groq, wachen
+      // sie sonst gleichzeitig auf und reissen das Limit erneut (Vorfall
+      // 14.10.2026 10:54). Gesamte Wartezeit hoechstens
+      // MAX_RATE_LIMIT_WAIT_SECONDS.
+      let waitedSeconds = 0;
+      for (let retry = 0; res.status === 429 && retry < 2; retry++) {
         const waitSeconds = retryAfterSeconds(res.headers.get("retry-after"), await res.clone().text().catch(() => ""));
-        if (waitSeconds !== null && waitSeconds <= MAX_RATE_LIMIT_WAIT_SECONDS) {
-          await new Promise((resolve) => setTimeout(resolve, (waitSeconds + 0.5) * 1000));
-          res = await send();
-        }
+        if (waitSeconds === null) break;
+        const jitter = Math.random() * 4;
+        if (waitedSeconds + waitSeconds + jitter > MAX_RATE_LIMIT_WAIT_SECONDS) break;
+        await new Promise((resolve) => setTimeout(resolve, (waitSeconds + 0.5 + jitter) * 1000));
+        waitedSeconds += waitSeconds + jitter;
+        res = await send();
       }
 
       if (!res.ok) {

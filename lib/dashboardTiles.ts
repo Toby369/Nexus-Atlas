@@ -39,7 +39,6 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   // Lagebild (HeroHeader), nicht als eigene Kachel.
   { id: "second-opinions", title: "Zweitmeinungen (KI)" },
   { id: "youtube-monitor", title: "Krypto-YouTube-Monitor (KI)" },
-  { id: "liquidations", title: "Liquidationen" },
   { id: "etf-flow", title: "ETF-Flows & Makro" },
   { id: "news-risk", title: "News & Risiko" },
   // Das Institutional Playbook ist ein Modul im Wissen-Tab der Lernen-Seite.

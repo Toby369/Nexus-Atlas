@@ -289,3 +289,9 @@ Stunden) ist damit im Lagebild abgedeckt.
 `market_state_matrix`, die übrigen Zeitrahmen rechnet `compute_market_state_matrix_latest` live aus den
 letzten 400 Kerzen (gleiche Formeln, nichts zusätzlich gespeichert; SQL in
 `MARKTPHASE-ZEITRAHMEN_2026-10-13.md`). Gesamteinschätzung, Briefing, Scores und Push bleiben auf 1H.
+
+### Nachtrag: Kachel „Liquidationen“ entfernt (14.10.2026)
+
+**Freigegeben (Toby):** Die Kachel mit den passierten Liquidationen (Stichprobe ~25 s alle 5 Min) wird nicht
+gebraucht und ist entfernt. Die Erfassung (`collect-liquidations`, `liquidation_events`) bleibt: Briefing,
+Key Levels, Marktphase und Divergenz-Radar nutzen die Daten weiter. Die Liquidations-/Hebelkarte bleibt.

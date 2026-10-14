@@ -7,7 +7,6 @@ import type {
   EconomicCalendarEvent,
   EscalationSnapshot,
   EtfFlowDay,
-  LiquidationEvent,
   MarketSeriesPoint,
   MarketSnapshot,
   MarketState,
@@ -38,7 +37,6 @@ import LivePriceDataProvider from "@/components/LivePriceDataProvider";
 import OiChangeCard from "@/components/OiChangeCard";
 import FundingRateCard from "@/components/FundingRateCard";
 import NewsRiskPanel from "@/components/NewsRiskPanel";
-import LiquidationPanel from "@/components/LiquidationPanel";
 import EtfFlowPanel from "@/components/EtfFlowPanel";
 import EconomicCalendarPanel from "@/components/EconomicCalendarPanel";
 import MarketContextCard from "@/components/MarketContextCard";
@@ -69,8 +67,6 @@ export const revalidate = 0;
 const REFERENCE_EXCHANGE = "bybit";
 const NEWS_LIMIT = 5;
 const NEWS_LOOKBACK_HOURS = 72;
-const LIQUIDATION_LOOKBACK_HOURS = 6;
-const LIQUIDATION_LIMIT = 300;
 const ETF_FLOW_LIMIT = 10;
 
 // KI-Verlaufslisten/-Snapshots aelter als 6h werden nicht angezeigt: ein
@@ -299,29 +295,6 @@ async function getLatestYoutubeAnalyses(): Promise<YoutubeVideoAnalysis[]> {
   return data ?? [];
 }
 
-// Stichprobenerfassung (~25s alle 5 Min je Boerse) -- letzte Fenster fuer
-// eine aussagekraeftige Aggregation (Groesse/Richtung/Haeufung).
-async function getRecentLiquidations(): Promise<LiquidationEvent[]> {
-  const cutoff = new Date(
-    Date.now() - LIQUIDATION_LOOKBACK_HOURS * 60 * 60 * 1000
-  ).toISOString();
-
-  const { data, error } = await supabase
-    .from("liquidation_events")
-    .select("*")
-    .eq("status", "ok")
-    .gte("event_time_utc", cutoff)
-    .order("event_time_utc", { ascending: false })
-    .limit(LIQUIDATION_LIMIT);
-
-  if (error) {
-    console.error("Fehler beim Laden der Liquidationen:", error.message);
-    return [];
-  }
-
-  return data ?? [];
-}
-
 // Die Quelle wurde von Farside (Scraping) auf SoSoValue (offizielle API)
 // umgestellt. Aeltere Farside-Zeilen bleiben als Historie stehen, ein Datum
 // kann also kurzzeitig doppelt vorkommen -- pro Datum nur eine Zeile
@@ -541,7 +514,6 @@ export default async function Home({
     mtfDots,
     shortTermRangeCheck,
     highImpactNews,
-    recentLiquidations,
     recentEtfFlows,
     upcomingEconomicEvents,
     latestLeverageMap,
@@ -575,7 +547,6 @@ export default async function Home({
     getLatestMtfDots(),
     getShortTermRangeCheck(),
     getHighImpactNews(),
-    getRecentLiquidations(),
     getRecentEtfFlows(),
     getUpcomingEconomicEvents(),
     buildLiveLeverageMap(),
@@ -713,9 +684,6 @@ export default async function Home({
                     "funding-rate": <FundingRateCard />,
                     "orderbook-walls": <OrderbookWallCard walls={latestOrderbookWalls} />,
                     "divergence-radar": <DivergenceRadarCard radar={divergenceRadar} />,
-                    liquidations: (
-                      <LiquidationPanel initialEvents={recentLiquidations} />
-                    ),
                     "etf-flow": (
                       <EtfFlowPanel initialFlows={recentEtfFlows} macroNews={highImpactNews} />
                     ),
