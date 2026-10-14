@@ -25,6 +25,13 @@ export interface AIGenerateOptions {
   systemPrompt?: string;
   /** Zeitlimit je Provider-Versuch in ms, sonst PROVIDER_TIMEOUT_MS. */
   timeoutMs?: number;
+  /**
+   * Bei "Modell ueberlastet" (HTTP 503) mehrmals kurz wiederholen. Default
+   * true; der Router schaltet es ab, wenn danach noch ein anderes Modell
+   * bzw. ein anderer Provider bereitsteht -- jede Wiederholung zaehlt beim
+   * Gemini-Gratis-Tarif gegen das Tageslimit (20 Anfragen je Modell).
+   */
+  retryOnOverload?: boolean;
 }
 
 export interface AIUsage {
@@ -100,4 +107,12 @@ export interface TileAIConfig {
   fallbackProviders?: AIProviderId[];
   /** Optional: Zeitlimit je Provider-Versuch in ms, sonst PROVIDER_TIMEOUT_MS. */
   timeoutMs?: number;
+  /**
+   * Optional: Gemini-Modelle in Reihenfolge, wann immer "google" in der
+   * Kette steht (primaer oder als Fallback). Jedes Modell hat im Gratis-Tarif
+   * ein eigenes Tageslimit -- faellt eins aus, wird das naechste versucht,
+   * bevor die Kette zum naechsten Provider weitergeht. Ohne Angabe: aiModel
+   * (nur als primaerer Provider) bzw. GOOGLE_MODEL.
+   */
+  googleModels?: string[];
 }

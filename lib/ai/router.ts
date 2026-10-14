@@ -78,17 +78,35 @@ export async function runTileAnalysis<T = unknown>(
     ...(tileConfig.fallbackProviders ?? []).filter((p) => p !== primaryProviderId),
   ];
 
+  // Je Provider ein Versuch -- ausser google mit googleModels: dann ein
+  // Versuch je Gemini-Modell (eigene Tageslimits je Modell im Gratis-Tarif).
+  const steps = providerChain.flatMap((providerId) =>
+    providerId === "google" && tileConfig.googleModels?.length
+      ? tileConfig.googleModels.map((model) => ({ providerId, model }))
+      : [{ providerId, model: providerId === primaryProviderId ? tileConfig.aiModel : undefined }]
+  );
+
   const attempted: AIProviderId[] = [];
+  const attemptedLabels: string[] = [];
+  // Laeuft ein Gemini-Modell ins Zeitlimit, ist Google gerade insgesamt
+  // langsam -- weitere Gemini-Modelle wuerden je dasselbe Zeitlimit kosten
+  // und das Briefing ueber maxDuration treiben. Dann direkt weiter zum
+  // naechsten Provider. 503/429 kommen sofort und rechtfertigen den Versuch
+  // mit dem naechsten Modell.
+  let skipGoogle = false;
   // Ein Fehler PRO Provider, nicht nur der letzte -- sonst verdeckt z.B. ein
   // "deepseek: nicht konfiguriert"-Fallback-Fehler den eigentlich
   // interessanten Fehler des primaeren Providers.
   const errors: string[] = [];
 
-  for (const providerId of providerChain) {
+  for (const [stepIndex, { providerId, model }] of steps.entries()) {
     const provider = getProvider(providerId);
+    const label = model ? `${providerId} (${model})` : providerId;
+    if (skipGoogle && providerId === "google") continue;
 
     if (!provider.isConfigured()) {
       attempted.push(providerId);
+      attemptedLabels.push(label);
       errors.push(`${providerId}: nicht konfiguriert (kein API-Key gesetzt).`);
       continue;
     }
@@ -104,8 +122,11 @@ export async function runTileAnalysis<T = unknown>(
         // gilt daher nur fuer den primaeren Provider. Faellt die Kette auf
         // einen anderen Vendor zurueck, soll der dessen eigenen Default
         // nutzen statt mit einem fremden Modellnamen zu scheitern.
-        model: providerId === primaryProviderId ? tileConfig.aiModel : undefined,
+        model,
         timeoutMs: tileConfig.timeoutMs,
+        // Steht noch ein weiterer Schritt bereit, nicht beim selben
+        // ueberlasteten Modell nachhaken, sondern weitergehen.
+        retryOnOverload: stepIndex === steps.length - 1,
       });
 
       if (profile.validate) {
@@ -120,7 +141,7 @@ export async function runTileAnalysis<T = unknown>(
       }
 
       console.log(
-        `AI Router: "${tileId}" -> ${providerId} erfolgreich nach ${Date.now() - attemptStart}ms.`
+        `AI Router: "${tileId}" -> ${label} erfolgreich nach ${Date.now() - attemptStart}ms.`
       );
       return {
         ...result,
@@ -131,16 +152,18 @@ export async function runTileAnalysis<T = unknown>(
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(
-        `AI Router: "${tileId}" -> ${providerId} fehlgeschlagen nach ${Date.now() - attemptStart}ms: ${message}`
+        `AI Router: "${tileId}" -> ${label} fehlgeschlagen nach ${Date.now() - attemptStart}ms: ${message}`
       );
       attempted.push(providerId);
+      attemptedLabels.push(label);
       errors.push(message);
+      if (providerId === "google" && message.includes("Zeitueberschreitung")) skipGoogle = true;
       // Naechster Provider in der Kette wird versucht.
     }
   }
 
   throw new Error(
-    `AI Router: alle Provider fuer Kachel "${tileId}" fehlgeschlagen (${attempted.join(
+    `AI Router: alle Provider fuer Kachel "${tileId}" fehlgeschlagen (${attemptedLabels.join(
       " -> "
     )}). Fehler: ${errors.join(" | ")}`
   );

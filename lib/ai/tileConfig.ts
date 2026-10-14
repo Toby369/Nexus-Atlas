@@ -22,6 +22,27 @@ import type { TileAIConfig } from "./types";
 // die Synthese -- 160s, unter maxDuration=300 der Briefing-Route.
 const BRIEFING_TIMEOUT_MS = 40_000;
 
+// Gemini-Gratis-Tarif: jedes Modell hat ein EIGENES Limit von 20 Anfragen pro
+// Tag und 5 pro Minute (Google AI Studio, Stand 14.10.2026). Bis dahin lagen
+// fast alle Aufrufe auf 3.6/3.7/3.8 Flash und rissen deren Tageslimit (30/20,
+// 30/20, 23/20), waehrend 2.5 Flash und 2.5 Flash Lite ungenutzt blieben.
+// Deshalb feste Zuteilung je Aufgabe und eine Gemini-interne Ausweichkette
+// (googleModels), bevor ein anderer Provider einspringt.
+export const GEMINI_MODELS = {
+  /** Briefing: Regelwerk. */
+  flash37: "gemini-3.7-flash",
+  /** Briefing: Synthese. */
+  flash38: "gemini-3.8-flash",
+  /** YouTube-Monitor (Video per URL, viele Tokens) -- siehe youtubeVideoAnalysis.ts. */
+  flash36: "gemini-3.6-flash",
+  /** Trade-Debate, Rueckblick, Eskalation und Ersatz fuers Briefing. */
+  flash25: "gemini-2.5-flash",
+  /** Letzter Gemini-Ersatz (10 Anfragen pro Minute). */
+  flashLite25: "gemini-2.5-flash-lite",
+} as const;
+
+const GEMINI_SHARED = [GEMINI_MODELS.flash25, GEMINI_MODELS.flashLite25];
+
 export const tileConfigs: Record<string, TileAIConfig> = {
   // System-Briefing (siehe promptProfiles.ts/systemBriefingContext.ts):
   // deckt auch Handelslage und den Konsistenz-Check der frueheren Signal
@@ -34,10 +55,10 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   // - Groq: 1,5-4s je Teil, jeder Versuch erfolgreich -- aber Gratis-Tier
   //   mit Tageslimit, das auch Eskalation, Trade-Debate-Referee und mehrere
   //   Fallbacks nutzen. Daher nur die zwei kleinen Teile (Chart, Trigger).
-  // - Google (gemini-3.7-flash): 19-25s, teils Zeitueberschreitung. Traegt
-  //   Regelwerk und Synthese; eigenes Modell statt GOOGLE_MODEL, damit die
-  //   Tagesquota der uebrigen Google-Kacheln nicht mitbelastet wird. Groq
-  //   springt nur bei einem Google-Ausfall ein.
+  // - Google: 19-25s, teils Zeitueberschreitung. Traegt Regelwerk (3.7 Flash)
+  //   und Synthese (3.8 Flash), je mit 2.5 Flash und 2.5 Flash Lite als
+  //   Gemini-Ersatz (siehe GEMINI_MODELS). Groq springt erst ein, wenn kein
+  //   Gemini-Modell antwortet.
   // - Mistral: jeder Versuch HTTP 429 (Rate limit exceeded) -- vermutlich
   //   durch den frueheren Mistral-Slot der AI Reports ausgelastet.
   // - OpenRouter: Antwort "User Safety: safe" (Moderations-Modell statt
@@ -48,7 +69,7 @@ export const tileConfigs: Record<string, TileAIConfig> = {
   "system-briefing-regelwerk": {
     tileId: "system-briefing-regelwerk",
     aiProvider: "google",
-    aiModel: "gemini-3.7-flash",
+    googleModels: [GEMINI_MODELS.flash37, ...GEMINI_SHARED],
     promptProfile: "system-briefing-regelwerk",
     fallbackProviders: ["groq"],
     timeoutMs: BRIEFING_TIMEOUT_MS,
@@ -58,6 +79,7 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     aiProvider: "groq",
     promptProfile: "system-briefing-chart",
     fallbackProviders: ["google"],
+    googleModels: GEMINI_SHARED,
     timeoutMs: BRIEFING_TIMEOUT_MS,
   },
   "system-briefing-trigger": {
@@ -65,12 +87,13 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     aiProvider: "groq",
     promptProfile: "system-briefing-trigger",
     fallbackProviders: ["google"],
+    googleModels: GEMINI_SHARED,
     timeoutMs: BRIEFING_TIMEOUT_MS,
   },
   "system-briefing-synthese": {
     tileId: "system-briefing-synthese",
     aiProvider: "google",
-    aiModel: "gemini-3.7-flash",
+    googleModels: [GEMINI_MODELS.flash38, ...GEMINI_SHARED],
     promptProfile: "system-briefing-synthese",
     fallbackProviders: ["groq"],
     timeoutMs: BRIEFING_TIMEOUT_MS,
@@ -87,6 +110,7 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     aiProvider: "groq",
     promptProfile: "escalation-analysis",
     fallbackProviders: [],
+    googleModels: GEMINI_SHARED,
   },
   // Trade-Debate: app/api/trade-debate/generate/route.ts ruft Bull und Bear
   // mit ABSICHTLICH unterschiedlichem primaeren Vendor auf (kein gemeinsamer
@@ -98,12 +122,14 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     aiProvider: "google",
     promptProfile: "trade-bull-analyst",
     fallbackProviders: ["openrouter"],
+    googleModels: GEMINI_SHARED,
   },
   "trade-debate-bear": {
     tileId: "trade-debate-bear",
     aiProvider: "openrouter",
     promptProfile: "trade-bear-analyst",
     fallbackProviders: ["google"],
+    googleModels: GEMINI_SHARED,
   },
   // Referee: Groq (erwartet GROQ_MODEL="openai/gpt-oss-120b", Free-Tier) --
   // stark bei Reasoning/Mathe und ein von Bull (Google) und Bear (OpenRouter)
@@ -114,6 +140,7 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     aiProvider: "groq",
     promptProfile: "trade-referee",
     fallbackProviders: ["google", "openrouter"],
+    googleModels: GEMINI_SHARED,
   },
   // Periodischer KI-Rueckblick: liest ausschliesslich signal_stats_results,
   // kein eigener Bias -- ein "zweites Paar Augen" auf bereits berechnete
@@ -123,6 +150,7 @@ export const tileConfigs: Record<string, TileAIConfig> = {
     aiProvider: "auto", // -> google (signal-logic)
     promptProfile: "signal-review",
     fallbackProviders: ["openrouter", "deepseek"],
+    googleModels: GEMINI_SHARED,
   },
 };
 
