@@ -10,6 +10,8 @@ import {
   EVENT_FRED_SYMBOL,
   economicDirectionLegend,
   economicDirectionMeaning,
+  economicEventMarkMs,
+  formatZurichTime,
 } from "@/lib/economicCalendar";
 import { ShortDate, DaysUntil, FullDateTime } from "@/components/ClientTimestamp";
 import { setVisibleInterval } from "@/lib/visibleInterval";
@@ -129,7 +131,13 @@ export default function EconomicCalendarPanel({
                   <span className="text-sm text-text font-medium">{event.label}</span>
                   <span className="text-xs text-text-faint whitespace-nowrap">
                     <ShortDate iso={event.event_date} />
-                    {event.typical_time_et && <> · {event.typical_time_et}</>}
+                    {(() => {
+                      // Immer Schweizer Zeit (Toby 14.10.2026); typical_time_et nur,
+                      // wenn fuer den Termin keine feste Uhrzeit hinterlegt ist.
+                      const markMs = economicEventMarkMs(event.event_key, event.event_date);
+                      if (markMs !== null) return <> · {formatZurichTime(markMs)}</>;
+                      return event.typical_time_et ? <> · {event.typical_time_et}</> : null;
+                    })()}
                     {" · "}
                     <DaysUntil iso={event.event_date} dateOnly />
                   </span>

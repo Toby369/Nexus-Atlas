@@ -1,3 +1,4 @@
+import { economicEventMarkMs, formatZurichTime } from "./economicCalendar";
 import { supabase } from "./supabase";
 import { computeConfidenceBreakdown } from "./marketStateSummary";
 import { getMeinSystemChecklistData, type MeinSystemChecklistData } from "./meinSystemContext";
@@ -232,17 +233,28 @@ async function getRsi(interval: "4h" | "1d"): Promise<RsiStand> {
 }
 
 // Termine von heute und morgen (economic_calendar_events, gleiche Quelle wie
-// die Wirtschaftskalender-Kachel).
-async function getKalender(): Promise<Pick<EconomicCalendarEvent, "label" | "event_date" | "typical_time_et">[]> {
+// die Wirtschaftskalender-Kachel). Uhrzeit in Schweizer Zeit (Toby
+// 14.10.2026: Zeiten immer in Schweizer Zeit), statt der US-Ostkuesten-Zeit
+// aus typical_time_et.
+interface KalenderEintrag {
+  label: string;
+  event_date: string;
+  zeit_schweiz: string | null;
+}
+
+async function getKalender(): Promise<KalenderEintrag[]> {
   const today = new Date();
   const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
   const { data } = await supabase
     .from("economic_calendar_events")
-    .select("label, event_date, typical_time_et")
+    .select("event_key, label, event_date")
     .gte("event_date", today.toISOString().slice(0, 10))
     .lte("event_date", tomorrow.toISOString().slice(0, 10))
     .order("event_date", { ascending: true });
-  return data ?? [];
+  return (data ?? []).map((e: Pick<EconomicCalendarEvent, "event_key" | "label" | "event_date">) => {
+    const markMs = economicEventMarkMs(e.event_key, e.event_date);
+    return { label: e.label, event_date: e.event_date, zeit_schweiz: markMs !== null ? formatZurichTime(markMs) : null };
+  });
 }
 
 interface RegelwerkEntry {
@@ -307,7 +319,7 @@ export interface SystemBriefingContext {
   news: { count: number; lookback_hours: number; schlagzeilen: string[] };
   btc_markt: BtcMarkt;
   rsi: { "4h": RsiStand; "1d": RsiStand };
-  wirtschaftskalender: Pick<EconomicCalendarEvent, "label" | "event_date" | "typical_time_et">[];
+  wirtschaftskalender: KalenderEintrag[];
   // Chart-Strukturdaten -- algorithmisch berechnet, nicht vision-basiert.
   triangle: ChartStructureData["triangle"];
   continuationFormation: ChartStructureData["continuationFormation"];

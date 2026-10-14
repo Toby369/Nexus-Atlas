@@ -7,6 +7,7 @@ import {
   getHeroEconomicEventStatus,
   economicDirectionMeaning,
   economicDirectionLegend,
+  formatZurichTime,
   type HeroEconomicEventStatus,
   type MacroSnapshotFetcher,
 } from "@/lib/economicCalendar";
@@ -14,8 +15,8 @@ import { CountdownTime, RelativeTime } from "@/components/ClientTimestamp";
 import PanelInfo from "@/components/PanelInfo";
 import { setVisibleInterval } from "@/lib/visibleInterval";
 
-// Wirtschaftstermin im Lagebild: zeigt den naechsten bevorstehenden Termin,
-// nach Veroeffentlichung noch 4h mit Resultat, danach den folgenden. Eigene
+// Wirtschaftstermin im Lagebild: erscheint 2h vor dem Termin und bleibt bis
+// 1h nach dem Resultat, sonst ist die Zeile ausgeblendet (Toby 14.10.2026). Eigene
 // Komponente mit eigenem Fetch/Poll (wie TradingHoursBadge), um HeroHeader
 // schlank zu halten. Die Zustandsmaschine (upcoming/awaiting_result/
 // result_recent) lebt in lib/economicCalendar.ts::getHeroEconomicEventStatus.
@@ -94,7 +95,9 @@ export default function EconomicHeroBadge({ events }: { events: EconomicCalendar
           Wirtschaftsdaten
         </span>
         <PanelInfo title="Wirtschaftsdaten" content={economicDirectionLegend(status.eventKey)} />
-        <span className="truncate">{status.label}</span>
+        <span className="truncate">
+          {status.label} · {formatZurichTime(status.markMs)}
+        </span>
       </span>
       <span className="flex items-center gap-1.5 whitespace-nowrap">
         {valueNode}

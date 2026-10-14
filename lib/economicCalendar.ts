@@ -63,10 +63,11 @@ export function economicDirectionLegend(eventKey: string): string {
     : "↑ höher als zuvor → 🟢 bullisch für BTC · ↓ niedriger → 🔴 bärisch für BTC";
 }
 
-// Lagebild: zeigt den naechsten Termin bis zum Resultat, danach noch 4h mit
-// Resultat, dann den folgenden. EIN Termin wird angezeigt, Auswahl nach Zeit-Prioritaet
-// -- siehe getHeroEconomicEventStatus() unten fuer die genaue Zustandsmaschine
-// (upcoming -> awaiting_result -> result_recent -> naechster Termin).
+// Lagebild: zeigt einen Termin ab 2h vorher bis 1h nach dem Resultat (Toby
+// 14.10.2026), sonst nichts. EIN Termin wird angezeigt, Auswahl nach Zeit-
+// Prioritaet -- siehe getHeroEconomicEventStatus() unten fuer die genaue
+// Zustandsmaschine (upcoming -> awaiting_result -> result_recent -> naechster
+// Termin). Uhrzeiten werden immer in Schweizer Zeit angezeigt.
 //
 // Veroeffentlichungszeit je Ereignis (ET-Wanduhrzeit) -- identisch zu
 // NEWS_MARKS in der Supabase Edge Function send-state-change-push (dort
@@ -79,7 +80,31 @@ export const EVENT_TIME_ET: Record<string, string> = {
 };
 
 const ZONE_US = "America/New_York";
-const RESULT_DISPLAY_MS = 4 * 60 * 60 * 1000;
+const ZONE_CH = "Europe/Zurich";
+const HOUR_MS = 60 * 60 * 1000;
+/** Ab wann vor dem Termin er im Lagebild erscheint. */
+export const HERO_LEAD_MS = 2 * HOUR_MS;
+/** Wie lange das Resultat im Lagebild stehen bleibt. */
+export const RESULT_DISPLAY_MS = 1 * HOUR_MS;
+/** Kommt nach so langer Zeit kein Resultat (Datenquelle haengt), verschwindet der Termin trotzdem. */
+export const AWAITING_MAX_MS = 6 * HOUR_MS;
+
+/** Veroeffentlichungszeitpunkt (UTC-ms) eines verfolgten Termins, sonst null. */
+export function economicEventMarkMs(eventKey: string, eventDate: string): number | null {
+  const timeEt = EVENT_TIME_ET[eventKey];
+  return timeEt ? zonedWallTimeToUtc(eventDate, timeEt, ZONE_US) : null;
+}
+
+/** Uhrzeit in Schweizer Zeit, z.B. "14:30 Uhr". */
+export function formatZurichTime(ms: number): string {
+  const hhmm = new Intl.DateTimeFormat("de-CH", {
+    timeZone: ZONE_CH,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(ms);
+  return `${hhmm} Uhr`;
+}
 
 export type HeroEconomicPhase = "upcoming" | "awaiting_result" | "result_recent";
 
@@ -143,7 +168,7 @@ async function detectResult(
 // als RESULT_DISPLAY_MS): upcoming (Termin noch nicht da), awaiting_result
 // (Termin da, aber macro_snapshots zeigt noch den alten Wert -- Veroeffent-
 // lichungs-/Collector-Verzoegerung), result_recent (neuer Wert da, noch
-// innerhalb der 4h-Anzeigefrist). Ist ein Termin abgelaufen, wird direkt der
+// innerhalb der 1h-Anzeigefrist). Ist ein Termin abgelaufen, wird direkt der
 // naechste in derselben Weise geprueft -- kein zusaetzlicher Aufruf noetig.
 export async function getHeroEconomicEventStatus(
   events: { event_key: string; label: string; event_date: string }[],
@@ -152,11 +177,14 @@ export async function getHeroEconomicEventStatus(
 ): Promise<HeroEconomicEventStatus | null> {
   const candidates = events
     .filter((e) => EVENT_TIME_ET[e.event_key] && EVENT_FRED_SYMBOL[e.event_key])
-    .map((e) => ({ event: e, markMs: zonedWallTimeToUtc(e.event_date, EVENT_TIME_ET[e.event_key], ZONE_US) }))
+    .map((e) => ({ event: e, markMs: economicEventMarkMs(e.event_key, e.event_date) as number }))
     .sort((a, b) => a.markMs - b.markMs);
 
   for (const { event, markMs } of candidates) {
     if (nowMs < markMs) {
+      // Noch mehr als 2h hin: im Lagebild nichts zeigen (Kalender-Kachel
+      // listet die Termine ohnehin). Spaetere Termine liegen noch weiter weg.
+      if (nowMs < markMs - HERO_LEAD_MS) return null;
       return {
         eventKey: event.event_key,
         label: event.label,
@@ -172,6 +200,7 @@ export async function getHeroEconomicEventStatus(
     const { baseline, result } = await detectResult(fetchMacro, symbol, markMs);
 
     if (!result) {
+      if (nowMs - markMs > AWAITING_MAX_MS) continue;
       return {
         eventKey: event.event_key,
         label: event.label,
@@ -194,7 +223,7 @@ export async function getHeroEconomicEventStatus(
         resultDetectedAtMs: result.atMs,
       };
     }
-    // Abgelaufen (Resultat laenger als 4h her) -- naechsten Termin pruefen.
+    // Abgelaufen (Resultat laenger als 1h her) -- naechsten Termin pruefen.
   }
 
   return null;
