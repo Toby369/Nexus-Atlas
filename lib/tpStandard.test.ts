@@ -44,6 +44,15 @@ describe("computeTpSuggestions", () => {
     expect(short.standard?.id).toBe(1); // 2,03 % Abstand
   });
 
+  it("deckelt gegen den 1D-Trend auf Standard 4 und warnt", () => {
+    const [long, short] = computeTpSuggestions(levels, 80_000, "bearish");
+    expect(long.levelPrice).toBe(81_000); // 1,25 % -> eigentlich Standard 3
+    expect(long.againstDaily).toBe(true);
+    expect(long.standard?.id).toBe(4);
+    expect(formatTpSuggestion(long)).toContain("⚠ gegen 1D");
+    expect(short.againstDaily).toBe(false);
+  });
+
   it("meldet fehlende Levels", () => {
     const [long] = computeTpSuggestions([{ price: 80_000, side: "support" }], 82_000);
     expect(long.levelPrice).toBeNull();

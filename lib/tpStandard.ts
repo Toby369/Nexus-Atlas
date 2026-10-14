@@ -34,7 +34,11 @@ export interface TpSuggestion {
   distancePct: number | null;
   /** null = kein Trade (Level zu nah) oder kein Level bekannt (levelPrice null). */
   standard: TpStandard | null;
+  /** Trade-Richtung gegen den 1D-Trend: Warnung, hoechstens Standard 4 (Regelwerk Punkt 13). */
+  againstDaily: boolean;
 }
+
+const COUNTER_TREND_STANDARD = TP_STANDARDS[TP_STANDARDS.length - 1];
 
 /**
  * Levels naeher als die Retest-Toleranz (Regelwerk: 1H-Retest bis +/-0,25 %)
@@ -47,16 +51,22 @@ export const ENTRY_LEVEL_TOLERANCE_PCT = 0.25;
 // der Live-Preis kann inzwischen darueber/darunter liegen.
 export function computeTpSuggestions(
   levels: { price: number; side: "resistance" | "support" }[],
-  price: number | null
+  price: number | null,
+  dailyTrend: "bullish" | "bearish" | null = null
 ): TpSuggestion[] {
   if (price === null || price <= 0) return [];
   const minGap = price * (ENTRY_LEVEL_TOLERANCE_PCT / 100);
   const above = levels.filter((l) => l.price > price + minGap).sort((a, b) => a.price - b.price)[0] ?? null;
   const below = levels.filter((l) => l.price < price - minGap).sort((a, b) => b.price - a.price)[0] ?? null;
   const build = (side: "long" | "short", level: { price: number } | null): TpSuggestion => {
-    if (!level) return { side, levelPrice: null, distancePct: null, standard: null };
+    // Regelwerk Punkt 13 (14.10.2026): gegen den 1D-Trend erlaubt, aber als
+    // Warnung und hoechstens Standard 4 -- Gegentrend-Trades laufen kuerzer.
+    const againstDaily = (side === "long" && dailyTrend === "bearish") || (side === "short" && dailyTrend === "bullish");
+    if (!level) return { side, levelPrice: null, distancePct: null, standard: null, againstDaily };
     const distancePct = (Math.abs(level.price - price) / price) * 100;
-    return { side, levelPrice: level.price, distancePct, standard: suggestTpStandard(distancePct) };
+    const suggested = suggestTpStandard(distancePct);
+    const standard = suggested && againstDaily ? COUNTER_TREND_STANDARD : suggested;
+    return { side, levelPrice: level.price, distancePct, standard, againstDaily };
   };
   return [build("long", above), build("short", below)];
 }
@@ -71,5 +81,5 @@ export function formatTpSuggestion(s: TpSuggestion): string {
   const price = s.levelPrice.toLocaleString("de-CH", { maximumFractionDigits: 0 });
   const dist = `${s.side === "long" ? "+" : "−"}${s.distancePct.toFixed(1)} %`;
   const verdict = s.standard ? `Standard ${s.standard.id} (TP ${s.standard.marginPct} %)` : "kein Trade (< 1 %)";
-  return `${sideLabel} → ${levelLabel} ${price} (${dist}) → ${verdict}`;
+  return `${sideLabel} → ${levelLabel} ${price} (${dist}) → ${verdict}${s.againstDaily ? " · ⚠ gegen 1D" : ""}`;
 }
