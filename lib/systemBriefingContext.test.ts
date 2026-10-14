@@ -74,11 +74,16 @@ describe("sliceForChartStruktur", () => {
 });
 
 describe("sliceForTrigger", () => {
-  it("enthaelt nur btc_markt/keyLevels/mein_system_checklist/trading_indicators", () => {
+  it("enthaelt nur btc_markt/keyLevels/mein_system_checklist/trading_indicators/tp_standard", () => {
     const ctx = fixtureContext();
     const slice = sliceForTrigger(ctx);
-    expect(Object.keys(slice).sort()).toEqual(["btc_markt", "keyLevels", "mein_system_checklist", "trading_indicators"].sort());
+    expect(Object.keys(slice).sort()).toEqual(
+      ["btc_markt", "keyLevels", "mein_system_checklist", "trading_indicators", "tp_standard"].sort()
+    );
     expect(slice.keyLevels).toBe(ctx.keyLevels);
+    // 90'000 liegt 6,8 % ueber 84'250 -> Standard 1; keine Unterstuetzung im Fixture.
+    expect(slice.tp_standard[0]).toContain("Standard 1");
+    expect(slice.tp_standard[1]).toBe("Short → keine Unterstützung bekannt");
   });
 });
 

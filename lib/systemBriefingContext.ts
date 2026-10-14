@@ -2,6 +2,7 @@ import { economicEventMarkMs, formatZurichTime } from "./economicCalendar";
 import { supabase } from "./supabase";
 import { fetchPriceReferences } from "./priceChanges";
 import { fetchOscillatorDivergences, formatDivergence } from "./oscillatorDivergence";
+import { computeTpSuggestions, formatTpSuggestion } from "./tpStandard";
 import { computeConfidenceBreakdown } from "./marketStateSummary";
 import { getMeinSystemChecklistData, type MeinSystemChecklistData } from "./meinSystemContext";
 import { getTradingIndicatorsData, type TradingIndicatorsData } from "./tradingIndicatorsContext";
@@ -534,7 +535,10 @@ export function sliceForChartStruktur(ctx: SystemBriefingContext) {
 
 export function sliceForTrigger(ctx: SystemBriefingContext) {
   const { btc_markt, keyLevels, mein_system_checklist, trading_indicators } = ctx;
-  return { btc_markt, keyLevels, mein_system_checklist, trading_indicators };
+  // Tobys TP-Standard je Richtung nach Abstand zum naechsten Keylevel
+  // (lib/tpStandard.ts) -- dieselbe Rechnung wie im Lagebild.
+  const tp_standard = computeTpSuggestions(keyLevels, btc_markt.kurs_usd).map(formatTpSuggestion);
+  return { btc_markt, keyLevels, mein_system_checklist, trading_indicators, tp_standard };
 }
 
 // Eingabe fuer sliceForSynthese: die bereits fertigen Ergebnisse der drei

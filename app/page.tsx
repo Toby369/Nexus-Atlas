@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { NEWS_TILE_CATEGORIES } from "@/lib/newsCategories";
 import { supabase } from "@/lib/supabase";
 import { fetchPriceReferences } from "@/lib/priceChanges";
+import { getChartStructureData } from "@/lib/chartStructureContext";
 import { fetchRegimeMatrix, regimeIntervalFor } from "@/lib/regimeTimeframe";
 import type {
   DashboardPollBundle,
@@ -542,6 +543,7 @@ export default async function Home({
     priceReferences,
     regimeMatrixForTimeframe,
     volatilitySnapshot,
+    chartStructure,
   ] = await Promise.all([
     getSnapshotHistory(),
     getLatestMarketState(),
@@ -575,6 +577,7 @@ export default async function Home({
     fetchPriceReferences(),
     fetchRegimeMatrix(regimeIntervalFor(timeframe)),
     buildVolatilitySnapshot(),
+    getChartStructureData(),
   ]);
 
   // Fallback, falls das Bundle-RPC fehlschlaegt (z.B. kurzzeitiger DB-
@@ -652,6 +655,7 @@ export default async function Home({
                   upcomingEconomicEvents={upcomingEconomicEvents}
                   initialMtfDots={mtfDots}
                   initialPriceReferences={priceReferences}
+                  keyLevels={chartStructure.keyLevels.map(({ price, side }) => ({ price, side }))}
                   setupScore={confluenceScore}
                   regimeScore={regimeScore}
                   scoreDetails={
