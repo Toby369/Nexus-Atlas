@@ -36,9 +36,10 @@ const SALOMON_CHECKLIST = [
 ];
 
 const MEIN_SYSTEM_MANUAL_CHECKLIST = [
-  "4H-Breakout bestätigt",
-  "1H-Retest erfolgt",
-  "EMA-D13-Filter erfüllt (Preis vs. EMA13 unten prüfen)",
+  "4H-Ausbruch: Kerzenkörper schliesst über/unter einem Keylevel (Docht allein zählt nicht)",
+  "1H-Retest: bis ±0,25 % ans Level, Schluss auf der Ausbruchsseite",
+  "15m-Entry: Bestätigungskerze am Retest-Level, Einstieg nach Schluss der Folgekerze",
+  "D13 (Tages-EMA 13) geprüft – Trade gegen D13 nur bewusst, als Warnung notiert",
   "Keylevel-Konfluenz vorhanden",
   "RSI/StochRSI-Divergenz-Check auf 4H",
 ];
@@ -270,7 +271,7 @@ function MeinSystemLiveValues({ data }: { data: MeinSystemChecklistData }) {
         </span>
       </div>
       <div className="flex items-center justify-between text-xs">
-        <span className="text-text-faint">EMA13 / EMA50 / EMA200 (dein System vs. NEXUS-Trend-Regime)</span>
+        <span className="text-text-faint">EMA D13 / EMA50 / EMA200 (dein System vs. NEXUS-Trend-Regime)</span>
         <span className="text-text">
           {data.ema13?.toFixed(0) ?? "—"} / {data.ema50?.toFixed(0) ?? "—"} / {data.ema200?.toFixed(0) ?? "—"}
         </span>
