@@ -1,6 +1,7 @@
 import { economicEventMarkMs, formatZurichTime } from "./economicCalendar";
 import { supabase } from "./supabase";
 import { fetchPriceReferences } from "./priceChanges";
+import { fetchOscillatorDivergences, formatDivergence } from "./oscillatorDivergence";
 import { computeConfidenceBreakdown } from "./marketStateSummary";
 import { getMeinSystemChecklistData, type MeinSystemChecklistData } from "./meinSystemContext";
 import { getTradingIndicatorsData, type TradingIndicatorsData } from "./tradingIndicatorsContext";
@@ -313,6 +314,9 @@ export interface SystemBriefingContext {
     lookback_hours: number;
   } | null;
   regelwerk: RegelwerkEntry[];
+  // RSI-/MACD-Divergenzen 1H/4H/1D, z.B. "4H RSI klassisch bärisch" -- laut
+  // Regelwerk nur Hinweis (lib/oscillatorDivergence.ts).
+  divergenzen: string[];
   // Marktkontext/ETF-Flows/Positionierung/News.
   market_context: {
     label: string;
@@ -370,6 +374,7 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
     rsi4h,
     rsi1d,
     kalender,
+    divergenzen,
   ] = await Promise.all([
     getLatestMarketState(),
     getBewegungsvorrat(),
@@ -385,6 +390,7 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
     getRsi("4h"),
     getRsi("1d"),
     getKalender(),
+    fetchOscillatorDivergences(),
   ]);
 
   const marketContextDerived = bundle
@@ -482,6 +488,7 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
       schlagzeilen: highImpactNews.map((n) => n.title_de ?? n.title),
     },
     btc_markt: btcMarkt,
+    divergenzen: divergenzen.map(formatDivergence),
     rsi: { "4h": rsi4h, "1d": rsi1d },
     wirtschaftskalender: kalender,
     triangle: chartStructureEnriched.triangle,
@@ -505,8 +512,8 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
 // ("system-briefing-*"), Orchestrierung: app/api/system-briefing/generate.
 
 export function sliceForRegelwerk(ctx: SystemBriefingContext) {
-  const { regelwerk, bewegungsvorrat, mein_system_checklist, trading_indicators, liquidations } = ctx;
-  return { regelwerk, bewegungsvorrat, mein_system_checklist, trading_indicators, liquidations };
+  const { regelwerk, bewegungsvorrat, mein_system_checklist, trading_indicators, liquidations, divergenzen } = ctx;
+  return { regelwerk, bewegungsvorrat, mein_system_checklist, trading_indicators, liquidations, divergenzen };
 }
 
 export function sliceForChartStruktur(ctx: SystemBriefingContext) {

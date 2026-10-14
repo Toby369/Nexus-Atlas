@@ -40,11 +40,11 @@ function fixtureContext(overrides: Record<string, unknown> = {}): SystemBriefing
 }
 
 describe("sliceForRegelwerk", () => {
-  it("enthaelt nur regelwerk/bewegungsvorrat/mein_system_checklist/trading_indicators/liquidations", () => {
+  it("enthaelt nur regelwerk/bewegungsvorrat/mein_system_checklist/trading_indicators/liquidations/divergenzen", () => {
     const ctx = fixtureContext();
     const slice = sliceForRegelwerk(ctx);
     expect(Object.keys(slice).sort()).toEqual(
-      ["bewegungsvorrat", "liquidations", "mein_system_checklist", "regelwerk", "trading_indicators"].sort()
+      ["bewegungsvorrat", "divergenzen", "liquidations", "mein_system_checklist", "regelwerk", "trading_indicators"].sort()
     );
     expect(slice.regelwerk).toBe(ctx.regelwerk);
     expect(slice.bewegungsvorrat).toBe(ctx.bewegungsvorrat);
