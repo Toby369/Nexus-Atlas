@@ -1,4 +1,5 @@
 import { fetchWithRetry } from "./fetchWithRetry";
+import { GEMINI_MODELS } from "./tileConfig";
 
 // Krypto-YouTube-Monitor -- bewusst NICHT ueber den generischen AI-Router
 // (lib/ai/router.ts): dessen generateStructured() nimmt nur Text-Prompts,
@@ -87,7 +88,9 @@ export async function analyzeYoutubeVideo(
     throw new Error("youtubeVideoAnalysis: kein API-Key gesetzt (erwartet Env-Var GOOGLE_API_KEY).");
   }
 
-  const model = process.env.GOOGLE_VIDEO_MODEL ?? process.env.GOOGLE_MODEL;
+  // Eigenes Gemini-Modell (Tageslimit je Modell), damit Videoanalysen nicht
+  // das Briefing-Kontingent aufbrauchen -- siehe GEMINI_MODELS in tileConfig.ts.
+  const model = process.env.GOOGLE_VIDEO_MODEL ?? GEMINI_MODELS.flash36;
   if (!model) {
     throw new Error(
       "youtubeVideoAnalysis: kein Modell konfiguriert. Bitte GOOGLE_VIDEO_MODEL (empfohlen: aktuelles " +

@@ -21,7 +21,8 @@ export const PROVIDER_TIMEOUT_MS = 20000;
 export async function fetchWithRetry(
   url: string,
   init: RequestInit,
-  timeoutMs: number = PROVIDER_TIMEOUT_MS
+  timeoutMs: number = PROVIDER_TIMEOUT_MS,
+  maxRetries: number = RETRY_DELAYS_MS.length
 ): Promise<Response> {
   let res: Response;
   for (let attempt = 0; ; attempt++) {
@@ -33,7 +34,7 @@ export async function fetchWithRetry(
       }
       throw err;
     }
-    if (res.status !== 503 || attempt >= RETRY_DELAYS_MS.length) return res;
+    if (res.status !== 503 || attempt >= Math.min(maxRetries, RETRY_DELAYS_MS.length)) return res;
     await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt]));
   }
 }
