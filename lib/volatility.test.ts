@@ -144,8 +144,9 @@ describe("Einordnungen", () => {
   it.each([
     [15, "watch"],
     [0, "calm"],
-    [-8, "risk"],
+    [-8, "watch"],
   ])("IV-RV-Spread %s -> %s", (spread, tone) => {
+    // -8: seit Backtest 14.10.2026 nur noch "watch" (keine Aussage "zu billig")
     expect(classifyIvRvSpread(spread).tone).toBe(tone);
   });
   it.each([

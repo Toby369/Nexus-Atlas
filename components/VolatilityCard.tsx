@@ -1,4 +1,5 @@
 import type { VolatilitySnapshot } from "@/lib/volatilityContext";
+import { HISTORICAL_COVERAGE } from "@/lib/volatility";
 import type { Assessment, ExpectedRange, SkewDirection, VolTone } from "@/lib/volatility";
 import PanelInfo from "@/components/PanelInfo";
 
@@ -7,12 +8,12 @@ import PanelInfo from "@/components/PanelInfo";
 
 const INFO = [
   "Ersatz für die Gamma-Lage aus Orderflow-Setups (GEX): Für BTC gibt es keine verlässliche, frei verfügbare Gamma-Messung. Diese Kachel beantwortet dieselbe Frage indirekt: Wird gerade viel oder wenig Bewegung erwartet, und passt das zur tatsächlichen Bewegung?",
-  "DVOL: Volatilitätsindex von Deribit, die vom Optionsmarkt erwartete Schwankung der nächsten 30 Tage (annualisiert, %). DVOL ÷ √365 ≈ typische Tagesbewegung (1 Sigma, also an etwa 2 von 3 Tagen kleiner). Das Perzentil vergleicht mit den Tagesschlüssen des letzten Jahres.",
-  "Implizit vs. realisiert: 30-Tage-ATM-IV (Optionen am Geld, aus den beiden Verfällen um 30 Tage auf genau 30 Tage interpoliert, Methode wie beim VIX) minus tatsächliche Schwankung der letzten 30 Tage aus den Binance-1h-Kerzen. Deutlich positiv = Optionen teuer, der Markt erwartet mehr Bewegung als zuletzt. Negativ = der Kurs bewegt sich mehr als eingepreist.",
+  "DVOL: Volatilitätsindex von Deribit, die vom Optionsmarkt erwartete Schwankung der nächsten 30 Tage (annualisiert, %). DVOL ÷ √365 ≈ typische Tagesbewegung (1 Sigma, also an etwa 2 von 3 Tagen kleiner). Das Perzentil vergleicht mit den Tagesschlüssen des letzten Jahres. Backtest 09/2022–10/2026: Auf ein tiefes Perzentil folgte nicht messbar mehr Bewegung.",
+  "Implizit vs. realisiert: 30-Tage-ATM-IV (Optionen am Geld, aus den beiden Verfällen um 30 Tage auf genau 30 Tage interpoliert, Methode wie beim VIX) minus tatsächliche Schwankung der letzten 30 Tage aus den Binance-1h-Kerzen. Deutlich positiv (> +10) = Optionen teuer, der Markt erwartet mehr Bewegung als zuletzt; im Backtest 09/2022–10/2026 war die Bewegung danach tatsächlich deutlich grösser. Negativ (< −5) = Optionen billiger als die zuletzt tatsächliche Bewegung; im Backtest beruhigte sich der Kurs danach eher, die Optionen waren also nicht zu billig.",
   "Skew: Volatilität eines Puts 10 % unter minus eines Calls 10 % über dem Forward, gleicher Verfall. Positiv = Absicherung nach unten gefragt, negativ = Spekulation nach oben.",
-  "Erwartete Spanne: Bereich, in dem der Kurs laut Optionspreisen (DVOL) nach 1, 7 bzw. 30 Tagen mit rund 68 % Wahrscheinlichkeit liegt (1 Sigma). In etwa jedem dritten Fall landet er ausserhalb. Breite wächst mit der Wurzel der Zeit. Der Strich markiert den aktuellen Kurs.",
+  "Erwartete Spanne: Bereich, in dem der Kurs laut Optionspreisen (DVOL) nach 1, 7 bzw. 30 Tagen mit rund 68 % Wahrscheinlichkeit liegt (1 Sigma). Breite wächst mit der Wurzel der Zeit. Der Strich markiert den aktuellen Kurs. Backtest 09/2022–10/2026: Tatsächlich lag der Kurs nach 1 Tag in 80 %, nach 7 Tagen in 78 % und nach 30 Tagen in 72 % der Fälle in der Spanne. Kurzfristig überschätzen die Optionen die Bewegung also meist (Volatilitäts-Risikoprämie), dafür sind grosse Ausreisser häufiger als im Modell.",
   "Pfeil: Stimmung im Optionsmarkt aus dem Skew. Grün ↑ = Calls teurer (Markt setzt eher auf steigende Kurse), rot ↓ = Puts teurer (Markt sichert sich gegen fallende Kurse ab), grau → = ausgeglichen. Das zeigt, wohin das Geld im Optionsmarkt gerade fliesst – keine Kursprognose. Starke Angst (sehr teure Puts) fällt historisch oft mit Tiefs zusammen, also auch als Gegenindikator lesbar.",
-  "Alle Einordnungen sind gängige Faustregeln, nicht im Backtest geprüft. Kein Handelssignal.",
+  "Schwellen sind gängige Faustregeln. Geprüft (Backtest 14.10.2026, docs/research/VOLATILITAETS-KACHEL-BACKTEST_RESULTS_2026-10-14.md): Spanne und die Einordnungen von DVOL und Implizit vs. realisiert. Nicht geprüft: Skew-Pfeil (keine historischen Daten, wird seit 14.10.2026 gesammelt). Kein Handelssignal.",
 ].join("\n\n");
 
 const TONE_STYLES: Record<VolTone, string> = {
@@ -68,7 +69,12 @@ function ExpectedRanges({ ranges, price }: { ranges: ExpectedRange[]; price: num
           title={`${label(r.days)}: ${usd(r.low)} – ${usd(r.high)} (± ${fmt(r.movePct, 1)} %), rund 68 % Wahrscheinlichkeit`}
         >
           <div className="flex items-baseline justify-between gap-3 text-xs">
-            <span className="text-text-faint">{label(r.days)}</span>
+            <span className="text-text-faint">
+              {label(r.days)}
+              {HISTORICAL_COVERAGE[r.days] != null && (
+                <span className="text-[10px]"> · hist. {fmt(HISTORICAL_COVERAGE[r.days]! * 100, 0)} %</span>
+              )}
+            </span>
             <span className="text-right">
               <span className="text-text font-medium">
                 {usd(r.low)} – {usd(r.high)}

@@ -157,6 +157,12 @@ export function expectedDailyMovePct(annualVolPct: number): number {
   return annualVolPct / Math.sqrt(365);
 }
 
+// Gemessene Trefferquote der 1-Sigma-Spanne (DVOL), Backtest 14.10.2026,
+// 09/2022-10/2026, docs/research/VOLATILITAETS-KACHEL-BACKTEST_RESULTS_2026-10-14.md.
+// 1 und 7 Tage signifikant ueber 68 % (Spanne zu breit), 30 Tage nicht
+// signifikant (null = keine belastbare Abweichung, Anzeige bleibt 68 %).
+export const HISTORICAL_COVERAGE: Record<number, number | null> = { 1: 0.8, 7: 0.78, 30: null };
+
 export interface ExpectedRange {
   days: number;
   movePct: number;
@@ -187,7 +193,9 @@ export interface SkewAssessment extends Assessment {
 }
 
 export function classifyDvolPercentile(pct: number): Assessment {
-  if (pct < 20) return { tone: "watch", label: "Sehr ruhig – auf tiefe Volatilität folgt oft eine Ausdehnung" };
+  // Backtest 14.10.2026 (H-B): Auf tiefe Perzentile folgte NICHT signifikant
+  // mehr Ausdehnung -> keine Erwartungsaussage mehr, nur die Einordnung.
+  if (pct < 20) return { tone: "watch", label: "Sehr ruhig – unteres Fünftel des letzten Jahres" };
   if (pct > 80) return { tone: "risk", label: "Angespannt – der Markt preist grosse Bewegungen ein" };
   return { tone: "calm", label: "Normal" };
 }
@@ -195,7 +203,9 @@ export function classifyDvolPercentile(pct: number): Assessment {
 // Differenz implizit minus realisiert, in Volatilitaetspunkten.
 export function classifyIvRvSpread(spread: number): Assessment {
   if (spread > 10) return { tone: "watch", label: "Optionen teuer – erwartet wird mehr Bewegung als zuletzt" };
-  if (spread < -5) return { tone: "risk", label: "Optionen billig – der Kurs bewegt sich mehr als eingepreist" };
+  // Backtest 14.10.2026 (H-C2): Danach war die Bewegung im Mittel KLEINER als
+  // eingepreist -> keine Aussage "Optionen zu billig", nur der Vergleich.
+  if (spread < -5) return { tone: "watch", label: "Optionen billiger als die Bewegung der letzten 30 Tage" };
   return { tone: "calm", label: "Eingepreiste und tatsächliche Bewegung passen zusammen" };
 }
 
