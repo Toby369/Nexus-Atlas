@@ -24,6 +24,7 @@ import {
   thirtyDayOptions,
   type Assessment,
   type DeribitOptionSummary,
+  type SkewAssessment,
   type ThirtyDayOptions,
 } from "./volatility";
 
@@ -43,7 +44,7 @@ export interface VolatilitySnapshot {
   expectedDailyMovePct: number | null;
   expectedDailyMoveUsd: number | null;
   options30d: ThirtyDayOptions | null;
-  skewAssessment: Assessment | null;
+  skewAssessment: SkewAssessment | null;
   realizedVol7d: number | null;
   realizedVol30d: number | null;
   ivRvSpread: number | null;

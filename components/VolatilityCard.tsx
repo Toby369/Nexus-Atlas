@@ -1,5 +1,5 @@
 import type { VolatilitySnapshot } from "@/lib/volatilityContext";
-import type { Assessment, VolTone } from "@/lib/volatility";
+import type { Assessment, SkewDirection, VolTone } from "@/lib/volatility";
 import PanelInfo from "@/components/PanelInfo";
 
 // Volatilitaets-Lage: Server-Component-Render, Daten aus
@@ -10,6 +10,7 @@ const INFO = [
   "DVOL: Volatilitätsindex von Deribit, die vom Optionsmarkt erwartete Schwankung der nächsten 30 Tage (annualisiert, %). DVOL ÷ √365 ≈ typische Tagesbewegung (1 Sigma, also an etwa 2 von 3 Tagen kleiner). Das Perzentil vergleicht mit den Tagesschlüssen des letzten Jahres.",
   "Implizit vs. realisiert: 30-Tage-ATM-IV (Optionen am Geld, aus den beiden Verfällen um 30 Tage auf genau 30 Tage interpoliert, Methode wie beim VIX) minus tatsächliche Schwankung der letzten 30 Tage aus den Binance-1h-Kerzen. Deutlich positiv = Optionen teuer, der Markt erwartet mehr Bewegung als zuletzt. Negativ = der Kurs bewegt sich mehr als eingepreist.",
   "Skew: Volatilität eines Puts 10 % unter minus eines Calls 10 % über dem Forward, gleicher Verfall. Positiv = Absicherung nach unten gefragt, negativ = Spekulation nach oben.",
+  "Pfeil: Stimmung im Optionsmarkt aus dem Skew. Grün ↑ = Calls teurer (Markt setzt eher auf steigende Kurse), rot ↓ = Puts teurer (Markt sichert sich gegen fallende Kurse ab), grau → = ausgeglichen. Das zeigt, wohin das Geld im Optionsmarkt gerade fliesst – keine Kursprognose. Starke Angst (sehr teure Puts) fällt historisch oft mit Tiefs zusammen, also auch als Gegenindikator lesbar.",
   "Alle Einordnungen sind gängige Faustregeln, nicht im Backtest geprüft. Kein Handelssignal.",
 ].join("\n\n");
 
@@ -27,6 +28,21 @@ function fmt(value: number | null, digits = 1, suffix = ""): string {
 function signed(value: number | null, digits = 1): string {
   if (value === null) return "–";
   return `${value >= 0 ? "+" : ""}${fmt(value, digits)}`;
+}
+
+const ARROWS: Record<SkewDirection, { symbol: string; className: string; label: string }> = {
+  up: { symbol: "↑", className: "text-up", label: "Optionsmarkt eher bullisch" },
+  down: { symbol: "↓", className: "text-down", label: "Optionsmarkt eher bärisch" },
+  flat: { symbol: "→", className: "text-text-faint", label: "Optionsmarkt ausgeglichen" },
+};
+
+function DirectionArrow({ direction, size = "text-base" }: { direction: SkewDirection; size?: string }) {
+  const arrow = ARROWS[direction];
+  return (
+    <span className={`${arrow.className} ${size} font-semibold leading-none`} title={arrow.label} aria-label={arrow.label}>
+      {arrow.symbol}
+    </span>
+  );
 }
 
 function Badge({ assessment }: { assessment: Assessment | null }) {
@@ -57,6 +73,7 @@ export default function VolatilityCard({ data }: { data: VolatilitySnapshot }) {
       <span className="flex items-center gap-1.5">
         <p className="text-sm font-medium text-text">Volatilitäts-Lage</p>
         <PanelInfo title="Volatilitäts-Lage" content={INFO} />
+        {data.skewAssessment && <DirectionArrow direction={data.skewAssessment.direction} size="text-lg" />}
       </span>
 
       {!data.deribitAvailable && (
@@ -107,7 +124,10 @@ export default function VolatilityCard({ data }: { data: VolatilitySnapshot }) {
             label={o.interpolated ? `30 Tage (${o.expiries.join(" / ")})` : `Verfall ${o.expiries[0]}`}
             value={o.skew !== null ? `${signed(o.skew)} Pkt.` : "–"}
           />
-          <Badge assessment={data.skewAssessment} />
+          <div className="flex items-center gap-2">
+            {data.skewAssessment && <DirectionArrow direction={data.skewAssessment.direction} />}
+            <Badge assessment={data.skewAssessment} />
+          </div>
         </div>
       )}
 

@@ -133,10 +133,14 @@ describe("Einordnungen", () => {
     expect(classifyIvRvSpread(spread).tone).toBe(tone);
   });
   it.each([
-    [8, "Puts"],
-    [-3, "Calls"],
-    [1, "Ausgeglichen"],
-  ])("Skew %s -> %s", (skew, word) => {
-    expect(classifySkew(skew).label).toContain(word);
+    [8, "Puts", "down"],
+    [-3, "Calls", "up"],
+    [1, "Ausgeglichen", "flat"],
+    [5, "Ausgeglichen", "flat"],
+    [-2, "Ausgeglichen", "flat"],
+  ])("Skew %s -> %s, Pfeil %s", (skew, word, direction) => {
+    const a = classifySkew(skew);
+    expect(a.label).toContain(word);
+    expect(a.direction).toBe(direction);
   });
 });

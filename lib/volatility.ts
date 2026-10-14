@@ -157,9 +157,17 @@ export function expectedDailyMovePct(annualVolPct: number): number {
   return annualVolPct / Math.sqrt(365);
 }
 
+export type SkewDirection = "up" | "down" | "flat";
+
 export interface Assessment {
   tone: VolTone;
   label: string;
+}
+
+export interface SkewAssessment extends Assessment {
+  // Richtung, in die der Optionsmarkt gerade eher Geld setzt (Stimmung, keine
+  // Prognose): Calls teurer -> "up", Puts teurer -> "down", sonst "flat".
+  direction: SkewDirection;
 }
 
 export function classifyDvolPercentile(pct: number): Assessment {
@@ -176,8 +184,8 @@ export function classifyIvRvSpread(spread: number): Assessment {
 }
 
 // Skew = IV(Put 10 % OTM) - IV(Call 10 % OTM), in Volatilitaetspunkten.
-export function classifySkew(skew: number): Assessment {
-  if (skew > 5) return { tone: "watch", label: "Puts teurer – Absicherung nach unten gefragt" };
-  if (skew < -2) return { tone: "watch", label: "Calls teurer – Spekulation nach oben gefragt" };
-  return { tone: "calm", label: "Ausgeglichen" };
+export function classifySkew(skew: number): SkewAssessment {
+  if (skew > 5) return { tone: "watch", label: "Puts teurer – Absicherung nach unten gefragt", direction: "down" };
+  if (skew < -2) return { tone: "watch", label: "Calls teurer – Spekulation nach oben gefragt", direction: "up" };
+  return { tone: "calm", label: "Ausgeglichen", direction: "flat" };
 }
