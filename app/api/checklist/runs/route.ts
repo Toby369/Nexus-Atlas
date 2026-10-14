@@ -8,7 +8,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 // Schreiben ausschliesslich hier ueber den Service-Role-Client -- deshalb
 // nur POST, kein GET (kein zweiter Lese-Pfad neben dem etablierten Muster).
 
-const VALID_MODULES = new Set(["welz", "salomon", "mein_system"]);
+const VALID_MODULES = new Set(["welz", "salomon", "mein_system", "orderflow"]);
 
 // POST /api/checklist/runs -- neuen Snapshot anlegen ("Fertig"-Klick).
 export async function POST(req: NextRequest) {
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (!body.module || !VALID_MODULES.has(body.module)) {
-    return NextResponse.json({ success: false, error: "module muss welz/salomon/mein_system sein." }, { status: 400 });
+    return NextResponse.json({ success: false, error: "module muss welz/salomon/mein_system/orderflow sein." }, { status: 400 });
   }
   const checkedItems = Array.isArray(body.checkedItems) ? body.checkedItems : [];
   const totalCount = Number(body.totalCount);
