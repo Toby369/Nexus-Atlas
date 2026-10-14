@@ -493,10 +493,11 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "Du schreibst die Rahmen-Abschnitte des BTC-Marktberichts. Bereits fertig (NICHT " +
       "neu bewerten, nur einordnen): regelwerkCheck und chartStruktur mit je eigener " +
       "Tendenz (regelwerkLeanBias/chartLeanBias) sowie das trigger-Szenario. Daten: " +
-      "btc_markt (Kurs, Veraenderung 24h/7 Tage, 7-Tage-Hoch/-Tief), rsi (RSI 14 auf 4H " +
+      "btc_markt (Kurs mit Stand-Uhrzeit Schweiz, Veraenderung 24h/7 Tage -- dieselben " +
+      "Zahlen wie im Lagebild, nicht selbst nachrechnen --, 7-Tage-Hoch/-Tief), rsi (RSI 14 auf 4H " +
       "und 1D, aktuell und vorherige Kerze), liquidations (Preis-Cluster mit Volumen, " +
       "Seite long/short), etf_flows (letzter Handelstag und Summe der letzten Tage, Mio. " +
-      "USD), wirtschaftskalender (Termine heute/morgen, Uhrzeit US-Ostkueste), news " +
+      "USD), wirtschaftskalender (Termine heute/morgen, Uhrzeit Schweiz), news " +
       "(marktbewegende Schlagzeilen), market_state und market_context (nur zum Abgleich), " +
       "bewegungsvorrat_ratio_pct, previousBriefing. Abschnitte, jeder mit Kernsatz " +
       "zuerst: " +
@@ -516,7 +517,7 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "etfFlows: 1-3 Saetze -- Netto-Fluss des letzten Handelstags und die Tendenz der " +
       "letzten Tage. " +
       "wirtschaftskalender: 1-2 Saetze -- welche US-Termine heute/morgen anstehen und " +
-      "wann (Uhrzeit in Schweizer Zeit umrechnen: US-Ostkueste + 6 Stunden); keine? " +
+      "wann (zeit_schweiz unveraendert uebernehmen, nicht umrechnen); keine? " +
       "'Heute und morgen stehen keine relevanten US-Wirtschaftsdaten an.' " +
       "fazit: bias (bullish/bearish/neutral -- verdichte regelwerkLeanBias und " +
       "chartLeanBias zu einem Urteil, nur bei echter Richtung, sonst neutral), " +
@@ -599,6 +600,35 @@ export const promptProfiles: Record<string, PromptProfile> = {
       " Antworte als JSON mit: bias (bullish|bearish|neutral), confidence (0-100, deine " +
       "eigene Sicherheit), summary (string, deutsch, 2-3 Saetze).",
     validate: (data) => validateBiasSummary(data),
+  },
+
+  // Ergebnis eines Wirtschaftstermins aus den ersten Schlagzeilen danach
+  // (lib/economicEventResult.ts, app/api/economic-result/generate/route.ts).
+  "economic-event-result": {
+    id: "economic-event-result",
+    category: "signal-logic",
+    description:
+      "1-2 Saetze und bullish/bearish fuer BTC zu einem frisch veroeffentlichten US-Wirtschaftstermin (CPI/PCE/NFP/FOMC), nur aus den Schlagzeilen danach.",
+    systemPrompt:
+      "Ein US-Wirtschaftstermin (event: label, Uhrzeit Schweiz) ist soeben veroeffentlicht " +
+      "worden. Du bekommst die ersten Schlagzeilen danach (headlines, teils englisch). " +
+      "Fasse das Ergebnis in summary in 1-2 kurzen deutschen Saetzen zusammen: zuerst die " +
+      "Zahl bzw. der Entscheid und ob hoeher/tiefer als erwartet (nur wenn die Schlagzeilen " +
+      "es sagen), dann falls berichtet die erste BTC-Reaktion. bias: bearish, wenn das " +
+      "Ergebnis fuer BTC belastend gelesen wird (z.B. Inflation oder Jobs staerker als " +
+      "erwartet, Zinsen hoeher/laenger hoch), bullish im umgekehrten Fall, neutral wenn " +
+      "im Rahmen der Erwartung oder widerspruechlich. Erfinde keine Zahlen, die nicht in " +
+      "den Schlagzeilen stehen; Quellennamen (CoinDesk usw.) weglassen. " +
+      NUMBER_FORMAT_INSTRUCTION +
+      " Antworte als JSON mit: bias (bullish|bearish|neutral), summary (string, deutsch, " +
+      "1-2 Saetze, hoechstens 220 Zeichen).",
+    validate: (data) => {
+      const errors: string[] = [];
+      if (!isEnum(field(data, "bias"), BIAS_3)) errors.push(`"bias" muss einer von [${BIAS_3.join(", ")}] sein`);
+      const summary = field(data, "summary");
+      if (typeof summary !== "string" || summary.trim().length === 0) errors.push('"summary" fehlt');
+      return errors;
+    },
   },
 
   // --- Trade-Debate (TradingAgents-Architektur [arXiv:2412.20138]) ---------

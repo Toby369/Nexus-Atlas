@@ -1,5 +1,6 @@
 "use client";
 
+import { NEWS_TILE_CATEGORIES } from "@/lib/newsCategories";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { NewsEvent } from "@/lib/types";
@@ -45,6 +46,7 @@ async function fetchHighImpactNews(): Promise<{
     .from("news_events")
     .select("*")
     .eq("is_market_moving", true)
+    .in("category", NEWS_TILE_CATEGORIES)
     .gte("published_at", cutoff)
     .order("published_at", { ascending: false })
     .limit(NEWS_LIMIT);

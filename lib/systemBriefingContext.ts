@@ -1,5 +1,6 @@
 import { economicEventMarkMs, formatZurichTime } from "./economicCalendar";
 import { supabase } from "./supabase";
+import { fetchPriceReferences } from "./priceChanges";
 import { computeConfidenceBreakdown } from "./marketStateSummary";
 import { getMeinSystemChecklistData, type MeinSystemChecklistData } from "./meinSystemContext";
 import { getTradingIndicatorsData, type TradingIndicatorsData } from "./tradingIndicatorsContext";
@@ -165,10 +166,16 @@ async function getBewegungsvorrat(): Promise<BewegungsvorratRow> {
   return { today_range_usd: todayRange, median_range_10d_usd: medianRange, ratio_pct: ratioPct };
 }
 
-// Kurs und Veraenderung fuer das Marktupdate: 24h aus 1h-Kerzen, 7 Tage
-// samt Hoch/Tief aus 1d-Kerzen (dieselbe Quelle wie der Bewegungsvorrat).
+// Kurs und Veraenderung fuer das Marktupdate -- dieselben Zahlen wie im
+// Lagebild (HeroHeader): Live-Preis = letzter Bybit-Snapshot, 24h/7 Tage
+// gegen den Snapshot exakt 24h bzw. 7 Tage davor (fetchPriceReferences).
+// Frueher kamen Kurs und 24h aus Binance-1h-Kerzen und "7 Tage" aus der
+// Tageskerze von vor 8 Tagen (heutige Tageskerze fehlt bis Mitternacht) --
+// das ergab z. B. -3.3 % im Briefing gegenueber -1.1 % im Lagebild
+// (Toby 14.10.2026). Hoch/Tief: 1h-Kerzen der letzten 7 Tage.
 interface BtcMarkt {
   kurs_usd: number | null;
+  stand_schweiz: string | null;
   veraenderung_24h_pct: number | null;
   veraenderung_7d_pct: number | null;
   hoch_7d_usd: number | null;
@@ -181,34 +188,40 @@ function pctChange(now: number | null | undefined, then: number | null | undefin
 }
 
 async function getBtcMarkt(): Promise<BtcMarkt> {
-  const [hourly, daily] = await Promise.all([
+  const nowMs = Date.now();
+  const [live, references, hourly] = await Promise.all([
+    supabase
+      .from("market_snapshots")
+      .select("timestamp_utc, last_price")
+      .eq("exchange", "bybit")
+      .eq("symbol", "BTCUSDT")
+      .eq("status", "ok")
+      .not("last_price", "is", null)
+      .order("timestamp_utc", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    fetchPriceReferences(nowMs),
     supabase
       .from("candles")
-      .select("open_time, close")
+      .select("high, low")
       .eq("exchange", BEWEGUNGSVORRAT_EXCHANGE)
       .eq("symbol", BEWEGUNGSVORRAT_SYMBOL)
       .eq("interval", "1h")
       .order("open_time", { ascending: false })
-      .limit(25),
-    supabase
-      .from("candles")
-      .select("open_time, high, low, close")
-      .eq("exchange", BEWEGUNGSVORRAT_EXCHANGE)
-      .eq("symbol", BEWEGUNGSVORRAT_SYMBOL)
-      .eq("interval", "1d")
-      .order("open_time", { ascending: false })
-      .limit(8),
+      .limit(7 * 24),
   ]);
-  const h = (hourly.data ?? []) as { close: number }[];
-  const d = (daily.data ?? []) as { high: number; low: number; close: number }[];
-  const kurs = h[0]?.close ?? d[0]?.close ?? null;
-  const week = d.slice(0, 7);
+  const kurs = live.data?.last_price != null ? Number(live.data.last_price) : null;
+  const ref = (label: string) => references.find((r) => r.label === label)?.price ?? null;
+  const week = (hourly.data ?? []) as { high: number; low: number }[];
+  const highs = [...week.map((c) => Number(c.high)), ...(kurs != null ? [kurs] : [])];
+  const lows = [...week.map((c) => Number(c.low)), ...(kurs != null ? [kurs] : [])];
   return {
     kurs_usd: kurs,
-    veraenderung_24h_pct: pctChange(kurs, h[24]?.close),
-    veraenderung_7d_pct: pctChange(kurs, d[7]?.close),
-    hoch_7d_usd: week.length > 0 ? Math.max(...week.map((c) => c.high)) : null,
-    tief_7d_usd: week.length > 0 ? Math.min(...week.map((c) => c.low)) : null,
+    stand_schweiz: live.data ? formatZurichTime(new Date(live.data.timestamp_utc).getTime()) : null,
+    veraenderung_24h_pct: pctChange(kurs, ref("1D")),
+    veraenderung_7d_pct: pctChange(kurs, ref("1W")),
+    hoch_7d_usd: highs.length > 0 ? Math.max(...highs) : null,
+    tief_7d_usd: lows.length > 0 ? Math.min(...lows) : null,
   };
 }
 
