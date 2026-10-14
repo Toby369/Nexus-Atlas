@@ -12,7 +12,8 @@ import { FUNDING_EXTREME_PCT } from "./fundingLevels";
 // produktivem Trend-Regime (reines EMA50/200), jede Aenderung an der Live-
 // Scoring-Engine haette hier ein eigenes Backtesting-Protokoll verdient wie
 // beim Regime-/Setup-Score. Stattdessen: EMA13 wird bei jedem Aufruf frisch
-// aus den ohnehin vorhandenen 1h-Kerzen berechnet, rein fuer die Anzeige.
+// aus den abgeschlossenen Tageskerzen berechnet (D13 = Tages-EMA 13, Tobys
+// Entry-Filter). Bis 14.10.2026 lief das versehentlich auf 1h-Kerzen.
 
 const EMA13_PERIOD = 13;
 // Genug Kerzen fuer eine seed-SMA + einige Nachlauf-Perioden, damit sich der
@@ -53,7 +54,7 @@ async function getEma13(): Promise<number | null> {
     .select("close, open_time")
     .eq("exchange", "binance")
     .eq("symbol", "BTCUSDT")
-    .eq("interval", "1h")
+    .eq("interval", "1d")
     .order("open_time", { ascending: false })
     .limit(EMA13_LOOKBACK_CANDLES);
 

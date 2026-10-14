@@ -618,7 +618,9 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "Ergebnis fuer BTC belastend gelesen wird (z.B. Inflation oder Jobs staerker als " +
       "erwartet, Zinsen hoeher/laenger hoch), bullish im umgekehrten Fall, neutral wenn " +
       "im Rahmen der Erwartung oder widerspruechlich. Erfinde keine Zahlen, die nicht in " +
-      "den Schlagzeilen stehen; Quellennamen (CoinDesk usw.) weglassen. " +
+      "den Schlagzeilen stehen; Quellennamen (CoinDesk usw.) weglassen. BTC-Kurse als " +
+      "Niveau mit Schweizer Schreibweise ('faellt unter 83'000 USD'), nie als Betrag " +
+      "('faellt um 83K'); Abkuerzungen wie '$83K' vermeiden. " +
       NUMBER_FORMAT_INSTRUCTION +
       " Antworte als JSON mit: bias (bullish|bearish|neutral), summary (string, deutsch, " +
       "1-2 Saetze, hoechstens 220 Zeichen).",
