@@ -7,9 +7,12 @@ import type {
 import { extractJson } from "../extractJson";
 import { PROVIDER_TIMEOUT_MS } from "../fetchWithRetry";
 
-// Laengste Wartezeit, die bei einem 429 noch abgewartet wird -- passt mit dem
-// Briefing-Zeitlimit je Versuch (40s) und maxDuration der Route zusammen.
-const MAX_RATE_LIMIT_WAIT_SECONDS = 25;
+// Laengste Wartezeit, die bei einem 429 noch abgewartet wird. Groq nennt beim
+// 8000-TPM-Limit bis zu ~30s (Vorfaelle 13.10. 16:15 und 14.10. 06:30: 25,3s
+// und 30,3s, beide knapp ueber der frueheren Grenze von 25s, Briefing fiel
+// aus). Die Wartezeit zaehlt nicht zum Zeitlimit je Versuch (40s); Worst
+// Case Briefing: 2 x (40s + 45s + 40s) = 250s, unter maxDuration=300.
+const MAX_RATE_LIMIT_WAIT_SECONDS = 45;
 
 /**
  * Wartezeit aus einer 429-Antwort: Retry-After-Header (Sekunden) oder der
