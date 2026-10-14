@@ -141,3 +141,22 @@ gerichtet ist, aber die MTF-Ampel ueberwiegend widerspricht.
 **Erledigt (11.10.2026):** Warnung "Widerspruch zur MTF-Ampel" im Lagebild oben, sobald die
 Gesamteinschaetzung eine Richtung zeigt und mindestens 3 von 5 Zeitrahmen dagegen stehen
 (`lib/lagebild.ts::detectMtfStateConflict`, Schwelle `MTF_CONFLICT_MIN_OPPOSING`).
+
+## structure_trend in market_features: Lookahead in der Historie
+
+**Datum:** 14.10.2026
+
+**Kontext:** Beim Orderflow-4-Schritte-Backtest gefunden
+(`ORDERFLOW-4-SCHRITTE-PROTOCOL_2026-10-13.md`, Nachtrag 1).
+`collect-candles::computeMarketStructure` trägt einen Fraktal-Swing bei Kerze j ein,
+obwohl er erst nach Kerze j+5 feststeht. Weil jeder Lauf die letzten 250 Zeilen neu
+schreibt, hat die gespeicherte Historie von `structure_trend` (und `swing_type`, `bos`,
+`choch`) einen Blick von bis zu 5 Kerzen in die Zukunft. Auf 1h weichen 12 % der Kerzen
+von der kausalen Version ab. Der Live-Wert der jüngsten Kerze ist korrekt.
+
+**Betroffen:** jede Auswertung, die diese Spalten historisch nutzt (z. B. Confluence-
+und Gesamteinschätzungs-Research, Rekonstruktion der Warn-Muster).
+
+**Erledigt 14.10.2026:** collect-candles Version 18 und Neuberechnung der Historie, siehe
+`STRUCTURE-TREND-KAUSAL_2026-10-14.md`. Offen bleibt nur, frühere Research-Ergebnisse
+neu zu bewerten, die `structure_trend` historisch genutzt haben.

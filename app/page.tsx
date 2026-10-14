@@ -25,6 +25,7 @@ import type {
 import { getTimeframe, parseTimeframe, type TimeframeId } from "@/lib/timeframes";
 import { buildLiveLeverageMap } from "@/lib/leverageMapContext";
 import { buildCycleIndicators } from "@/lib/cycleIndicatorsContext";
+import { buildVolatilitySnapshot } from "@/lib/volatilityContext";
 import { buildDivergenceRadar } from "@/lib/divergenceRadarContext";
 import { buildConfluenceScore, buildConfluenceSignalDetail } from "@/lib/confluenceScoreContext";
 import { buildRegimeScore, buildRegimeSignalDetail } from "@/lib/regimeScoreContext";
@@ -53,6 +54,7 @@ import YoutubeMonitorCard from "@/components/YoutubeMonitorCard";
 import { getYoutubeMonitorConfig } from "@/lib/youtubeMonitorContext";
 import LeverageMapCard from "@/components/LeverageMapCard";
 import CycleIndicatorsCard from "@/components/CycleIndicatorsCard";
+import VolatilityCard from "@/components/VolatilityCard";
 import TimeframeSelector from "@/components/TimeframeSelector";
 import DashboardTabNav from "@/components/DashboardTabNav";
 import DashboardPollProvider from "@/components/DashboardPollProvider";
@@ -537,6 +539,7 @@ export default async function Home({
     latestTradingViewSignal,
     priceReferences,
     regimeMatrixForTimeframe,
+    volatilitySnapshot,
   ] = await Promise.all([
     getSnapshotHistory(),
     getLatestMarketState(),
@@ -569,6 +572,7 @@ export default async function Home({
     getLatestTradingViewSignal(),
     fetchPriceReferences(),
     fetchRegimeMatrix(regimeIntervalFor(timeframe)),
+    buildVolatilitySnapshot(),
   ]);
 
   // Fallback, falls das Bundle-RPC fehlschlaegt (z.B. kurzzeitiger DB-
@@ -675,6 +679,7 @@ export default async function Home({
                     lernen: <QuizTile />,
                     "leverage-map": <LeverageMapCard map={latestLeverageMap} />,
                     "cycle-indicators": <CycleIndicatorsCard data={cycleIndicators} />,
+                    volatility: <VolatilityCard data={volatilitySnapshot} />,
                     "oi-change": <OiChangeCard />,
                     "funding-rate": <FundingRateCard />,
                     "orderbook-walls": <OrderbookWallCard walls={latestOrderbookWalls} />,

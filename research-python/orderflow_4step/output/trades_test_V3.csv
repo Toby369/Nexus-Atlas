@@ -1,0 +1,2 @@
+entry_pos,entry_time,exit_time,exit_pos,entry,stop,t1,t2,r,is_loss,exit_reason
+114536,2025-12-10 02:00:00+00:00,2025-12-10 10:45:00+00:00,114570,92269.2,91867.40924617341,92917.99863617486,94185.0,0.5267417013680784,False,t1_then_breakeven
