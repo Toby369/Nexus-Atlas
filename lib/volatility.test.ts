@@ -4,6 +4,7 @@ import {
   classifyIvRvSpread,
   classifySkew,
   expectedDailyMovePct,
+  expectedRange,
   parseOption,
   percentileRank,
   realizedVolPct,
@@ -114,6 +115,21 @@ describe("percentileRank", () => {
 describe("expectedDailyMovePct", () => {
   it("DVOL 50 -> rund 2,6 % pro Tag", () => {
     expect(expectedDailyMovePct(50)).toBeCloseTo(2.617, 3);
+  });
+});
+
+describe("expectedRange", () => {
+  it("log-symmetrische 1-Sigma-Spanne", () => {
+    const r = expectedRange(100000, 36.5, 365);
+    expect(r.movePct).toBeCloseTo(36.5, 10);
+    expect(r.low).toBeCloseTo(100000 * Math.exp(-0.365), 6);
+    expect(r.high).toBeCloseTo(100000 * Math.exp(0.365), 6);
+    expect(r.low * r.high).toBeCloseTo(100000 ** 2, 0); // symmetrisch im Log-Raum
+  });
+  it("skaliert mit der Wurzel der Zeit", () => {
+    const one = expectedRange(80000, 40, 1).movePct;
+    expect(expectedRange(80000, 40, 4).movePct).toBeCloseTo(2 * one, 10);
+    expect(one).toBeCloseTo(expectedDailyMovePct(40), 10);
   });
 });
 

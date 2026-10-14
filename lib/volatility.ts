@@ -157,6 +157,22 @@ export function expectedDailyMovePct(annualVolPct: number): number {
   return annualVolPct / Math.sqrt(365);
 }
 
+export interface ExpectedRange {
+  days: number;
+  movePct: number;
+  low: number;
+  high: number;
+}
+
+// 1-Sigma-Spanne (rund 68 % Wahrscheinlichkeit laut Optionspreisen) fuer
+// `days` Tage aus einer annualisierten Volatilitaet. Log-symmetrisch
+// (Kurs * e^(+/- sigma * sqrt(t))), wie bei Optionsmodellen ueblich -- eine
+// einfache +/- Rechnung wuerde die Spanne nach unten leicht ueberzeichnen.
+export function expectedRange(price: number, annualVolPct: number, days: number): ExpectedRange {
+  const sigma = (annualVolPct / 100) * Math.sqrt(days / 365);
+  return { days, movePct: sigma * 100, low: price * Math.exp(-sigma), high: price * Math.exp(sigma) };
+}
+
 export type SkewDirection = "up" | "down" | "flat";
 
 export interface Assessment {
