@@ -55,12 +55,34 @@ def next_us_anchor_after(ts: pd.Timestamp) -> pd.Timestamp:
     return candidate.tz_localize(C.US_TZ).tz_convert("UTC")
 
 
-def session_vwap(df15: pd.DataFrame) -> pd.DataFrame:
-    """VWAP, volumengewichtete Standardabweichung und Kerzenzahl seit dem US-Anker.
+def weekly_anchor(index: pd.DatetimeIndex) -> pd.DatetimeIndex:
+    """Je Kerze der juengste Montag 00:00 UTC <= Kerzen-Eroeffnung (Variante C)."""
+    day = index.normalize()
+    return day - pd.to_timedelta(day.weekday, unit="D")
+
+
+def session_anchor(index: pd.DatetimeIndex, anchor: str = "us") -> pd.DatetimeIndex:
+    if anchor == "us":
+        return us_session_anchor(index)
+    if anchor == "weekly":
+        return weekly_anchor(index)
+    raise ValueError(anchor)
+
+
+def next_anchor_after(ts: pd.Timestamp, anchor: str = "us") -> pd.Timestamp:
+    if anchor == "us":
+        return next_us_anchor_after(ts)
+    if anchor == "weekly":
+        return weekly_anchor(pd.DatetimeIndex([ts]))[0] + pd.Timedelta(days=7)
+    raise ValueError(anchor)
+
+
+def session_vwap(df15: pd.DataFrame, anchor: str = "us") -> pd.DataFrame:
+    """VWAP, volumengewichtete Standardabweichung und Kerzenzahl seit dem Anker.
 
     Enthaelt die aktuelle Kerze (bekannt zu ihrem Schluss).
     """
-    anchor = us_session_anchor(df15.index)
+    anchor = session_anchor(df15.index, anchor)
     tp = (df15["high"] + df15["low"] + df15["close"]) / 3.0
     v = df15["volume"]
     frame = pd.DataFrame({"anchor": anchor, "v": v.values, "pv": (tp * v).values, "pv2": (tp * tp * v).values},
@@ -120,8 +142,9 @@ def profile_from_window(highs: np.ndarray, lows: np.ndarray, volumes: np.ndarray
     return poc_price, val, vah
 
 
-def volume_profile(df15: pd.DataFrame, positions: np.ndarray | None = None) -> pd.DataFrame:
-    """POC/VAL/VAH je Kerze i aus den PROFILE_BARS Kerzen VOR i (i selbst nicht enthalten).
+def volume_profile(df15: pd.DataFrame, positions: np.ndarray | None = None, bars: int = C.PROFILE_BARS,
+                   bucket_pct: float = C.PROFILE_BUCKET_PCT) -> pd.DataFrame:
+    """POC/VAL/VAH je Kerze i aus den `bars` Kerzen VOR i (i selbst nicht enthalten).
 
     `positions`: nur fuer diese Positionen rechnen (Rest NaN), spart Zeit.
     """
@@ -131,13 +154,13 @@ def volume_profile(df15: pd.DataFrame, positions: np.ndarray | None = None) -> p
     closes = df15["close"].to_numpy()
     volumes = df15["volume"].to_numpy()
     out = np.full((n, 3), np.nan)
-    todo = np.arange(C.PROFILE_BARS, n) if positions is None else positions[positions >= C.PROFILE_BARS]
+    todo = np.arange(bars, n) if positions is None else positions[positions >= bars]
     for i in todo:
-        s = slice(i - C.PROFILE_BARS, i)
+        s = slice(i - bars, i)
         vol = volumes[s]
         if vol.sum() <= 0:
             continue
-        bucket = C.PROFILE_BUCKET_PCT * closes[i - 1]
+        bucket = bucket_pct * closes[i - 1]
         out[i] = profile_from_window(highs[s], lows[s], vol, bucket)
     return pd.DataFrame(out, index=df15.index, columns=["poc", "val", "vah"])
 
@@ -193,7 +216,7 @@ def find_confirmations(df15: pd.DataFrame, delta: pd.Series, absorption: pd.Seri
 
 
 def regime_4h(df4h: pd.DataFrame) -> pd.Series:
-    """4h-Regime je Kerze (Rezept wie toby_setup/run_phase_segmentation.py)."""
+    """Regime je Kerze (4h im Grund-Protokoll, 1d in Variante C) (Rezept wie toby_setup/run_phase_segmentation.py)."""
     adx_df = adx(df4h, period=14)
     features = pd.DataFrame(
         {
@@ -297,7 +320,8 @@ def original_structure_trend(highs, lows, lookback=5):
     return np.array(out, dtype=object)
 
 
-def confirmed_swing_highs(df1h: pd.DataFrame, lookback: int = C.SWING_HIGH_LOOKBACK_1H) -> pd.DataFrame:
+def confirmed_swing_highs(df1h: pd.DataFrame, lookback: int = C.SWING_HIGH_LOOKBACK_1H,
+                          bar_length: pd.Timedelta = pd.Timedelta(hours=1)) -> pd.DataFrame:
     """Fraktal-Swing-Hochs (lib/swingDetection.ts) mit Bestaetigungszeit.
 
     Bestaetigt zum Schluss der Kerze j+lookback.
@@ -308,7 +332,7 @@ def confirmed_swing_highs(df1h: pd.DataFrame, lookback: int = C.SWING_HIGH_LOOKB
     for j in range(lookback, n - lookback):
         others = np.concatenate([highs[j - lookback:j], highs[j + 1:j + lookback + 1]])
         if (others < highs[j]).all():
-            confirm_time = df1h.index[j + lookback] + pd.Timedelta(hours=1)
+            confirm_time = df1h.index[j + lookback] + bar_length
             rows.append((df1h.index[j], confirm_time, highs[j]))
     return pd.DataFrame(rows, columns=["pivot_time", "confirm_time", "price"])
 
@@ -334,5 +358,5 @@ def funding_zscore_series(funding: pd.Series) -> pd.Series:
     return funding_zscore(funding, window=C.FUNDING_Z_WINDOW)
 
 
-def atr_15m(df15: pd.DataFrame) -> pd.Series:
+def atr_trigger(df15: pd.DataFrame) -> pd.Series:
     return atr(df15, period=C.ATR_PERIOD)

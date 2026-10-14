@@ -80,6 +80,22 @@ def export(base_url: str, key: str) -> None:
     print("\n".join(manifest))
 
 
+def export_candles_only(base_url: str, key: str, intervals: tuple[str, ...]) -> None:
+    """Nur zusaetzliche Kerzen-Intervalle exportieren (z. B. 1d fuer Variante C),
+    ohne die bestehenden Dateien zu ueberschreiben. Haengt an MANIFEST.txt an."""
+    lines = []
+    for interval in intervals:
+        df = _fetch_all(
+            base_url, key, "candles",
+            {"select": CANDLE_COLUMNS, "exchange": "eq.binance", "symbol": "eq.BTCUSDT", "interval": f"eq.{interval}"},
+            "open_time",
+        )
+        lines.append(_write(df, f"BTCUSDT_{interval}.csv"))
+    with open(DATA_DIR / "MANIFEST.txt", "a") as fh:
+        fh.write("\n".join(lines) + "\n")
+    print("\n".join(lines))
+
+
 def _write(df: pd.DataFrame, name: str) -> str:
     path = DATA_DIR / name
     df.to_csv(path, index=False)
@@ -114,4 +130,8 @@ if __name__ == "__main__":
     key = os.environ.get("SUPABASE_KEY")
     if not url or not key:
         sys.exit("SUPABASE_URL und SUPABASE_KEY setzen (oeffentlicher anon-/publishable-Key).")
-    export(url.rstrip("/"), key)
+    extra = sys.argv[1:]  # z. B. "1d": nur diese Intervalle zusaetzlich exportieren
+    if extra:
+        export_candles_only(url.rstrip("/"), key, tuple(extra))
+    else:
+        export(url.rstrip("/"), key)

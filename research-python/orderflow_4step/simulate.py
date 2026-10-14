@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 
 from orderflow_4step import config as C
-from orderflow_4step.features import next_us_anchor_after
+from orderflow_4step.features import next_anchor_after
 
 COST_PER_SIDE = C.FEE_PER_SIDE + C.SLIPPAGE_PER_SIDE
 
@@ -28,11 +28,12 @@ class Bars:
     high: np.ndarray
     low: np.ndarray
     close: np.ndarray
+    bar: pd.Timedelta = pd.Timedelta(minutes=15)
 
     @classmethod
-    def from_frame(cls, df15: pd.DataFrame) -> "Bars":
+    def from_frame(cls, df15: pd.DataFrame, bar: pd.Timedelta = pd.Timedelta(minutes=15)) -> "Bars":
         return cls(df15.index, df15["open"].to_numpy(), df15["high"].to_numpy(), df15["low"].to_numpy(),
-                   df15["close"].to_numpy())
+                   df15["close"].to_numpy(), bar)
 
 
 @dataclass(frozen=True)
@@ -86,7 +87,8 @@ def _half_return(entry: float, exit_price: float, funding_paid: float) -> float:
 
 
 def simulate_trade(bars: Bars, funding: pd.Series, entry_pos: int, stop: float, t1: float, t2: float,
-                   funding_fallback: float = C.FUNDING_FALLBACK) -> Trade | None:
+                   funding_fallback: float = C.FUNDING_FALLBACK, timeout_bars: int = C.TF_15M.timeout_bars
+                   ) -> Trade | None:
     """Einen Trade ab Open von `entry_pos` durchspielen. None, wenn er nach den Einstiegsregeln entfaellt."""
     n = len(bars.open)
     if entry_pos >= n:
@@ -98,7 +100,7 @@ def simulate_trade(bars: Bars, funding: pd.Series, entry_pos: int, stop: float, 
     if (t1 - entry) < C.MIN_CRV * risk:
         return None
 
-    last_pos = min(entry_pos + int(C.TIMEOUT / pd.Timedelta(minutes=15)) - 1, n - 1)
+    last_pos = min(entry_pos + timeout_bars - 1, n - 1)
     exits: list[tuple[float, int]] = []  # (Preis, Position) je Haelfte
     reason = "timeout"
     is_loss = False
@@ -140,16 +142,17 @@ def simulate_trade(bars: Bars, funding: pd.Series, entry_pos: int, stop: float, 
     entry_time = bars.open_time[entry_pos]
     r_total = 0.0
     for price, pos in exits:
-        exit_time = bars.open_time[pos] + pd.Timedelta(minutes=15)
+        exit_time = bars.open_time[pos] + bars.bar
         paid = _funding_cost(funding, entry_time, exit_time, funding_fallback)
         r_total += C.PARTIAL_SHARE * _half_return(entry, price, paid) / (risk / abs(entry))
     final_pos = max(pos for _, pos in exits)
-    return Trade(entry_pos, entry_time, bars.open_time[final_pos] + pd.Timedelta(minutes=15), final_pos, entry,
+    return Trade(entry_pos, entry_time, bars.open_time[final_pos] + bars.bar, final_pos, entry,
                  stop, t1, t2, r_total, is_loss, reason)
 
 
 def run_chain(bars: Bars, funding: pd.Series, setups: pd.DataFrame, swing_highs: pd.DataFrame,
-              daily_rule: bool, funding_fallback: float = C.FUNDING_FALLBACK) -> list[Trade]:
+              daily_rule: bool, funding_fallback: float = C.FUNDING_FALLBACK, anchor: str = "us",
+              timeout_bars: int = C.TF_15M.timeout_bars) -> list[Trade]:
     """Setups sequenziell abarbeiten: hoechstens ein offener Trade, optional Tagesregel.
 
     `setups` braucht Spalten entry_pos, stop, target_a, target_b (Kandidaten fuer Ziel 1,
@@ -173,7 +176,7 @@ def run_chain(bars: Bars, funding: pd.Series, setups: pd.DataFrame, swing_highs:
             continue
         known = pivot_prices[pivot_confirm <= entry_time.to_datetime64()]
         t1, t2 = pick_targets(float(bars.open[e]), row.target_a, row.target_b, known)
-        trade = simulate_trade(bars, funding, e, float(row.stop), t1, t2, funding_fallback)
+        trade = simulate_trade(bars, funding, e, float(row.stop), t1, t2, funding_fallback, timeout_bars)
         if trade is None:
             continue
         trades.append(trade)
@@ -181,7 +184,7 @@ def run_chain(bars: Bars, funding: pd.Series, setups: pd.DataFrame, swing_highs:
         if daily_rule:
             losses_in_row = losses_in_row + 1 if trade.is_loss else 0
             if losses_in_row >= C.MAX_CONSECUTIVE_LOSSES:
-                locked_until = next_us_anchor_after(trade.exit_time)
+                locked_until = next_anchor_after(trade.exit_time, anchor)
                 losses_in_row = 0
     return trades
 

@@ -241,7 +241,7 @@ def test_features_no_lookahead(cut):
         vw = F.session_vwap(frame)
         prof = F.volume_profile(frame)
         absorption = F.absorption_bars(frame, dz).astype(float)
-        return pd.concat([delta, dz, vw, prof, absorption, F.atr_15m(frame)], axis=1)
+        return pd.concat([delta, dz, vw, prof, absorption, F.atr_trigger(frame)], axis=1)
 
     assert_no_lookahead_on_truncation(all_features, df, cut)
     assert_no_lookahead_on_future_perturbation(all_features, df, cut)
@@ -253,3 +253,32 @@ def test_regime_4h_marks_missing_inputs():
     regime = F.regime_4h(df)
     assert (regime.iloc[:10] == "MISSING").all()
     assert C.REGIMES_NORMAL[0] not in regime.iloc[:10].tolist()
+
+
+# --- Variante C: Wochenanker ------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "bar, anchor",
+    [
+        ("2024-03-11 00:00", "2024-03-11 00:00"),  # Montag 00:00 ist selbst der Anker
+        ("2024-03-10 23:00", "2024-03-04 00:00"),  # Sonntag -> Montag davor
+        ("2024-03-13 15:00", "2024-03-11 00:00"),
+    ],
+)
+def test_weekly_anchor(bar, anchor):
+    assert F.weekly_anchor(pd.DatetimeIndex([ts(bar)]))[0] == ts(anchor)
+
+
+def test_next_weekly_anchor_after():
+    assert F.next_anchor_after(ts("2024-03-13 15:00"), "weekly") == ts("2024-03-18 00:00")
+    assert F.next_anchor_after(ts("2024-03-11 00:00"), "weekly") == ts("2024-03-18 00:00")
+
+
+def test_session_vwap_weekly_resets_on_monday():
+    idx = pd.DatetimeIndex([ts("2024-03-10 23:00"), ts("2024-03-11 00:00"), ts("2024-03-11 01:00")])
+    df = pd.DataFrame({"high": [11.0, 21.0, 31.0], "low": [9.0, 19.0, 29.0], "close": [10.0, 20.0, 30.0],
+                       "volume": [1.0, 1.0, 1.0]}, index=idx)
+    out = F.session_vwap(df, "weekly")
+    assert out["vwap_bars"].tolist() == [1, 1, 2]
+    assert out["vwap"].iloc[2] == pytest.approx(25.0)

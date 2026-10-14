@@ -27,13 +27,14 @@ from src.validation.block_bootstrap import moving_block_bootstrap
 from src.validation.walk_forward import compute_pbo
 
 VARIANTS = ("V1", "V2", "V3", "V4")
-MODE = {"target": C.TARGET_MODE}  # per --target-mode gesetzt
+MODE = {"target": C.TARGET_MODE, "tf": C.TF_15M}  # per --target-mode / --timeframe gesetzt
 
 
 def run_variant(ds: Dataset, bars: Bars, setups: pd.DataFrame, variant: str) -> pd.DataFrame:
     chosen = select_variant(setups, variant)
     return trades_frame(run_chain(bars, ds.funding, chosen, ds.swing_highs, daily_rule=variant == "V4",
-                                 funding_fallback=ds.funding_fallback))
+                                 funding_fallback=ds.funding_fallback, anchor=ds.tf.anchor,
+                                 timeout_bars=ds.tf.timeout_bars))
 
 
 def one_sided_p(values: np.ndarray, seed: int) -> tuple[float, float, float, float]:
@@ -96,7 +97,8 @@ def evaluate_period(ds: Dataset, bars: Bars, setups: pd.DataFrame, name: str, st
     for run in range(v0_runs):
         rs = random_setups(ds, start, end, n_attempts, np.random.default_rng(run), MODE["target"])
         trades = trades_frame(run_chain(bars, ds.funding, rs, ds.swing_highs, daily_rule=False,
-                                        funding_fallback=ds.funding_fallback))
+                                        funding_fallback=ds.funding_fallback, anchor=ds.tf.anchor,
+                                        timeout_bars=ds.tf.timeout_bars))
         v0_means.append(daily_r(trades, start, end).mean())
     result["v0_means"] = np.array(v0_means)
     result["hypotheses"] = hypotheses(result) if with_tests else None
@@ -163,17 +165,17 @@ def structure_agreement(ds: Dataset) -> str:
     from orderflow_4step.data import load_stored_structure
 
     stored = load_stored_structure()
-    causal = ds.structure1h.reindex(stored.index)
+    causal = ds.structure_hi.reindex(stored.index)
     both = pd.DataFrame({"stored": stored, "causal": causal}).dropna()
     same = float((both["stored"] == both["causal"]).mean())
     # gleiche Reihe 5 Kerzen frueher: misst, wie weit die gespeicherte Reihe der kausalen vorausläuft
-    shifted = ds.structure1h.shift(-C.STRUCTURE_SWING_LOOKBACK).reindex(stored.index)
+    shifted = ds.structure_hi.shift(-C.STRUCTURE_SWING_LOOKBACK).reindex(stored.index)
     both_shift = pd.DataFrame({"stored": stored, "causal": shifted}).dropna()
     same_shift = float((both_shift["stored"] == both_shift["causal"]).mean())
     from orderflow_4step.features import original_structure_trend
 
-    port = pd.Series(original_structure_trend(ds.df1h["high"].to_numpy(), ds.df1h["low"].to_numpy()),
-                     index=ds.df1h.index).reindex(stored.index)
+    port = pd.Series(original_structure_trend(ds.df_struct["high"].to_numpy(), ds.df_struct["low"].to_numpy()),
+                     index=ds.df_struct.index).reindex(stored.index)
     same_port = float((port == stored).mean())
     return (f"1h-Struktur: {len(both)} Kerzen verglichen. Port des Originals vs. gespeichert: {same_port:.1%} "
             f"(bestätigt den Port). Übereinstimmung kausal vs. gespeichert: {same:.1%}. "
@@ -184,7 +186,7 @@ def combined_v4(long_ds: Dataset, short_result: dict) -> list[str]:
     """Long+Short V4 zusammen (beschreibend, Nachtrag 3). Rechnet Long V4 neu und prueft,
     dass es mit dem gespeicherten Long-Lauf uebereinstimmt (Regressionstest der Spiegelung)."""
     start, end = C.CONFIRMATORY
-    bars = Bars.from_frame(long_ds.df15)
+    bars = Bars.from_frame(long_ds.df_trig, long_ds.tf.bar)
     long_trades = run_variant(long_ds, bars, in_split(build_setups(long_ds, target_mode=MODE["target"]), start, end), "V4")
     saved = ensure_output_dir() / f"trades_gesamt_V4{mode_suffix()}.csv"
     check = "keine gespeicherte Long-Datei gefunden"
@@ -204,7 +206,9 @@ def combined_v4(long_ds: Dataset, short_result: dict) -> list[str]:
 
 
 def mode_suffix() -> str:
-    return "" if MODE["target"] == "vwap_poc" else f"_{MODE['target']}"
+    target = "" if MODE["target"] == "vwap_poc" else f"_{MODE['target']}"
+    tf = "" if MODE["tf"].name == "15m" else f"_{MODE['tf'].name}"
+    return tf + target
 
 
 def git_state() -> tuple[str, bool]:
@@ -246,6 +250,7 @@ def main() -> None:
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--direction", choices=("long", "short"), default="long")
     parser.add_argument("--target-mode", choices=("vwap_poc", "va_edge"), default=C.TARGET_MODE)
+    parser.add_argument("--timeframe", choices=tuple(C.TIMEFRAMES), default="15m")
     args = parser.parse_args()
 
     head, dirty = git_state()
@@ -256,11 +261,13 @@ def main() -> None:
     v0_runs = 2 if args.smoke else C.V0_RUNS
 
     MODE["target"] = args.target_mode
-    long_ds = Dataset.load()
+    MODE["tf"] = C.TIMEFRAMES[args.timeframe]
+    long_ds = Dataset.load(tf=MODE["tf"])
     ds = long_ds if args.direction == "long" else mirrored(long_ds)
-    bars = Bars.from_frame(ds.df15)
+    bars = Bars.from_frame(ds.df_trig, ds.tf.bar)
     setups = build_setups(ds, target_mode=MODE["target"])
-    parts = [f"Commit: `{head}` · Richtung: **{args.direction}** · Ziel-1-Modus: **{MODE['target']}**", "", structure_agreement(long_ds), "",
+    parts = [f"Commit: `{head}` · Richtung: **{args.direction}** · Ziel-1-Modus: **{MODE['target']}** · Zeitrahmen: **{MODE['tf'].name}**", "",
+             structure_agreement(long_ds) if MODE["tf"].name == "15m" else "", "",
              "## Bestätigungsprobe", ""]
     start, end = C.CONFIRMATORY
     main_result = evaluate_period(ds, bars, setups, "Gesamt 10/2022–09/2026", start, end, v0_runs, True)

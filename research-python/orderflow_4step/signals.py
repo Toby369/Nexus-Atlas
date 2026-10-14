@@ -20,47 +20,50 @@ from orderflow_4step.data import DATA_DIR, load_candles, load_funding
 
 @dataclass
 class Dataset:
-    df15: pd.DataFrame
-    df1h: pd.DataFrame
-    df4h: pd.DataFrame
+    df_trig: pd.DataFrame
+    df_struct: pd.DataFrame
+    df_regime: pd.DataFrame
     funding: pd.Series
     vwap: pd.DataFrame = field(init=False)
     delta: pd.Series = field(init=False)
     delta_z: pd.Series = field(init=False)
     atr: pd.Series = field(init=False)
-    regime4h: pd.Series = field(init=False)
-    structure1h: pd.Series = field(init=False)
+    regime_hi: pd.Series = field(init=False)
+    structure_hi: pd.Series = field(init=False)
     funding_z: pd.Series = field(init=False)
     swing_highs: pd.DataFrame = field(init=False)
     profile: pd.DataFrame | None = None
     direction: str = "long"
     funding_fallback: float = C.FUNDING_FALLBACK
+    tf: C.Timeframe = C.TF_15M
+    """df_trig/df_struct/df_regime: Kerzen fuer Ausloeser, Struktur und Regime laut `tf`
+    (Grund-Protokoll 15m/1h/4h, Variante C 1h/4h/1d)."""
 
     def __post_init__(self) -> None:
-        self.vwap = F.session_vwap(self.df15)
-        self.delta = F.taker_delta(self.df15)
-        self.delta_z = F.delta_zscore(self.delta)
-        self.atr = F.atr_15m(self.df15)
-        self.regime4h = F.regime_4h(self.df4h)
-        self.structure1h = pd.Series(
-            F.causal_structure_trend(self.df1h["high"].to_numpy(), self.df1h["low"].to_numpy()),
-            index=self.df1h.index,
+        self.vwap = F.session_vwap(self.df_trig, self.tf.anchor)
+        self.delta = F.taker_delta(self.df_trig)
+        self.delta_z = F.delta_zscore(self.delta, self.tf.delta_z_window)
+        self.atr = F.atr_trigger(self.df_trig)
+        self.regime_hi = F.regime_4h(self.df_regime)
+        self.structure_hi = pd.Series(
+            F.causal_structure_trend(self.df_struct["high"].to_numpy(), self.df_struct["low"].to_numpy()),
+            index=self.df_struct.index,
         )
         self.funding_z = F.funding_zscore_series(self.funding)
-        self.swing_highs = F.confirmed_swing_highs(self.df1h)
+        self.swing_highs = F.confirmed_swing_highs(self.df_struct, bar_length=self.tf.structure_bar)
         if self.profile is None:
-            self.profile = F.volume_profile(self.df15)
+            self.profile = F.volume_profile(self.df_trig, bars=self.tf.profile_bars, bucket_pct=self.tf.bucket_pct)
 
     @classmethod
-    def load(cls, cache_profile: bool = True) -> "Dataset":
-        df15 = load_candles("15m")
+    def load(cls, cache_profile: bool = True, tf: C.Timeframe = C.TF_15M) -> "Dataset":
+        df_trig = load_candles(tf.trigger)
         profile = None
-        cache = DATA_DIR / "profile_15m.csv"
+        cache = DATA_DIR / f"profile_{tf.name}.csv"
         if cache_profile and cache.exists():
             cached = pd.read_csv(cache, index_col=0, parse_dates=True)
-            if len(cached) == len(df15) and cached.index.equals(df15.index):
+            if len(cached) == len(df_trig) and cached.index.equals(df_trig.index):
                 profile = cached
-        ds = cls(df15, load_candles("1h"), load_candles("4h"), load_funding(), profile=profile)
+        ds = cls(df_trig, load_candles(tf.structure), load_candles(tf.regime), load_funding(), profile=profile, tf=tf)
         if cache_profile and profile is None:
             ds.profile.to_csv(cache)
         return ds
@@ -96,23 +99,24 @@ def mirrored(ds: Dataset) -> Dataset:
     Bucket-Raster sind fuer negative Preise nicht definiert).
     """
     m = object.__new__(Dataset)
-    m.df15 = _mirror_ohlc(ds.df15)
-    m.df1h = _mirror_ohlc(ds.df1h)
-    m.df4h = ds.df4h
+    m.df_trig = _mirror_ohlc(ds.df_trig)
+    m.df_struct = _mirror_ohlc(ds.df_struct)
+    m.df_regime = ds.df_regime
     m.funding = -ds.funding
     m.vwap = pd.DataFrame({"vwap": -ds.vwap["vwap"], "vwap_sigma": ds.vwap["vwap_sigma"],
                            "vwap_bars": ds.vwap["vwap_bars"]}, index=ds.vwap.index)
     m.delta = -ds.delta
     m.delta_z = -ds.delta_z
     m.atr = ds.atr
-    m.regime4h = ds.regime4h.map(mirror_regime)
-    m.structure1h = pd.Series(
-        F.causal_structure_trend(m.df1h["high"].to_numpy(), m.df1h["low"].to_numpy()), index=ds.df1h.index
+    m.regime_hi = ds.regime_hi.map(mirror_regime)
+    m.structure_hi = pd.Series(
+        F.causal_structure_trend(m.df_struct["high"].to_numpy(), m.df_struct["low"].to_numpy()), index=ds.df_struct.index
     )
     m.funding_z = -ds.funding_z
-    m.swing_highs = F.confirmed_swing_highs(m.df1h)
+    m.swing_highs = F.confirmed_swing_highs(m.df_struct, bar_length=ds.tf.structure_bar)
     m.profile = pd.DataFrame({"poc": -ds.profile["poc"], "val": -ds.profile["vah"], "vah": -ds.profile["val"]},
                              index=ds.profile.index)
+    m.tf = ds.tf
     m.direction = "short"
     m.funding_fallback = -C.FUNDING_FALLBACK
     return m
@@ -142,13 +146,13 @@ def target_candidates(ds: Dataset, pos: np.ndarray, target_mode: str) -> tuple[n
 
 def build_setups(ds: Dataset, delta_z_max: float = C.DELTA_Z_MAX, sigma_normal: float = C.SIGMA_NORMAL,
                  new_low_lookback: int = C.NEW_LOW_LOOKBACK, target_mode: str = C.TARGET_MODE) -> pd.DataFrame:
-    df15 = ds.df15
-    absorption = F.absorption_bars(df15, ds.delta_z, delta_z_max, new_low_lookback)
-    pairs = F.find_confirmations(df15, ds.delta, absorption)
+    df_trig = ds.df_trig
+    absorption = F.absorption_bars(df_trig, ds.delta_z, delta_z_max, new_low_lookback)
+    pairs = F.find_confirmations(df_trig, ds.delta, absorption)
     a = pairs["abs_pos"].to_numpy()
     c = pairs["conf_pos"].to_numpy()
-    idx = df15.index
-    low = df15["low"].to_numpy()
+    idx = df_trig.index
+    low = df_trig["low"].to_numpy()
     vwap = ds.vwap["vwap"].to_numpy()
     sigma = ds.vwap["vwap_sigma"].to_numpy()
     vbars = ds.vwap["vwap_bars"].to_numpy()
@@ -161,9 +165,9 @@ def build_setups(ds: Dataset, delta_z_max: float = C.DELTA_Z_MAX, sigma_normal: 
         by_va = low[a] < val[a]
         return np.nan_to_num(by_vwap, nan=False).astype(bool) | np.nan_to_num(by_va, nan=False).astype(bool)
 
-    abs_close = idx[a] + F.BAR_15M
-    regime = F.asof_closed(ds.regime4h, pd.Timedelta(hours=4), abs_close)
-    structure = F.asof_closed(ds.structure1h, pd.Timedelta(hours=1), abs_close)
+    abs_close = idx[a] + ds.tf.bar
+    regime = F.asof_closed(ds.regime_hi, ds.tf.regime_bar, abs_close)
+    structure = F.asof_closed(ds.structure_hi, ds.tf.structure_bar, abs_close)
     fz = F.asof_closed(ds.funding_z, pd.Timedelta(0), abs_close)
     classes = np.array([env_class(r) for r in regime], dtype=object)
     funding_block = np.nan_to_num(fz.astype(float), nan=-np.inf) > C.FUNDING_Z_MAX
@@ -174,7 +178,7 @@ def build_setups(ds: Dataset, delta_z_max: float = C.DELTA_Z_MAX, sigma_normal: 
             "abs_pos": a,
             "conf_pos": c,
             "entry_pos": c + 1,
-            "signal_time": idx[c] + F.BAR_15M,
+            "signal_time": idx[c] + ds.tf.bar,
             "stop": low[a] - C.STOP_ATR_BUFFER * atr[c],
             "target_a": target_candidates(ds, c, target_mode)[0],
             "target_b": target_candidates(ds, c, target_mode)[1],
@@ -212,12 +216,12 @@ def in_split(setups: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> pd
 def random_setups(ds: Dataset, start: pd.Timestamp, end: pd.Timestamp, n: int, rng: np.random.Generator,
                   target_mode: str = C.TARGET_MODE) -> pd.DataFrame:
     """V0: n zufaellige Einstiegskerzen im Abschnitt, Stop aus den 3 Vorkerzen."""
-    idx = ds.df15.index
+    idx = ds.df_trig.index
     candidates = np.flatnonzero((idx >= start) & (idx < end))
     candidates = candidates[candidates > C.V0_STOP_LOOKBACK]
     n = min(n, len(candidates))
     e = np.sort(rng.choice(candidates, size=n, replace=False))
-    low = ds.df15["low"].to_numpy()
+    low = ds.df_trig["low"].to_numpy()
     prior_low = np.min(np.stack([low[e - k] for k in range(1, C.V0_STOP_LOOKBACK + 1)]), axis=0)
     out = pd.DataFrame(
         {

@@ -7,6 +7,8 @@ Nachtrag im Protokoll aendern, nie nach einem Ergebnis-Blick.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import pandas as pd
 
 # --- Abschnitt 1: Datenaufteilung -------------------------------------------
@@ -74,3 +76,31 @@ GRID_DELTA_Z = (-1.0, -1.5, -2.0)
 GRID_SIGMA = (0.25, 0.5, 0.75)
 GRID_NEW_LOW_LOOKBACK = (5, 8, 12)
 PBO_GROUPS = 8
+
+
+# --- Zeitrahmen-Profile (Variante C, ORDERFLOW-VARIANTE-C-1H_PROTOCOL_2026-10-14.md) ---
+
+
+@dataclass(frozen=True)
+class Timeframe:
+    """Welche Kerzen wofuer, und alle davon abhaengigen Fenster."""
+
+    name: str
+    trigger: str  # Ausloeser, Ausfuehrung, ATR, VWAP, Profil
+    structure: str  # Struktur-Filter und Ziel-2-Swings
+    regime: str  # Regime-Filter
+    bar: pd.Timedelta
+    structure_bar: pd.Timedelta
+    regime_bar: pd.Timedelta
+    anchor: str  # "us" (09:30 New York, Mo-Fr) oder "weekly" (Montag 00:00 UTC)
+    profile_bars: int
+    bucket_pct: float
+    delta_z_window: int
+    timeout_bars: int
+
+
+TF_15M = Timeframe("15m", "15m", "1h", "4h", pd.Timedelta(minutes=15), pd.Timedelta(hours=1), pd.Timedelta(hours=4),
+                   "us", PROFILE_BARS, PROFILE_BUCKET_PCT, DELTA_Z_WINDOW, int(TIMEOUT / pd.Timedelta(minutes=15)))
+TF_1H = Timeframe("1h", "1h", "4h", "1d", pd.Timedelta(hours=1), pd.Timedelta(hours=4), pd.Timedelta(days=1),
+                  "weekly", 168, 0.002, 168, 96)
+TIMEFRAMES = {"15m": TF_15M, "1h": TF_1H}
