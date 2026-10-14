@@ -40,8 +40,9 @@ zehnten Fall 3,5 % oder mehr.
 | DVOL 55–115 | 500 | 41,8 % | 80,0 % |
 
 DVOL rechnet die Schwankung gleichmässig auf alle 365 Tage um. Unter der Woche bewegt
-sich BTC aber deutlich mehr als am Wochenende. Die 1-Tages-Spanne ist deshalb
-**werktags zu eng und am Wochenende zu breit**. Das DVOL-Niveau selbst macht kaum einen
+sich BTC aber deutlich mehr als am Wochenende. Werktags wird die 1-Tages-Spanne
+deshalb **viel öfter berührt** als am Wochenende. Für den Endstand ist sie aber auch
+werktags nicht zu eng (75 % drin statt 68 %), am Wochenende deutlich zu breit (92 %). Das DVOL-Niveau selbst macht kaum einen
 Unterschied.
 
 ## Lesart
@@ -72,8 +73,8 @@ Auf Tobys Wunsch zeigt die Kachel die Messung jetzt als Hinweis an
 
 - Bei der 1-Tages-Spanne steht die historische Quote „am Ende drin“ je nach Tagesart:
   werktags 75 %, am Wochenende 92 %.
-- Unter den Spannen steht eine Zeile: werktags „eher zu eng – unterwegs an 53 % berührt“,
-  am Wochenende „eher zu breit – nur an 17 % berührt“.
+- Unter den Spannen steht eine Zeile: werktags „mehr Bewegung als im Schnitt – unterwegs an
+  53 % berührt“, am Wochenende „weniger Bewegung – nur an 17 % berührt“.
 - Als Wochenende gilt, wenn die Mitte der nächsten 24 h (jetzt + 12 h) auf Samstag oder
   Sonntag UTC fällt.
 

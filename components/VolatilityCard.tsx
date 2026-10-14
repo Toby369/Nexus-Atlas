@@ -12,7 +12,7 @@ const INFO = [
   "Implizit vs. realisiert: 30-Tage-ATM-IV (Optionen am Geld, aus den beiden Verfällen um 30 Tage auf genau 30 Tage interpoliert, Methode wie beim VIX) minus tatsächliche Schwankung der letzten 30 Tage aus den Binance-1h-Kerzen. Deutlich positiv (> +10) = Optionen teuer, der Markt erwartet mehr Bewegung als zuletzt; im Backtest 09/2022–10/2026 war die Bewegung danach tatsächlich deutlich grösser. Negativ (< −5) = Optionen billiger als die zuletzt tatsächliche Bewegung; im Backtest beruhigte sich der Kurs danach eher, die Optionen waren also nicht zu billig.",
   "Skew: Volatilität eines Puts 10 % unter minus eines Calls 10 % über dem Forward, gleicher Verfall. Positiv = Absicherung nach unten gefragt, negativ = Spekulation nach oben.",
   "Erwartete Spanne: Bereich, in dem der Kurs laut Optionspreisen (DVOL) nach 1, 7 bzw. 30 Tagen mit rund 68 % Wahrscheinlichkeit liegt (1 Sigma). Breite wächst mit der Wurzel der Zeit. Der Strich markiert den aktuellen Kurs. Backtest 09/2022–10/2026: Tatsächlich lag der Kurs nach 1 Tag in 80 %, nach 7 Tagen in 78 % und nach 30 Tagen in 72 % der Fälle in der Spanne. Kurzfristig überschätzen die Optionen die Bewegung also meist (Volatilitäts-Risikoprämie), dafür sind grosse Ausreisser häufiger als im Modell. Die Spanne gilt für den Endstand, nicht für den Weg: Unterwegs berührt der Kurs die 1-Tages-Spanne an rund 43 % der Tage.",
-  "Werktag/Wochenende: DVOL verteilt die Schwankung gleichmässig auf alle 365 Tage, BTC bewegt sich unter der Woche aber deutlich mehr. Die 1-Tages-Spanne ist deshalb werktags zu eng (berührt an 53 %, am Ende drin 75 %) und am Wochenende zu breit (berührt an 17 %, am Ende drin 92 %). Messung 09/2022–10/2026, Tage ab 00:00 UTC. Ein Stopp genau an der Spannengrenze wäre werktags an jedem zweiten Tag ausgelöst worden.",
+  "Werktag/Wochenende: DVOL verteilt die Schwankung gleichmässig auf alle 365 Tage, BTC bewegt sich unter der Woche aber deutlich mehr. Werktags wird die 1-Tages-Spanne deshalb unterwegs viel öfter berührt (53 %, am Ende drin 75 %) als am Wochenende (17 %, am Ende drin 92 %). Messung 09/2022–10/2026, Tage ab 00:00 UTC. Ein Stopp genau an der Spannengrenze wäre werktags an jedem zweiten Tag ausgelöst worden.",
   "Pfeil: Stimmung im Optionsmarkt aus dem Skew. Grün ↑ = Calls teurer (Markt setzt eher auf steigende Kurse), rot ↓ = Puts teurer (Markt sichert sich gegen fallende Kurse ab), grau → = ausgeglichen. Das zeigt, wohin das Geld im Optionsmarkt gerade fliesst – keine Kursprognose. Starke Angst (sehr teure Puts) fällt historisch oft mit Tiefs zusammen, also auch als Gegenindikator lesbar.",
   "Schwellen sind gängige Faustregeln. Geprüft (Backtest 14.10.2026, docs/research/VOLATILITAETS-KACHEL-BACKTEST_RESULTS_2026-10-14.md): Spanne und die Einordnungen von DVOL und Implizit vs. realisiert. Nicht geprüft: Skew-Pfeil (keine historischen Daten, wird seit 14.10.2026 gesammelt). Kein Handelssignal.",
 ].join("\n\n");
@@ -164,8 +164,8 @@ export default function VolatilityCard({ data }: { data: VolatilitySnapshot }) {
           <ExpectedRanges ranges={data.expectedRanges} price={data.price} dayType={dayType} />
           <p className="text-[11px] text-text-faint">
             {dayType === "weekday"
-              ? `Werktag: 1-Tages-Spanne eher zu eng – unterwegs an ${fmt(ONE_DAY_BY_DAYTYPE.weekday.touched * 100, 0)} % der Werktage berührt.`
-              : `Wochenende: 1-Tages-Spanne eher zu breit – nur an ${fmt(ONE_DAY_BY_DAYTYPE.weekend.touched * 100, 0)} % der Wochenendtage berührt.`}
+              ? `Werktag: mehr Bewegung als im Schnitt – 1-Tages-Spanne unterwegs an ${fmt(ONE_DAY_BY_DAYTYPE.weekday.touched * 100, 0)} % der Werktage berührt.`
+              : `Wochenende: weniger Bewegung – 1-Tages-Spanne nur an ${fmt(ONE_DAY_BY_DAYTYPE.weekend.touched * 100, 0)} % der Wochenendtage berührt.`}
           </p>
         </div>
       )}

@@ -166,7 +166,7 @@ export const HISTORICAL_COVERAGE: Record<number, number | null> = { 1: 0.8, 7: 0
 // 1-Tages-Spanne nach Wochentag (Nachtrag 14.10.2026, beschreibend,
 // docs/research/VOLATILITAETS-KACHEL-BERUEHRUNG_2026-10-14.md): DVOL verteilt
 // die Schwankung gleichmaessig auf 365 Tage, BTC bewegt sich werktags aber
-// deutlich mehr -> Spanne werktags zu eng, am Wochenende zu breit.
+// deutlich mehr -> werktags viel oefter beruehrt als am Wochenende.
 // touched = Hoch/Tief beruehrt die Spanne irgendwann, endInside = Kurs nach 24 h drin.
 export type DayType = "weekday" | "weekend";
 export const ONE_DAY_BY_DAYTYPE: Record<DayType, { touched: number; endInside: number }> = {
