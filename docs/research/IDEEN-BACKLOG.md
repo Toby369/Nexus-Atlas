@@ -157,6 +157,6 @@ von der kausalen Version ab. Der Live-Wert der jüngsten Kerze ist korrekt.
 **Betroffen:** jede Auswertung, die diese Spalten historisch nutzt (z. B. Confluence-
 und Gesamteinschätzungs-Research, Rekonstruktion der Warn-Muster).
 
-**Nächster Schritt, falls Toby das aufgreift:** Swing erst bei j+5 verarbeiten
-(Referenz: `research-python/orderflow_4step/features.py::causal_structure_trend`),
-Historie neu berechnen und prüfen, welche bisherigen Research-Ergebnisse sich ändern.
+**Erledigt 14.10.2026:** collect-candles Version 18 und Neuberechnung der Historie, siehe
+`STRUCTURE-TREND-KAUSAL_2026-10-14.md`. Offen bleibt nur, frühere Research-Ergebnisse
+neu zu bewerten, die `structure_trend` historisch genutzt haben.
