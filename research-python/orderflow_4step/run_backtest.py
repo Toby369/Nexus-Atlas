@@ -191,8 +191,12 @@ def combined_v4(long_ds: Dataset, short_result: dict) -> list[str]:
     saved = ensure_output_dir() / f"trades_gesamt_V4{mode_suffix()}.csv"
     check = "keine gespeicherte Long-Datei gefunden"
     if saved.exists():
-        stored = pd.read_csv(saved)
-        same = len(stored) == len(long_trades) and np.allclose(stored["r"].to_numpy(), long_trades["r"].to_numpy())
+        try:
+            stored = pd.read_csv(saved)
+        except pd.errors.EmptyDataError:  # Long-V4 ohne Trades -> leere Datei
+            stored = pd.DataFrame({"r": []})
+        same = len(stored) == len(long_trades) and (
+            len(stored) == 0 or np.allclose(stored["r"].to_numpy(), long_trades["r"].to_numpy()))
         check = "identisch mit dem Long-Lauf" if same else "**ABWEICHUNG zum Long-Lauf**"
     long_days = daily_r(long_trades, start, end)
     short_days = short_result["daily"]["V4"]
