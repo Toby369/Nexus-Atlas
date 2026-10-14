@@ -41,7 +41,7 @@ const MEIN_SYSTEM_MANUAL_CHECKLIST = [
   "15m-Entry: Bestätigungskerze am Retest-Level, Einstieg nach Schluss der Folgekerze",
   "D13 (Tages-EMA 13) geprüft – Trade gegen D13 nur bewusst, als Warnung notiert",
   "Keylevel-Konfluenz vorhanden",
-  "RSI/StochRSI-Divergenz-Check auf 4H",
+  "RSI-/MACD-Divergenz auf 1H/4H/1D geprüft (nur Hinweis/Warnung, siehe Lagebild)",
 ];
 
 // Orderflow-4-Schritte (Video Chris Creamer, "Robbins Cup"-Strategie). Als
@@ -260,7 +260,10 @@ function MeinSystemLiveValues({ data }: { data: MeinSystemChecklistData }) {
       <div className="flex items-center justify-between text-xs">
         <span className="text-text-faint">Funding aktuell (Schwelle 0,05%/8h)</span>
         <span className={fundingOk === null ? "text-text-faint" : fundingOk ? "text-up" : "text-down"}>
-          {formatPct(data.fundingRatePct)} {fundingOk !== null && (fundingOk ? "✓ unter Schwelle" : "über Schwelle")}
+          {/* Regelwerk 14.10.2026: Funding ueber der Schwelle warnt gegen die ueberfuellte Seite, sperrt aber nicht. */}
+          {formatPct(data.fundingRatePct)}{" "}
+          {fundingOk !== null &&
+            (fundingOk ? "✓ unter Schwelle" : `⚠ Warnung gegen ${(data.fundingRatePct ?? 0) > 0 ? "Long" : "Short"}`)}
         </span>
       </div>
       <div className="flex items-center justify-between text-xs">

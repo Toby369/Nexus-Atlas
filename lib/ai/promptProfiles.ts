@@ -360,7 +360,9 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "Tage, deutlich ueber 100 = Tagespensum ausgeschoepft); mein_system_checklist " +
       "(Funding, OI-Veraenderung, EMA 13/50/200 auf Tagesbasis, Tagesschluss); " +
       "trading_indicators (GUSS-Regime, VWAP-Vector mit Tages-/Wochen-/Monats-VWAP, CVD -- " +
-      "einzige Orderflow-Quelle); liquidations (Preis-Cluster nahe Kurs). " +
+      "einzige Orderflow-Quelle); liquidations (Preis-Cluster nahe Kurs); divergenzen " +
+      "(aktuelle RSI-/MACD-Divergenzen auf 1H/4H/1D -- laut Regelwerk nur Hinweis, nie " +
+      "Sperre; falls vorhanden in der Gates-Zeile als Warnung bzw. Bestaetigung nennen). " +
       "Pruefe NUR Tobys Regelwerk gegen diese Live-Daten, die Chart-Struktur siehst du " +
       "hier nicht. regelwerkCheck: 2-4 Zeilen, getrennt durch \\n, jede beginnt mit " +
       "GENAU einer dieser Bezeichnungen und einem Doppelpunkt: 'Gates:', 'Orderflow:', " +

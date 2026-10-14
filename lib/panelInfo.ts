@@ -303,3 +303,8 @@ Stufen:
 Wie du es nutzt: Zählt nur, wenn die Prämie über Stunden anhält. Eine positive Prämie bei steigendem Preis bestätigt US-Nachfrage; fällt der Preis trotz positiver Prämie, verkaufen andere Regionen oder die Perps. Die Stufen sind Faustregeln, nicht im Backtest geprüft.
 
 Quelle: Coinbase-Exchange-API (letzte 300 Kerzen = 25 h), Binance aus der Nexus-Datenbank. Weicht USDT leicht von 1 USD ab, steckt das in der Prämie.`;
+
+// RSI-/MACD-Divergenz-Hinweis im Lagebild (lib/oscillatorDivergence.ts).
+export const oscillatorDivergenceInfo = `So liest du das: Zeigt aktuelle RSI- und MACD-Divergenzen auf 1H, 4H und 1D. Klassisch bärisch: Kurs macht ein höheres Hoch, der Oszillator ein tieferes (Schwung lässt nach). Versteckt bärisch: Kurs tieferes Hoch, Oszillator höheres (Abwärtstrend setzt sich eher fort). Bullisch spiegelbildlich an den Tiefs. Laut deinem Regelwerk immer nur ein Hinweis bzw. eine Warnung, keine Pflicht und keine Sperre. StochRSI wird nicht mehr verwendet.
+
+So entsteht der Wert: Schlusskurs-Pivots mit je 5 Kerzen links und rechts, verglichen mit RSI(14) bzw. dem MACD-Histogramm an denselben Kerzen. Angezeigt wird nur, wenn das jüngere Pivot höchstens 15 Kerzen zurückliegt. Weil ein Pivot erst nach 5 Folgekerzen bestätigt ist, erscheint eine Divergenz entsprechend verzögert (1H: 5 Stunden, 4H: 20 Stunden, 1D: 5 Tage).`;
