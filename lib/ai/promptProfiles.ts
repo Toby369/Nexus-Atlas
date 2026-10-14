@@ -493,10 +493,11 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "Du schreibst die Rahmen-Abschnitte des BTC-Marktberichts. Bereits fertig (NICHT " +
       "neu bewerten, nur einordnen): regelwerkCheck und chartStruktur mit je eigener " +
       "Tendenz (regelwerkLeanBias/chartLeanBias) sowie das trigger-Szenario. Daten: " +
-      "btc_markt (Kurs, Veraenderung 24h/7 Tage, 7-Tage-Hoch/-Tief), rsi (RSI 14 auf 4H " +
+      "btc_markt (Kurs mit Stand-Uhrzeit Schweiz, Veraenderung 24h/7 Tage -- dieselben " +
+      "Zahlen wie im Lagebild, nicht selbst nachrechnen --, 7-Tage-Hoch/-Tief), rsi (RSI 14 auf 4H " +
       "und 1D, aktuell und vorherige Kerze), liquidations (Preis-Cluster mit Volumen, " +
       "Seite long/short), etf_flows (letzter Handelstag und Summe der letzten Tage, Mio. " +
-      "USD), wirtschaftskalender (Termine heute/morgen, Uhrzeit US-Ostkueste), news " +
+      "USD), wirtschaftskalender (Termine heute/morgen, Uhrzeit Schweiz), news " +
       "(marktbewegende Schlagzeilen), market_state und market_context (nur zum Abgleich), " +
       "bewegungsvorrat_ratio_pct, previousBriefing. Abschnitte, jeder mit Kernsatz " +
       "zuerst: " +
@@ -516,7 +517,7 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "etfFlows: 1-3 Saetze -- Netto-Fluss des letzten Handelstags und die Tendenz der " +
       "letzten Tage. " +
       "wirtschaftskalender: 1-2 Saetze -- welche US-Termine heute/morgen anstehen und " +
-      "wann (Uhrzeit in Schweizer Zeit umrechnen: US-Ostkueste + 6 Stunden); keine? " +
+      "wann (zeit_schweiz unveraendert uebernehmen, nicht umrechnen); keine? " +
       "'Heute und morgen stehen keine relevanten US-Wirtschaftsdaten an.' " +
       "fazit: bias (bullish/bearish/neutral -- verdichte regelwerkLeanBias und " +
       "chartLeanBias zu einem Urteil, nur bei echter Richtung, sonst neutral), " +
