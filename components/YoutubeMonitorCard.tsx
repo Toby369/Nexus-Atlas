@@ -18,7 +18,7 @@ const INFO_TEXT = [
   "Was das ist: prueft konfigurierte YouTube-Kanaele auf neue Uploads UND/ODER eine Freitext-Suche (beides einstellbar, siehe 'Einstellungen' unten) -- letzte 24h, neue Videos werden per Gemini direkt anhand der Video-URL ausgewertet (Bild+Ton, kein Transkript-Umweg).",
   "Kostenlos: sowohl die YouTube-API (Google-Gratiskontingent) als auch die Gemini-Video-Analyse (Google-Free-Tier, Flash-Modelle) laufen ohne Kreditkarte -- pro Lauf werden aber nur wenige neue Videos analysiert (Kostenkontrolle ueber das Free-Tier-Anfragelimit).",
   "Kanaele erkennst du an Handle (z.B. @CoinBureau), voller Kanal-URL oder roher Kanal-ID -- wird beim Speichern serverseitig aufgeloest. Freitext-Suche findet auch unbekannte Quellen, kann aber Off-Topic-Treffer liefern (dafuer gibt es das relevance-Feld sowie die 'Gesperrte Kanaele'-Liste, um einzelne Ersteller dauerhaft auszuschliessen).",
-  "Kein Handelssignal -- die im Video vertretene Meinung ist nicht Nexus' eigene Einschaetzung. Wird NICHT automatisch aktualisiert -- ein neuer Suchlauf entsteht nur per Klick auf \"Neu pruefen\".",
+  "Kein Handelssignal -- die im Video vertretene Meinung ist nicht Nexus' eigene Einschaetzung. Laeuft nur auf Abruf (seit 14.10.2026 kein taeglicher Automatik-Lauf mehr, schont das Gemini-Kontingent fuer das Briefing) -- ein neuer Suchlauf entsteht nur per Klick auf \"Neu prüfen\".",
   "Kanal-Vergleich: zeigt die JEWEILS NEUESTE Einschaetzung jedes konfigurierten Kanals nebeneinander -- \"einig\" wenn alle dieselbe Richtung vertreten, \"mehrheitlich\" mit den abweichenden Kanaelen einzeln benannt, oder \"gespalten\" bei echtem Patt ohne Mehrheit. Erscheint erst ab 2 Kanaelen mit erfolgreicher Analyse.",
 ].join("\n\n");
 
@@ -98,7 +98,7 @@ export default function YoutubeMonitorCard({
       setStatusNote(
         `${json.analyzed} von ${json.checked} neuen Videos analysiert.` +
           (json.quotaExhausted
-            ? " Gemini-Tageskontingent erreicht -- restliche Videos werden beim naechsten Lauf automatisch nachgeholt."
+            ? " Gemini-Tageskontingent erreicht -- restliche Videos beim naechsten Klick auf \"Neu prüfen\" (Kontingent setzt um 09:00 Uhr Schweizer Zeit zurueck)."
             : "")
       );
 
