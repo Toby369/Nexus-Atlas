@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import { isAuthorizedServiceRoleRequest, isPublicPath } from "@/lib/authGate";
 
@@ -82,11 +83,21 @@ export async function proxy(request: NextRequest) {
   // getUser() (nicht getSession()) -- verifiziert das Session-Token gegen
   // den Supabase-Auth-Server statt nur das lokal gespeicherte Cookie zu
   // vertrauen (Supabase-eigene Empfehlung fuer Proxy/Middleware-Checks).
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let { data: { user }, error: userError } = await supabase.auth.getUser();
+  // 15.10.2026 (Toby: "ich werde immer wieder abgemeldet"): ein kurzer
+  // Netzwerk-/5xx-Fehler beim Auth-Server (Supabase meldete gleichzeitig eine
+  // Stoerung) fuehrte direkt zur Umleitung auf /login, obwohl die Session
+  // gueltig war -- die Login-Seite meldete sich danach per Refresh-Token
+  // selbst wieder an. Bei solchen Fehlern einmal neu versuchen statt
+  // abzumelden; echte Auth-Fehler (abgelaufen/ungueltig) bleiben unveraendert.
+  if (!user && isAuthRetryableFetchError(userError)) {
+    ({ data: { user }, error: userError } = await supabase.auth.getUser());
+  }
 
   if (!user) {
+    if (userError && userError.name !== "AuthSessionMissingError") {
+      console.warn(`Auth-Gate: keine Session fuer ${pathname} (${userError.name}: ${userError.message})`);
+    }
     if (isApi) {
       return NextResponse.json(
         { success: false, error: "Nicht authentifiziert. Bitte zuerst einloggen." },

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { VAPID_PUBLIC_KEY, urlBase64ToUint8Array } from "@/lib/webPush";
+import { setPushOptedOut } from "@/lib/pushKeepAlive";
 
 // Push-Benachrichtigungen aktivieren/deaktivieren (Nutzer-Wunsch: "kann
 // nexus auch push Nachricht senden? ja bauen"). Sendet bei einem Zustands-
@@ -64,6 +65,7 @@ export default function PushNotificationSettings() {
       const data = await res.json();
       if (!data.success) throw new Error(data.error ?? "Unbekannter Fehler beim Speichern der Subscription.");
 
+      setPushOptedOut(false);
       setStatus("subscribed");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -86,6 +88,8 @@ export default function PushNotificationSettings() {
         });
         await subscription.unsubscribe();
       }
+      // Bewusst deaktiviert: PushKeepAlive meldet dann nicht automatisch neu an.
+      setPushOptedOut(true);
       setStatus("unsubscribed");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
