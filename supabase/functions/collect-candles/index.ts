@@ -89,6 +89,9 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 // Historie per recompute_market_structure_causal() neu berechnet.
 // Quellcode liegt seit 2026-10-14 auch im Repo (supabase/functions/
 // collect-candles/index.ts).
+//
+// 2026-10-15: Spot-Zuordnung fuer basis_pct nur noch mit 5 Min Toleranz,
+// siehe SPOT_TOLERANCE_MS.
 const SYMBOL = "BTCUSDT";
 const INTERVALS = ["1m", "15m", "1h", "4h", "1d", "1w"] as const;
 type Interval = (typeof INTERVALS)[number];
@@ -112,6 +115,18 @@ const FETCH_LIMIT = 1000;
 // Zeilen unnoetig neu zu schreiben -- deckt trotzdem genug juengere
 // Historie ab, um spaete OI-/Basis-Korrekturen nachzuziehen.
 const WRITE_LOOKBACK = 250;
+
+// Spot-Preis fuer die Basis: hoechstens 5 Minuten vor dem Kerzenschluss.
+// spot_market_snapshots ist ein 5-Minuten-Raster, timestamp_utc = Beginn des
+// 5-Min-Fensters, last_price = Kurs am Ende des Fensters. Zur 1h-Kerze mit
+// Schluss 13:59:59.999 passt also der Snapshot 13:55 (Kurs um 14:00).
+// 2026-10-15 (Fehlalarm "Basis/Perpetual-Praemie extrem"): vorher galt die
+// OI-Toleranz (>= 1 h). Lief collect-candles, bevor der 13:55-Snapshot
+// geschrieben war, nahm es den von 13:50 -- 5 Minuten zu alt. Bei einer
+// schnellen Bewegung ergab das +0,33 % statt -0,065 % Basis und eine
+// Risiko-Push. Jetzt: fehlt der passende Snapshot noch, bleibt basis_pct
+// leer und der naechste Lauf (WRITE_LOOKBACK schreibt neu) fuellt ihn nach.
+const SPOT_TOLERANCE_MS = 5 * 60 * 1000;
 
 // Fraktale Swing-Erkennung: ein Hoch/Tief gilt als bestaetigt, wenn es
 // hoeher/tiefer ist als jede der LOOKBACK Kerzen davor und danach
@@ -671,7 +686,7 @@ async function processInterval(supabase: any, interval: Interval): Promise<Proce
   const lookupSpot = buildAsofLookup(spotPoints);
 
   const oiCurrentArr = closeTimesMs.map((t: number) => lookupOi(t, toleranceMs));
-  const spotPriceArr = closeTimesMs.map((t: number) => lookupSpot(t, toleranceMs));
+  const spotPriceArr = closeTimesMs.map((t: number) => lookupSpot(t, SPOT_TOLERANCE_MS));
 
   const oiDeltaPct = oiCurrentArr.map((cur: number | null, i: number) => {
     const prev = i > 0 ? oiCurrentArr[i - 1] : null;
