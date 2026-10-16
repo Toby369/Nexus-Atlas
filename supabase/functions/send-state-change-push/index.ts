@@ -57,6 +57,13 @@ const VAPID_PUBLIC_KEY =
   "BJWQ6WGvi9OMy_YswlA_Y9c6_SaLl-Werw94zsEZXWyKIy5el8lXl44k0MXmtIAlVx5nxf_bSeLaTOn4Fkkn20A";
 const VAPID_SUBJECT = "mailto:nexus-atlas@example.com";
 
+// 16.10.2026 (Toby: Test-Push kam nicht an, obwohl FCM sie angenommen hat):
+// web-push schickt sonst mit Urgency "normal" -- Android haelt solche
+// Nachrichten im Energiesparmodus (Doze) zurueck, bis das Geraet aufwacht.
+// "high" stellt sofort zu. TTL 6 h: aeltere Marktmeldungen sind ohnehin
+// ueberholt, statt bis zu 4 Wochen (Standard) nachgeliefert zu werden.
+const PUSH_OPTIONS = { urgency: "high" as const, TTL: 6 * 60 * 60 };
+
 // Muss mit DIRECTIONAL_LABEL_CONFIDENCE_THRESHOLD in
 // lib/marketStateSummary.ts uebereinstimmen.
 const CONFIDENCE_THRESHOLD = 35;
@@ -409,7 +416,8 @@ async function sendToAll(
     try {
       await webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        body
+        body,
+        PUSH_OPTIONS
       );
       sent++;
     } catch (err) {
