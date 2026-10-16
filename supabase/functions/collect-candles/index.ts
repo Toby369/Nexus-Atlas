@@ -92,6 +92,9 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 //
 // 2026-10-15: Spot-Zuordnung fuer basis_pct nur noch mit 5 Min Toleranz,
 // siehe SPOT_TOLERANCE_MS.
+//
+// 2026-10-16: market_features nur noch fuer geaenderte Zeilen schreiben,
+// siehe keepChangedRows().
 const SYMBOL = "BTCUSDT";
 const INTERVALS = ["1m", "15m", "1h", "4h", "1d", "1w"] as const;
 type Interval = (typeof INTERVALS)[number];
@@ -710,7 +713,7 @@ async function processInterval(supabase: any, interval: Interval): Promise<Proce
   // schreiben. candle_count = Anzahl der im geladenen Fenster verfuegbaren
   // Kerzen bis inkl. dieser -- Basis fuer data_quality (EMA200 braucht 200
   // Kerzen Vorlauf, um wirklich eingeschwungen zu sein).
-  const rows = [];
+  const rows: Record<string, unknown>[] = [];
   for (let i = startIdx; i < n; i++) {
     const candleCount = i + 1;
     const dataQuality = candleCount >= 200 ? "OK" : candleCount >= 50 ? "PRELIMINARY" : "INSUFFICIENT";
@@ -754,17 +757,65 @@ async function processInterval(supabase: any, interval: Interval): Promise<Proce
     });
   }
 
-  const { error: featuresError } = await supabase
-    .from("market_features")
-    .upsert(rows, { onConflict: "symbol,interval,candle_open_time" });
-  if (featuresError) throw new Error(`market_features upsert: ${featuresError.message}`);
+  const changedRows = await keepChangedRows(supabase, interval, rows);
+  if (changedRows.length > 0) {
+    const { error: featuresError } = await supabase
+      .from("market_features")
+      .upsert(changedRows, { onConflict: "symbol,interval,candle_open_time" });
+    if (featuresError) throw new Error(`market_features upsert: ${featuresError.message}`);
+  }
 
   return {
     success: true,
     candlesFetched: closedKlines.length,
     candlesStored: candleRows.length,
-    featuresWritten: rows.length,
+    featuresWritten: changedRows.length,
   };
+}
+
+// 2026-10-16: Nur Zeilen zurueckschreiben, deren Werte sich gegenueber dem
+// gespeicherten Stand aendern. Vorher wurden pro Lauf alle WRITE_LOOKBACK
+// Zeilen je Intervall ueberschrieben (~120'000 Updates/Tag); jedes Update
+// hinterlaesst eine tote Zeilenversion und liess market_features nach dem
+// vacuum full vom 12.10. um ~12 MB/Tag wachsen (Supabase-Free-Limit 500 MB).
+// Ergebnis in der Tabelle ist identisch: unveraenderte Zeilen stehen bereits
+// so drin. Schlaegt das Lesen fehl, wird wie bisher alles geschrieben.
+const KEY_COLUMNS = new Set(["symbol", "interval", "candle_open_time"]);
+
+function sameValue(computed: unknown, stored: unknown): boolean {
+  const a = typeof computed === "number" && Number.isNaN(computed) ? null : computed;
+  if (a === null || a === undefined) return stored === null || stored === undefined;
+  if (stored === null || stored === undefined) return false;
+  if (typeof a === "number") return Number(stored) === a;
+  return a === stored;
+}
+
+async function keepChangedRows(
+  supabase: any,
+  interval: Interval,
+  rows: Record<string, unknown>[],
+): Promise<Record<string, unknown>[]> {
+  if (rows.length === 0) return rows;
+  const columns = Object.keys(rows[0]);
+  const { data: stored, error } = await supabase
+    .from("market_features")
+    .select(columns.join(","))
+    .eq("symbol", SYMBOL)
+    .eq("interval", interval)
+    .gte("candle_open_time", rows[0].candle_open_time)
+    .limit(FETCH_LIMIT);
+  if (error) {
+    console.error(`market_features Vergleich (${interval}):`, error.message);
+    return rows;
+  }
+  const storedByTime = new Map<number, Record<string, unknown>>(
+    (stored ?? []).map((r: any) => [Date.parse(r.candle_open_time), r]),
+  );
+  return rows.filter((row) => {
+    const old = storedByTime.get(Date.parse(row.candle_open_time as string));
+    if (!old) return true;
+    return columns.some((c) => !KEY_COLUMNS.has(c) && !sameValue(row[c], old[c]));
+  });
 }
 
 Deno.serve(async (_req: Request) => {
