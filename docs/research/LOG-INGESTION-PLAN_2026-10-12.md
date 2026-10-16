@@ -90,6 +90,26 @@ sichtbarkeitsabhängig). Wirkt erst nach dem Vercel-Deploy von `main`; Messung d
 `LivePriceDataProvider`) → halbiert den grössten verbleibenden Posten; Daten erscheinen
 bis zu 60 s statt 30 s nach dem Sammeln. Umgesetzt im selben PR wie diese Messung.
 
+### Messung 16.10.2026 (3 Tage nach 60-s-Polling)
+
+| Quelle | 12.10. | 13.10. | 15.10. | 16.10. |
+|---|---|---|---|---|
+| API-Gateway (`edge_logs`) | 28'850 | 18'736 | 11'076 | **9'736** (−66 %) |
+| Postgres | 8'236 | 6'257 | 7'073 | 7'030 |
+
+Am 16.10. (24 h bis 19:30 UTC): 7'972 Aufrufe von Edge Functions/Sammlern, 1'731 vom
+Vercel-Server, nur 27 aus dem Browser (App kaum offen) – die Browser-Ersparnis durch
+60 s ist an diesem Tag deshalb nicht messbar; bei offener App sind ~5'000/Tag zu erwarten.
+
+Hochrechnung: ~0,6–0,8 GB Log-Ingestion pro Monat (vorher 1,57 GB) → unter 1 GB.
+
+DB-Grösse 16.10.: 410 MB. `market_features` nach `fillfactor = 80` + `vacuum full`
+(Toby, 16.10.) und `collect-candles` v20 (nur geänderte Zeilen, PR #36) stabil bei 86 MB.
+
+**Fazit:** keine weiteren Schritte nötig. Verbleibende Hebel nur bei Bedarf: Takt der
+5-Min-Sammler (Phase 4), Research-Activation-Tabellen auf Zeitfenster, Aufbewahrungsfrist
+für Snapshots.
+
 ## Phase 4 – Takt der Sammler (Entscheid Toby)
 
 5-Min-Sammler (btc, positioning, liquidations, spot-pressure, orderbook,
