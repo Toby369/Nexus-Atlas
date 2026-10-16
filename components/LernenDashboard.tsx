@@ -17,6 +17,7 @@ import type { LevelStructureZone } from "@/lib/levelStructureContext";
 import PanelInfo from "@/components/PanelInfo";
 import { CardsPanel, SessionPanel, StatsPanel } from "@/components/lernen/QuizPanels";
 import WissenPanel from "@/components/lernen/WissenPanel";
+import BuecherPanel from "@/components/lernen/BuecherPanel";
 
 // Lernplattform-Kachel (Leitner-Karteikasten), Nutzer-Wunsch "wie im
 // Trading Journal" -- Konzept aus KachelQuiz.vue/Lernen.vue im Crypto-
@@ -44,7 +45,7 @@ function rowToProgress(row: QuizProgressRow | undefined): QuizProgress | null {
   };
 }
 
-type Tab = "lernen" | "karten" | "statistik" | "wissen";
+type Tab = "lernen" | "karten" | "statistik" | "wissen" | "buecher";
 
 export default function LernenDashboard({
   initialCards,
@@ -111,12 +112,13 @@ export default function LernenDashboard({
         <PanelInfo title="Lernen" content={INFO_TEXT} />
       </div>
 
-      <div className="flex gap-1 border-b border-border">
+      <div className="flex gap-1 border-b border-border overflow-x-auto">
         {([
           { id: "lernen", label: "Lernen" },
           { id: "karten", label: "Karten" },
           { id: "statistik", label: "Statistik" },
           { id: "wissen", label: "Wissen" },
+          { id: "buecher", label: "Bücher" },
         ] as { id: Tab; label: string }[]).map((t) => (
           <button
             key={t.id}
@@ -136,6 +138,7 @@ export default function LernenDashboard({
       )}
       {tab === "karten" && <CardsPanel cards={cards} onChanged={refetch} />}
       {tab === "statistik" && <StatsPanel stats={stats} streak={streak} categories={categories} />}
+      {tab === "buecher" && <BuecherPanel />}
       {tab === "wissen" && (
         <WissenPanel
           knowledgeBase={knowledgeBase}
