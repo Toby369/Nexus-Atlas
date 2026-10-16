@@ -160,3 +160,58 @@ und Gesamteinschätzungs-Research, Rekonstruktion der Warn-Muster).
 **Erledigt 14.10.2026:** collect-candles Version 18 und Neuberechnung der Historie, siehe
 `STRUCTURE-TREND-KAUSAL_2026-10-14.md`. Offen bleibt nur, frühere Research-Ergebnisse
 neu zu bewerten, die `structure_trend` historisch genutzt haben.
+
+## Breakout + Retest als Backtest (BTCUSDT)
+
+**Datum:** 16.10.2026
+
+**Kontext:** Nach dem MTF-Confluence-Backtest
+(`research-python/mtf_confluence_backtest/`, Ergebnis im README dort): Die
+Sweep-Umkehr (gescheiterter Ausbruch) hatte in beiden Timeframe-Sets
+(15m/1h/4h und 1h/4h/1D) brutto praktisch keinen Edge (~0 bis +0,13 R),
+netto nichts statistisch Belastbares. Breakout + Retest ist die Gegenwette
+auf dieselbe Preisaktion (Ausbruch hält statt scheitert) und noch
+ungetestet. Besprochen wurden dazu:
+
+- **Retest von was:** dem gebrochenen Level (Swing-Hoch, Range-Kante,
+  CHoCH-Level, VAH/POC). Kein Akteur "macht" den Retest; plausible
+  Mechanismen sind Gewinnmitnahmen, Shorts, die bei Break-even schliessen,
+  Limit-Kaeufer am Level und Order-Cluster an markanten Preisen (Osler,
+  NY Fed, ~2000-2003). Unbewiesen, daher testen.
+- **Zeit zwischen Breakout und Retest:** keine feste Mindestzeit; wichtiger
+  ist, dass sich der Preis vorher geloest hat (ca. >= 1 ATR Abstand oder
+  neues Hoch, Schlusskurse ueber dem Level). Zu frueh (1-3 Kerzen) = Rauschen
+  bzw. scheiternder Ausbruch; zu spaet = Orders am Level aufgeloest, neue
+  Struktur. Faustregel ~3 bis 20-30 Kerzen des Timeframes, auf dem das Level
+  definiert ist.
+- **Volumen-Lesart** (Chart-Beispiel 15.10.2026, BTCUSDT.P 5m, Ausverkauf
+  bei ~79,9k, CHoCH bei 81,02k, Range 82,05-82,44k): Impuls mit hohem
+  Volumen, Ruecklauf mit wenig Volumen ist mehrdeutig (Absorption oben vs.
+  "kein Angebot" im Pullback) und allein kein Signal. Im MTF-Backtest war
+  der Volumen-Spike der staerkste Einzelbaustein -> als Filter mittesten.
+
+**Geplanter Testaufbau (vorab festgelegt, keine Parametersuche):**
+
+- Level: letztes bestaetigtes Swing-Hoch auf 4h bzw. 1D (Short gespiegelt);
+  Variante: CHoCH-Level nach Ausverkaufs-Tief mit hohem Volumen + Sweep.
+- Breakout: Schlusskurs ueber Level + 0,25 x ATR.
+- Retest: Tief kommt ans Level (+/- Toleranz) ohne Schlusskurs deutlich
+  darunter. Einstieg per Limit am Level (Maker-Gebuehr) oder per Markt nach
+  Bestaetigungskerze.
+- Stop unter Level - ATR-Puffer, TP 2R, Kosten wie im MTF-Backtest.
+- Nur drei Varianten:
+
+  | Variante | Mindestabstand | Retest-Fenster |
+  |---|---|---|
+  | schnell | 1 ATR | 3-12 Kerzen |
+  | mittel | 1 ATR | 12-48 Kerzen |
+  | Vergleich | – | Einstieg direkt beim Ausbruch, ohne Retest |
+
+  jeweils mit/ohne Volumenfilter (Impuls hoch, Ruecklauf niedrig) und
+  mit/ohne Trendfilter des hohen Timeframes.
+- In-Sample bis 2023, Out-of-Sample ab 2024; Infrastruktur (Daten,
+  Look-Ahead-sichere HTF-Ausrichtung, Simulation) aus
+  `mtf_confluence_backtest` wiederverwenden.
+
+**Status:** Toby will noch warten. Erst bauen, wenn er es aktiv wieder
+aufgreift.

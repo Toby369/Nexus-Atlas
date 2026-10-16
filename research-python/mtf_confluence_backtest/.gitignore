@@ -1,0 +1,6 @@
+data/*.csv
+data/raw/
+output/*
+!output/.gitkeep
+__pycache__/
+.pytest_cache/
