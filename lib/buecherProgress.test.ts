@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyAnswer, isUnlocked, parseProgress, shuffledOrder } from "./buecherProgress";
 import { BUECHER } from "./buecherContent";
+import { ZUSAMMENFASSUNGEN } from "./buecherZusammenfassungen";
 
 describe("applyAnswer", () => {
   it("schaltet bei richtiger Antwort die naechste Lektion frei", () => {
@@ -79,6 +80,18 @@ describe("Buecher-Inhalte", () => {
         expect(l.frage.optionen.length).toBeGreaterThanOrEqual(3);
         expect(l.frage.richtig).toBeGreaterThanOrEqual(0);
         expect(l.frage.richtig).toBeLessThan(l.frage.optionen.length);
+      }
+    }
+  });
+});
+
+describe("Zusammenfassungen", () => {
+  it("gibt es fuer jedes Buch, jeder Abschnitt hat Inhalt", () => {
+    expect(Object.keys(ZUSAMMENFASSUNGEN).sort()).toEqual(BUECHER.map((b) => b.id).sort());
+    for (const abschnitte of Object.values(ZUSAMMENFASSUNGEN)) {
+      expect(abschnitte.length).toBeGreaterThanOrEqual(4);
+      for (const a of abschnitte) {
+        expect((a.text?.length ?? 0) + (a.punkte?.length ?? 0)).toBeGreaterThan(0);
       }
     }
   });
