@@ -26,7 +26,7 @@ function fixtureContext(overrides: Record<string, unknown> = {}): SystemBriefing
     etf_flows: { cumulative_usd_m: 10, days: 5 },
     positioning: { confidence: 50 },
     news: { count: 2, lookback_hours: 72, schlagzeilen: ["a", "b"] },
-    btc_markt: { kurs_usd: 84250, veraenderung_24h_pct: 1.2, veraenderung_7d_pct: -2.3, hoch_7d_usd: 86000, tief_7d_usd: 82000 },
+    btc_markt: { kurs_usd: 84250, stand_schweiz: "14:30 Uhr", veraenderung_24h_pct: 1.2, veraenderung_7d_pct: -2.3, hoch_7d_usd: 86000, tief_7d_usd: 82000 },
     rsi: { "4h": { aktuell: 56.5, vorher: 45.4 }, "1d": { aktuell: 54.6, vorher: 51.7 } },
     wirtschaftskalender: [],
     triangle: null,
@@ -40,11 +40,11 @@ function fixtureContext(overrides: Record<string, unknown> = {}): SystemBriefing
 }
 
 describe("sliceForRegelwerk", () => {
-  it("enthaelt nur regelwerk/bewegungsvorrat/mein_system_checklist/trading_indicators/liquidations", () => {
+  it("enthaelt nur regelwerk/bewegungsvorrat/mein_system_checklist/trading_indicators/liquidations/divergenzen", () => {
     const ctx = fixtureContext();
     const slice = sliceForRegelwerk(ctx);
     expect(Object.keys(slice).sort()).toEqual(
-      ["bewegungsvorrat", "liquidations", "mein_system_checklist", "regelwerk", "trading_indicators"].sort()
+      ["bewegungsvorrat", "divergenzen", "liquidations", "mein_system_checklist", "regelwerk", "trading_indicators"].sort()
     );
     expect(slice.regelwerk).toBe(ctx.regelwerk);
     expect(slice.bewegungsvorrat).toBe(ctx.bewegungsvorrat);
@@ -74,11 +74,16 @@ describe("sliceForChartStruktur", () => {
 });
 
 describe("sliceForTrigger", () => {
-  it("enthaelt nur btc_markt/keyLevels/mein_system_checklist/trading_indicators", () => {
+  it("enthaelt nur btc_markt/keyLevels/mein_system_checklist/trading_indicators/tp_standard", () => {
     const ctx = fixtureContext();
     const slice = sliceForTrigger(ctx);
-    expect(Object.keys(slice).sort()).toEqual(["btc_markt", "keyLevels", "mein_system_checklist", "trading_indicators"].sort());
+    expect(Object.keys(slice).sort()).toEqual(
+      ["btc_markt", "keyLevels", "mein_system_checklist", "trading_indicators", "tp_standard"].sort()
+    );
     expect(slice.keyLevels).toBe(ctx.keyLevels);
+    // 90'000 liegt 6,8 % ueber 84'250 -> Standard 1; keine Unterstuetzung im Fixture.
+    expect(slice.tp_standard[0]).toContain("Standard 1");
+    expect(slice.tp_standard[1]).toBe("Short → keine Unterstützung bekannt");
   });
 });
 

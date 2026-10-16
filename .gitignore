@@ -18,3 +18,6 @@ __pycache__/
 venv/
 .coverage
 htmlcov/
+
+# orderflow_4step: exportierte Rohdaten (Manifest ist eingecheckt)
+research-python/orderflow_4step/data/*.csv

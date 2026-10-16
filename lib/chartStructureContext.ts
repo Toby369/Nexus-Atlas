@@ -46,7 +46,7 @@ const TRENDLINE_MIN_TOUCHES = 3;
 // Stelle) -- eigene, dokumentierte Toleranz, keine Originalquelle.
 const TRENDLINE_TOUCH_TOLERANCE_PCT = 0.005;
 
-const KEY_LEVEL_LOOKBACK_HOURS = 6; // gleiches Fenster wie LiquidationPanel/LeverageMapCard
+const KEY_LEVEL_LOOKBACK_HOURS = 6; // gleiches Fenster wie Briefing-Liquidationen/LeverageMapCard
 const KEY_LEVEL_MAX_LIQUIDATION_CLUSTERS = 4;
 const KEY_LEVEL_PRICE_BUCKET_USD = 200;
 

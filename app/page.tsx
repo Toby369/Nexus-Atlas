@@ -1,13 +1,14 @@
 import { Suspense } from "react";
+import { NEWS_TILE_CATEGORIES } from "@/lib/newsCategories";
 import { supabase } from "@/lib/supabase";
 import { fetchPriceReferences } from "@/lib/priceChanges";
+import { getChartStructureData } from "@/lib/chartStructureContext";
 import { fetchRegimeMatrix, regimeIntervalFor } from "@/lib/regimeTimeframe";
 import type {
   DashboardPollBundle,
   EconomicCalendarEvent,
   EscalationSnapshot,
   EtfFlowDay,
-  LiquidationEvent,
   MarketSeriesPoint,
   MarketSnapshot,
   MarketState,
@@ -26,6 +27,7 @@ import type {
 import { getTimeframe, parseTimeframe, type TimeframeId } from "@/lib/timeframes";
 import { buildLiveLeverageMap } from "@/lib/leverageMapContext";
 import { buildCycleIndicators } from "@/lib/cycleIndicatorsContext";
+import { buildVolatilitySnapshot } from "@/lib/volatilityContext";
 import { buildDivergenceRadar } from "@/lib/divergenceRadarContext";
 import { buildConfluenceScore, buildConfluenceSignalDetail } from "@/lib/confluenceScoreContext";
 import { buildRegimeScore, buildRegimeSignalDetail } from "@/lib/regimeScoreContext";
@@ -37,7 +39,6 @@ import LivePriceDataProvider from "@/components/LivePriceDataProvider";
 import OiChangeCard from "@/components/OiChangeCard";
 import FundingRateCard from "@/components/FundingRateCard";
 import NewsRiskPanel from "@/components/NewsRiskPanel";
-import LiquidationPanel from "@/components/LiquidationPanel";
 import EtfFlowPanel from "@/components/EtfFlowPanel";
 import EconomicCalendarPanel from "@/components/EconomicCalendarPanel";
 import MarketContextCard from "@/components/MarketContextCard";
@@ -55,6 +56,7 @@ import YoutubeMonitorCard from "@/components/YoutubeMonitorCard";
 import { getYoutubeMonitorConfig } from "@/lib/youtubeMonitorContext";
 import LeverageMapCard from "@/components/LeverageMapCard";
 import CycleIndicatorsCard from "@/components/CycleIndicatorsCard";
+import VolatilityCard from "@/components/VolatilityCard";
 import TimeframeSelector from "@/components/TimeframeSelector";
 import DashboardTabNav from "@/components/DashboardTabNav";
 import DashboardPollProvider from "@/components/DashboardPollProvider";
@@ -67,8 +69,6 @@ export const revalidate = 0;
 const REFERENCE_EXCHANGE = "bybit";
 const NEWS_LIMIT = 5;
 const NEWS_LOOKBACK_HOURS = 72;
-const LIQUIDATION_LOOKBACK_HOURS = 6;
-const LIQUIDATION_LIMIT = 300;
 const ETF_FLOW_LIMIT = 10;
 
 // KI-Verlaufslisten/-Snapshots aelter als 6h werden nicht angezeigt: ein
@@ -197,7 +197,7 @@ async function getLatestTradingViewSignal(): Promise<TradingViewSignal | null> {
   return data;
 }
 
-// Nur markbewegende News der letzten 72h, max. 5 - bewusst kompakt statt
+// Nur markbewegende Fed-/CPI-News der letzten 72h, max. 5 - bewusst kompakt statt
 // einer Rohdaten-Flut.
 async function getHighImpactNews(): Promise<NewsEvent[]> {
   const cutoff = new Date(
@@ -208,6 +208,7 @@ async function getHighImpactNews(): Promise<NewsEvent[]> {
     .from("news_events")
     .select("*")
     .eq("is_market_moving", true)
+    .in("category", NEWS_TILE_CATEGORIES)
     .gte("published_at", cutoff)
     .order("published_at", { ascending: false })
     .limit(NEWS_LIMIT);
@@ -294,29 +295,6 @@ async function getLatestYoutubeAnalyses(): Promise<YoutubeVideoAnalysis[]> {
     console.error("Fehler beim Laden der YouTube-Analysen:", error.message);
     return [];
   }
-  return data ?? [];
-}
-
-// Stichprobenerfassung (~25s alle 5 Min je Boerse) -- letzte Fenster fuer
-// eine aussagekraeftige Aggregation (Groesse/Richtung/Haeufung).
-async function getRecentLiquidations(): Promise<LiquidationEvent[]> {
-  const cutoff = new Date(
-    Date.now() - LIQUIDATION_LOOKBACK_HOURS * 60 * 60 * 1000
-  ).toISOString();
-
-  const { data, error } = await supabase
-    .from("liquidation_events")
-    .select("*")
-    .eq("status", "ok")
-    .gte("event_time_utc", cutoff)
-    .order("event_time_utc", { ascending: false })
-    .limit(LIQUIDATION_LIMIT);
-
-  if (error) {
-    console.error("Fehler beim Laden der Liquidationen:", error.message);
-    return [];
-  }
-
   return data ?? [];
 }
 
@@ -539,7 +517,6 @@ export default async function Home({
     mtfDots,
     shortTermRangeCheck,
     highImpactNews,
-    recentLiquidations,
     recentEtfFlows,
     upcomingEconomicEvents,
     latestLeverageMap,
@@ -565,6 +542,8 @@ export default async function Home({
     latestTradingViewSignal,
     priceReferences,
     regimeMatrixForTimeframe,
+    volatilitySnapshot,
+    chartStructure,
   ] = await Promise.all([
     getSnapshotHistory(),
     getLatestMarketState(),
@@ -572,7 +551,6 @@ export default async function Home({
     getLatestMtfDots(),
     getShortTermRangeCheck(),
     getHighImpactNews(),
-    getRecentLiquidations(),
     getRecentEtfFlows(),
     getUpcomingEconomicEvents(),
     buildLiveLeverageMap(),
@@ -598,13 +576,15 @@ export default async function Home({
     getLatestTradingViewSignal(),
     fetchPriceReferences(),
     fetchRegimeMatrix(regimeIntervalFor(timeframe)),
+    buildVolatilitySnapshot(),
+    getChartStructureData(),
   ]);
 
   // Fallback, falls das Bundle-RPC fehlschlaegt (z.B. kurzzeitiger DB-
   // Aussetzer) -- MarketContextCard/SpotPressurePanel und der
   // "Positionierung"-Faktor in HeroHeader zeigen dann ihre jeweiligen
   // "keine Daten"-Zustaende, statt dass die ganze Seite abstuerzt. Der
-  // naechste 30s-Poll im DashboardPollProvider versucht es erneut.
+  // naechste 60s-Poll im DashboardPollProvider versucht es erneut.
   const initialDashboardBundle: DashboardPollBundle = dashboardBundle ?? {
     oi_series: [],
     oi_reference: null,
@@ -675,6 +655,7 @@ export default async function Home({
                   upcomingEconomicEvents={upcomingEconomicEvents}
                   initialMtfDots={mtfDots}
                   initialPriceReferences={priceReferences}
+                  keyLevels={chartStructure.keyLevels.map(({ price, side }) => ({ price, side }))}
                   setupScore={confluenceScore}
                   regimeScore={regimeScore}
                   scoreDetails={
@@ -704,13 +685,11 @@ export default async function Home({
                     lernen: <QuizTile />,
                     "leverage-map": <LeverageMapCard map={latestLeverageMap} />,
                     "cycle-indicators": <CycleIndicatorsCard data={cycleIndicators} />,
+                    volatility: <VolatilityCard data={volatilitySnapshot} />,
                     "oi-change": <OiChangeCard />,
                     "funding-rate": <FundingRateCard />,
                     "orderbook-walls": <OrderbookWallCard walls={latestOrderbookWalls} />,
                     "divergence-radar": <DivergenceRadarCard radar={divergenceRadar} />,
-                    liquidations: (
-                      <LiquidationPanel initialEvents={recentLiquidations} />
-                    ),
                     "etf-flow": (
                       <EtfFlowPanel initialFlows={recentEtfFlows} macroNews={highImpactNews} />
                     ),

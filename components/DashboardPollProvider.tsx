@@ -6,7 +6,7 @@ import type { DashboardPollBundle } from "@/lib/types";
 import { getTimeframe, type TimeframeId } from "@/lib/timeframes";
 import { setVisibleInterval } from "@/lib/visibleInterval";
 
-// Phase 2, Punkt 3: buendelt die 30s-Polls von MarketContextCard,
+// Phase 2, Punkt 3: buendelt die 60s-Polls von MarketContextCard,
 // SpotPressurePanel und PositioningPanel (vorher zusammen 10 unabhaengige
 // Einzel-Requests pro Intervall: 3x market series/reference/spot-summary,
 // 2x spot-pressure summary/series, 5x positioning snapshots/signal) zu
@@ -24,7 +24,9 @@ import { setVisibleInterval } from "@/lib/visibleInterval";
 // fuer einen kleineren Zusatznutzen -- sie pollen weiterhin unabhaengig
 // ueber ihren eigenen Provider.
 
-const REFRESH_INTERVAL_MS = 30_000;
+// 60 s: die Sammler schreiben nur alle 5 Min neue Daten; jeder Abruf ist ein
+// Supabase-Log-Eintrag (Log Ingestion), 30 s holten meist unveraenderte Werte.
+const REFRESH_INTERVAL_MS = 60_000;
 const SERIES_MAX_POINTS = 500;
 
 async function fetchBundle(sinceIso: string): Promise<DashboardPollBundle | null> {
@@ -45,7 +47,7 @@ interface DashboardPollContextValue {
   fetchedAtMs: number;
   lastSyncOk: boolean;
   // Nur waehrend eines durch einen Zeitraum-Wechsel ausgeloesten Neuladens
-  // true (nicht waehrend des automatischen 30s-Polls) -- entspricht dem
+  // true (nicht waehrend des automatischen 60s-Polls) -- entspricht dem
   // bisherigen "loading"-Verhalten von SpotPressurePanel.
   isLoading: boolean;
 }

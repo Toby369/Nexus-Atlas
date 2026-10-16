@@ -138,7 +138,7 @@ export async function POST() {
       // des vollen technischen Fehlertexts (Google-Fehler-JSON inkl. Doku-
       // Links), der sonst 1:1 im Dashboard stuende.
       const message = isQuotaError
-        ? "Gemini-Tageskontingent erreicht -- wird beim naechsten Lauf automatisch erneut versucht."
+        ? "Gemini-Tageskontingent erreicht -- wird beim naechsten Klick auf \"Neu prüfen\" erneut versucht."
         : err instanceof Error
           ? err.message
           : String(err);
@@ -162,8 +162,8 @@ export async function POST() {
 
   // Kanal-Vergleich ueber die juengsten Analysen (nicht nur den aktuellen
   // Batch) -- wie in app/page.tsx: nur so ist jeder konfigurierte Kanal
-  // vertreten. Der taegliche automatische Check (youtube-monitor-scheduler)
-  // kann damit eine Push-Nachricht mit dieser Einschaetzung ausloesen.
+  // vertreten. Der fruehere taegliche Check (youtube-monitor-scheduler, Cron
+  // 26) ist seit 14.10.2026 abgeschaltet, die Route laeuft nur auf Abruf.
   const { data: recentAnalyses } = await supabaseAdmin
     .from("youtube_video_analyses")
     .select("*")

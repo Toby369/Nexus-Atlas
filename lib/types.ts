@@ -180,7 +180,7 @@ export interface OiChangeByExchange {
 }
 
 // Rueckgabe der get_dashboard_poll_bundle-RPC (Phase 2, Punkt 3): buendelt
-// die 30s-Polls von MarketContextCard, SpotPressurePanel und
+// die 60s-Polls von MarketContextCard, SpotPressurePanel und
 // PositioningPanel (vorher 10 unabhaengige Einzel-Requests) zu einem
 // einzigen jsonb-Objekt -- siehe components/DashboardPollProvider.tsx.
 export interface DashboardPollBundle {
@@ -460,7 +460,7 @@ export interface KnowledgeBaseEntry {
 // create_checklist_runs_table.
 export interface ChecklistRun {
   id: number;
-  module: "welz" | "salomon" | "mein_system";
+  module: "welz" | "salomon" | "mein_system" | "orderflow";
   checked_items: string[];
   checked_count: number;
   total_count: number;

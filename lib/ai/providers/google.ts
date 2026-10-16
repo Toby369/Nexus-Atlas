@@ -54,11 +54,11 @@ async function callGenerateContent(
           maxOutputTokens: options?.maxTokens,
         },
       }),
-    }, timeoutMs);
+    }, timeoutMs, options?.retryOnOverload === false ? 0 : undefined);
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
-      throw new Error(`google: HTTP ${res.status} – ${errText.slice(0, 300)}`);
+      throw new Error(`google (${model}): HTTP ${res.status} – ${errText.slice(0, 300)}`);
     }
 
     const json = await res.json();
@@ -70,7 +70,7 @@ async function callGenerateContent(
     return { content, model };
   } catch (err) {
     if (err instanceof Error && err.name === "TimeoutError") {
-      throw new Error(`google: Zeitueberschreitung nach ${timeoutMs / 1000}s (keine Antwort).`);
+      throw new Error(`google (${model}): Zeitueberschreitung nach ${timeoutMs / 1000}s (keine Antwort).`);
     }
     throw err;
   }

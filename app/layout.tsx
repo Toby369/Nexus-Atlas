@@ -3,6 +3,7 @@ import "./globals.css";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import OfflineBanner from "@/components/OfflineBanner";
 import InstallPrompt from "@/components/InstallPrompt";
+import PushKeepAlive from "@/components/PushKeepAlive";
 
 export const metadata: Metadata = {
   title: "NEXUS Atlas — BTC Marktüberwachung",
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="de" className="h-full antialiased">
       <body className="min-h-full flex flex-col bg-bg text-text">
         <ServiceWorkerRegister />
+        <PushKeepAlive />
         <OfflineBanner />
         {children}
         <InstallPrompt />

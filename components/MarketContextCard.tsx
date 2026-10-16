@@ -15,7 +15,7 @@ import { setVisibleInterval } from "@/lib/visibleInterval";
 
 // Preis-Bucket-Breite fuer das Spot-Volumen-Profil -- dieselbe Breite wie
 // bei den Key Levels/Liquidations-Clustern (lib/chartStructureContext.ts,
-// components/LiquidationPanel.tsx), damit "$200-Bucket" ueberall dasselbe
+// lib/systemBriefingContext.ts), damit "$200-Bucket" ueberall dasselbe
 // bedeutet.
 const SPOT_VOLUME_PRICE_BUCKET_USD = 200;
 const SPOT_VOLUME_REFRESH_MS = 60_000;
@@ -67,7 +67,7 @@ export default function MarketContextCard({
   timeframe: TimeframeId;
 }) {
   // Datenquelle: DashboardPollProvider (Phase 2, Punkt 3) statt eigenem
-  // 30s-Poll -- siehe dortiger Kommentar zur Buendelung mit
+  // 60s-Poll -- siehe dortiger Kommentar zur Buendelung mit
   // PositioningPanel.
   const { bundle, fetchedSinceIso, fetchedAtMs, isLoading } = useDashboardPoll();
   const tf = getTimeframe(timeframe);

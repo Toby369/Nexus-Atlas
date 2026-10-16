@@ -1,4 +1,8 @@
+import { economicEventMarkMs, formatZurichTime } from "./economicCalendar";
 import { supabase } from "./supabase";
+import { fetchPriceReferences } from "./priceChanges";
+import { fetchOscillatorDivergences, formatDivergence } from "./oscillatorDivergence";
+import { computeTpSuggestions, formatTpSuggestion } from "./tpStandard";
 import { computeConfidenceBreakdown } from "./marketStateSummary";
 import { getMeinSystemChecklistData, type MeinSystemChecklistData } from "./meinSystemContext";
 import { getTradingIndicatorsData, type TradingIndicatorsData } from "./tradingIndicatorsContext";
@@ -40,8 +44,8 @@ import type {
 
 const LIQUIDATION_LOOKBACK_HOURS = 6;
 const LIQUIDATION_BUCKET_MINUTES = 15;
-// Dieselbe Kalibrierung wie components/LiquidationPanel.tsx -- keine zweite,
-// abweichende Definition derselben Kennzahl.
+// Gleiche $200-Buckets wie Key Levels und Spot-Volumen-Profil -- keine
+// zweite, abweichende Definition derselben Kennzahl.
 const LIQUIDATION_PRICE_BUCKET_USD = 200;
 const TOP_CLUSTERS_COUNT = 4;
 
@@ -164,10 +168,16 @@ async function getBewegungsvorrat(): Promise<BewegungsvorratRow> {
   return { today_range_usd: todayRange, median_range_10d_usd: medianRange, ratio_pct: ratioPct };
 }
 
-// Kurs und Veraenderung fuer das Marktupdate: 24h aus 1h-Kerzen, 7 Tage
-// samt Hoch/Tief aus 1d-Kerzen (dieselbe Quelle wie der Bewegungsvorrat).
+// Kurs und Veraenderung fuer das Marktupdate -- dieselben Zahlen wie im
+// Lagebild (HeroHeader): Live-Preis = letzter Bybit-Snapshot, 24h/7 Tage
+// gegen den Snapshot exakt 24h bzw. 7 Tage davor (fetchPriceReferences).
+// Frueher kamen Kurs und 24h aus Binance-1h-Kerzen und "7 Tage" aus der
+// Tageskerze von vor 8 Tagen (heutige Tageskerze fehlt bis Mitternacht) --
+// das ergab z. B. -3.3 % im Briefing gegenueber -1.1 % im Lagebild
+// (Toby 14.10.2026). Hoch/Tief: 1h-Kerzen der letzten 7 Tage.
 interface BtcMarkt {
   kurs_usd: number | null;
+  stand_schweiz: string | null;
   veraenderung_24h_pct: number | null;
   veraenderung_7d_pct: number | null;
   hoch_7d_usd: number | null;
@@ -180,34 +190,40 @@ function pctChange(now: number | null | undefined, then: number | null | undefin
 }
 
 async function getBtcMarkt(): Promise<BtcMarkt> {
-  const [hourly, daily] = await Promise.all([
+  const nowMs = Date.now();
+  const [live, references, hourly] = await Promise.all([
+    supabase
+      .from("market_snapshots")
+      .select("timestamp_utc, last_price")
+      .eq("exchange", "bybit")
+      .eq("symbol", "BTCUSDT")
+      .eq("status", "ok")
+      .not("last_price", "is", null)
+      .order("timestamp_utc", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    fetchPriceReferences(nowMs),
     supabase
       .from("candles")
-      .select("open_time, close")
+      .select("high, low")
       .eq("exchange", BEWEGUNGSVORRAT_EXCHANGE)
       .eq("symbol", BEWEGUNGSVORRAT_SYMBOL)
       .eq("interval", "1h")
       .order("open_time", { ascending: false })
-      .limit(25),
-    supabase
-      .from("candles")
-      .select("open_time, high, low, close")
-      .eq("exchange", BEWEGUNGSVORRAT_EXCHANGE)
-      .eq("symbol", BEWEGUNGSVORRAT_SYMBOL)
-      .eq("interval", "1d")
-      .order("open_time", { ascending: false })
-      .limit(8),
+      .limit(7 * 24),
   ]);
-  const h = (hourly.data ?? []) as { close: number }[];
-  const d = (daily.data ?? []) as { high: number; low: number; close: number }[];
-  const kurs = h[0]?.close ?? d[0]?.close ?? null;
-  const week = d.slice(0, 7);
+  const kurs = live.data?.last_price != null ? Number(live.data.last_price) : null;
+  const ref = (label: string) => references.find((r) => r.label === label)?.price ?? null;
+  const week = (hourly.data ?? []) as { high: number; low: number }[];
+  const highs = [...week.map((c) => Number(c.high)), ...(kurs != null ? [kurs] : [])];
+  const lows = [...week.map((c) => Number(c.low)), ...(kurs != null ? [kurs] : [])];
   return {
     kurs_usd: kurs,
-    veraenderung_24h_pct: pctChange(kurs, h[24]?.close),
-    veraenderung_7d_pct: pctChange(kurs, d[7]?.close),
-    hoch_7d_usd: week.length > 0 ? Math.max(...week.map((c) => c.high)) : null,
-    tief_7d_usd: week.length > 0 ? Math.min(...week.map((c) => c.low)) : null,
+    stand_schweiz: live.data ? formatZurichTime(new Date(live.data.timestamp_utc).getTime()) : null,
+    veraenderung_24h_pct: pctChange(kurs, ref("1D")),
+    veraenderung_7d_pct: pctChange(kurs, ref("1W")),
+    hoch_7d_usd: highs.length > 0 ? Math.max(...highs) : null,
+    tief_7d_usd: lows.length > 0 ? Math.min(...lows) : null,
   };
 }
 
@@ -232,17 +248,28 @@ async function getRsi(interval: "4h" | "1d"): Promise<RsiStand> {
 }
 
 // Termine von heute und morgen (economic_calendar_events, gleiche Quelle wie
-// die Wirtschaftskalender-Kachel).
-async function getKalender(): Promise<Pick<EconomicCalendarEvent, "label" | "event_date" | "typical_time_et">[]> {
+// die Wirtschaftskalender-Kachel). Uhrzeit in Schweizer Zeit (Toby
+// 14.10.2026: Zeiten immer in Schweizer Zeit), statt der US-Ostkuesten-Zeit
+// aus typical_time_et.
+interface KalenderEintrag {
+  label: string;
+  event_date: string;
+  zeit_schweiz: string | null;
+}
+
+async function getKalender(): Promise<KalenderEintrag[]> {
   const today = new Date();
   const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
   const { data } = await supabase
     .from("economic_calendar_events")
-    .select("label, event_date, typical_time_et")
+    .select("event_key, label, event_date")
     .gte("event_date", today.toISOString().slice(0, 10))
     .lte("event_date", tomorrow.toISOString().slice(0, 10))
     .order("event_date", { ascending: true });
-  return data ?? [];
+  return (data ?? []).map((e: Pick<EconomicCalendarEvent, "event_key" | "label" | "event_date">) => {
+    const markMs = economicEventMarkMs(e.event_key, e.event_date);
+    return { label: e.label, event_date: e.event_date, zeit_schweiz: markMs !== null ? formatZurichTime(markMs) : null };
+  });
 }
 
 interface RegelwerkEntry {
@@ -288,6 +315,9 @@ export interface SystemBriefingContext {
     lookback_hours: number;
   } | null;
   regelwerk: RegelwerkEntry[];
+  // RSI-/MACD-Divergenzen 1H/4H/1D, z.B. "4H RSI klassisch bärisch" -- laut
+  // Regelwerk nur Hinweis (lib/oscillatorDivergence.ts).
+  divergenzen: string[];
   // Marktkontext/ETF-Flows/Positionierung/News.
   market_context: {
     label: string;
@@ -307,7 +337,7 @@ export interface SystemBriefingContext {
   news: { count: number; lookback_hours: number; schlagzeilen: string[] };
   btc_markt: BtcMarkt;
   rsi: { "4h": RsiStand; "1d": RsiStand };
-  wirtschaftskalender: Pick<EconomicCalendarEvent, "label" | "event_date" | "typical_time_et">[];
+  wirtschaftskalender: KalenderEintrag[];
   // Chart-Strukturdaten -- algorithmisch berechnet, nicht vision-basiert.
   triangle: ChartStructureData["triangle"];
   continuationFormation: ChartStructureData["continuationFormation"];
@@ -345,6 +375,7 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
     rsi4h,
     rsi1d,
     kalender,
+    divergenzen,
   ] = await Promise.all([
     getLatestMarketState(),
     getBewegungsvorrat(),
@@ -360,6 +391,7 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
     getRsi("4h"),
     getRsi("1d"),
     getKalender(),
+    fetchOscillatorDivergences(),
   ]);
 
   const marketContextDerived = bundle
@@ -457,6 +489,7 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
       schlagzeilen: highImpactNews.map((n) => n.title_de ?? n.title),
     },
     btc_markt: btcMarkt,
+    divergenzen: divergenzen.map(formatDivergence),
     rsi: { "4h": rsi4h, "1d": rsi1d },
     wirtschaftskalender: kalender,
     triangle: chartStructureEnriched.triangle,
@@ -480,8 +513,8 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
 // ("system-briefing-*"), Orchestrierung: app/api/system-briefing/generate.
 
 export function sliceForRegelwerk(ctx: SystemBriefingContext) {
-  const { regelwerk, bewegungsvorrat, mein_system_checklist, trading_indicators, liquidations } = ctx;
-  return { regelwerk, bewegungsvorrat, mein_system_checklist, trading_indicators, liquidations };
+  const { regelwerk, bewegungsvorrat, mein_system_checklist, trading_indicators, liquidations, divergenzen } = ctx;
+  return { regelwerk, bewegungsvorrat, mein_system_checklist, trading_indicators, liquidations, divergenzen };
 }
 
 export function sliceForChartStruktur(ctx: SystemBriefingContext) {
@@ -502,7 +535,13 @@ export function sliceForChartStruktur(ctx: SystemBriefingContext) {
 
 export function sliceForTrigger(ctx: SystemBriefingContext) {
   const { btc_markt, keyLevels, mein_system_checklist, trading_indicators } = ctx;
-  return { btc_markt, keyLevels, mein_system_checklist, trading_indicators };
+  // Tobys TP-Standard je Richtung nach Abstand zum naechsten Keylevel
+  // (lib/tpStandard.ts) -- dieselbe Rechnung wie im Lagebild.
+  const daily = (ctx.market_state?.mtf_alignment as { timeframes?: Record<string, number> } | null | undefined)
+    ?.timeframes?.["1d"];
+  const dailyTrend = daily === 1 ? "bullish" : daily === -1 ? "bearish" : null;
+  const tp_standard = computeTpSuggestions(keyLevels, btc_markt.kurs_usd, dailyTrend).map(formatTpSuggestion);
+  return { btc_markt, keyLevels, mein_system_checklist, trading_indicators, tp_standard };
 }
 
 // Eingabe fuer sliceForSynthese: die bereits fertigen Ergebnisse der drei

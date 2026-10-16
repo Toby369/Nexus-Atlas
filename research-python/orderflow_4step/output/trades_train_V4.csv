@@ -1,0 +1,2 @@
+entry_pos,entry_time,exit_time,exit_pos,entry,stop,t1,t2,r,is_loss,exit_reason
+46463,2023-12-31 23:45:00+00:00,2024-01-01 03:45:00+00:00,46478,42276.5,42070.29615705511,42612.2064,43171.9,0.490803036207481,False,t1_then_breakeven

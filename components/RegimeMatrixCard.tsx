@@ -44,7 +44,7 @@ import type { TimeframeId } from "@/lib/timeframes";
 import { fetchRegimeMatrix, regimeIntervalFor, REGIME_INTERVAL_LABEL } from "@/lib/regimeTimeframe";
 
 // Regime-Daten aendern sich hoechstens stuendlich (1H-Kerzen-Raster, siehe
-// compute_market_state_matrix_series) -- kein 30s-Live-Takt noetig wie bei
+// compute_market_state_matrix_series) -- kein 60s-Live-Takt noetig wie bei
 // Preis/Positioning, aehnliche Ueberlegung wie EtfFlowPanel.tsx.
 const REFRESH_INTERVAL_MS = 5 * 60_000;
 

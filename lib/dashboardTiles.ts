@@ -28,6 +28,9 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "oi-change", title: "OI Change", size: "compact" },
   { id: "funding-rate", title: "Funding Rate", size: "compact" },
   { id: "orderbook-walls", title: "Orderbuch-Wände", size: "compact" },
+  // Ersatz fuer die Gamma-Lage (GEX) aus Orderflow-Setups, siehe
+  // lib/volatilityContext.ts.
+  { id: "volatility", title: "Volatilitäts-Lage" },
   { id: "divergence-radar", title: "Divergenz-Radar" },
   // Der Konsistenz-Check der frueheren Signal Engine steckt im System-
   // Briefing (Lagebild).
@@ -36,7 +39,6 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   // Lagebild (HeroHeader), nicht als eigene Kachel.
   { id: "second-opinions", title: "Zweitmeinungen (KI)" },
   { id: "youtube-monitor", title: "Krypto-YouTube-Monitor (KI)" },
-  { id: "liquidations", title: "Liquidationen" },
   { id: "etf-flow", title: "ETF-Flows & Makro" },
   { id: "news-risk", title: "News & Risiko" },
   // Das Institutional Playbook ist ein Modul im Wissen-Tab der Lernen-Seite.
