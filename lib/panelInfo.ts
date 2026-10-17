@@ -313,3 +313,16 @@ So entsteht der Wert: Schlusskurs-Pivots mit je 5 Kerzen links und rechts, vergl
 export const tpStandardInfo = `So liest du das: Je Richtung der nächste Widerstand (Long) bzw. die nächste Unterstützung (Short) und der grösste deiner vier Standards, dessen TP noch vor diesem Level liegt: ab 1,75 % Abstand Standard 1 (TP 35 % Marge), ab 1,5 % Standard 2 (30 %), ab 1,25 % Standard 3 (25 %), ab 1,0 % Standard 4 (20 %). Unter 1,0 % Abstand gilt laut deinem Regelwerk „kein Trade“, weil das CRV bei SL −0,5 % unter 2:1 fällt. Läuft die Richtung gegen den 1D-Trend (MTF-Ampel), steht „⚠ gegen 1D“ und es gilt höchstens Standard 4. Rein rechnerischer Vorschlag, kein Handelssignal. Laut deinem Regelwerk gelten deine im Chart gezeichneten Levels; Nexus' automatische Levels sind nur der Abgleich – liegt dein nächstes Level anders, rechne mit deinem.
 
 So entsteht der Wert: Das Level, an dem der Kurs gerade steht (bis ±0,25 %, also dein Retest-Level), wird übersprungen. Keylevels wie in der Kachel „Chart-Struktur“ (Pivot-Konfluenz über mehrere Zeitrahmen, Liquidations-Cluster, Spot-Volumen), berechnet beim Laden der Seite. Der Abstand wird mit dem Live-Preis gerechnet; ein Level zählt als Widerstand, wenn es über dem aktuellen Kurs liegt, und als Unterstützung, wenn es darunter liegt.`;
+
+export const termBasisInfo = `Was es misst: die Prämie des vordersten Deribit-Futures (mindestens 30 Tage Restlaufzeit) gegenüber dem Deribit-Index, auf ein Jahr hochgerechnet. Es ist eine Näherung für die CME-Basis, die es nicht kostenlos über eine offizielle Schnittstelle gibt. Die beiden laufen meist ähnlich, sind aber nicht identisch.
+
+Stufen (pro Jahr):
+• unter 0 %: Negativ, Termin unter Spot (Stress)
+• 0 bis 5 %: Schwach, Basis-Trades lohnen kaum
+• 5 bis 10 %: Normal
+• 10 bis 15 %: Erhöht
+• ab 15 %: Überhitzt, historisch oft in späten Rally-Phasen
+
+Wie du es nutzt: Hedgefonds kaufen Spot oder ETF-Anteile und verkaufen Futures, um diese Prämie risikoarm zu kassieren (Basis-Trade). Fällt die Basis deutlich, lösen sie den Trade auf. Dann entstehen ETF-Abflüsse ohne bärische Meinung. Fallen Basis und ETF-Flows gemeinsam, erscheint ein Hinweis. Kontext für Tage bis Wochen, kein Timing-Signal und nicht im Backtest geprüft; fliesst nicht in die Gesamteinschätzung ein.
+
+Quelle: Deribit, stündlich (collect-term-basis). Ältere Tageswerte nachgeladen, dort dient BTC-PERPETUAL als Index-Näherung.`;

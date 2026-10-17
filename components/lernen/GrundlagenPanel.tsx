@@ -98,7 +98,7 @@ const METRICS: { name: string; what: string; levels: [string, Tone][] }[] = [
   },
   {
     name: "CME-Basis (annualisiert)",
-    what: "Prämie des CME-Futures gegenüber Spot pro Jahr. Zeigt institutionelle Nachfrage und wie attraktiv der Basis-Trade ist.",
+    what: "Prämie des CME-Futures gegenüber Spot pro Jahr. Zeigt institutionelle Nachfrage und wie attraktiv der Basis-Trade ist. Nexus zeigt die Deribit-Termin-Basis als Näherung in der ETF-Kachel (Ø 2024: 11,7 %, 2026 bisher: 2,9 %).",
     levels: [
       ["Schwach: unter ca. 5 % p.a.", "bearish"],
       ["Normal: ca. 5–10 % p.a.", "neutral"],
@@ -203,7 +203,7 @@ export default function GrundlagenPanel({
           head={["Akteur", "Horizont", "Verhalten", "In Nexus"]}
           rows={[
             ["Spot-ETFs, Institutionen", "Wochen–Monate", "Grosse, stetige Zu- oder Abflüsse.", "ETF-Flows & Makro, Coinbase-Premium"],
-            ["Basis-Trader (Hedgefonds)", "Wochen–Monate", "Kaufen Spot/ETF, verkaufen Futures, kassieren die Prämie ohne Richtungswette. Ein Teil der ETF-Flows stammt von ihnen.", "—"],
+            ["Basis-Trader (Hedgefonds)", "Wochen–Monate", "Kaufen Spot/ETF, verkaufen Futures, kassieren die Prämie ohne Richtungswette. Ein Teil der ETF-Flows stammt von ihnen.", "Termin-Basis (ETF-Kachel)"],
             ["Treasury-Firmen", "Monate–Jahre", "Kaufen in Tranchen, oft über Anleihen finanziert.", "—"],
             ["Wale, Langzeithalter", "Monate", "Verkaufen in Stärke, kaufen in Schwäche.", "—"],
             ["Miner", "laufend", "Verkaufen BTC für Strom und Hardware. Konstanter, kleiner Verkaufsdruck.", "—"],
