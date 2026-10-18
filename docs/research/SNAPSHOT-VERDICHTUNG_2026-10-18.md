@@ -1,7 +1,9 @@
 # Snapshot-Verdichtung (Speicher unter 500 MB) — 18.10.2026
 
-**Entscheid Toby (18.10.2026):** Variante 1 „Ausdünnen“, Grenze 30 Tage. Umgesetzt mit
-**35 Tagen**, siehe unten. **Noch nicht ausgeführt** – erst nach Freigabe des SQL.
+**Entscheid Toby (18.10.2026):** Variante 1 „Ausdünnen“, Grenze 30 Tage, umgesetzt mit
+**35 Tagen** (siehe unten). SQL freigegeben am 18.10.2026. Die Supabase-Schnittstelle der
+Claude-Session verlangt für löschende Befehle eine Bestätigung, die dort nicht ankommt.
+Deshalb: **Blöcke 1–5 im Supabase SQL Editor ausführen**, je Block einzeln.
 
 ## Ausgangslage
 
@@ -142,6 +144,7 @@ begin
   on conflict (exchange, symbol, timestamp_utc) do nothing;
   get diagnostics v_n = row_count; v_result := v_result || jsonb_build_object('spot_market_snapshots_hourly', v_n);
 
+  drop table if exists _spot_hourly;
   return v_result || jsonb_build_object('cutoff', v_cutoff);
 end;
 $function$;
@@ -156,8 +159,11 @@ select cron.schedule('downsample-old-snapshots-daily', '41 3 * * *',
 
 ### Block 3 — einmal jetzt ausführen
 
+Der erste Lauf verdichtet genau bis zum Export-Stichtag (13.09.2026 00:00 UTC), damit
+nichts verdichtet wird, was nicht im Archiv liegt. Ab dann übernimmt der tägliche Job.
+
 ```sql
-select public.downsample_old_snapshots();
+select public.downsample_old_snapshots(now() - timestamptz '2026-09-13 00:00+00');
 ```
 
 ### Block 4 — Platz zurückgeben (je einzeln, sperrt die Tabelle kurz)
@@ -170,4 +176,12 @@ vacuum full public.orderbook_snapshots;
 vacuum full public.macro_snapshots;
 vacuum full public.spot_market_snapshots;
 select pg_size_pretty(pg_database_size(current_database()));
+```
+
+### Block 5 — Testfunktion entfernen
+
+Beim Prüfen der Schnittstelle entstanden, ohne Funktion:
+
+```sql
+drop function if exists public._probe_ddl();
 ```
