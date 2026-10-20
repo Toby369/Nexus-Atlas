@@ -48,7 +48,13 @@ Stufen pro 8 h:
 
 Wie du es nutzt: Hohes Funding allein ist kein Short-Signal, es kann im Aufwärtstrend wochenlang hoch bleiben. Gefährlich wird es, wenn Funding über mehrere Intervalle extrem ist, das Open Interest stark steigt und der Preis nicht mehr vorankommt. Die Stufen sind Faustregeln, im Backtest noch nicht validiert.
 
-Quelle: Wert von Bybit (Referenzbörse), von der Börse selbst berechnet. Der Chart zeigt die letzten rund 15 Stunden; der aktuelle Wert je Börse steht im Börsenvergleich.`;
+Quelle: Wert von Bybit (Referenzbörse), von der Börse selbst berechnet. Der Chart zeigt die letzten rund 15 Stunden; der aktuelle Wert je Börse steht im Börsenvergleich.
+
+Positionierung (unten in der Kachel): Kontrakte sind immer 50:50, jeder Long hat einen Short. Die Zahlen zeigen nur, wer auf welcher Seite steht.
+• Masse long: Anteil der Konten mit Long-Position, Mittel über Binance, Bybit, OKX und Bitget. Üblich sind 55–62 %. Ab 65 % ist die Masse stark long, ab 70 % extrem; unter 50 % ist sie mehrheitlich short.
+• Top-Trader long: Binance-Top-Trader nach Positionsgrösse, also wo das grosse Geld liegt.
+• Abstand: Top-Trader minus Masse (Binance). Normal sind etwa +5 bis +20 Pp. Bei 0 oder darunter stehen die grossen Konten eher auf der Gegenseite der kleinen.
+So liest du es zusammen: Masse stark long, Funding hoch, OI steigt und der Preis kommt nicht voran: Die Longs sind der Treibstoff für den nächsten Flush nach unten. Spiegelbildlich gilt das für eine Short-lastige Masse mit negativem Funding. Schwellen aus der eigenen Historie seit 24.08.2026, nicht validiert.`;
 
 export function spotPressureInfo(tfLabel: string): string {
   return `So liest du das: Ordnet den Netto-Taker-Flow einem von vier Verdikten zu: BUYING PRESSURE, SELLING PRESSURE, NEUTRAL oder INSUFFICIENT DATA. Das misst eine Kauf-/Verkaufs-Imbalance im Taker-Orderflow, nicht ob am Spot-Markt tatsächlich netto mehr Coins gekauft als verkauft wurden. Deckt die Stichprobe weniger als 80 % der erwarteten Kerzen im Fenster ab, gilt das Ergebnis als PRELIMINARY, unter 20 % als INSUFFICIENT DATA.

@@ -6,8 +6,11 @@ import PanelInfo from "@/components/PanelInfo";
 import { fundingRateInfo } from "@/lib/panelInfo";
 import { formatPercent, clockTimeLabel } from "@/lib/livePriceFormat";
 import { classifyFunding, fundingAnnualizedPct, fundingPctPer8h, type FundingTone } from "@/lib/fundingLevels";
+import { useDashboardPoll } from "@/components/DashboardPollProvider";
+import { summarizePositioning } from "@/lib/positioning";
 
-// Datenquelle: gemeinsamer LivePriceDataProvider.
+// Datenquelle: gemeinsamer LivePriceDataProvider; Positionierung aus dem
+// DashboardPollProvider (Snapshots aller Boersen, 5-Min-Takt).
 
 const TONE_STYLES: Record<FundingTone, string> = {
   calm: "border-border text-text-muted",
@@ -15,12 +18,21 @@ const TONE_STYLES: Record<FundingTone, string> = {
   risk: "border-down/40 bg-down/10 text-down",
 };
 
+function pct(value: number): string {
+  return `${value.toLocaleString("de-CH", { maximumFractionDigits: 0 })} %`;
+}
+
 function formatAnnual(pct: number): string {
   return `${pct >= 0 ? "+" : ""}${pct.toLocaleString("de-CH", { maximumFractionDigits: 0 })} % p.a.`;
 }
 
 export default function FundingRateCard() {
   const { latest, fundingSeries } = useLivePriceData();
+  const { bundle } = useDashboardPoll();
+  const positioning = summarizePositioning(
+    [bundle.positioning_binance, bundle.positioning_bybit, bundle.positioning_okx, bundle.positioning_bitget],
+    bundle.positioning_binance,
+  );
 
   if (!latest) return <LivePriceEmptyState />;
 
@@ -56,6 +68,40 @@ export default function FundingRateCard() {
         </div>
       )}
       <TimeSeriesChart data={fundingSeries} color="#4fae7c" formatAxisTime={clockTimeLabel} />
+      {positioning && (
+        <div className="mt-3 pt-3 border-t border-border/60 space-y-1.5" title={positioning.hint}>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] uppercase tracking-[0.12em] text-text-faint">Positionierung (Konten)</span>
+            <span
+              className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${TONE_STYLES[positioning.tone]}`}
+            >
+              {positioning.label}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
+            <span>
+              Masse long:{" "}
+              <span className="tabular font-mono text-text">{pct(positioning.crowdLongPct)}</span>
+              <span className="text-text-faint"> ({positioning.exchangeCount} Börsen)</span>
+            </span>
+            {positioning.topLongPct !== null && (
+              <span>
+                Top-Trader long: <span className="tabular font-mono text-text">{pct(positioning.topLongPct)}</span>
+              </span>
+            )}
+            {positioning.divergencePp !== null && (
+              <span>
+                Abstand:{" "}
+                <span className="tabular font-mono text-text">
+                  {positioning.divergencePp >= 0 ? "+" : ""}
+                  {positioning.divergencePp.toFixed(0)} Pp
+                </span>
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-text-faint">{positioning.hint}</p>
+        </div>
+      )}
     </div>
   );
 }
