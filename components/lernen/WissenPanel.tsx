@@ -35,14 +35,37 @@ const SALOMON_CHECKLIST = [
   "Multi-Timeframe-Konfluenz geprüft (höherer Zeitrahmen bestätigt)",
 ];
 
-const MEIN_SYSTEM_MANUAL_CHECKLIST = [
-  "4H-Ausbruch: Kerzenkörper schliesst über/unter einem Keylevel (Docht allein zählt nicht)",
-  "1H-Retest: bis ±0,25 % ans Level, Schluss auf der Ausbruchsseite",
-  "15m-Entry: Bestätigungskerze am Retest-Level, Einstieg nach Schluss der Folgekerze",
-  "D13 (Tages-EMA 13) geprüft – Trade gegen D13 nur bewusst, als Warnung notiert",
-  "Keylevel-Konfluenz vorhanden",
-  "RSI-/MACD-Divergenz auf 1H/4H/1D geprüft (nur Hinweis/Warnung, siehe Lagebild)",
+// Entry-Regelwerk plus Perp-Check: vor jedem Einstieg die Gegenseite
+// benennen. Kontrakte sind immer 50:50 -- die Frage ist, wer nach dem Entry
+// aus seiner Position muss und warum. Werte stehen in den Dashboard-Kacheln
+// Funding (inkl. Positionierung), Marktkontext ("Wer treibt"), ETF
+// (Termin-Basis) und Liquidations-/Hebelkarte.
+const MEIN_SYSTEM_SECTIONS: { title: string; items: string[] }[] = [
+  {
+    title: "1 · Setup",
+    items: [
+      "4H-Ausbruch: Kerzenkörper schliesst über/unter einem Keylevel (Docht allein zählt nicht)",
+      "1H-Retest: bis ±0,25 % ans Level, Schluss auf der Ausbruchsseite",
+      "15m-Entry: Bestätigungskerze am Retest-Level, Einstieg nach Schluss der Folgekerze",
+      "D13 (Tages-EMA 13) geprüft – Trade gegen D13 nur bewusst, als Warnung notiert",
+      "Keylevel-Konfluenz vorhanden",
+      "RSI-/MACD-Divergenz auf 1H/4H/1D geprüft (nur Hinweis/Warnung, siehe Lagebild)",
+    ],
+  },
+  {
+    title: "2 · Perp-Check (Gegenseite)",
+    items: [
+      "Funding nicht hoch/extrem in meiner Richtung – sonst bin ich Teil der überfüllten Seite",
+      "Positionierung: Masse nicht stark auf meiner Seite; für einen Long kein Abstand ≤ 0 (Top-Trader weniger long als die Masse)",
+      "Wer treibt: Bewegung in meine Richtung ist von Spot getragen, nicht nur Perp-Hebel",
+      "Coinbase-Prämie widerspricht meiner Richtung nicht über Stunden",
+      "Gegenseite benannt: Wessen Stops/Liquidationen liegen in meinem Ziel, und warum muss er raus?",
+      "Mein Stop liegt nicht mitten in einem Liquidations-Cluster meiner eigenen Seite",
+      "Kein Deribit-/CME-Verfall (Freitag) und kein Makro-Termin im Trade-Fenster ohne Plan",
+    ],
+  },
 ];
+const MEIN_SYSTEM_MANUAL_CHECKLIST = MEIN_SYSTEM_SECTIONS.flatMap((s) => s.items);
 
 // Orderflow-4-Schritte (Video Chris Creamer, "Robbins Cup"-Strategie). Als
 // Prozess-Disziplin gedacht, NICHT als belegter Edge: der Backtest
@@ -396,8 +419,9 @@ export default function WissenPanel({
           <ChartStructureCard data={chartStructureData} />
           <LevelStructureCard zones={levelStructureZones} />
           <ChecklistBlock
-            title="Entry-Regelwerk"
+            title="Entry-Regelwerk + Perp-Check"
             items={MEIN_SYSTEM_MANUAL_CHECKLIST}
+            sections={MEIN_SYSTEM_SECTIONS}
             module="mein_system"
             history={historyFor("mein_system")}
             onSaved={refetchChecklistHistory}
