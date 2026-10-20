@@ -141,10 +141,16 @@ const REGIME_LABELS_DE: Record<string, string> = {
 };
 
 // Kurzer Text in der Push selbst (nur die "vor einem Ausbruch"-Regimes).
+// 20.10.2026 (Toby: "Richtung zeigt baerisch, ADX aber noch unter der
+// Schwelle...?"): inhaltlich stimmte es, las sich aber wie ein Widerspruch.
+// Jetzt in Klartext: was sich bildet und ab wann es bestaetigt ist.
 const REGIME_NOTE_DE: Record<string, string> = {
-  VOLA_SQUEEZE_RANGING: "Niedriger ADX bei komprimierten Bollinger-Bändern -- typische Coiling-Phase vor einem möglichen Ausbruch.",
-  TREND_FORMING_BULLISH: "Richtung zeigt bullisch, ADX aber noch unter der Bestätigungsschwelle (25) -- ein sich formender, noch nicht vollständig bestätigter Trend.",
-  TREND_FORMING_BEARISH: "Richtung zeigt bärisch, ADX aber noch unter der Bestätigungsschwelle (25) -- ein sich formender, noch nicht vollständig bestätigter Trend.",
+  VOLA_SQUEEZE_RANGING:
+    "Kaum Trend und eng zusammengezogene Bollinger-Bänder: Der Markt sammelt Energie, ein Ausbruch ist möglich, die Richtung ist offen.",
+  TREND_FORMING_BULLISH:
+    "Ein Aufwärtstrend bildet sich, ist aber noch nicht bestätigt: Die Trendstärke (ADX) liegt noch unter 25. Steigt sie darüber, gilt der Trend als bestätigt.",
+  TREND_FORMING_BEARISH:
+    "Ein Abwärtstrend bildet sich, ist aber noch nicht bestätigt: Die Trendstärke (ADX) liegt noch unter 25. Steigt sie darüber, gilt der Trend als bestätigt.",
 };
 
 // Ausfuehrliche Erklaerung je Regime fuer die Mitteilungs-Seite.
@@ -200,15 +206,21 @@ async function fetchLatestRegimeRows(
   return (data ?? []) as unknown as MarketStateMatrixRow[];
 }
 
-// Kerzen-Eroeffnungszeit in Schweizer Ortszeit, je Zeitrahmen so knapp wie
-// moeglich (1h: nur Uhrzeit, 4h: Datum + Uhrzeit, 1D: nur Datum).
+// Kerze als Zeitspanne in Schweizer Ortszeit (20.10.2026: "Kerze 12:00" war
+// unklar -- gemeint ist die 1h-Kerze 12:00-13:00, gemeldet nach ihrem
+// Schluss). 1h: nur Uhrzeit, 4h: Datum + Uhrzeit, 1D: nur Datum.
+const INTERVAL_MS: Record<string, number> = { "1h": 3_600_000, "4h": 4 * 3_600_000 };
+
 function candleLabel(interval: string, timestampUtc: string): string {
   const d = new Date(timestampUtc);
   const date = new Intl.DateTimeFormat("de-CH", { timeZone: DISPLAY_ZONE, day: "2-digit", month: "2-digit" }).format(d);
-  const time = new Intl.DateTimeFormat("de-CH", { timeZone: DISPLAY_ZONE, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(d);
+  const time = (t: Date) =>
+    new Intl.DateTimeFormat("de-CH", { timeZone: DISPLAY_ZONE, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(t);
   if (interval === "1d") return `Tageskerze ${date}`;
-  if (interval === "4h") return `Kerze ${date} ${time}`;
-  return `Kerze ${time}`;
+  const end = new Date(d.getTime() + (INTERVAL_MS[interval] ?? 3_600_000));
+  const span = `${time(d)}–${time(end)}`;
+  if (interval === "4h") return `4h-Kerze ${date} ${span}`;
+  return `1h-Kerze ${span}`;
 }
 
 // Abschnitt 4 -- Wirtschaftsdaten-Vorwarnung + Ergebnis.

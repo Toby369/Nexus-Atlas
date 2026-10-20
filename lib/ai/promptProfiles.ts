@@ -74,7 +74,15 @@ const BRIEFING_STYLE_INSTRUCTION =
   "wie '>' oder '='. Kurse als ganze USD mit Apostroph als Tausendertrenner (84'300 " +
   "USD), Zonen als Spanne (84'300-84'500 USD), Prozentwerte mit Vorzeichen und einer " +
   "Nachkommastelle mit Punkt (+1.2 %), Volumen gerundet (286 Mio. USD). " +
-  "Nutze ausschliesslich die gelieferten Daten, erfinde keine Zahlen. ";
+  "Nutze ausschliesslich die gelieferten Daten, erfinde keine Zahlen. " +
+  // 20.10.2026 (Toby): Push lautete "solange die Unterstuetzung haelt, bleibt
+  // das Abwaertsrisiko hoch" -- logisch verkehrt herum.
+  "Wenn-dann-Logik zu Zonen immer richtig herum: haelt eine Unterstuetzung, ist das " +
+  "Abwaertsrisiko begrenzt (Bruch darunter erhoeht es); haelt ein Widerstand, ist das " +
+  "Aufwaertspotenzial begrenzt (Ausbruch darueber eroeffnet es). Also z.B. 'Solange " +
+  "80'855-81'228 USD halten, ist das Abwaertsrisiko begrenzt; ein Bruch darunter " +
+  "erhoeht es deutlich.' -- nie 'solange die Unterstuetzung haelt, bleibt das " +
+  "Abwaertsrisiko hoch'. ";
 
 // Regelwerk-Check: feste Zeilen-Bezeichnungen, je hoechstens einmal. Ein Lauf
 // hatte das Platzhalterwort "Label:" aus dem Prompt dreimal uebernommen und
@@ -109,6 +117,26 @@ export function regelwerkLineErrors(text: string): string[] {
 // fuer den Leser unverstaendlich). Diese Begriffe verweisen auf die internen
 // Teil-Aufrufe und fallen dort durch.
 const ANALYSIS_JARGON = /\b(Trendfilter\w*|Regelwerk\w*|Teil-?[Aa]nalyse\w*|Spannungsfeld|Chartstruktur|Konfluenz\w*)\b/i;
+
+// "Solange die Unterstuetzung haelt, bleibt das Abwaertsrisiko hoch" ist logisch
+// verkehrt (Push vom 20.10.2026) -- ebenso das Spiegelbild beim Widerstand.
+// Bewusst eng gefasst: nur "solange <Unterstuetzung/Widerstand> haelt" im
+// selben Satz mit der falschen Folge.
+const INVERTED_ZONE_LOGIC: RegExp[] = [
+  /solange[^.;]*(unterstützung|support)[^.;]*h(ä|ae)lt[^.;]*(abwärts|abwaerts|verkaufsdruck|bärisch|baerisch)[^.;]*(hoch|erhöht|erhoeht|bestehen|erhalten|intakt|zunehm)/i,
+  /solange[^.;]*widerstand[^.;]*h(ä|ae)lt[^.;]*(aufwärts|aufwaerts|kaufdruck|bullisch|erholung)[^.;]*(hoch|erhöht|erhoeht|bestehen|erhalten|intakt|zunehm)/i,
+];
+
+export function invertedZoneLogicErrors(value: unknown, key: string): string[] {
+  if (typeof value !== "string") return [];
+  const hit = INVERTED_ZONE_LOGIC.map((re) => re.exec(value)).find((m) => m !== null);
+  return hit
+    ? [
+        `"${key}" verdreht die Zonen-Logik ("${hit[0]}"): haelt eine Unterstuetzung, ist das Abwaertsrisiko ` +
+          `begrenzt; haelt ein Widerstand, ist das Aufwaertspotenzial begrenzt.`,
+      ]
+    : [];
+}
 
 export function analysisJargonErrors(value: unknown, key: string): string[] {
   if (typeof value !== "string") return [];
@@ -571,7 +599,9 @@ export const promptProfiles: Record<string, PromptProfile> = {
         ...technicalIdentifierErrors(data, [...BRIEFING_REPORT_SECTIONS, "konfluenzCheck", "aenderungSeitLetztem"]),
         ...technicalIdentifierErrors(fazit, ["kernaussage"], "fazit."),
         ...analysisJargonErrors(field(data, "schlagzeile"), "schlagzeile"),
-        ...analysisJargonErrors(field(fazit, "kernaussage"), "fazit.kernaussage")
+        ...analysisJargonErrors(field(fazit, "kernaussage"), "fazit.kernaussage"),
+        ...invertedZoneLogicErrors(field(fazit, "kernaussage"), "fazit.kernaussage"),
+        ...BRIEFING_REPORT_SECTIONS.flatMap((k) => invertedZoneLogicErrors(field(data, k), k))
       );
       return errors;
     },
