@@ -53,6 +53,14 @@ dauerhaft nur 35 Tage in voller Auflösung; der Zuwachs sinkt auf grob 0,5–0,7
 nächsten Kandidaten wären dann die Forschungstabellen (`research_*_signal_activation`,
 ~115 MB).
 
+## Ergebnis (ausgeführt am 20.10.2026)
+
+Alle fünf Blöcke im SQL Editor ausgeführt. Block 3 entfernte genau die erwarteten Zeilen
+(31'254 / 20'024 / 5'182 / 13'809 / 4'644 / 5'292 in der Reihenfolge der Tabelle oben;
+bei `spot_market_snapshots` ersetzt durch 444 Stundenwerte). Datenbank nach
+`vacuum full`: **389 MB** (vorher 420 MB), also ~31 MB frei statt der geschätzten 20–25 MB.
+Job `downsample-old-snapshots-daily` läuft täglich um 03:41 UTC, `_probe_ddl` ist entfernt.
+
 ## Export (erledigt)
 
 Alle betroffenen Zeilen vor dem 13.09.2026 in voller Auflösung:
