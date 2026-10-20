@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import OrderbookSimulator from "@/components/lernen/grundlagen/OrderbookSimulator";
 import FundingCalculator from "@/components/lernen/grundlagen/FundingCalculator";
 import ScenarioReader from "@/components/lernen/grundlagen/ScenarioReader";
+import FootprintTrainer from "@/components/lernen/grundlagen/FootprintTrainer";
 import SpotPerpReader from "@/components/lernen/grundlagen/SpotPerpReader";
 import PositionSizeCalculator from "@/components/lernen/grundlagen/PositionSizeCalculator";
 import { LiveHint, Pill, type Tone } from "@/components/lernen/grundlagen/ui";
@@ -198,7 +199,40 @@ export default function GrundlagenPanel({
         </LiveHint>
       </Section>
 
-      <Section n={2} title="Wer den Preis bewegt" intro="Akteure und ihr Zeithorizont.">
+      <Section n={2} title="Footprint: in die Kerze schauen" intro="Wer war aggressiv, wer hat passiv gehalten?">
+        <P>
+          Ein Footprint zeigt pro Preisstufe einer Kerze, wie viel aggressiv verkauft (Bid, links) und aggressiv gekauft
+          (Ask, rechts) wurde. Delta ist Ask minus Bid. Aggressive Orders bewegen den Preis, passive Limit-Orders können
+          ihn stoppen. Genau das macht der Footprint sichtbar.
+        </P>
+        <Table
+          head={["Muster", "So sieht es aus", "Bedeutung"]}
+          rows={[
+            ["Absorption", "Viel aggressives Volumen, aber kaum Preisfortschritt", "Passive Gegenseite ist stärker. Am Hoch bärisch, am Tief bullisch."],
+            ["Erschöpfung", "Am Extrem fast kein Volumen mehr", "Bewegung läuft aus, keine neuen Aggressoren."],
+            ["Echter Ausbruch", "Gestapelte Ungleichgewichte, Schluss am Extrem", "Initiative: eine Seite räumt das Buch ab."],
+            ["Unfertige Auktion", "Am Extrem auf beiden Seiten deutlich Volumen", "Markt kommt oft zurück, um die Stufe zu testen."],
+            ["Gefangene Trader", "Viel Aggression am Extrem, dann Schluss auf der Gegenseite", "Ihre Stops sind Treibstoff für die Gegenbewegung."],
+            ["Delta-Divergenz", "Höheres Hoch, aber kleineres Delta als am letzten Hoch", "Käufer werden schwächer (am Tief spiegelbildlich)."],
+          ]}
+        />
+        <FootprintTrainer />
+        <Steps
+          items={[
+            { title: "Nur am Ort lesen:", body: "Keylevel, VWAP, letzte Hochs und Tiefs. Mitten in der Range sagt ein Footprint wenig." },
+            { title: "Am Retest:", body: "zuerst Absorption am Level, dann Dominanzwechsel (Delta dreht), erst danach der Einstieg." },
+            { title: "Zeitrahmen:", body: "5 oder 15 Minuten. Auf 1 Minute ist BTC zu laut." },
+            { title: "Bestätigung, kein System:", body: "Im Nexus-Backtest war Absorption allein nicht profitabel. Das Chance-Risiko muss nach der Bestätigung noch aufgehen." },
+          ]}
+        />
+        <LiveHint>
+          „CVD-Footprint“ unter Wissen → Mein System zeigt das Delta pro Stunde, das Spot-Volumenprofil im Marktkontext
+          das Volumen pro Preis. Einen echten Footprint mit Bid × Ask pro Stufe gibt es in TradingView (Premium),
+          Exocharts oder ATAS.
+        </LiveHint>
+      </Section>
+
+      <Section n={3} title="Wer den Preis bewegt" intro="Akteure und ihr Zeithorizont.">
         <Table
           head={["Akteur", "Horizont", "Verhalten", "In Nexus"]}
           rows={[
@@ -215,7 +249,7 @@ export default function GrundlagenPanel({
         />
       </Section>
 
-      <Section n={3} title="Kennzahlen mit klaren Schwellen" intro="Ab wann ein Wert normal, erhöht oder extrem ist.">
+      <Section n={4} title="Kennzahlen mit klaren Schwellen" intro="Ab wann ein Wert normal, erhöht oder extrem ist.">
         <FundingCalculator liveFundingPct={liveFundingPct} />
         <Steps
           items={[
@@ -245,7 +279,7 @@ export default function GrundlagenPanel({
         <LiveHint>Funding-Kachel (mit Stufe), OI Change, Liquidationen, Gesamteinschätzung (Faktoren).</LiveHint>
       </Section>
 
-      <Section n={4} title="Szenarien lesen und Tages-Routine" intro="Preis, OI und Funding zusammen lesen.">
+      <Section n={5} title="Szenarien lesen und Tages-Routine" intro="Preis, OI und Funding zusammen lesen.">
         <ScenarioReader />
         <p className="text-xs font-medium text-text">Tages-Routine</p>
         <Steps
@@ -265,7 +299,7 @@ export default function GrundlagenPanel({
         <LiveHint>Marktkontext-Kachel (OI/Preis-Quadrant und „Wer treibt“), Lagebild oben im Dashboard.</LiveHint>
       </Section>
 
-      <Section n={5} title="Kaskaden und Markt-Muster" intro="Wie aus einem Rücksetzer ein Crash wird.">
+      <Section n={6} title="Kaskaden und Markt-Muster" intro="Wie aus einem Rücksetzer ein Crash wird.">
         <Steps
           items={[
             { title: "Hebel baut sich auf.", body: "OI steigt, Funding wird stark positiv, viele Stops knapp unter einem offensichtlichen Tief." },
@@ -295,7 +329,7 @@ export default function GrundlagenPanel({
         <LiveHint>„Liquidationen“ zeigt, was passiert ist; die „Liquidations-/Hebelkarte“, wo es als Nächstes knallen könnte.</LiveHint>
       </Section>
 
-      <Section n={6} title="Wer treibt wirklich: Spot, Perp, CME, Optionen" intro="Echte Nachfrage oder nur Hebel?">
+      <Section n={7} title="Wer treibt wirklich: Spot, Perp, CME, Optionen" intro="Echte Nachfrage oder nur Hebel?">
         <SpotPerpReader />
         <Steps
           items={[
@@ -324,7 +358,7 @@ export default function GrundlagenPanel({
         <LiveHint>Marktkontext → „Wer treibt: Spot, Perp, Coinbase“ mit Live-Werten und CVD-Verlauf.</LiveHint>
       </Section>
 
-      <Section n={7} title="Makro, Flows und Zyklus" intro="Was die Richtung über Wochen und Monate bestimmt.">
+      <Section n={8} title="Makro, Flows und Zyklus" intro="Was die Richtung über Wochen und Monate bestimmt.">
         <Table
           head={["Treiber", "Gut für BTC", "Schlecht für BTC", "In Nexus"]}
           rows={[
@@ -345,7 +379,7 @@ export default function GrundlagenPanel({
         </P>
       </Section>
 
-      <Section n={8} title="Risiko: der Teil, der profitabel macht" intro="Zuerst festlegen, wie viel du verlieren darfst.">
+      <Section n={9} title="Risiko: der Teil, der profitabel macht" intro="Zuerst festlegen, wie viel du verlieren darfst.">
         <PositionSizeCalculator livePrice={livePrice} />
         <Steps
           items={[
