@@ -33,6 +33,28 @@ describe("computePremiumSeries", () => {
     expect(series).toHaveLength(1);
     expect(series[0].premiumPct).toBeCloseTo(0.1, 6);
   });
+  it("rechnet Binance mit USDT-USD in echte USD um", () => {
+    // USDT = 0,9987 USD: roh -0,13 %, korrigiert 0 %.
+    const series = computePremiumSeries([{ t: 1, close: 99870 }], [{ t: 1, close: 100000 }], [{ t: 1, close: 0.9987 }]);
+    expect(series[0].premiumPct).toBeCloseTo(0, 6);
+  });
+
+  it("fehlende USDT-Kerze: letzter Kurs davor, vor dem ersten Kurs kein Punkt", () => {
+    const series = computePremiumSeries(
+      [
+        { t: 1, close: 100000 },
+        { t: 3, close: 99900 },
+      ],
+      [
+        { t: 1, close: 100000 },
+        { t: 3, close: 100000 },
+      ],
+      [{ t: 2, close: 0.999 }],
+    );
+    expect(series).toHaveLength(1);
+    expect(series[0].t).toBe(3);
+    expect(series[0].premiumPct).toBeCloseTo(0, 6);
+  });
 });
 
 describe("classifyPremium", () => {

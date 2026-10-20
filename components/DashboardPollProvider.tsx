@@ -22,7 +22,8 @@ import { setVisibleInterval } from "@/lib/visibleInterval";
 // Boersen-Auswahl ist Nutzer-gesteuert (nicht immer DEFAULT_SERIES_EXCHANGE)
 // und haette eine deutlich groessere, riskantere Restrukturierung erfordert
 // fuer einen kleineren Zusatznutzen -- sie pollen weiterhin unabhaengig
-// ueber ihren eigenen Provider.
+// ueber ihren eigenen Provider. Ausnahme: FundingRateCard liest zusaetzlich
+// die Positionierungs-Snapshots aus diesem Bundle (boersenunabhaengig).
 
 // 60 s: die Sammler schreiben nur alle 5 Min neue Daten; jeder Abruf ist ein
 // Supabase-Log-Eintrag (Log Ingestion), 30 s holten meist unveraenderte Werte.

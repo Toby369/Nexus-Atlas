@@ -48,7 +48,13 @@ Stufen pro 8 h:
 
 Wie du es nutzt: Hohes Funding allein ist kein Short-Signal, es kann im Aufwärtstrend wochenlang hoch bleiben. Gefährlich wird es, wenn Funding über mehrere Intervalle extrem ist, das Open Interest stark steigt und der Preis nicht mehr vorankommt. Die Stufen sind Faustregeln, im Backtest noch nicht validiert.
 
-Quelle: Wert von Bybit (Referenzbörse), von der Börse selbst berechnet. Der Chart zeigt die letzten rund 15 Stunden; der aktuelle Wert je Börse steht im Börsenvergleich.`;
+Quelle: Wert von Bybit (Referenzbörse), von der Börse selbst berechnet. Der Chart zeigt die letzten rund 15 Stunden; der aktuelle Wert je Börse steht im Börsenvergleich.
+
+Positionierung (unten in der Kachel): Kontrakte sind immer 50:50, jeder Long hat einen Short. Die Zahlen zeigen nur, wer auf welcher Seite steht.
+• Masse long: Anteil der Konten mit Long-Position, Mittel über Binance, Bybit, OKX und Bitget. Üblich sind 55–62 %. Ab 65 % ist die Masse stark long, ab 70 % extrem; unter 50 % ist sie mehrheitlich short.
+• Top-Trader long: Binance-Top-Trader nach Positionsgrösse, also wo das grosse Geld liegt.
+• Abstand: Top-Trader minus Masse (Binance). Normal sind etwa +5 bis +20 Pp. Bei 0 oder darunter stehen die grossen Konten eher auf der Gegenseite der kleinen.
+So liest du es zusammen: Masse stark long, Funding hoch, OI steigt und der Preis kommt nicht voran: Die Longs sind der Treibstoff für den nächsten Flush nach unten. Spiegelbildlich gilt das für eine Short-lastige Masse mit negativem Funding. Schwellen aus der eigenen Historie seit 24.08.2026, nicht validiert.`;
 
 export function spotPressureInfo(tfLabel: string): string {
   return `So liest du das: Ordnet den Netto-Taker-Flow einem von vier Verdikten zu: BUYING PRESSURE, SELLING PRESSURE, NEUTRAL oder INSUFFICIENT DATA. Das misst eine Kauf-/Verkaufs-Imbalance im Taker-Orderflow, nicht ob am Spot-Markt tatsächlich netto mehr Coins gekauft als verkauft wurden. Deckt die Stichprobe weniger als 80 % der erwarteten Kerzen im Fenster ab, gilt das Ergebnis als PRELIMINARY, unter 20 % als INSUFFICIENT DATA.
@@ -296,13 +302,13 @@ Quelle: Binance Spot (5-Min-Kerzen) und Binance Futures (Kerzen aus collect-cand
 export const coinbasePremiumInfo = `Was es misst: den Preisabstand von Coinbase (BTC-USD) zu Binance (BTC-USDT) in Prozent, über dieselben 5-Minuten-Kerzen verglichen. Coinbase ist die Hauptbörse der US-Institutionen und ETF-Verwahrer.
 
 Stufen:
-• unter ±0,03 %: Neutral (Rauschen aus Spread und USDT-Kurs)
+• unter ±0,03 %: Neutral (Rauschen aus Spread und Umrechnung)
 • ab +0,03 %: US-Kaufdruck; ab +0,1 %: stark
 • ab −0,03 %: US-Verkaufsdruck; ab −0,1 %: stark
 
 Wie du es nutzt: Zählt nur, wenn die Prämie über Stunden anhält. Eine positive Prämie bei steigendem Preis bestätigt US-Nachfrage; fällt der Preis trotz positiver Prämie, verkaufen andere Regionen oder die Perps. Die Stufen sind Faustregeln, nicht im Backtest geprüft.
 
-Quelle: Coinbase-Exchange-API (letzte 300 Kerzen = 25 h), Binance aus der Nexus-Datenbank. Weicht USDT leicht von 1 USD ab, steckt das in der Prämie.`;
+Quelle: Coinbase-Exchange-API (letzte 300 Kerzen = 25 h), Binance aus der Nexus-Datenbank. Der Binance-Preis in USDT wird mit dem USDT-USD-Kurs von Coinbase in echte USD umgerechnet. Sonst stünde ein USDT-Abschlag (z. B. 0,9987 USD = −0,13 %) fälschlich als US-Verkaufsdruck da.`;
 
 // RSI-/MACD-Divergenz-Hinweis im Lagebild (lib/oscillatorDivergence.ts).
 export const oscillatorDivergenceInfo = `So liest du das: Zeigt aktuelle RSI- und MACD-Divergenzen auf 1H, 4H und 1D. Klassisch bärisch: Kurs macht ein höheres Hoch, der Oszillator ein tieferes (Schwung lässt nach). Versteckt bärisch: Kurs tieferes Hoch, Oszillator höheres (Abwärtstrend setzt sich eher fort). Bullisch spiegelbildlich an den Tiefs. Laut deinem Regelwerk immer nur ein Hinweis bzw. eine Warnung, keine Pflicht und keine Sperre. StochRSI wird nicht mehr verwendet.
