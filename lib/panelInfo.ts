@@ -302,13 +302,13 @@ Quelle: Binance Spot (5-Min-Kerzen) und Binance Futures (Kerzen aus collect-cand
 export const coinbasePremiumInfo = `Was es misst: den Preisabstand von Coinbase (BTC-USD) zu Binance (BTC-USDT) in Prozent, über dieselben 5-Minuten-Kerzen verglichen. Coinbase ist die Hauptbörse der US-Institutionen und ETF-Verwahrer.
 
 Stufen:
-• unter ±0,03 %: Neutral (Rauschen aus Spread und USDT-Kurs)
+• unter ±0,03 %: Neutral (Rauschen aus Spread und Umrechnung)
 • ab +0,03 %: US-Kaufdruck; ab +0,1 %: stark
 • ab −0,03 %: US-Verkaufsdruck; ab −0,1 %: stark
 
 Wie du es nutzt: Zählt nur, wenn die Prämie über Stunden anhält. Eine positive Prämie bei steigendem Preis bestätigt US-Nachfrage; fällt der Preis trotz positiver Prämie, verkaufen andere Regionen oder die Perps. Die Stufen sind Faustregeln, nicht im Backtest geprüft.
 
-Quelle: Coinbase-Exchange-API (letzte 300 Kerzen = 25 h), Binance aus der Nexus-Datenbank. Weicht USDT leicht von 1 USD ab, steckt das in der Prämie.`;
+Quelle: Coinbase-Exchange-API (letzte 300 Kerzen = 25 h), Binance aus der Nexus-Datenbank. Der Binance-Preis in USDT wird mit dem USDT-USD-Kurs von Coinbase in echte USD umgerechnet. Sonst stünde ein USDT-Abschlag (z. B. 0,9987 USD = −0,13 %) fälschlich als US-Verkaufsdruck da.`;
 
 // RSI-/MACD-Divergenz-Hinweis im Lagebild (lib/oscillatorDivergence.ts).
 export const oscillatorDivergenceInfo = `So liest du das: Zeigt aktuelle RSI- und MACD-Divergenzen auf 1H, 4H und 1D. Klassisch bärisch: Kurs macht ein höheres Hoch, der Oszillator ein tieferes (Schwung lässt nach). Versteckt bärisch: Kurs tieferes Hoch, Oszillator höheres (Abwärtstrend setzt sich eher fort). Bullisch spiegelbildlich an den Tiefs. Laut deinem Regelwerk immer nur ein Hinweis bzw. eine Warnung, keine Pflicht und keine Sperre. StochRSI wird nicht mehr verwendet.
