@@ -5,6 +5,7 @@ import OrderbookSimulator from "@/components/lernen/grundlagen/OrderbookSimulato
 import FundingCalculator from "@/components/lernen/grundlagen/FundingCalculator";
 import ScenarioReader from "@/components/lernen/grundlagen/ScenarioReader";
 import FootprintTrainer from "@/components/lernen/grundlagen/FootprintTrainer";
+import ZoneTrainer from "@/components/lernen/grundlagen/ZoneTrainer";
 import SpotPerpReader from "@/components/lernen/grundlagen/SpotPerpReader";
 import PositionSizeCalculator from "@/components/lernen/grundlagen/PositionSizeCalculator";
 import { LiveHint, Pill, type Tone } from "@/components/lernen/grundlagen/ui";
@@ -199,7 +200,49 @@ export default function GrundlagenPanel({
         </LiveHint>
       </Section>
 
-      <Section n={2} title="Footprint: in die Kerze schauen" intro="Wer war aggressiv, wer hat passiv gehalten?">
+      <Section n={2} title="Zonen: wo sich der Markt entscheidet" intro="Erst Zonen einzeichnen, dann an ihnen handeln.">
+        <P>
+          Der Preis wandert von Zone zu Zone. An jeder Zone entscheidet sich, ob Käufer oder Verkäufer gewinnen. Gehandelt
+          wird nur diese Entscheidung, nie der Weg dazwischen. Zeichne Zonen statt Linien: vom Docht bis zum Kerzenkörper an
+          der Umkehrstelle, bei BTC meist 200–600 USD breit.
+        </P>
+        <Table
+          head={["Zonen-Art", "Woran du sie findest", "Bemerkung"]}
+          rows={[
+            ["Letzte klare Hochs und Tiefs", "Stellen, an denen der Preis scharf gedreht hat", "Die wichtigste Art"],
+            ["Range-Ränder", "Ober- und Unterkante einer Seitwärtsphase, mehrfach berührt", "In der Mitte gibt es keinen Trade"],
+            ["Ausbruchslevel", "Alter Widerstand, der durchbrochen wurde", "Wird beim Retest zur Unterstützung (und umgekehrt)"],
+            ["Volumenstufen", "Lange Balken im Volumenprofil (POC, Value-Area-Kanten)", "Akzeptierter Preis, oft Stütze"],
+            ["Runde Zahlen", "80'000, 85'000, 90'000", "Viele Orders, Stops knapp dahinter"],
+          ]}
+        />
+        <Steps
+          items={[
+            { title: "Starke Reaktion?", body: "Ein schneller, grosser Abprall zählt, ein Gezitter nicht." },
+            { title: "Mehrfach berührt?", body: "Zwei bis drei Berührungen bestätigen eine Zone." },
+            { title: "Grosser Zeitrahmen?", body: "Eine Zone aus dem Tageschart schlägt eine aus 15 Minuten." },
+            { title: "Jung?", body: "Zonen der letzten Tage und Wochen zählen mehr als alte." },
+            { title: "Mehrere Gründe?", body: "Hoch, Volumenstufe und runde Zahl am selben Ort ergeben die beste Zone." },
+          ]}
+        />
+        <p className="text-xs font-medium text-text">Routine vor jeder Session (10 Minuten)</p>
+        <Steps
+          items={[
+            { title: "Tageschart:", body: "letztes grosses Hoch und Tief, Lage zur D13. Je eine Zone darüber und darunter." },
+            { title: "4H-Chart:", body: "Trend oder Range? Range-Ränder oder letztes Ausbruchslevel einzeichnen." },
+            { title: "1H-Chart:", body: "nächste Zone oben und unten, Volumenprofil einblenden." },
+            { title: "Aufschreiben:", body: "„Über X Longs am Retest, unter Y Shorts, dazwischen nichts.“ Höchstens 5–6 Zonen insgesamt." },
+          ]}
+        />
+        <ZoneTrainer />
+        <LiveHint>
+          Die Keylevels in der Struktur-Kachel und die Level-Struktur unter Wissen → Mein System schlagen Zonen vor.
+          Zeichne zuerst deine eigenen und vergleiche danach. Der Trade-Entscheider unter Mein System beginnt mit genau diesen
+          Zonen-Fragen.
+        </LiveHint>
+      </Section>
+
+      <Section n={3} title="Footprint: in die Kerze schauen" intro="Wer war aggressiv, wer hat passiv gehalten?">
         <P>
           Ein Footprint zeigt pro Preisstufe einer Kerze, wie viel aggressiv verkauft (Bid, links) und aggressiv gekauft
           (Ask, rechts) wurde. Delta ist Ask minus Bid. Aggressive Orders bewegen den Preis, passive Limit-Orders können
@@ -232,7 +275,7 @@ export default function GrundlagenPanel({
         </LiveHint>
       </Section>
 
-      <Section n={3} title="Wer den Preis bewegt" intro="Akteure und ihr Zeithorizont.">
+      <Section n={4} title="Wer den Preis bewegt" intro="Akteure und ihr Zeithorizont.">
         <Table
           head={["Akteur", "Horizont", "Verhalten", "In Nexus"]}
           rows={[
@@ -249,7 +292,7 @@ export default function GrundlagenPanel({
         />
       </Section>
 
-      <Section n={4} title="Kennzahlen mit klaren Schwellen" intro="Ab wann ein Wert normal, erhöht oder extrem ist.">
+      <Section n={5} title="Kennzahlen mit klaren Schwellen" intro="Ab wann ein Wert normal, erhöht oder extrem ist.">
         <FundingCalculator liveFundingPct={liveFundingPct} />
         <Steps
           items={[
@@ -279,7 +322,7 @@ export default function GrundlagenPanel({
         <LiveHint>Funding-Kachel (mit Stufe), OI Change, Liquidationen, Gesamteinschätzung (Faktoren).</LiveHint>
       </Section>
 
-      <Section n={5} title="Szenarien lesen und Tages-Routine" intro="Preis, OI und Funding zusammen lesen.">
+      <Section n={6} title="Szenarien lesen und Tages-Routine" intro="Preis, OI und Funding zusammen lesen.">
         <ScenarioReader />
         <p className="text-xs font-medium text-text">Tages-Routine</p>
         <Steps
@@ -299,7 +342,7 @@ export default function GrundlagenPanel({
         <LiveHint>Marktkontext-Kachel (OI/Preis-Quadrant und „Wer treibt“), Lagebild oben im Dashboard.</LiveHint>
       </Section>
 
-      <Section n={6} title="Kaskaden und Markt-Muster" intro="Wie aus einem Rücksetzer ein Crash wird.">
+      <Section n={7} title="Kaskaden und Markt-Muster" intro="Wie aus einem Rücksetzer ein Crash wird.">
         <Steps
           items={[
             { title: "Hebel baut sich auf.", body: "OI steigt, Funding wird stark positiv, viele Stops knapp unter einem offensichtlichen Tief." },
@@ -329,7 +372,7 @@ export default function GrundlagenPanel({
         <LiveHint>„Liquidationen“ zeigt, was passiert ist; die „Liquidations-/Hebelkarte“, wo es als Nächstes knallen könnte.</LiveHint>
       </Section>
 
-      <Section n={7} title="Wer treibt wirklich: Spot, Perp, CME, Optionen" intro="Echte Nachfrage oder nur Hebel?">
+      <Section n={8} title="Wer treibt wirklich: Spot, Perp, CME, Optionen" intro="Echte Nachfrage oder nur Hebel?">
         <SpotPerpReader />
         <Steps
           items={[
@@ -358,7 +401,7 @@ export default function GrundlagenPanel({
         <LiveHint>Marktkontext → „Wer treibt: Spot, Perp, Coinbase“ mit Live-Werten und CVD-Verlauf.</LiveHint>
       </Section>
 
-      <Section n={8} title="Makro, Flows und Zyklus" intro="Was die Richtung über Wochen und Monate bestimmt.">
+      <Section n={9} title="Makro, Flows und Zyklus" intro="Was die Richtung über Wochen und Monate bestimmt.">
         <Table
           head={["Treiber", "Gut für BTC", "Schlecht für BTC", "In Nexus"]}
           rows={[
@@ -379,7 +422,7 @@ export default function GrundlagenPanel({
         </P>
       </Section>
 
-      <Section n={9} title="Risiko: der Teil, der profitabel macht" intro="Zuerst festlegen, wie viel du verlieren darfst.">
+      <Section n={10} title="Risiko: der Teil, der profitabel macht" intro="Zuerst festlegen, wie viel du verlieren darfst.">
         <PositionSizeCalculator livePrice={livePrice} />
         <Steps
           items={[
