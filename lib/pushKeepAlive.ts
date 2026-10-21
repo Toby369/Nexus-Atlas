@@ -1,4 +1,5 @@
-// Push-Abo selbst heilen (Toby 15.10.2026: "push ist heute Morgen nicht
+// Merker "Push bewusst deaktiviert" fuer die Selbstheilung in
+// components/ServiceWorkerRegister.tsx. Hintergrund (Toby 15.10.2026: "push ist heute Morgen nicht
 // gekommen" -- das Abo fehlte bis zum erneuten Aktivieren in der DB und im
 // Browser). Ursachen: der Browser kann ein Abo ersetzen oder verwerfen
 // (pushsubscriptionchange im Service Worker scheitert, wenn die Login-Session
