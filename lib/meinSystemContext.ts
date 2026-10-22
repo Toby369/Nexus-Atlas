@@ -48,7 +48,7 @@ export function computeEma(closes: number[], period: number): number | null {
   return ema;
 }
 
-async function getEma13(): Promise<number | null> {
+export async function getEma13(): Promise<number | null> {
   const { data, error } = await supabase
     .from("candles")
     .select("close, open_time")

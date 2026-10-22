@@ -31,11 +31,16 @@ export const DASHBOARD_TABS: DashboardTabMeta[] = [
       "orderbook-walls",
       "leverage-map",
       "volatility",
-      "cycle-indicators",
       "economic-calendar",
-      "etf-flow",
       "news-risk",
     ],
+  },
+  // 22.10.2026 (Toby): langsame Daten (ETF-Flows, Zyklus/On-Chain) gehoeren
+  // nicht in den Tagesablauf, sondern in einen eigenen Wochenblick.
+  {
+    id: "wochenblick",
+    label: "Wochenblick",
+    tileIds: ["etf-flow", "cycle-indicators"],
   },
   // Bewertende KI-Analysen und aktiv bediente Werkzeuge/Lernen in einem
   // Reiter -- nach dem Buendeln der wenig genutzten KI-Kacheln sind es nur

@@ -45,23 +45,32 @@ export function evaluateFourHourBreakout(
   return { kind: "none", level: null, candle: last };
 }
 
-const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
+const INTERVAL_MS = { "15m": 15 * 60 * 1000, "1h": 60 * 60 * 1000, "4h": 4 * 60 * 60 * 1000 } as const;
+export type CandleInterval = keyof typeof INTERVAL_MS;
 
-/** Letzte zwei abgeschlossene 4H-Kerzen (Binance), aelteste zuerst. */
-export async function fetchLastClosed4h(nowMs: number = Date.now()): Promise<[Candle4h | null, Candle4h | null]> {
+export function intervalMs(interval: CandleInterval): number {
+  return INTERVAL_MS[interval];
+}
+
+/** Letzte abgeschlossene Kerzen (Binance), aelteste zuerst. */
+export async function fetchClosedCandles(
+  interval: CandleInterval,
+  limit: number,
+  nowMs: number = Date.now()
+): Promise<Candle4h[]> {
   const { data, error } = await supabase
     .from("candles")
     .select("open_time, open, high, low, close")
     .eq("exchange", "binance")
     .eq("symbol", "BTCUSDT")
-    .eq("interval", "4h")
+    .eq("interval", interval)
     .order("open_time", { ascending: false })
-    .limit(3);
+    .limit(limit + 1);
   if (error || !data) {
-    if (error) console.error("4H-Ausbruch: Fehler beim Laden der Kerzen:", error.message);
-    return [null, null];
+    if (error) console.error(`Kerzen ${interval}: Fehler beim Laden:`, error.message);
+    return [];
   }
-  const closed = data
+  return data
     .map((r) => ({
       openTime: r.open_time as string,
       open: Number(r.open),
@@ -69,6 +78,13 @@ export async function fetchLastClosed4h(nowMs: number = Date.now()): Promise<[Ca
       low: Number(r.low),
       close: Number(r.close),
     }))
-    .filter((c) => new Date(c.openTime).getTime() + FOUR_HOURS_MS <= nowMs);
-  return [closed[1] ?? null, closed[0] ?? null];
+    .filter((c) => new Date(c.openTime).getTime() + INTERVAL_MS[interval] <= nowMs)
+    .slice(0, limit)
+    .reverse();
+}
+
+/** Letzte zwei abgeschlossene 4H-Kerzen (Binance), aelteste zuerst. */
+export async function fetchLastClosed4h(nowMs: number = Date.now()): Promise<[Candle4h | null, Candle4h | null]> {
+  const closed = await fetchClosedCandles("4h", 2, nowMs);
+  return [closed[closed.length - 2] ?? null, closed[closed.length - 1] ?? null];
 }

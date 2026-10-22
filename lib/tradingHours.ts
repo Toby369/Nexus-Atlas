@@ -264,3 +264,16 @@ export function getTradingHoursState(nowMs: number, events: EconomicEventRow[] =
     tradeable: !warnings.some((w) => w.level === "high"),
   };
 }
+
+/** Naechstes Hochrisiko-Fenster, das jetzt laeuft oder innerhalb von `horizonMin` beginnt (Veto vor dem Klick). */
+export function nextHighRiskWindow(
+  nowMs: number,
+  events: EconomicEventRow[],
+  horizonMin = 30
+): { id: WarningId; inMin: number } | null {
+  for (let m = 0; m <= horizonMin; m += 5) {
+    const high = getTradingHoursState(nowMs + m * MINUTE_MS, events).warnings.find((w) => w.level === "high");
+    if (high) return { id: high.id, inMin: Math.max(0, Math.round((high.vonMs - nowMs) / MINUTE_MS)) };
+  }
+  return null;
+}
