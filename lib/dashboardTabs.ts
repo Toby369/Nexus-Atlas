@@ -16,6 +16,7 @@ export const DASHBOARD_TABS: DashboardTabMeta[] = [
     id: "marktkontext",
     label: "Marktkontext",
     tileIds: [
+      "lage-hintergrund",
       "market-context",
       "regime-matrix",
       "divergence-radar",

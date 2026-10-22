@@ -49,7 +49,7 @@ export default function TradingHoursBadge({ events }: { events: EconomicEventRow
   const activeWarning = highWarning ?? mediumWarning;
 
   const style = highWarning
-    ? "border-accent/40 bg-accent/10 text-accent"
+    ? "border-warn/40 bg-warn/10 text-warn"
     : "border-border bg-surface-raised text-text-muted";
 
   const sessionLabel =

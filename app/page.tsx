@@ -3,6 +3,9 @@ import { NEWS_TILE_CATEGORIES } from "@/lib/newsCategories";
 import { supabase } from "@/lib/supabase";
 import { fetchPriceReferences } from "@/lib/priceChanges";
 import { getChartStructureData } from "@/lib/chartStructureContext";
+import { evaluateFourHourBreakout, fetchLastClosed4h } from "@/lib/fourHourBreakout";
+import { dailyTrendFromMtf } from "@/lib/zones";
+import ZonesCard from "@/components/ZonesCard";
 import { fetchRegimeMatrix, regimeIntervalFor } from "@/lib/regimeTimeframe";
 import type {
   DashboardPollBundle,
@@ -544,6 +547,7 @@ export default async function Home({
     regimeMatrixForTimeframe,
     volatilitySnapshot,
     chartStructure,
+    last4h,
   ] = await Promise.all([
     getSnapshotHistory(),
     getLatestMarketState(),
@@ -578,6 +582,7 @@ export default async function Home({
     fetchRegimeMatrix(regimeIntervalFor(timeframe)),
     buildVolatilitySnapshot(),
     getChartStructureData(),
+    fetchLastClosed4h(),
   ]);
 
   // Fallback, falls das Bundle-RPC fehlschlaegt (z.B. kurzzeitiger DB-
@@ -598,6 +603,28 @@ export default async function Home({
     positioning_signal: null,
   };
 
+  // Lage oben und Hintergrund-Kachel im Reiter Marktkontext teilen dieselben Daten.
+  const heroProps = {
+    initialState: marketState,
+    initialRegime: marketStateMatrix?.regime ?? null,
+    timeframe,
+    recentEtfFlows,
+    initialSystemBriefing: latestSystemBriefing,
+    initialBriefingConfig: systemBriefingConfig,
+    upcomingEconomicEvents,
+    initialMtfDots: mtfDots,
+    initialPriceReferences: priceReferences,
+    keyLevels: chartStructure.keyLevels.map(({ price, side }) => ({ price, side })),
+    setupScore: confluenceScore,
+    regimeScore,
+    scoreDetails: (
+      <div className="space-y-3">
+        <ConfluenceScoreCard score={confluenceScore} signalDetail={confluenceSignalDetail} />
+        <RegimeScoreCard score={regimeScore} signalDetail={regimeSignalDetail} />
+      </div>
+    ),
+  };
+
   return (
     <main className="flex-1 flex flex-col">
       <AppHeader
@@ -605,16 +632,13 @@ export default async function Home({
         current="dashboard"
         actions={
           <>
-            <p className="text-xs text-text-faint hidden md:block">
-              Datentakt: alle 5&nbsp;Minuten · Referenz: Bybit
-            </p>
             <RefreshButton />
           </>
         }
       />
 
-      <section className="flex-1 px-4 sm:px-6 py-8 max-w-3xl lg:max-w-[1600px] w-full mx-auto">
-        <div className="space-y-4">
+      <section className="flex-1 px-4 sm:px-6 pt-3 pb-8 max-w-3xl lg:max-w-[1600px] w-full mx-auto">
+        <div className="space-y-3">
           <DashboardPollProvider
             timeframe={timeframe}
             initialBundle={initialDashboardBundle}
@@ -623,10 +647,7 @@ export default async function Home({
             {/* Zeitraum ist eine globale Steuerung (wirkt auf mehrere Kacheln
                 unten) und steht deshalb vor dem Lagebild, nicht hinter einem
                 Klick versteckt. */}
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <p className="text-xs uppercase tracking-[0.2em] text-text-faint">
-                Zeitraum
-              </p>
+            <div className="flex items-center" aria-label="Zeitraum">
               <Suspense fallback={<div className="h-6" />}>
                 <TimeframeSelector current={timeframe} />
               </Suspense>
@@ -641,33 +662,28 @@ export default async function Home({
                 initialFetchedSinceIso={timeframeSinceIsoValue}
                 initialOiByExchange={oiByExchange}
               >
-                {/* Setup- und Regime-Score stehen als Kennzahlen im Lagebild
-                    (HeroHeader), ihre vollstaendigen Karten im Aufklapper
-                    "Warum?". HeroHeader sitzt innerhalb von
+                {/* HeroHeader rendert "1 · Lage", danach afterLage (Zonen).
+                    Scores und KI-Bericht stehen als Kachel "lage-hintergrund"
+                    im Reiter Marktkontext. Sitzt innerhalb von
                     LivePriceDataProvider, um den Live-Preis zu zeigen. */}
                 <HeroHeader
-                  initialState={marketState}
-                  initialRegime={marketStateMatrix?.regime ?? null}
-                  timeframe={timeframe}
-                  recentEtfFlows={recentEtfFlows}
-                  initialSystemBriefing={latestSystemBriefing}
-                  initialBriefingConfig={systemBriefingConfig}
-                  upcomingEconomicEvents={upcomingEconomicEvents}
-                  initialMtfDots={mtfDots}
-                  initialPriceReferences={priceReferences}
-                  keyLevels={chartStructure.keyLevels.map(({ price, side }) => ({ price, side }))}
-                  setupScore={confluenceScore}
-                  regimeScore={regimeScore}
-                  scoreDetails={
-                    <div className="space-y-3">
-                      <ConfluenceScoreCard score={confluenceScore} signalDetail={confluenceSignalDetail} />
-                      <RegimeScoreCard score={regimeScore} signalDetail={regimeSignalDetail} />
-                    </div>
+                  {...heroProps}
+                  afterLage={
+                    <ZonesCard
+                      keyLevels={chartStructure.keyLevels.map(({ price, side }) => ({ price, side }))}
+                      breakout={evaluateFourHourBreakout(
+                        chartStructure.keyLevels.map((l) => l.price),
+                        last4h[0],
+                        last4h[1]
+                      )}
+                      dailyTrend={dailyTrendFromMtf(mtfDots)}
+                    />
                   }
                 />
 
                 <DashboardTabNav
                   tiles={{
+                    "lage-hintergrund": <HeroHeader {...heroProps} variant="hintergrund" />,
                     "market-context": <MarketContextCard timeframe={timeframe} />,
                     "regime-matrix": (
                       <RegimeMatrixCard

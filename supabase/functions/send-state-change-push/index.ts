@@ -171,8 +171,10 @@ const REGIME_EXPLANATION_DE: Record<string, string> = {
     "Keine der Regeln passt eindeutig: weder klarer Trend noch Squeeze noch extreme Volatilität. Der Markt hat gerade keine klare Phase.",
 };
 
+// 21.10.2026 (Toby): 1h-Regime-Wechsel nicht mehr pushen -- sie wechselten
+// am haeufigsten (9 von 26 Pushes in einer Woche) und Chrome entzieht
+// Seiten mit vielen, selten angetippten Mitteilungen die Erlaubnis.
 const REGIME_TIMEFRAMES: { interval: string; label: string }[] = [
-  { interval: "1h", label: "1h" },
   { interval: "4h", label: "4h" },
   { interval: "1d", label: "1D" },
 ];
