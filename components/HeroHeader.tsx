@@ -58,8 +58,7 @@ import StatusLineSummary, { type StatusLineItem } from "@/components/StatusLineS
 import TradingHoursBadge from "@/components/TradingHoursBadge";
 import EconomicHeroBadge from "@/components/EconomicHeroBadge";
 import DivergenceHeroBadge from "@/components/DivergenceHeroBadge";
-import TpStandardBadge from "@/components/TpStandardBadge";
-import { computeTpSuggestions } from "@/lib/tpStandard";
+import { planSentence } from "@/lib/zones";
 import BriefingScheduleSettings from "@/components/BriefingScheduleSettings";
 import PanelInfo from "@/components/PanelInfo";
 import SystemBriefingDetails, { isValidSystemBriefingResult } from "@/components/SystemBriefingDetails";
@@ -424,9 +423,6 @@ export default function HeroHeader({
   );
 
   const mtfCounts = countMtfDirections(mtfDots);
-  // 1D-Trend fuer den TP-Standard (Regelwerk Punkt 13: Gegentrend nur Standard 4).
-  const dailyStatus = mtfDots.find((d) => d.timeframe === "1D")?.status ?? "no_data";
-  const dailyTrend = dailyStatus.startsWith("bullish") ? "bullish" : dailyStatus.startsWith("bearish") ? "bearish" : null;
   const mtfConflict = detectMtfStateConflict(state.overall_state, suppressed, mtfDots);
   const lead = setupLead(setupScore);
   const lean = regimeLean(regimeScore);
@@ -447,13 +443,68 @@ export default function HeroHeader({
       : null;
   const livePrice = latestSnapshot?.last_price ?? null;
   const priceChanges = computePriceChanges(livePrice, priceReferences);
+  const plan = planSentence(keyLevels, livePrice);
 
   return (
     <section className="rounded-lg border border-accent/40 bg-surface-raised p-5 sm:p-6 space-y-4">
       {/* Oben Aussage + vier Kennzahlen, alles Weitere im Aufklapper "Warum?"
           (siehe NEXUS-STRUKTUR-KONZEPT Abschnitt 8). */}
-      <div className="flex items-start justify-between flex-wrap gap-x-6 gap-y-2">
-        <div className="space-y-1">
+      {/* 22.10.2026 (Toby): Reihenfolge nach dem Trade-Ablauf -- oben nur Kurs,
+          Plan-Satz und Warnungen; Gesamteinschaetzung, Scores, MTF und KI-Bericht
+          stehen im Aufklapper "Details" (Vorschau: Artefakt "Nexus Dashboard neu"). */}
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5">
+          <p className="text-[11px] uppercase tracking-[0.14em] text-text-faint">
+            <span className="font-mono text-accent">1</span> · Lage BTC/USDT
+          </p>
+          <PanelInfo title="Gesamteinschätzung" content={marketStateInfo} />
+        </span>
+        <RelativeTime iso={state.timestamp_utc} className="text-[11px] text-text-faint" />
+      </div>
+
+      <div className="space-y-1.5">
+        {livePrice !== null && (
+          <p className="tabular font-mono text-3xl font-medium text-text">
+            {livePrice.toLocaleString("de-CH", { maximumFractionDigits: 0 })}{" "}
+            <span className="text-xs font-sans text-text-faint">USD · Bybit</span>
+          </p>
+        )}
+        {priceChanges.length > 0 && (
+          <dl className="grid grid-cols-4 gap-x-3 text-xs tabular font-mono">
+            {priceChanges.map(({ label, abs, pct }) => (
+              <div key={label}>
+                <dt className="text-text-faint font-sans">{label}</dt>
+                <dd className={abs >= 0 ? "text-up" : "text-down"}>
+                  {abs >= 0 ? "▲" : "▼"} {formatUsd(Math.abs(abs), 0)}
+                </dd>
+                <dd className={abs >= 0 ? "text-up" : "text-down"}>
+                  {pct >= 0 ? "+" : ""}
+                  {pct.toFixed(1)} %
+                </dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </div>
+
+      {plan && <p className="text-base font-medium text-text leading-snug">{plan}</p>}
+
+      {!lastSyncOk && (
+        <p className="text-xs text-down">
+          Sync-Problem — zuletzt bekannte Gesamteinschätzung wird angezeigt.
+        </p>
+      )}
+
+      <TradingHoursBadge events={upcomingEconomicEvents} />
+      <EconomicHeroBadge events={upcomingEconomicEvents} />
+      <DivergenceHeroBadge />
+
+      <details className="pt-3 border-t border-border/60 group">
+        <summary className="text-xs text-text-muted hover:text-text cursor-pointer select-none">
+          Details: Gesamteinschätzung, Scores, Marktphase, MTF, KI-Bericht
+        </summary>
+        <div className="pt-3 space-y-4">
+      <div className="space-y-1">
           <span className="flex items-center gap-1.5">
             <p className="text-[11px] uppercase tracking-[0.18em] text-text-faint">Lagebild BTC/USDT</p>
             <PanelInfo title="Gesamteinschätzung" content={marketStateInfo} />
@@ -469,38 +520,6 @@ export default function HeroHeader({
             </p>
           </div>
         </div>
-        <div className="sm:text-right">
-          {livePrice !== null && (
-            <p className="tabular font-mono text-xl text-text">
-              {livePrice.toLocaleString("de-CH", { maximumFractionDigits: 0 })} USD
-            </p>
-          )}
-          {priceChanges.length > 0 && (
-            <dl className="grid grid-cols-4 gap-x-3 mt-1 text-xs tabular font-mono">
-              {priceChanges.map(({ label, abs, pct }) => (
-                <div key={label} className="sm:text-right">
-                  <dt className="text-text-faint font-sans">{label}</dt>
-                  <dd className={abs >= 0 ? "text-up" : "text-down"}>
-                    {abs >= 0 ? "▲" : "▼"} {formatUsd(Math.abs(abs), 0)}
-                  </dd>
-                  <dd className={abs >= 0 ? "text-up" : "text-down"}>
-                    {pct >= 0 ? "+" : ""}
-                    {pct.toFixed(1)} %
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          )}
-          <RelativeTime iso={state.timestamp_utc} className="text-xs text-text-faint" />
-        </div>
-      </div>
-
-      {!lastSyncOk && (
-        <p className="text-xs text-down">
-          Sync-Problem — zuletzt bekannte Gesamteinschätzung wird angezeigt.
-        </p>
-      )}
-
       <p className="text-sm text-text leading-relaxed">{sentence}</p>
 
       {mtfConflict && (
@@ -519,10 +538,6 @@ export default function HeroHeader({
         </p>
       )}
 
-      <TradingHoursBadge events={upcomingEconomicEvents} />
-      <EconomicHeroBadge events={upcomingEconomicEvents} />
-      <DivergenceHeroBadge />
-      <TpStandardBadge suggestions={computeTpSuggestions(keyLevels, livePrice, dailyTrend)} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
         <div className="rounded-md border border-border bg-surface p-3 space-y-1">
@@ -814,6 +829,8 @@ export default function HeroHeader({
           </div>
 
           {scoreDetails}
+        </div>
+      </details>
         </div>
       </details>
     </section>

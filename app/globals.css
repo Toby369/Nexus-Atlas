@@ -8,21 +8,22 @@
 */
 
 :root {
-  --bg: #0b0d10;
-  --surface: #14171b;
-  --surface-raised: #1a1e23;
-  --border: #262b31;
-  --text: #e8e6e1;
-  /* Kontrast erhoeht (22.09.2026, Nutzer-Wunsch "Schrift in den Kacheln
-     mehr Kontrast") -- text-muted vorher 5.65:1, text-faint vorher 4.62:1
-     gegen --surface (WCAG AA fuer normalen Text ist 4.5:1, text-faint lag
-     also nur knapp darueber, gerade bei den vielen text-[10px]/[11px]-
-     Badges/Labels in den Kacheln spuerbar). Jetzt 7.58:1 bzw. 5.95:1. */
-  --text-muted: #a3a9b0;
-  --text-faint: #8f959c;
-  --accent: #c99a5b;
-  --up: #4fae7c;
-  --down: #d9695f;
+  /* 22.10.2026 (Toby): Farbwelt nach AutarkTrade -- blaugraues Nachtblau
+     statt fast Schwarz, Tuerkis statt Gold als Akzent. Kontrast gegen
+     --surface: text 13.4:1, text-muted 7.5:1, text-faint 5.5:1, accent 7.8:1,
+     up 7.4:1, down 5.1:1, warn 8.6:1 (WCAG AA fuer normalen Text: 4.5:1).
+     Warnungen bekommen eigenes Gelb, damit sie sich vom Akzent abheben. */
+  --bg: #11141c;
+  --surface: #171b26;
+  --surface-raised: #1d2230;
+  --border: #272d3d;
+  --text: #dfe3ea;
+  --text-muted: #a3abbb;
+  --text-faint: #8a92a5;
+  --accent: #2ec4a6;
+  --warn: #e3b04b;
+  --up: #3fbf7f;
+  --down: #e0675d;
 }
 
 @theme inline {
@@ -34,6 +35,7 @@
   --color-text-muted: var(--text-muted);
   --color-text-faint: var(--text-faint);
   --color-accent: var(--accent);
+  --color-warn: var(--warn);
   --color-up: var(--up);
   --color-down: var(--down);
   --font-mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo,

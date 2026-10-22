@@ -315,10 +315,6 @@ export const oscillatorDivergenceInfo = `So liest du das: Zeigt aktuelle RSI- un
 
 So entsteht der Wert: Schlusskurs-Pivots mit je 5 Kerzen links und rechts, verglichen mit RSI(14) bzw. dem MACD-Histogramm an denselben Kerzen. Angezeigt wird nur, wenn das jüngere Pivot höchstens 15 Kerzen zurückliegt. Weil ein Pivot erst nach 5 Folgekerzen bestätigt ist, erscheint eine Divergenz entsprechend verzögert (1H: 5 Stunden, 4H: 20 Stunden, 1D: 5 Tage).`;
 
-// TP-Standard-Vorschlag im Lagebild (lib/tpStandard.ts).
-export const tpStandardInfo = `So liest du das: Je Richtung der nächste Widerstand (Long) bzw. die nächste Unterstützung (Short) und der grösste deiner vier Standards, dessen TP noch vor diesem Level liegt: ab 1,75 % Abstand Standard 1 (TP 35 % Marge), ab 1,5 % Standard 2 (30 %), ab 1,25 % Standard 3 (25 %), ab 1,0 % Standard 4 (20 %). Unter 1,0 % Abstand gilt laut deinem Regelwerk „kein Trade“, weil das CRV bei SL −0,5 % unter 2:1 fällt. Läuft die Richtung gegen den 1D-Trend (MTF-Ampel), steht „⚠ gegen 1D“ und es gilt höchstens Standard 4. Rein rechnerischer Vorschlag, kein Handelssignal. Laut deinem Regelwerk gelten deine im Chart gezeichneten Levels; Nexus' automatische Levels sind nur der Abgleich – liegt dein nächstes Level anders, rechne mit deinem.
-
-So entsteht der Wert: Das Level, an dem der Kurs gerade steht (bis ±0,25 %, also dein Retest-Level), wird übersprungen. Keylevels wie in der Kachel „Chart-Struktur“ (Pivot-Konfluenz über mehrere Zeitrahmen, Liquidations-Cluster, Spot-Volumen), berechnet beim Laden der Seite. Der Abstand wird mit dem Live-Preis gerechnet; ein Level zählt als Widerstand, wenn es über dem aktuellen Kurs liegt, und als Unterstützung, wenn es darunter liegt.`;
 
 export const termBasisInfo = `Was es misst: die Prämie des vordersten Deribit-Futures (mindestens 30 Tage Restlaufzeit) gegenüber dem Deribit-Index, auf ein Jahr hochgerechnet. Es ist eine Näherung für die CME-Basis, die es nicht kostenlos über eine offizielle Schnittstelle gibt. Die beiden laufen meist ähnlich, sind aber nicht identisch.
 
@@ -332,3 +328,8 @@ Stufen (pro Jahr):
 Wie du es nutzt: Hedgefonds kaufen Spot oder ETF-Anteile und verkaufen Futures, um diese Prämie risikoarm zu kassieren (Basis-Trade). Fällt die Basis deutlich, lösen sie den Trade auf. Dann entstehen ETF-Abflüsse ohne bärische Meinung. Fallen Basis und ETF-Flows gemeinsam, erscheint ein Hinweis. Kontext für Tage bis Wochen, kein Timing-Signal und nicht im Backtest geprüft; fliesst nicht in die Gesamteinschätzung ein.
 
 Quelle: Deribit, stündlich (collect-term-basis). Ältere Tageswerte nachgeladen, dort dient BTC-PERPETUAL als Index-Näherung.`;
+
+// Zonen-Kachel (components/ZonesCard.tsx).
+export const zonesInfo = `So liest du das: Die nächsten Zonen über und unter dem aktuellen Kurs. Über dem Kurs heisst eine Zone Verkäufer-Zone, darunter Käufer-Zone, egal welche Rolle sie früher hatte (Rollentausch). Bei der nächsten Zone je Seite stehen Abstand, Chance-Risiko bei einem Stop von 0,5 % und dein TP-Standard: ab 1,75 % Abstand Standard 1, ab 1,5 % Standard 2, ab 1,25 % Standard 3, ab 1,0 % Standard 4, darunter kein Trade. Gegen den 1D-Trend gilt höchstens Standard 4. Die Zeile unten beantwortet Regel 1 deines Entry-Ablaufs: Hat die letzte abgeschlossene 4H-Kerze ein Level mit dem Körper gebrochen oder nur mit dem Docht?
+
+So entsteht der Wert: Keylevels wie in der Chart-Struktur (Pivot-Konfluenz über mehrere Zeitrahmen, Liquidations-Cluster, Spot-Volumen). Das Level direkt am Kurs (±0,25 %, dein Retest-Band) wird übersprungen. Massgebend bleiben deine eigenen Zonen im Chart; diese Kachel ist der Abgleich.`;
