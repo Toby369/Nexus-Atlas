@@ -18,6 +18,9 @@ export interface DashboardTileMeta {
 }
 
 export const DASHBOARD_TILES: DashboardTileMeta[] = [
+  // 22.10.2026 (Toby): Gesamteinschaetzung, Scores, MTF und KI-Bericht aus dem
+  // Lagebild hierher verschoben (HeroHeader variant="hintergrund").
+  { id: "lage-hintergrund", title: "Hintergrund: Scores & KI-Bericht", fullWidth: true },
   { id: "market-context", title: "Marktkontext" },
   { id: "regime-matrix", title: "Marktphase" },
   { id: "lernen", title: "Lernen" },

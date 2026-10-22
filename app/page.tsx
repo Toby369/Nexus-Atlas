@@ -603,6 +603,28 @@ export default async function Home({
     positioning_signal: null,
   };
 
+  // Lage oben und Hintergrund-Kachel im Reiter Marktkontext teilen dieselben Daten.
+  const heroProps = {
+    initialState: marketState,
+    initialRegime: marketStateMatrix?.regime ?? null,
+    timeframe,
+    recentEtfFlows,
+    initialSystemBriefing: latestSystemBriefing,
+    initialBriefingConfig: systemBriefingConfig,
+    upcomingEconomicEvents,
+    initialMtfDots: mtfDots,
+    initialPriceReferences: priceReferences,
+    keyLevels: chartStructure.keyLevels.map(({ price, side }) => ({ price, side })),
+    setupScore: confluenceScore,
+    regimeScore,
+    scoreDetails: (
+      <div className="space-y-3">
+        <ConfluenceScoreCard score={confluenceScore} signalDetail={confluenceSignalDetail} />
+        <RegimeScoreCard score={regimeScore} signalDetail={regimeSignalDetail} />
+      </div>
+    ),
+  };
+
   return (
     <main className="flex-1 flex flex-col">
       <AppHeader
@@ -640,29 +662,12 @@ export default async function Home({
                 initialFetchedSinceIso={timeframeSinceIsoValue}
                 initialOiByExchange={oiByExchange}
               >
-                {/* HeroHeader rendert "1 · Lage", danach afterLage (Zonen) und
-                    zuletzt die eingeklappte Hintergrund-Kachel mit Scores und
-                    KI-Bericht. Sitzt innerhalb von LivePriceDataProvider, um
-                    den Live-Preis zu zeigen. */}
+                {/* HeroHeader rendert "1 · Lage", danach afterLage (Zonen).
+                    Scores und KI-Bericht stehen als Kachel "lage-hintergrund"
+                    im Reiter Marktkontext. Sitzt innerhalb von
+                    LivePriceDataProvider, um den Live-Preis zu zeigen. */}
                 <HeroHeader
-                  initialState={marketState}
-                  initialRegime={marketStateMatrix?.regime ?? null}
-                  timeframe={timeframe}
-                  recentEtfFlows={recentEtfFlows}
-                  initialSystemBriefing={latestSystemBriefing}
-                  initialBriefingConfig={systemBriefingConfig}
-                  upcomingEconomicEvents={upcomingEconomicEvents}
-                  initialMtfDots={mtfDots}
-                  initialPriceReferences={priceReferences}
-                  keyLevels={chartStructure.keyLevels.map(({ price, side }) => ({ price, side }))}
-                  setupScore={confluenceScore}
-                  regimeScore={regimeScore}
-                  scoreDetails={
-                    <div className="space-y-3">
-                      <ConfluenceScoreCard score={confluenceScore} signalDetail={confluenceSignalDetail} />
-                      <RegimeScoreCard score={regimeScore} signalDetail={regimeSignalDetail} />
-                    </div>
-                  }
+                  {...heroProps}
                   afterLage={
                     <ZonesCard
                       keyLevels={chartStructure.keyLevels.map(({ price, side }) => ({ price, side }))}
@@ -678,6 +683,7 @@ export default async function Home({
 
                 <DashboardTabNav
                   tiles={{
+                    "lage-hintergrund": <HeroHeader {...heroProps} variant="hintergrund" />,
                     "market-context": <MarketContextCard timeframe={timeframe} />,
                     "regime-matrix": (
                       <RegimeMatrixCard

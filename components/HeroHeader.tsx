@@ -184,6 +184,7 @@ export default function HeroHeader({
   regimeScore,
   scoreDetails,
   afterLage,
+  variant = "lage",
 }: {
   initialState: MarketState | null;
   initialRegime: MarketRegime | null;
@@ -221,7 +222,12 @@ export default function HeroHeader({
   scoreDetails: ReactNode;
   // Kacheln zwischen Lage und Hintergrund (Zonen, spaeter Regelcheck/Veto).
   afterLage?: ReactNode;
+  // 22.10.2026 (Toby): "lage" = Kachel 1 oben, "hintergrund" = Gesamteinschaetzung,
+  // Scores, MTF und KI-Bericht als Kachel im Reiter Marktkontext. Beide Instanzen
+  // pollen nur, was sie selbst zeigen.
+  variant?: "lage" | "hintergrund";
 }) {
+  const isLage = variant === "lage";
   const [state, setState] = useState(initialState);
   const [lastSyncOk, setLastSyncOk] = useState(true);
   const [regime, setRegime] = useState(initialRegime);
@@ -242,26 +248,29 @@ export default function HeroHeader({
   }, []);
 
   useEffect(() => {
+    if (isLage) return;
     const stopPolling = setVisibleInterval(async () => {
       const data = await fetchLatestRegime();
       setRegime(data);
     }, REGIME_REFRESH_MS);
     return () => stopPolling();
-  }, []);
+  }, [isLage]);
 
   useEffect(() => {
+    if (isLage) return;
     const stopPolling = setVisibleInterval(async () => {
       setMtfDots(await fetchMtfDots());
     }, MARKET_STATE_REFRESH_MS);
     return () => stopPolling();
-  }, []);
+  }, [isLage]);
 
   useEffect(() => {
+    if (!isLage) return;
     const stopPolling = setVisibleInterval(async () => {
       setPriceReferences(await fetchPriceReferences());
     }, MARKET_STATE_REFRESH_MS);
     return () => stopPolling();
-  }, []);
+  }, [isLage]);
 
   // Eine veraltete KI-Einordnung darf nie als aktueller Zustand lesbar sein
   // (Preise im Fliesstext stammen vom Generierungszeitpunkt). Ab
@@ -294,7 +303,7 @@ export default function HeroHeader({
   }
 
   useEffect(() => {
-    if (!narrativeSnapshot?.result?.fazit?.kernaussage) return;
+    if (isLage || !narrativeSnapshot?.result?.fazit?.kernaussage) return;
     const update = async () => {
       const hours = hoursSince(narrativeSnapshot.generated_at, Date.now());
       setNarrativeHoursOld(hours);
@@ -310,7 +319,7 @@ export default function HeroHeader({
     update();
     const interval = setInterval(update, RELATIVE_REFRESH_MS);
     return () => clearInterval(interval);
-  }, [narrativeSnapshot]);
+  }, [narrativeSnapshot, isLage]);
 
   if (!state) {
     return (
@@ -448,7 +457,7 @@ export default function HeroHeader({
   const priceChanges = computePriceChanges(livePrice, priceReferences);
   const plan = planSentence(keyLevels, livePrice);
 
-  return (
+  if (isLage) return (
     <>
     <section className="rounded-lg border border-accent/40 bg-surface-raised p-5 sm:p-6 space-y-4">
       {/* Oben Aussage + vier Kennzahlen, alles Weitere im Aufklapper "Warum?"
@@ -505,10 +514,11 @@ export default function HeroHeader({
     </section>
 
     {afterLage}
+    </>
+  );
 
-    {/* 22.10.2026 (Toby): Scores & Co. weiter nach hinten -- eigene,
-        eingeklappte Kachel nach den Entscheidungs-Kacheln (afterLage). */}
-    <section className="rounded-lg border border-border bg-surface p-4">
+  return (
+    <section className="rounded-lg border border-border bg-surface-raised p-5">
       <details className="group">
         <summary className="text-sm text-text-muted hover:text-text cursor-pointer select-none">
           Hintergrund: Gesamteinschätzung, Scores, Marktphase, MTF, KI-Bericht
@@ -844,6 +854,5 @@ export default function HeroHeader({
         </div>
       </details>
     </section>
-    </>
   );
 }
