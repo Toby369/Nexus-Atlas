@@ -12,6 +12,7 @@ import ChartStructureCard from "@/components/ChartStructureCard";
 import LevelStructureCard from "@/components/LevelStructureCard";
 import GrundlagenPanel from "@/components/lernen/GrundlagenPanel";
 import PositionSizeCalculator from "@/components/lernen/grundlagen/PositionSizeCalculator";
+import TradeDecider from "@/components/lernen/TradeDecider";
 
 // --- Wissen (Grundlagen/Welz/Salomon/Mein System/Orderflow) ---------------
 // Nachschlage-Sektion aus knowledge_base (statischer Text, siehe
@@ -412,6 +413,9 @@ export default function WissenPanel({
       {module === "mein_system" && (
         <div className="space-y-3">
           <MeinSystemLiveValues data={meinSystemData} />
+          <TradeDecider
+            live={{ price: meinSystemData.closePrice, ema13: meinSystemData.ema13, fundingPct: meinSystemData.fundingRatePct }}
+          />
           <PositionSizeCalculator livePrice={meinSystemData.closePrice} />
           <GussSignalCard data={gussData} />
           <VwapVectorCard data={vwapVectorData} />
