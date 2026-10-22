@@ -640,10 +640,10 @@ export default async function Home({
                 initialFetchedSinceIso={timeframeSinceIsoValue}
                 initialOiByExchange={oiByExchange}
               >
-                {/* Setup- und Regime-Score stehen als Kennzahlen im Lagebild
-                    (HeroHeader), ihre vollstaendigen Karten im Aufklapper
-                    "Warum?". HeroHeader sitzt innerhalb von
-                    LivePriceDataProvider, um den Live-Preis zu zeigen. */}
+                {/* HeroHeader rendert "1 · Lage", danach afterLage (Zonen) und
+                    zuletzt die eingeklappte Hintergrund-Kachel mit Scores und
+                    KI-Bericht. Sitzt innerhalb von LivePriceDataProvider, um
+                    den Live-Preis zu zeigen. */}
                 <HeroHeader
                   initialState={marketState}
                   initialRegime={marketStateMatrix?.regime ?? null}
@@ -663,16 +663,17 @@ export default async function Home({
                       <RegimeScoreCard score={regimeScore} signalDetail={regimeSignalDetail} />
                     </div>
                   }
-                />
-
-                <ZonesCard
-                  keyLevels={chartStructure.keyLevels.map(({ price, side }) => ({ price, side }))}
-                  breakout={evaluateFourHourBreakout(
-                    chartStructure.keyLevels.map((l) => l.price),
-                    last4h[0],
-                    last4h[1]
-                  )}
-                  dailyTrend={dailyTrendFromMtf(mtfDots)}
+                  afterLage={
+                    <ZonesCard
+                      keyLevels={chartStructure.keyLevels.map(({ price, side }) => ({ price, side }))}
+                      breakout={evaluateFourHourBreakout(
+                        chartStructure.keyLevels.map((l) => l.price),
+                        last4h[0],
+                        last4h[1]
+                      )}
+                      dailyTrend={dailyTrendFromMtf(mtfDots)}
+                    />
+                  }
                 />
 
                 <DashboardTabNav

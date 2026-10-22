@@ -183,6 +183,7 @@ export default function HeroHeader({
   setupScore,
   regimeScore,
   scoreDetails,
+  afterLage,
 }: {
   initialState: MarketState | null;
   initialRegime: MarketRegime | null;
@@ -218,6 +219,8 @@ export default function HeroHeader({
   setupScore: ConfluenceScoreResult;
   regimeScore: RegimeScoreResult;
   scoreDetails: ReactNode;
+  // Kacheln zwischen Lage und Hintergrund (Zonen, spaeter Regelcheck/Veto).
+  afterLage?: ReactNode;
 }) {
   const [state, setState] = useState(initialState);
   const [lastSyncOk, setLastSyncOk] = useState(true);
@@ -446,6 +449,7 @@ export default function HeroHeader({
   const plan = planSentence(keyLevels, livePrice);
 
   return (
+    <>
     <section className="rounded-lg border border-accent/40 bg-surface-raised p-5 sm:p-6 space-y-4">
       {/* Oben Aussage + vier Kennzahlen, alles Weitere im Aufklapper "Warum?"
           (siehe NEXUS-STRUKTUR-KONZEPT Abschnitt 8). */}
@@ -498,10 +502,16 @@ export default function HeroHeader({
       <TradingHoursBadge events={upcomingEconomicEvents} />
       <EconomicHeroBadge events={upcomingEconomicEvents} />
       <DivergenceHeroBadge />
+    </section>
 
-      <details className="pt-3 border-t border-border/60 group">
-        <summary className="text-xs text-text-muted hover:text-text cursor-pointer select-none">
-          Details: Gesamteinschätzung, Scores, Marktphase, MTF, KI-Bericht
+    {afterLage}
+
+    {/* 22.10.2026 (Toby): Scores & Co. weiter nach hinten -- eigene,
+        eingeklappte Kachel nach den Entscheidungs-Kacheln (afterLage). */}
+    <section className="rounded-lg border border-border bg-surface p-4">
+      <details className="group">
+        <summary className="text-sm text-text-muted hover:text-text cursor-pointer select-none">
+          Hintergrund: Gesamteinschätzung, Scores, Marktphase, MTF, KI-Bericht
         </summary>
         <div className="pt-3 space-y-4">
       <div className="space-y-1">
@@ -834,5 +844,6 @@ export default function HeroHeader({
         </div>
       </details>
     </section>
+    </>
   );
 }
