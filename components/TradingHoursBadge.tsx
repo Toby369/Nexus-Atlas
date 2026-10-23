@@ -19,7 +19,7 @@ const SESSION_LABELS: Record<SessionId, string> = {
   usPost: "US-Nachbörse",
 };
 
-const WARNING_LABELS: Record<WarningId, string> = {
+export const WARNING_LABELS: Record<WarningId, string> = {
   opening: "US-Kasseneröffnung",
   macro: "Wichtige Makro-Daten",
   fomc: "FOMC-Zinsentscheid",

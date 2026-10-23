@@ -3,7 +3,9 @@ import { NEWS_TILE_CATEGORIES } from "@/lib/newsCategories";
 import { supabase } from "@/lib/supabase";
 import { fetchPriceReferences } from "@/lib/priceChanges";
 import { getChartStructureData } from "@/lib/chartStructureContext";
-import { evaluateFourHourBreakout, fetchLastClosed4h } from "@/lib/fourHourBreakout";
+import { evaluateFourHourBreakout, fetchClosedCandles } from "@/lib/fourHourBreakout";
+import { getEma13 } from "@/lib/meinSystemContext";
+import DecisionCards from "@/components/DecisionCards";
 import { dailyTrendFromMtf } from "@/lib/zones";
 import ZonesCard from "@/components/ZonesCard";
 import { fetchRegimeMatrix, regimeIntervalFor } from "@/lib/regimeTimeframe";
@@ -547,7 +549,10 @@ export default async function Home({
     regimeMatrixForTimeframe,
     volatilitySnapshot,
     chartStructure,
-    last4h,
+    candles4h,
+    candles1h,
+    candles15m,
+    ema13,
   ] = await Promise.all([
     getSnapshotHistory(),
     getLatestMarketState(),
@@ -582,8 +587,14 @@ export default async function Home({
     fetchRegimeMatrix(regimeIntervalFor(timeframe)),
     buildVolatilitySnapshot(),
     getChartStructureData(),
-    fetchLastClosed4h(),
+    // Regelcheck: 4H fuer den Koerperausbruch der letzten 24 h, 1H/15m fuer
+    // Retest und Bestaetigung danach.
+    fetchClosedCandles("4h", 7),
+    fetchClosedCandles("1h", 30),
+    fetchClosedCandles("15m", 100),
+    getEma13(),
   ]);
+  const last4h = [candles4h[candles4h.length - 2] ?? null, candles4h[candles4h.length - 1] ?? null] as const;
 
   // Fallback, falls das Bundle-RPC fehlschlaegt (z.B. kurzzeitiger DB-
   // Aussetzer) -- MarketContextCard/SpotPressurePanel und der
@@ -669,15 +680,26 @@ export default async function Home({
                 <HeroHeader
                   {...heroProps}
                   afterLage={
-                    <ZonesCard
-                      keyLevels={chartStructure.keyLevels.map(({ price, side }) => ({ price, side }))}
-                      breakout={evaluateFourHourBreakout(
-                        chartStructure.keyLevels.map((l) => l.price),
-                        last4h[0],
-                        last4h[1]
-                      )}
-                      dailyTrend={dailyTrendFromMtf(mtfDots)}
-                    />
+                    <>
+                      <ZonesCard
+                        keyLevels={chartStructure.keyLevels.map(({ price, side }) => ({ price, side }))}
+                        breakout={evaluateFourHourBreakout(
+                          chartStructure.keyLevels.map((l) => l.price),
+                          last4h[0],
+                          last4h[1]
+                        )}
+                        dailyTrend={dailyTrendFromMtf(mtfDots)}
+                      />
+                      <DecisionCards
+                        keyLevels={chartStructure.keyLevels.map(({ price }) => ({ price }))}
+                        candles4h={candles4h}
+                        candles1h={candles1h}
+                        candles15m={candles15m}
+                        ema13={ema13}
+                        events={upcomingEconomicEvents}
+                        timeframe={timeframe}
+                      />
+                    </>
                   }
                 />
 
