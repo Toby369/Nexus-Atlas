@@ -1,0 +1,10 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+const headers={"Content-Type":"application/json","Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type"};
+async function j(url:string){const r=await fetch(url,{headers:{"User-Agent":"NEXUS/1.0"}});if(!r.ok)throw new Error(`${r.status} ${url}`);return await r.json()}
+Deno.serve(async(req)=>{if(req.method==='OPTIONS')return new Response('ok',{headers});const db=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);const out:any={timestamp_utc:new Date().toISOString(),sources:{}};
+try{const [p,oi,f]=await Promise.all([j('https://fapi.binance.com/fapi/v1/ticker/price?symbol=BTCUSDT'),j('https://fapi.binance.com/fapi/v1/openInterest?symbol=BTCUSDT'),j('https://fapi.binance.com/fapi/v1/premiumIndex?symbol=BTCUSDT')]);const price=Number(p.price), oiBtc=Number(oi.openInterest);out.sources.binance={price,mark_price:Number(f.markPrice),index_price:Number(f.indexPrice),funding_rate:Number(f.lastFundingRate),open_interest_btc:oiBtc,open_interest_usd:oiBtc*Number(f.markPrice),next_funding_time:f.nextFundingTime};
+}catch(e){out.sources.binance={error:String(e)}}
+try{const b=await j('https://api.bybit.com/v5/market/tickers?category=linear&symbol=BTCUSDT');const x=b?.result?.list?.[0];if(x)out.sources.bybit={price:Number(x.lastPrice),mark_price:Number(x.markPrice),index_price:Number(x.indexPrice),funding_rate:Number(x.fundingRate),open_interest_btc:Number(x.openInterest),open_interest_usd:Number(x.openInterest)*Number(x.markPrice)};}catch(e){out.sources.bybit={error:String(e)}}
+const b=out.sources.binance;if(b?.price){await db.from('market_snapshots').insert({timestamp_utc:out.timestamp_utc,symbol:'BTCUSDT',exchange:'binance_futures',last_price:b.price,open_interest_usd:b.open_interest_usd,funding_rate:b.funding_rate,status:'ok'});}
+return new Response(JSON.stringify(out),{headers});});

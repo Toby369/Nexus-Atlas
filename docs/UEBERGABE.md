@@ -36,23 +36,41 @@ aus dem August und werden nicht gebraucht (können gelöscht werden).
 - Offene Ideen und Folgepunkte: `docs/research/IDEEN-BACKLOG.md`.
 - Forschungsberichte (Backtests, Protokolle, Ergebnisse): `docs/research/`.
 
-## Wichtig: Nicht alles liegt im Repo
+## Sicherung von Supabase im Repo (Stand 24.10.2026)
 
-Die Datenbank und die meisten Edge Functions wurden direkt in Supabase
-angelegt (per Supabase-MCP), nicht über Dateien im Repo:
+Datenbank und Edge Functions wurden direkt in Supabase angelegt (per
+Supabase-MCP). Am 24.10.2026 wurde alles ins Repo gesichert:
 
-- **Datenbank-Schema:** rund 290 Migrationen existieren nur in Supabase
-  (`supabase_migrations`), es gibt kein `supabase/migrations/` im Repo.
-- **Edge Functions:** 37 sind in Supabase deployt, nur 6 davon liegen unter
-  `supabase/functions/` (`collect-candles`, `collect-options`,
-  `collect-term-basis`, `nexus-news-analyst`, `nexus-news-collector`,
-  `send-state-change-push`).
+- `supabase/migrations/`: alle 279 Migrationen aus
+  `supabase_migrations.schema_migrations`, eine Datei pro Migration.
+- `supabase/schema/`: Katalog-Stand zum selben Zeitpunkt, als Referenz:
+  `tables.sql` (57 Tabellen/Views mit Policies und Rechten),
+  `functions.sql` (94 Funktionen), `cron-jobs.sql` (31 pg_cron-Jobs),
+  `schema-snapshot.json` (alles zusammen, maschinenlesbar).
+- `supabase/functions/`: alle 37 deployten Edge Functions.
 
-Für Claude ist das kein Hindernis: Mit dem Supabase-Connector kann es
-Migrationen, Funktionen und Crons direkt lesen und ändern. Ohne Supabase-
-Zugang wäre der Code dieser Funktionen aber nicht greifbar. Vor einer
-Änderung an einer Funktion, die nicht im Repo liegt, zuerst den deployten
-Stand aus Supabase holen.
+**Massgeblich bleibt der deployte Stand in Supabase.** Wer eine Funktion
+ändert, deployt sie und schreibt die Änderung auch ins Repo, sonst laufen
+beide wieder auseinander. Neue DB-Änderungen als Migration anlegen und die
+Datei zusätzlich unter `supabase/migrations/` ablegen.
+
+## Offene Aufräum-Punkte
+
+- **`debug-test-webpush-import` in Supabase löschen.** Die deployte Version
+  enthält den privaten VAPID-Schlüssel (Push) hart im Code. Er ist nicht
+  öffentlich sichtbar, gehört aber nicht in eine Funktion. In der Repo-Kopie
+  ist er geschwärzt. Supabase → Edge Functions → Funktion → Delete.
+- **Alte, nicht mehr genutzte Funktionen** (kein Cron, aus der Anfangszeit):
+  `nexus-market-collector`, `nexus-dashboard`, `nexus-public-data`,
+  `nexus-market-data-v2`, `debug-fetch-farside`, `debug-fetch-openrouter-free`,
+  `backfill-title-de`. Können gelöscht werden.
+- **Einmal-Backfills** (`backfill-*`) haben keinen Cron und werden nur bei
+  Bedarf von Hand aufgerufen.
+- **FOMC-Termine 2027 nachtragen:** `collect-economic-calendar` kennt nur
+  die Termine 2026. Nach dem 09.12.2026 fehlt der nächste Zinsentscheid,
+  bis die Liste um 2027 ergänzt ist (federalreserve.gov, FOMC-Kalender).
+- `collect-btc-price-history-daily` und `youtube-monitor-scheduler` haben
+  aktuell keinen Cron-Job.
 
 ## Risiko: Supabase pausiert inaktive Gratis-Projekte
 
@@ -66,7 +84,8 @@ Projekt → „Restore“. Daten bleiben erhalten, die Crons laufen danach wiede
 2. Wenn die Next.js-Version sich geändert hat: Doku unter
    `node_modules/next/dist/docs/` lesen (siehe `AGENTS.md`).
 3. Supabase-Projekt `cpktesxmbqrzpsurntul` prüfen: Status, Advisors, Logs,
-   `select jobname, active from cron.job`.
+   `select jobname, active from cron.job`. Vor Änderungen an einer Edge
+   Function den deployten Stand mit `supabase/functions/` vergleichen.
 4. Vor jedem Push lokal prüfen:
    `npx tsc --noEmit && npx eslint . && npm test && npx next build`
 5. Neue Tabellen: GRANTs in dieselbe Migration (Regel in `CLAUDE.md`).
