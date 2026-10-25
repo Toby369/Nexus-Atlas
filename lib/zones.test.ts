@@ -3,7 +3,6 @@ import { describe, it, expect, vi } from "vitest";
 vi.mock("./supabase", () => ({ supabase: {} }));
 
 import { nearestZones, planSentence } from "./zones";
-import { evaluateFourHourBreakout } from "./fourHourBreakout";
 
 const levels = [{ price: 83_115 }, { price: 82_257 }, { price: 81_933 }, { price: 81_557 }, { price: 80_985 }];
 
@@ -24,25 +23,5 @@ describe("planSentence", () => {
   });
   it("liefert null ohne Kurs", () => {
     expect(planSentence(levels, null)).toBeNull();
-  });
-});
-
-const c = (open: number, high: number, low: number, close: number) => ({ openTime: "t", open, high, low, close });
-
-describe("evaluateFourHourBreakout", () => {
-  it("erkennt einen Koerper-Schluss ueber dem Level", () => {
-    const r = evaluateFourHourBreakout([82_257], c(81_900, 82_100, 81_800, 82_000), c(82_000, 82_500, 81_950, 82_400));
-    expect(r).toMatchObject({ kind: "body_above", level: 82_257 });
-  });
-  it("erkennt einen reinen Docht ueber dem Level", () => {
-    const r = evaluateFourHourBreakout([82_257], c(81_900, 82_100, 81_800, 82_000), c(82_000, 82_400, 81_950, 82_100));
-    expect(r).toMatchObject({ kind: "wick_above", level: 82_257 });
-  });
-  it("erkennt einen Koerper-Schluss unter dem Level", () => {
-    const r = evaluateFourHourBreakout([81_557], c(81_700, 81_800, 81_600, 81_650), c(81_650, 81_700, 81_300, 81_400));
-    expect(r).toMatchObject({ kind: "body_below", level: 81_557 });
-  });
-  it("meldet nichts ohne Bezug zu einem Level", () => {
-    expect(evaluateFourHourBreakout([90_000], c(1, 2, 0.5, 1.5), c(1.5, 2, 1, 1.8)).kind).toBe("none");
   });
 });

@@ -3,9 +3,9 @@ import { NEWS_TILE_CATEGORIES } from "@/lib/newsCategories";
 import { supabase } from "@/lib/supabase";
 import { fetchPriceReferences } from "@/lib/priceChanges";
 import { getChartStructureData } from "@/lib/chartStructureContext";
-import { evaluateFourHourBreakout, fetchClosedCandles } from "@/lib/fourHourBreakout";
+import { fetchClosedCandles } from "@/lib/candles";
 import { getEma13 } from "@/lib/meinSystemContext";
-import DecisionCards from "@/components/DecisionCards";
+import { RuleCheckCard, VetoCard } from "@/components/TradeStepCards";
 import { dailyTrendFromMtf } from "@/lib/zones";
 import ZonesCard from "@/components/ZonesCard";
 import { fetchRegimeMatrix, regimeIntervalFor } from "@/lib/regimeTimeframe";
@@ -594,7 +594,6 @@ export default async function Home({
     fetchClosedCandles("15m", 100),
     getEma13(),
   ]);
-  const last4h = [candles4h[candles4h.length - 2] ?? null, candles4h[candles4h.length - 1] ?? null] as const;
 
   // Fallback, falls das Bundle-RPC fehlschlaegt (z.B. kurzzeitiger DB-
   // Aussetzer) -- MarketContextCard/SpotPressurePanel und der
@@ -612,6 +611,16 @@ export default async function Home({
     positioning_okx: null,
     positioning_bitget: null,
     positioning_signal: null,
+  };
+
+  const tradeStepProps = {
+    keyLevels: chartStructure.keyLevels.map(({ price }) => ({ price })),
+    candles4h,
+    candles1h,
+    candles15m,
+    ema13,
+    events: upcomingEconomicEvents,
+    timeframe,
   };
 
   // Lage oben und Hintergrund-Kachel im Reiter Marktkontext teilen dieselben Daten.
@@ -673,38 +682,22 @@ export default async function Home({
                 initialFetchedSinceIso={timeframeSinceIsoValue}
                 initialOiByExchange={oiByExchange}
               >
-                {/* HeroHeader rendert "1 · Lage", danach afterLage (Zonen).
-                    Scores und KI-Bericht stehen als Kachel "lage-hintergrund"
-                    im Reiter Marktkontext. Sitzt innerhalb von
+                {/* HeroHeader rendert "1 · Lage"; Zonen, Regelcheck und Veto
+                    stehen im Reiter "Trade", Scores und KI-Bericht als Kachel
+                    "lage-hintergrund" im Archiv. Sitzt innerhalb von
                     LivePriceDataProvider, um den Live-Preis zu zeigen. */}
-                <HeroHeader
-                  {...heroProps}
-                  afterLage={
-                    <>
-                      <ZonesCard
-                        keyLevels={chartStructure.keyLevels.map(({ price, side }) => ({ price, side }))}
-                        breakout={evaluateFourHourBreakout(
-                          chartStructure.keyLevels.map((l) => l.price),
-                          last4h[0],
-                          last4h[1]
-                        )}
-                        dailyTrend={dailyTrendFromMtf(mtfDots)}
-                      />
-                      <DecisionCards
-                        keyLevels={chartStructure.keyLevels.map(({ price }) => ({ price }))}
-                        candles4h={candles4h}
-                        candles1h={candles1h}
-                        candles15m={candles15m}
-                        ema13={ema13}
-                        events={upcomingEconomicEvents}
-                        timeframe={timeframe}
-                      />
-                    </>
-                  }
-                />
+                <HeroHeader {...heroProps} />
 
                 <DashboardTabNav
                   tiles={{
+                    zones: (
+                      <ZonesCard
+                        keyLevels={chartStructure.keyLevels.map(({ price, side }) => ({ price, side }))}
+                        dailyTrend={dailyTrendFromMtf(mtfDots)}
+                      />
+                    ),
+                    "rule-check": <RuleCheckCard {...tradeStepProps} />,
+                    veto: <VetoCard {...tradeStepProps} />,
                     "lage-hintergrund": <HeroHeader {...heroProps} variant="hintergrund" />,
                     "market-context": <MarketContextCard timeframe={timeframe} />,
                     "regime-matrix": (

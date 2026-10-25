@@ -183,7 +183,6 @@ export default function HeroHeader({
   setupScore,
   regimeScore,
   scoreDetails,
-  afterLage,
   variant = "lage",
 }: {
   initialState: MarketState | null;
@@ -220,10 +219,8 @@ export default function HeroHeader({
   setupScore: ConfluenceScoreResult;
   regimeScore: RegimeScoreResult;
   scoreDetails: ReactNode;
-  // Kacheln zwischen Lage und Hintergrund (Zonen, spaeter Regelcheck/Veto).
-  afterLage?: ReactNode;
   // 22.10.2026 (Toby): "lage" = Kachel 1 oben, "hintergrund" = Gesamteinschaetzung,
-  // Scores, MTF und KI-Bericht als Kachel im Reiter Marktkontext. Beide Instanzen
+  // Scores, MTF und KI-Bericht als Kachel im Reiter Archiv. Beide Instanzen
   // pollen nur, was sie selbst zeigen.
   variant?: "lage" | "hintergrund";
 }) {
@@ -458,7 +455,6 @@ export default function HeroHeader({
   const plan = planSentence(keyLevels, livePrice);
 
   if (isLage) return (
-    <>
     <section className="rounded-lg border border-accent/40 bg-surface-raised p-5 sm:p-6 space-y-4">
       {/* Oben Aussage + vier Kennzahlen, alles Weitere im Aufklapper "Warum?"
           (siehe NEXUS-STRUKTUR-KONZEPT Abschnitt 8). */}
@@ -512,9 +508,6 @@ export default function HeroHeader({
       <EconomicHeroBadge events={upcomingEconomicEvents} />
       <DivergenceHeroBadge />
     </section>
-
-    {afterLage}
-    </>
   );
 
   return (

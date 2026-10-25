@@ -1,16 +1,15 @@
 "use client";
 
 import { useLivePriceData } from "@/components/LivePriceDataProvider";
-import PanelInfo from "@/components/PanelInfo";
+import StepCard from "@/components/StepCard";
 import { zonesInfo } from "@/lib/panelInfo";
 import { nearestZones, type ZoneRow } from "@/lib/zones";
 import { computeTpSuggestions, type TpSuggestion } from "@/lib/tpStandard";
-import type { FourHourBreakout } from "@/lib/fourHourBreakout";
 
 // Zonen-Kachel (Schritt 2 im Dashboard, Toby 22.10.2026): naechste
 // Verkaeufer-Zone ueber und Kaeufer-Zone unter dem Live-Kurs, mit Abstand,
-// Chance-Risiko (SL 0,5 % Kurs) und TP-Standard; dazu die Frage, ob die
-// letzte 4H-Kerze ein Level mit dem Koerper gebrochen hat.
+// Chance-Risiko (SL 0,5 % Kurs) und TP-Standard. Die 4H-Koerperfrage
+// beantwortet der Regelcheck (lib/ruleCheck.ts).
 const STOP_PCT = 0.5;
 
 const fmt = (n: number) => n.toLocaleString("de-CH", { maximumFractionDigits: 0 });
@@ -48,55 +47,27 @@ function ZoneBox({ zone, suggestion }: { zone: ZoneRow; suggestion?: TpSuggestio
   );
 }
 
-function breakoutAnswer(b: FourHourBreakout): { text: string; tone: string } {
-  if (!b.candle) return { text: "Keine Daten", tone: "bg-surface-raised text-text-muted" };
-  const lvl = b.level !== null ? fmt(b.level) : "";
-  switch (b.kind) {
-    case "body_above":
-      return { text: `Ja, Körper über ${lvl}`, tone: "bg-up/15 text-up" };
-    case "body_below":
-      return { text: `Ja, Körper unter ${lvl}`, tone: "bg-down/15 text-down" };
-    case "wick_above":
-      return { text: `Nur Docht über ${lvl}`, tone: "bg-warn/15 text-warn" };
-    case "wick_below":
-      return { text: `Nur Docht unter ${lvl}`, tone: "bg-warn/15 text-warn" };
-    default:
-      return { text: "Nein", tone: "bg-surface-raised text-text-muted" };
-  }
-}
-
 export default function ZonesCard({
   keyLevels,
-  breakout,
   dailyTrend,
 }: {
   keyLevels: { price: number; side: "resistance" | "support" }[];
-  breakout: FourHourBreakout;
   dailyTrend: "bullish" | "bearish" | null;
 }) {
   const { latest } = useLivePriceData();
   const price = latest?.last_price ?? null;
   const { above, below } = nearestZones(keyLevels, price);
   const [longS, shortS] = computeTpSuggestions(keyLevels, price, dailyTrend);
-  const answer = breakoutAnswer(breakout);
-  const candleTime = breakout.candle
-    ? new Intl.DateTimeFormat("de-CH", { timeZone: "Europe/Zurich", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(
-        new Date(breakout.candle.openTime)
-      )
-    : null;
+  const line =
+    price === null
+      ? "Kein Live-Kurs"
+      : [above[0] && `↑ ${fmt(above[0].price)} +${above[0].distancePct.toFixed(1)} %`, below[0] && `↓ ${fmt(below[0].price)} −${below[0].distancePct.toFixed(1)} %`]
+          .filter(Boolean)
+          .join(" · ") || "Keine Keylevels in der Nähe";
 
   return (
-    <section className="rounded-lg border border-border bg-surface p-4 space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5">
-          <h2 className="text-[11px] uppercase tracking-[0.14em] text-text-faint">
-            <span className="font-mono text-accent">2</span> · Zonen
-          </h2>
-          <PanelInfo title="Zonen" content={zonesInfo} />
-        </span>
-        <span className="text-[11px] text-text-faint">Keylevels · SL 0,5 %</span>
-      </div>
-
+    <StepCard step={2} title="Zonen" line={line} tone="neutral" info={zonesInfo}>
+      <p className="text-[11px] text-text-faint">Keylevels · SL 0,5 %</p>
       {price === null || (above.length === 0 && below.length === 0) ? (
         <p className="text-xs text-text-faint">Keine Keylevels oder kein Live-Kurs verfügbar.</p>
       ) : (
@@ -114,14 +85,6 @@ export default function ZonesCard({
           ))}
         </div>
       )}
-
-      <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-2 text-xs">
-        <span className="text-text-muted">
-          Hat die letzte 4H-Kerze{candleTime ? ` (${candleTime} Uhr)` : ""} ein Level mit dem <b className="text-text">Körper</b>{" "}
-          gebrochen?
-        </span>
-        <span className={`shrink-0 rounded px-2 py-0.5 font-semibold ${answer.tone}`}>{answer.text}</span>
-      </div>
-    </section>
+    </StepCard>
   );
 }
