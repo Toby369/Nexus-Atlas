@@ -20,7 +20,7 @@ export interface DashboardTabMeta {
 // 5 Reiter, damit sie am Handy in eine Zeile passen.
 export const DASHBOARD_TABS: DashboardTabMeta[] = [
   { id: "trade", label: "Trade", tileIds: ["zones", "rule-check", "veto"], fixed: true },
-  { id: "markt", label: "Markt", tileIds: ["market-context", "oi-change", "funding-rate", "leverage-map"] },
+  { id: "markt", label: "Markt", tileIds: ["market-context", "oi-change", "funding-rate"] },
   { id: "termine", label: "Termine", tileIds: ["economic-calendar", "news-risk"] },
   { id: "wochenblick", label: "Wochenblick", tileIds: ["etf-flow", "cycle-indicators"] },
   {
@@ -36,6 +36,7 @@ export const DASHBOARD_TABS: DashboardTabMeta[] = [
       "signal-review",
       "youtube-monitor",
       "lernen",
+      "leverage-map",
     ],
   },
 ];

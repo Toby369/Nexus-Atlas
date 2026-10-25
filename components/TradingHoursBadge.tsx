@@ -52,6 +52,10 @@ export default function TradingHoursBadge({ events }: { events: EconomicEventRow
     ? "border-warn/40 bg-warn/10 text-warn"
     : "border-border bg-surface-raised text-text-muted";
 
+  // 25.10.2026 (Toby, "kurz und klar"): im Kopf nur, wenn ein Warnfenster
+  // laeuft -- die reine Session-Angabe ist kein Handlungsgrund.
+  if (!activeWarning) return null;
+
   const sessionLabel =
     state.active.length > 0 ? SESSION_LABELS[state.active[0].id] : "Keine Hauptsession aktiv";
 

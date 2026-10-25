@@ -24,7 +24,6 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "market-context", title: "Marktkontext" },
   { id: "regime-matrix", title: "Marktphase" },
   { id: "lernen", title: "Lernen" },
-  { id: "leverage-map", title: "Liquidations-/Hebelkarte" },
   { id: "cycle-indicators", title: "Zyklus-Indikatoren" },
   { id: "economic-calendar", title: "Wirtschaftskalender" },
   // Gemeinsamer State/Polling der Preis-Kacheln: LivePriceDataProvider.tsx.
@@ -44,6 +43,8 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "youtube-monitor", title: "Krypto-YouTube-Monitor (KI)" },
   { id: "etf-flow", title: "ETF-Flows & Makro" },
   { id: "news-risk", title: "News & Risiko" },
+  // 25.10.2026 (Toby): Hebelkarte "kann weit hinten" -- letzte Kachel im Archiv.
+  { id: "leverage-map", title: "Liquidations-/Hebelkarte" },
   // Das Institutional Playbook ist ein Modul im Wissen-Tab der Lernen-Seite.
   // Der Positionierung-Faktor bleibt Teil der 14-Faktoren-Engine (Lagebild),
   // hat aber keine eigene Detail-Kachel mehr.
