@@ -59,13 +59,14 @@ import TradingHoursBadge from "@/components/TradingHoursBadge";
 import EconomicHeroBadge from "@/components/EconomicHeroBadge";
 import DivergenceHeroBadge from "@/components/DivergenceHeroBadge";
 import { planSentence } from "@/lib/zones";
+import HeadStatus from "@/components/HeadStatus";
+import type { DecisionProps } from "@/components/TradeStepCards";
 import BriefingScheduleSettings from "@/components/BriefingScheduleSettings";
 import PanelInfo from "@/components/PanelInfo";
 import SystemBriefingDetails, { isValidSystemBriefingResult } from "@/components/SystemBriefingDetails";
 import { marketStateInfo, MARKET_STATE_FACTOR_INFO, momentumDivergenceInfo } from "@/lib/panelInfo";
 import { fetchMtfDots, type MtfTimeframeDot } from "@/lib/mtfSignal";
 import { computePriceChanges, fetchPriceReferences, type PriceReference } from "@/lib/priceChanges";
-import { formatUsd } from "@/lib/livePriceFormat";
 import { RISK_ELEVATING_PATTERN_NAMES } from "@/lib/patternDirection";
 import MtfDotsRow from "@/components/MtfDotsRow";
 import {
@@ -184,6 +185,7 @@ export default function HeroHeader({
   regimeScore,
   scoreDetails,
   variant = "lage",
+  tradeStep,
 }: {
   initialState: MarketState | null;
   initialRegime: MarketRegime | null;
@@ -223,6 +225,8 @@ export default function HeroHeader({
   // Scores, MTF und KI-Bericht als Kachel im Reiter Archiv. Beide Instanzen
   // pollen nur, was sie selbst zeigen.
   variant?: "lage" | "hintergrund";
+  // Daten fuer Handlungszeile und Markt-Zeile (nur variant "lage").
+  tradeStep?: DecisionProps;
 }) {
   const isLage = variant === "lage";
   const [state, setState] = useState(initialState);
@@ -471,32 +475,38 @@ export default function HeroHeader({
         <RelativeTime iso={state.timestamp_utc} className="text-[11px] text-text-faint" />
       </div>
 
-      <div className="space-y-1.5">
-        {livePrice !== null && (
+      {/* 25.10.2026 (Toby): von den vier Zeitebenen bleiben 4H (Struktur) und
+          1D (Trend, D13) -- 1H und 1W nutzt er kaum. */}
+      {livePrice !== null && (
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
           <p className="tabular font-mono text-3xl font-medium text-text">
             {livePrice.toLocaleString("de-CH", { maximumFractionDigits: 0 })}{" "}
             <span className="text-xs font-sans text-text-faint">USD · Bybit</span>
           </p>
-        )}
-        {priceChanges.length > 0 && (
-          <dl className="grid grid-cols-4 gap-x-3 text-xs tabular font-mono">
-            {priceChanges.map(({ label, abs, pct }) => (
-              <div key={label}>
-                <dt className="text-text-faint font-sans">{label}</dt>
-                <dd className={abs >= 0 ? "text-up" : "text-down"}>
-                  {abs >= 0 ? "▲" : "▼"} {formatUsd(Math.abs(abs), 0)}
-                </dd>
-                <dd className={abs >= 0 ? "text-up" : "text-down"}>
-                  {pct >= 0 ? "+" : ""}
-                  {pct.toFixed(1)} %
-                </dd>
-              </div>
+          {priceChanges
+            .filter(({ label }) => label === "4H" || label === "1D")
+            .map(({ label, pct }) => (
+              <span key={label} className="text-xs tabular font-mono">
+                <span className="font-sans text-text-faint">{label} </span>
+                <span className={pct >= 0 ? "text-up" : "text-down"}>
+                  {pct >= 0 ? "+" : "−"}
+                  {Math.abs(pct).toFixed(1)} %
+                </span>
+              </span>
             ))}
-          </dl>
-        )}
-      </div>
+        </div>
+      )}
 
-      {plan && <p className="text-base font-medium text-text leading-snug">{plan}</p>}
+      {tradeStep && (
+        <HeadStatus
+          tradeStep={tradeStep}
+          plan={plan}
+          oiChangePct={marketContext.oiChangePct}
+          spotNetFlowPct={marketContext.spotNetFlowPct}
+          contextLabel={marketContext.result.label}
+          contextBias={marketContext.result.bias}
+        />
+      )}
 
       {!lastSyncOk && (
         <p className="text-xs text-down">

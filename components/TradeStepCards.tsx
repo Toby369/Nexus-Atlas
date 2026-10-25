@@ -39,6 +39,9 @@ const VERDICT_TONE = { trade: "ok", wait: "neutral", stop: "stop" } as const;
 const VETO_TONE = { ok: "ok", warnung: "warn", veto: "stop" } as const;
 
 const JOURNAL_KEY = "nexus-atlas-journal-day-v1";
+// Kopf-Zeile und Veto-Kachel lesen denselben Zaehler; nach jeder Aenderung
+// benachrichtigt dieses Event die jeweils andere Instanz.
+const JOURNAL_EVENT = "nexus-atlas-journal-change";
 const UPDATE_INTERVAL_MS = 30_000;
 
 function zurichDate(ms: number): string {
@@ -48,21 +51,27 @@ function zurichDate(ms: number): string {
 function useDayJournal() {
   const [journal, setJournal] = useState({ trades: 0, losses: 0 });
   useEffect(() => {
-    queueMicrotask(() => {
+    const load = () => {
       try {
         const stored = JSON.parse(window.localStorage.getItem(JOURNAL_KEY) ?? "null");
-        if (stored?.date === zurichDate(Date.now())) {
-          setJournal({ trades: Number(stored.trades) || 0, losses: Number(stored.losses) || 0 });
-        }
+        setJournal(
+          stored?.date === zurichDate(Date.now())
+            ? { trades: Number(stored.trades) || 0, losses: Number(stored.losses) || 0 }
+            : { trades: 0, losses: 0 }
+        );
       } catch {
         // Privater Modus o.ae.: Zaehler starten bei 0.
       }
-    });
+    };
+    queueMicrotask(load);
+    window.addEventListener(JOURNAL_EVENT, load);
+    return () => window.removeEventListener(JOURNAL_EVENT, load);
   }, []);
   const update = (next: { trades: number; losses: number }) => {
     setJournal(next);
     try {
       window.localStorage.setItem(JOURNAL_KEY, JSON.stringify({ date: zurichDate(Date.now()), ...next }));
+      window.dispatchEvent(new Event(JOURNAL_EVENT));
     } catch {
       // s.o.
     }
@@ -144,7 +153,8 @@ export function RuleCheckCard(props: DecisionProps) {
   );
 }
 
-export function VetoCard(props: DecisionProps) {
+/** Regelcheck, Veto und Flow-Daten -- geteilt von Veto-Kachel und Kopf-Zeile (HeroHeader). */
+export function useTradeStatus(props: DecisionProps) {
   const { events, timeframe } = props;
   const check = useRuleCheck(props);
   const { latest } = useLivePriceData();
@@ -182,6 +192,11 @@ export function VetoCard(props: DecisionProps) {
     lossesInRow: journal.losses,
   });
   const summary = vetoSummary(veto);
+  return { check, veto, summary, spotPerp, journal, setJournal };
+}
+
+export function VetoCard(props: DecisionProps) {
+  const { veto, summary, journal, setJournal } = useTradeStatus(props);
 
   return (
     <StepCard step={4} title="Veto vor dem Klick" line={summary.short} tone={VETO_TONE[summary.tone]} info={vetoInfo}>

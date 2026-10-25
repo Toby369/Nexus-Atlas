@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
-import { DASHBOARD_TABS, DEFAULT_DASHBOARD_TAB } from "@/lib/dashboardTabs";
+import { DASHBOARD_TABS, DEFAULT_DASHBOARD_TAB, OPEN_TAB_EVENT } from "@/lib/dashboardTabs";
 
 // Reiter-Navigation: jeder Reiter zeigt nur die Kacheln EINES Themas.
 //
@@ -13,12 +13,32 @@ import { DASHBOARD_TABS, DEFAULT_DASHBOARD_TAB } from "@/lib/dashboardTabs";
 // Bewusst reiner Client-State statt URL-Query-Param: der sichtbare Reiter
 // aendert nichts an den Server-Daten (alle Kacheln sind serverseitig
 // gerendert, siehe tiles-Prop).
-export default function DashboardTabNav({ tiles }: { tiles: Record<string, ReactNode> }) {
+export default function DashboardTabNav({
+  tiles,
+  tabHeaders = {},
+}: {
+  tiles: Record<string, ReactNode>;
+  // Optionaler Inhalt ueber den Kacheln eines Reiters (z.B. Zeitraum im Reiter Markt).
+  tabHeaders?: Record<string, ReactNode>;
+}) {
   const [activeTab, setActiveTab] = useState(DEFAULT_DASHBOARD_TAB);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // Kopf-Zeile (HeadStatus) springt per Event in einen Reiter.
+  useEffect(() => {
+    const open = (e: Event) => {
+      const id = (e as CustomEvent<string>).detail;
+      if (!DASHBOARD_TABS.some((tab) => tab.id === id)) return;
+      setActiveTab(id);
+      rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    window.addEventListener(OPEN_TAB_EVENT, open);
+    return () => window.removeEventListener(OPEN_TAB_EVENT, open);
+  }, []);
   const activeTabMeta = DASHBOARD_TABS.find((tab) => tab.id === activeTab) ?? DASHBOARD_TABS[0];
 
   return (
-    <div className="space-y-3">
+    <div ref={rootRef} className="space-y-3 scroll-mt-2">
       <div role="tablist" aria-label="Dashboard-Bereiche" className="flex gap-1 flex-wrap border-b border-border pb-2">
         {DASHBOARD_TABS.map((tab) => (
           <button
@@ -37,6 +57,8 @@ export default function DashboardTabNav({ tiles }: { tiles: Record<string, React
           </button>
         ))}
       </div>
+
+      {tabHeaders[activeTabMeta.id]}
 
       {activeTabMeta.fixed ? (
         <div className="space-y-3">

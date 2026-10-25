@@ -664,15 +664,6 @@ export default async function Home({
             initialBundle={initialDashboardBundle}
             initialFetchedSinceIso={timeframeSinceIsoValue}
           >
-            {/* Zeitraum ist eine globale Steuerung (wirkt auf mehrere Kacheln
-                unten) und steht deshalb vor dem Lagebild, nicht hinter einem
-                Klick versteckt. */}
-            <div className="flex items-center" aria-label="Zeitraum">
-              <Suspense fallback={<div className="h-6" />}>
-                <TimeframeSelector current={timeframe} />
-              </Suspense>
-            </div>
-
             <LivePriceDataProvider
                 timeframe={timeframe}
                 initialSnapshots={snapshots}
@@ -686,9 +677,21 @@ export default async function Home({
                     stehen im Reiter "Trade", Scores und KI-Bericht als Kachel
                     "lage-hintergrund" im Archiv. Sitzt innerhalb von
                     LivePriceDataProvider, um den Live-Preis zu zeigen. */}
-                <HeroHeader {...heroProps} />
+                <HeroHeader {...heroProps} tradeStep={tradeStepProps} />
 
                 <DashboardTabNav
+                  // 25.10.2026 (Toby): Zeitraum nutzt er selten -- er steht nur
+                  // noch im Reiter Markt und gilt fuer OI, Spot und CVD (auch im Kopf).
+                  tabHeaders={{
+                    markt: (
+                      <div className="flex flex-wrap items-center gap-2" aria-label="Zeitraum">
+                        <span className="text-[11px] text-text-faint">Zeitraum für OI, Spot und CVD</span>
+                        <Suspense fallback={<div className="h-6" />}>
+                          <TimeframeSelector current={timeframe} />
+                        </Suspense>
+                      </div>
+                    ),
+                  }}
                   tiles={{
                     zones: (
                       <ZonesCard
