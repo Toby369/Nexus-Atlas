@@ -341,3 +341,7 @@ Grün heisst erfüllt, rot heisst kein Trade, grau heisst noch offen. Die Kerzen
 export const vetoInfo = `So liest du das: Die letzte Prüfung vor dem Klick. Funding ab 0,03 % pro 8 h und eine einseitige Masse (ab 65 % Long-Konten oder unter 50 %) warnen nur, wenn sie auf deiner Seite stehen: Dann bist du Teil der überfüllten Seite, also kleinere Position. „Treibt Spot mit?“ vergleicht Spot- und Perp-Netto-Flow im gewählten Zeitraum; trägt nur der Hebel die Bewegung, ist sie fragil.
 
 Ein Veto (rot) sperrt den Einstieg: ein Hochrisiko-Zeitfenster (US-Kasseneröffnung, CPI/PCE/NFP, FOMC) läuft oder beginnt in den nächsten 30 Minuten, du hast heute schon 3 Trades oder 2 Verluste in Folge. Trades und Verluste trägst du unten selbst ein; sie gelten nur für heute und nur in diesem Browser.`;
+
+export const headMarketInfo = `So liest du das: OI ist die Veränderung des Open Interest über den gewählten Zeitraum (Standard 4H, umstellbar im Reiter Markt). Spot ist der Netto-Kaufdruck auf Binance Spot, also Käufe minus Verkäufe der aggressiven Seite in Prozent des Volumens. CVD Perp ist dasselbe auf den Binance-Perps. Funding ist die aktuelle Rate pro 8 h.
+
+Die Deutung darunter kombiniert Preis, OI und Spot zu einem Szenario (Long-Aufbau, Short-Aufbau, Short-Covering, Long-Abbau) und nennt den Treiber aus dem Vergleich Spot gegen Perp. Details stehen im Reiter Markt unter Marktkontext.`;

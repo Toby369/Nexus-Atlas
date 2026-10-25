@@ -42,6 +42,9 @@ export const DASHBOARD_TABS: DashboardTabMeta[] = [
 
 export const DEFAULT_DASHBOARD_TAB = DASHBOARD_TABS[0].id;
 
+/** Window-Event mit der Reiter-ID als detail, z.B. aus der Kopf-Zeile ("trade"). */
+export const OPEN_TAB_EVENT = "nexus-atlas-open-tab";
+
 // Ehrlichkeits-/Vollstaendigkeits-Absicherung (gleiches Prinzip wie an
 // anderen Stellen dieser Session): eine neue Kachel, die in
 // lib/dashboardTiles.ts registriert, aber hier vergessen wird, wuerde sonst
