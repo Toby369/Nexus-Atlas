@@ -200,7 +200,9 @@ export default function MarketContextCard({
         bewusst konservativ gewählt.
       </p>
 
-      <details className="mt-4 pt-3 border-t border-border/60">
+      {/* 25.10.2026 (Toby): Spot Pressure und "Wer treibt" (inkl. CVD) sind ihm
+          wichtig -- beide Aufklapper starten offen. */}
+      <details open className="mt-4 pt-3 border-t border-border/60">
         <summary className="flex items-center justify-between gap-2 cursor-pointer select-none">
           <span className="flex items-center gap-1.5">
             <span className="text-[11px] uppercase tracking-[0.12em] text-text-faint">
@@ -309,7 +311,7 @@ export default function MarketContextCard({
         </div>
       </details>
 
-      <details className="mt-3 pt-3 border-t border-border/60">
+      <details open className="mt-3 pt-3 border-t border-border/60">
         <summary className="flex items-center justify-between gap-2 cursor-pointer select-none">
           <span className="text-[11px] uppercase tracking-[0.12em] text-text-faint">
             Wer treibt: Spot, Perp, Coinbase

@@ -115,3 +115,23 @@ export function evaluateVeto(input: VetoInput): VetoRow[] {
 
   return rows;
 }
+
+const SHORT_NAME: Record<VetoRow["id"], string> = {
+  funding: "Funding",
+  crowd: "Masse",
+  driver: "Spot treibt nicht",
+  events: "Termin",
+  journal: "Tageslimit",
+};
+
+/** Eine Zeile fuer die eingeklappte Veto-Kachel. */
+export function vetoSummary(rows: VetoRow[]): { tone: "ok" | "warnung" | "veto"; short: string } {
+  const vetos = rows.filter((r) => r.answer === "veto");
+  if (vetos.length > 0) {
+    const ev = vetos.find((r) => r.id === "events");
+    return { tone: "veto", short: `Veto: ${ev ? ev.detail.split(".")[0] : vetos.map((r) => SHORT_NAME[r.id]).join(", ")}` };
+  }
+  const warns = rows.filter((r) => r.answer === "warnung");
+  if (warns.length > 0) return { tone: "warnung", short: `Warnung: ${warns.map((r) => SHORT_NAME[r.id]).join(", ")}` };
+  return { tone: "ok", short: "Frei" };
+}

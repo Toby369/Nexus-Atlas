@@ -6,19 +6,19 @@ import { useLivePriceData } from "@/components/LivePriceDataProvider";
 import { useDashboardPoll } from "@/components/DashboardPollProvider";
 import { useSpotPerpSummary } from "@/components/SpotPerpFlowPanel";
 import { WARNING_LABELS } from "@/components/TradingHoursBadge";
-import PanelInfo from "@/components/PanelInfo";
+import StepCard from "@/components/StepCard";
 import { ruleCheckInfo, vetoInfo } from "@/lib/panelInfo";
-import type { Candle4h } from "@/lib/fourHourBreakout";
+import type { Candle } from "@/lib/candles";
 import { evaluateRuleCheck, type CheckAnswer } from "@/lib/ruleCheck";
-import { evaluateVeto, MAX_LOSSES_IN_ROW, MAX_TRADES_PER_DAY, type VetoAnswer } from "@/lib/veto";
+import { evaluateVeto, vetoSummary, MAX_LOSSES_IN_ROW, MAX_TRADES_PER_DAY, type VetoAnswer } from "@/lib/veto";
 import { fundingPctPer8h } from "@/lib/fundingLevels";
 import { summarizePositioning } from "@/lib/positioning";
 import { nextHighRiskWindow, type EconomicEventRow } from "@/lib/tradingHours";
 import { getTimeframe, type TimeframeId } from "@/lib/timeframes";
 
-// Schritte 3 und 4 im Dashboard (Toby 22.10.2026): Regelcheck aus den
-// Kerzen und das Veto vor dem Klick. Beide Karten teilen die Richtung des
-// juengsten 4H-Koerperausbruchs. Trades und Verluste des Tages fuehrt Toby
+// Schritte 3 und 4 im Reiter "Trade" (Toby 22./25.10.2026): Regelcheck aus
+// den Kerzen und das Veto vor dem Klick. Das Veto nutzt die Richtung des
+// juengsten 4H-Koerperausbruchs aus dem Regelcheck. Trades und Verluste des Tages fuehrt Toby
 // per Tippen nach (nur in diesem Browser gespeichert).
 
 const ANSWER_STYLE: Record<CheckAnswer | VetoAnswer, string> = {
@@ -35,6 +35,8 @@ const VERDICT_STYLE = {
   wait: "border-border text-text",
   stop: "border-down/40 text-down",
 };
+const VERDICT_TONE = { trade: "ok", wait: "neutral", stop: "stop" } as const;
+const VETO_TONE = { ok: "ok", warnung: "warn", veto: "stop" } as const;
 
 const JOURNAL_KEY = "nexus-atlas-journal-day-v1";
 const UPDATE_INTERVAL_MS = 30_000;
@@ -107,37 +109,44 @@ function Stepper({ label, value, max, onChange }: { label: string; value: number
   );
 }
 
-function CardHead({ step, title, info, infoTitle, right }: { step: number; title: string; info: string; infoTitle: string; right?: string }) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="flex items-center gap-1.5">
-        <h2 className="text-[11px] uppercase tracking-[0.14em] text-text-faint">
-          <span className="font-mono text-accent">{step}</span> · {title}
-        </h2>
-        <PanelInfo title={infoTitle} content={info} />
-      </span>
-      {right && <span className="text-[11px] font-semibold text-text-muted">{right}</span>}
-    </div>
-  );
-}
-
-export default function DecisionCards({
-  keyLevels,
-  candles4h,
-  candles1h,
-  candles15m,
-  ema13,
-  events,
-  timeframe,
-}: {
+export interface DecisionProps {
   keyLevels: { price: number }[];
-  candles4h: Candle4h[];
-  candles1h: Candle4h[];
-  candles15m: Candle4h[];
+  candles4h: Candle[];
+  candles1h: Candle[];
+  candles15m: Candle[];
   ema13: number | null;
   events: EconomicEventRow[];
   timeframe: TimeframeId;
-}) {
+}
+
+function useRuleCheck({ keyLevels, candles4h, candles1h, candles15m, ema13 }: DecisionProps) {
+  const { latest } = useLivePriceData();
+  const price = latest?.last_price ?? null;
+  return evaluateRuleCheck({ levels: keyLevels, price, candles4h, candles1h, candles15m, ema13 });
+}
+
+export function RuleCheckCard(props: DecisionProps) {
+  const check = useRuleCheck(props);
+  return (
+    <StepCard step={3} title="Regelcheck" line={check.verdict.short} tone={VERDICT_TONE[check.verdict.tone]} info={ruleCheckInfo}>
+      <div>
+        {check.rows.map((r) => (
+          <Row key={r.id} question={r.question} label={r.label} detail={r.detail} tone={ANSWER_STYLE[r.answer]} />
+        ))}
+      </div>
+      <p className={`rounded-md border px-3 py-2 text-sm font-medium ${VERDICT_STYLE[check.verdict.tone]}`}>
+        {check.verdict.text}
+      </p>
+      <Link href="/lernen" className="inline-block text-[11px] text-text-faint hover:text-text">
+        Alle Fragen mit Risiko-Rechner: Trade-Entscheider unter Lernen →
+      </Link>
+    </StepCard>
+  );
+}
+
+export function VetoCard(props: DecisionProps) {
+  const { events, timeframe } = props;
+  const check = useRuleCheck(props);
   const { latest } = useLivePriceData();
   const { bundle, fetchedSinceIso } = useDashboardPoll();
   const [journal, setJournal] = useDayJournal();
@@ -149,9 +158,6 @@ export default function DecisionCards({
     const interval = setInterval(update, UPDATE_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [events]);
-
-  const price = latest?.last_price ?? null;
-  const check = evaluateRuleCheck({ levels: keyLevels, price, candles4h, candles1h, candles15m, ema13 });
 
   const spotSummary = bundle.spot_summary;
   const spotPerp = useSpotPerpSummary({
@@ -175,55 +181,29 @@ export default function DecisionCards({
     tradesToday: journal.trades,
     lossesInRow: journal.losses,
   });
-  const vetoCount = veto.filter((r) => r.answer === "veto").length;
-  const warnCount = veto.filter((r) => r.answer === "warnung").length;
-  const sideLabel = check.side === "long" ? "Long" : check.side === "short" ? "Short" : undefined;
+  const summary = vetoSummary(veto);
 
   return (
-    <>
-      <section className="rounded-lg border border-border bg-surface p-4 space-y-2">
-        <CardHead step={3} title="Regelcheck" infoTitle="Regelcheck" info={ruleCheckInfo} right={sideLabel} />
-        <div>
-          {check.rows.map((r) => (
-            <Row key={r.id} question={r.question} label={r.label} detail={r.detail} tone={ANSWER_STYLE[r.answer]} />
-          ))}
-        </div>
-        <p className={`rounded-md border px-3 py-2 text-sm font-medium ${VERDICT_STYLE[check.verdict.tone]}`}>
-          {check.verdict.text}
-        </p>
-        <Link href="/lernen" className="inline-block text-[11px] text-text-faint hover:text-text">
-          Alle Fragen mit Risiko-Rechner: Trade-Entscheider unter Lernen →
-        </Link>
-      </section>
-
-      <section className="rounded-lg border border-border bg-surface p-4 space-y-2">
-        <CardHead
-          step={4}
-          title="Veto vor dem Klick"
-          infoTitle="Veto vor dem Klick"
-          info={vetoInfo}
-          right={vetoCount > 0 ? "Veto" : warnCount > 0 ? `${warnCount} Warnung${warnCount > 1 ? "en" : ""}` : "Frei"}
+    <StepCard step={4} title="Veto vor dem Klick" line={summary.short} tone={VETO_TONE[summary.tone]} info={vetoInfo}>
+      <div>
+        {veto.map((r) => (
+          <Row key={r.id} question={r.question} label={r.label} detail={r.detail} tone={ANSWER_STYLE[r.answer]} />
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-border/60 pt-2">
+        <Stepper
+          label="Trades heute"
+          value={journal.trades}
+          max={MAX_TRADES_PER_DAY}
+          onChange={(trades) => setJournal({ ...journal, trades })}
         />
-        <div>
-          {veto.map((r) => (
-            <Row key={r.id} question={r.question} label={r.label} detail={r.detail} tone={ANSWER_STYLE[r.answer]} />
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-border/60 pt-2">
-          <Stepper
-            label="Trades heute"
-            value={journal.trades}
-            max={MAX_TRADES_PER_DAY}
-            onChange={(trades) => setJournal({ ...journal, trades })}
-          />
-          <Stepper
-            label="Verluste in Folge"
-            value={journal.losses}
-            max={MAX_LOSSES_IN_ROW}
-            onChange={(losses) => setJournal({ ...journal, losses })}
-          />
-        </div>
-      </section>
-    </>
+        <Stepper
+          label="Verluste in Folge"
+          value={journal.losses}
+          max={MAX_LOSSES_IN_ROW}
+          onChange={(losses) => setJournal({ ...journal, losses })}
+        />
+      </div>
+    </StepCard>
   );
 }

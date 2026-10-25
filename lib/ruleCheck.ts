@@ -1,5 +1,4 @@
-import type { Candle4h as Candle } from "./fourHourBreakout";
-import { intervalMs } from "./fourHourBreakout";
+import { intervalMs, type Candle } from "./candles";
 import { ENTRY_LEVEL_TOLERANCE_PCT } from "./tpStandard";
 import { nearestZones, type ZoneLevel } from "./zones";
 
@@ -28,7 +27,8 @@ export interface RuleCheckResult {
   side: Side | null;
   level: number | null;
   rows: RuleCheckRow[];
-  verdict: { tone: "trade" | "wait" | "stop"; text: string };
+  /** short = eine Zeile fuer die eingeklappte Kachel. */
+  verdict: { tone: "trade" | "wait" | "stop"; short: string; text: string };
 }
 
 export interface RuleCheckInput {
@@ -42,6 +42,21 @@ export interface RuleCheckInput {
 }
 
 export const MIN_TARGET_DISTANCE_PCT = 1;
+
+const SHORT_STOP: Record<RuleCheckRow["id"], string> = {
+  break4h: "kein 4H-Ausbruch",
+  retest1h: "Retest gescheitert",
+  confirm15m: "Bestätigung gescheitert",
+  distance: "Ziel unter 1 %",
+  d13: "gegen D13",
+};
+const SHORT_OPEN: Record<RuleCheckRow["id"], string> = {
+  break4h: "4H-Schluss abwarten",
+  retest1h: "1H-Retest abwarten",
+  confirm15m: "15m-Bestätigung abwarten",
+  distance: "Ziel prüfen",
+  d13: "D13 prüfen",
+};
 
 const fmt = (n: number, d = 0) => n.toLocaleString("de-CH", { minimumFractionDigits: d, maximumFractionDigits: d });
 const time = (iso: string) =>
@@ -98,6 +113,7 @@ export function evaluateRuleCheck(input: RuleCheckInput): RuleCheckResult {
       rows,
       verdict: {
         tone: "wait",
+        short: "Warten: kein 4H-Ausbruch",
         text:
           targets.length > 0
             ? `Kein gültiges Setup. Warten auf einen 4H-Körperschluss ${targets.join(" oder ")}.`
@@ -226,12 +242,19 @@ export function evaluateRuleCheck(input: RuleCheckInput): RuleCheckResult {
   const warn = rows.find((r) => r.answer === "warnung");
   const sideLabel = side === "long" ? "Long" : "Short";
   let verdict: RuleCheckResult["verdict"];
-  if (stop) verdict = { tone: "stop", text: `Kein ${sideLabel}: ${stop.detail}` };
-  else if (open) verdict = { tone: "wait", text: `${sideLabel} ${sideWord} ${fmt(level)} möglich. Warten: ${open.detail}` };
+  if (stop) verdict = { tone: "stop", short: `Kein ${sideLabel}: ${SHORT_STOP[stop.id]}`, text: `Kein ${sideLabel}: ${stop.detail}` };
+  else if (open)
+    verdict = {
+      tone: "wait",
+      short: `${sideLabel} ${sideWord} ${fmt(level)}: ${SHORT_OPEN[open.id]}`,
+      text: `${sideLabel} ${sideWord} ${fmt(level)} möglich. Warten: ${open.detail}`,
+    };
   else
     verdict = {
       tone: "trade",
-      text: `${sideLabel}-Setup steht. Veto prüfen, dann Einstieg nach Plan.${warn ? " Achtung: gegen D13." : ""}`,
+      short: `${sideLabel}-Setup steht${warn ? " (gegen D13)" : ""}`,
+      // Nexus-Keylevels sind nur der Abgleich, massgebend ist Tobys eigener Chart.
+      text: `${sideLabel}-Setup steht. Mit deinem Chart abgleichen, Veto prüfen, dann Einstieg nach Plan.${warn ? " Achtung: gegen D13." : ""}`,
     };
   return { side, level, rows, verdict };
 }
