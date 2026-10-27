@@ -49,8 +49,8 @@ export const ENTRY_LEVEL_TOLERANCE_PCT = 0.25;
 // Nur Levels auf der richtigen Seite des aktuellen Kurses zaehlen -- die
 // Einordnung "resistance"/"support" stammt vom Zeitpunkt der Berechnung,
 // der Live-Preis kann inzwischen darueber/darunter liegen.
-export function computeTpSuggestions(
-  levels: { price: number; side: "resistance" | "support" }[],
+export function computeTpSuggestions<L extends { price: number }>(
+  levels: L[],
   price: number | null,
   dailyTrend: "bullish" | "bearish" | null = null
 ): TpSuggestion[] {
