@@ -125,7 +125,23 @@ const ANALYSIS_JARGON = /\b(Trendfilter\w*|Regelwerk\w*|Teil-?[Aa]nalyse\w*|Span
 const INVERTED_ZONE_LOGIC: RegExp[] = [
   /solange[^.;]*(unterstützung|support)[^.;]*h(ä|ae)lt[^.;]*(abwärts|abwaerts|verkaufsdruck|bärisch|baerisch)[^.;]*(hoch|erhöht|erhoeht|bestehen|erhalten|intakt|zunehm)/i,
   /solange[^.;]*widerstand[^.;]*h(ä|ae)lt[^.;]*(aufwärts|aufwaerts|kaufdruck|bullisch|erholung)[^.;]*(hoch|erhöht|erhoeht|bestehen|erhalten|intakt|zunehm)/i,
+  // Push vom 27.10.2026: "solange 80'089-80'430 USD nicht klar durchbrochen
+  // werden, ist das Abwaertsrisiko begrenzt" -- wer eine Zone nach OBEN nicht
+  // ueberwindet, begrenzt das Aufwaertspotenzial, nicht das Abwaertsrisiko.
+  /solange[^.;]*nicht[^.;]*(überwunden|ueberwunden|zurückerobert|zurueckerobert|überschritten|ueberschritten|durchbrochen)[^.;]*(abwärtsrisiko|abwaertsrisiko|risiko nach unten)[^.;]*begrenzt/i,
+  // Widerspruch im selben Satz: "Abwaertsrisiko begrenzt, doch ... Abwaertsdruck".
+  /(abwärtsrisiko|abwaertsrisiko)[^.]*begrenzt[^.]*(doch|aber|jedoch)[^.]*(abwärtsdruck|abwaertsdruck|druck nach unten)/i,
 ];
+
+// Indikatornamen gehoeren nicht in die Kernaussage (Push/Mail-Kopf): sie sind
+// nicht Teil von Tobys Regelwerk und machen den Satz unverstaendlich.
+const KERNAUSSAGE_INDICATORS = /\b(EMA|VWAP|RSI|MACD|ADX|CVD)\b/;
+
+export function kernaussageIndicatorErrors(value: unknown, key: string): string[] {
+  if (typeof value !== "string") return [];
+  const hit = KERNAUSSAGE_INDICATORS.exec(value);
+  return hit ? [`"${key}" nennt den Indikator "${hit[0]}" -- nur Kurs, Zonen und Richtung.`] : [];
+}
 
 export function invertedZoneLogicErrors(value: unknown, key: string): string[] {
   if (typeof value !== "string") return [];
@@ -553,12 +569,16 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "'Heute und morgen stehen keine relevanten US-Wirtschaftsdaten an.' " +
       "fazit: bias (bullish/bearish/neutral -- verdichte regelwerkLeanBias und " +
       "chartLeanBias zu einem Urteil, nur bei echter Richtung, sonst neutral), " +
-      "confidence (0-100), kernaussage (1-2 Saetze, verdichtet Regelwerk und Chart; der " +
-      "erste Satz darf bias nicht widersprechen). Auch die kernaussage spricht ueber den " +
-      "Markt, nicht ueber die Analyse: statt 'Pattsituation zwischen stuetzenden " +
-      "Chartmustern und baerischen Trendfiltern' konkret 'BTC haelt die Unterstuetzung " +
-      "bei 82'600 USD, notiert aber unter EMA 200 und Tages-VWAP -- solange 83'400 USD " +
-      "nicht zurueckerobert ist, bleibt der Druck nach unten'. " +
+      "confidence (0-100), kernaussage (hoechstens 2 kurze Saetze, verdichtet Regelwerk und " +
+      "Chart; der erste Satz darf bias nicht widersprechen, der zweite nicht dem ersten). Die " +
+      "kernaussage spricht ueber den Markt, nicht ueber die Analyse, nennt hoechstens die " +
+      "naechste Zone darueber und darunter und KEINE Indikatornamen (kein EMA, VWAP, RSI). " +
+      "Zonen-Logik: haelt ein Widerstand, ist das Aufwaertspotenzial begrenzt; haelt eine " +
+      "Unterstuetzung, ist das Abwaertsrisiko begrenzt. Statt 'Pattsituation zwischen " +
+      "stuetzenden Chartmustern und baerischen Trendfiltern' konkret 'BTC steht zwischen " +
+      "Unterstuetzung 82'600 USD und Widerstand 83'400 USD. Erst ein 4H-Schluss ueber " +
+      "83'400 USD oeffnet den Weg nach oben, unter 82'600 USD droht der naechste " +
+      "Ruecksetzer.' " +
       "konfluenzCheck: NUR bei echtem inhaltlichem Widerspruch (Marktdaten vs. Regelwerk/" +
       "Chart, Aggregat vs. Faktoren, Chart vs. Regelwerk), 1-2 Saetze, sonst null. " +
       "aenderungSeitLetztem: previousBriefing vorhanden? 1-2 Saetze, was sich bei " +
@@ -601,6 +621,7 @@ export const promptProfiles: Record<string, PromptProfile> = {
         ...analysisJargonErrors(field(data, "schlagzeile"), "schlagzeile"),
         ...analysisJargonErrors(field(fazit, "kernaussage"), "fazit.kernaussage"),
         ...invertedZoneLogicErrors(field(fazit, "kernaussage"), "fazit.kernaussage"),
+        ...kernaussageIndicatorErrors(field(fazit, "kernaussage"), "fazit.kernaussage"),
         ...BRIEFING_REPORT_SECTIONS.flatMap((k) => invertedZoneLogicErrors(field(data, k), k))
       );
       return errors;

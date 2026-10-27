@@ -214,7 +214,10 @@ export async function POST(req: NextRequest) {
         .eq("id", 1)
         .maybeSingle();
       if (config && (config.email_enabled || config.push_enabled)) {
-        const { emailSent, pushSent } = await notifyBriefing(combined, config);
+        const { emailSent, pushSent } = await notifyBriefing(combined, config, {
+          kurs: context.btc_markt.kurs_usd,
+          levels: context.keyLevels,
+        });
         if (emailSent || pushSent) {
           const { error: flagError } = await supabaseAdmin
             .from("system_briefings")
