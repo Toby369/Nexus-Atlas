@@ -5,12 +5,62 @@ import TimeSeriesChart from "@/components/TimeSeriesChart";
 import PanelInfo from "@/components/PanelInfo";
 import { fundingRateInfo } from "@/lib/panelInfo";
 import { formatPercent, clockTimeLabel } from "@/lib/livePriceFormat";
-import { classifyFunding, fundingAnnualizedPct, fundingPctPer8h, type FundingTone } from "@/lib/fundingLevels";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { setVisibleInterval } from "@/lib/visibleInterval";
+import {
+  FUNDING_HISTORY_DAYS,
+  classifyFunding,
+  fundingAnnualizedPct,
+  fundingBaselineStatus,
+  fundingPctPer8h,
+  type FundingEvent,
+  type FundingTone,
+} from "@/lib/fundingLevels";
 import { useDashboardPoll } from "@/components/DashboardPollProvider";
 import { summarizePositioning } from "@/lib/positioning";
 
 // Datenquelle: gemeinsamer LivePriceDataProvider; Positionierung aus dem
-// DashboardPollProvider (Snapshots aller Boersen, 5-Min-Takt).
+// DashboardPollProvider (Snapshots aller Boersen, 5-Min-Takt). Die
+// Grundwert-Zeile fragt je den juengsten Bybit-Wert unter 0, ueber 0,01 %
+// und im Grundwert ab (drei Zeilen statt 30 Tage Verlauf).
+
+const HISTORY_EXCHANGE = "bybit";
+const HISTORY_REFRESH_MS = 15 * 60_000;
+
+interface FundingHistory {
+  lastNegative: FundingEvent | null;
+  lastAbove: FundingEvent | null;
+  lastBaseline: FundingEvent | null;
+  fetchedAt: number;
+}
+
+async function fetchLatest(filter: "negative" | "above" | "baseline"): Promise<FundingEvent | null> {
+  const since = new Date(Date.now() - FUNDING_HISTORY_DAYS * 86_400_000).toISOString();
+  let q = supabase
+    .from("market_snapshots")
+    .select("timestamp_utc, funding_rate")
+    .eq("exchange", HISTORY_EXCHANGE)
+    .gte("timestamp_utc", since);
+  if (filter === "negative") q = q.lt("funding_rate", 0);
+  else if (filter === "above") q = q.gt("funding_rate", 0.0001);
+  else q = q.gte("funding_rate", 0).lte("funding_rate", 0.0001);
+  const { data, error } = await q.order("timestamp_utc", { ascending: false }).limit(1).maybeSingle();
+  if (error) {
+    console.error(`FundingRateCard: Fehler beim Laden der Funding-Historie (${filter}):`, error.message);
+    return null;
+  }
+  return data ? { t: Date.parse(data.timestamp_utc as string), pct: fundingPctPer8h(Number(data.funding_rate)) } : null;
+}
+
+async function fetchHistory(): Promise<FundingHistory> {
+  const [lastNegative, lastAbove, lastBaseline] = await Promise.all([
+    fetchLatest("negative"),
+    fetchLatest("above"),
+    fetchLatest("baseline"),
+  ]);
+  return { lastNegative, lastAbove, lastBaseline, fetchedAt: Date.now() };
+}
 
 const TONE_STYLES: Record<FundingTone, string> = {
   calm: "border-border text-text-muted",
@@ -29,6 +79,21 @@ function formatAnnual(pct: number): string {
 export default function FundingRateCard() {
   const { latest, fundingSeries } = useLivePriceData();
   const { bundle } = useDashboardPoll();
+  const [history, setHistory] = useState<FundingHistory | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = () =>
+      fetchHistory().then((h) => {
+        if (!cancelled) setHistory(h);
+      });
+    load();
+    const stop = setVisibleInterval(load, HISTORY_REFRESH_MS);
+    return () => {
+      cancelled = true;
+      stop();
+    };
+  }, []);
   const positioning = summarizePositioning(
     [bundle.positioning_binance, bundle.positioning_bybit, bundle.positioning_okx, bundle.positioning_bitget],
     bundle.positioning_binance,
@@ -38,6 +103,16 @@ export default function FundingRateCard() {
 
   const level = classifyFunding(latest.funding_rate);
   const annualPct = latest.funding_rate === null ? null : fundingAnnualizedPct(fundingPctPer8h(latest.funding_rate));
+  const baseline =
+    history && latest.funding_rate !== null
+      ? fundingBaselineStatus(
+          fundingPctPer8h(latest.funding_rate),
+          history.lastNegative,
+          history.lastAbove,
+          history.lastBaseline,
+          history.fetchedAt,
+        )
+      : null;
 
   return (
     <div className="rounded-lg border border-border bg-surface p-4">
@@ -68,6 +143,15 @@ export default function FundingRateCard() {
         </div>
       )}
       <TimeSeriesChart data={fundingSeries} color="#4fae7c" formatAxisTime={clockTimeLabel} />
+      {baseline && (
+        <div className="mt-2 space-y-0.5">
+          {baseline.lines.map((line, i) => (
+            <p key={line} className={`text-[11px] ${i === 0 ? "text-text-muted" : "text-text-faint"}`}>
+              {line}
+            </p>
+          ))}
+        </div>
+      )}
       {positioning && (
         <div className="mt-3 pt-3 border-t border-border/60 space-y-1.5" title={positioning.hint}>
           <div className="flex items-center justify-between gap-2">
