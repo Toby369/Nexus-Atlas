@@ -15,3 +15,9 @@ create policy "Public read access" on public.own_zones for select using (true);
 grant select on public.own_zones to anon, authenticated;
 grant select, insert, update, delete on public.own_zones to service_role;
 grant usage on sequence public.own_zones_id_seq to service_role;
+
+-- Bis 30.10.2026 vergibt Supabase neuen Tabellen noch automatisch ALLE Rechte
+-- an anon/authenticated. RLS wuerde Schreiben zwar blockieren, TRUNCATE aber
+-- nicht -- darum explizit auf reines Lesen zuruecknehmen.
+revoke insert, update, delete, truncate, references, trigger on public.own_zones from anon, authenticated;
+revoke usage on sequence public.own_zones_id_seq from anon, authenticated;
