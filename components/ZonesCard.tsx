@@ -7,6 +7,7 @@ import StepCard from "@/components/StepCard";
 import { zonesInfo } from "@/lib/panelInfo";
 import { nearestLiquidationTargets, nearestZones, type LiquidationTarget, type ZoneRow } from "@/lib/zones";
 import type { OwnZone } from "@/lib/ownZones";
+import { STOP_LOSS_PCT } from "@/lib/veto";
 import { computeTpSuggestions, type TpSuggestion } from "@/lib/tpStandard";
 
 // Zonen-Kachel (Schritt 2 im Dashboard, Toby 22.10.2026): naechste
@@ -15,7 +16,6 @@ import { computeTpSuggestions, type TpSuggestion } from "@/lib/tpStandard";
 // beantwortet der Regelcheck (lib/ruleCheck.ts).
 // 27.10.2026: eigene Zonen haben Vorrang (Nexus-Keylevels nur Abgleich), dazu
 // je Seite die naechste Liquidations-Zone als Ziel (Regelwerk Punkt 7).
-const STOP_PCT = 0.5;
 
 const fmt = (n: number) => n.toLocaleString("de-CH", { maximumFractionDigits: 0 });
 
@@ -42,7 +42,7 @@ function ZoneBox({ zone, suggestion }: { zone: ZoneRow; suggestion?: TpSuggestio
         {suggestion && (
           <>
             {" · CRV "}
-            {(zone.distancePct / STOP_PCT).toFixed(1)}
+            {(zone.distancePct / STOP_LOSS_PCT).toFixed(1)}
             {" · "}
             <span className={suggestion.standard ? "text-text" : "text-down"}>{verdictText(suggestion)}</span>
           </>
@@ -185,7 +185,7 @@ export default function ZonesCard({
           .join(" · ") || "Keine Zonen in der Nähe";
 
   return (
-    <StepCard step={2} title="Zonen" line={line} tone="neutral" info={zonesInfo}>
+    <StepCard step={2} title="Zonen" line={line} tone="neutral" info={zonesInfo} usageId="zones">
       <p className="text-[11px] text-text-faint">{ownZones.length > 0 ? "Deine Zonen" : "Nexus-Keylevels"} · SL 0,5 %</p>
       <LiqLine dir="↑" target={liq.above} />
       {price === null || (above.length === 0 && below.length === 0) ? (

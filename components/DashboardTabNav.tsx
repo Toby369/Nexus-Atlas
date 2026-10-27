@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { DASHBOARD_TABS, DEFAULT_DASHBOARD_TAB, OPEN_TAB_EVENT } from "@/lib/dashboardTabs";
+import { logUsage } from "@/lib/tileUsage";
 
 // Reiter-Navigation: jeder Reiter zeigt nur die Kacheln EINES Themas.
 //
@@ -46,7 +47,10 @@ export default function DashboardTabNav({
             type="button"
             role="tab"
             aria-selected={activeTab === tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => {
+              setActiveTab(tab.id);
+              logUsage(`tab:${tab.id}`);
+            }}
             className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
               activeTab === tab.id
                 ? "border-accent/40 bg-accent/15 text-accent"

@@ -18,6 +18,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { DASHBOARD_TILES, DASHBOARD_TILE_IDS } from "@/lib/dashboardTiles";
+import { logUsage } from "@/lib/tileUsage";
 import { visibleOrder, reorderWithinSubset, swapWithinSubset } from "@/lib/dashboardTabReorder";
 
 const STORAGE_KEY = "nexus-atlas-dashboard-layout-v2";
@@ -402,14 +403,18 @@ function SortableTile({
           {isMinimized ? "+" : "−"}
         </button>
       </div>
-      {!isMinimized &&
-        (compact ? (
-          <div className="overflow-auto">{children}</div>
-        ) : (
-          <ResizableTileBody id={id} height={height} onResize={onHeightChange}>
-            {children}
-          </ResizableTileBody>
-        ))}
+      {/* Nutzungs-Zaehler: ein Klick irgendwo in die Kachel zaehlt als Nutzung. */}
+      {!isMinimized && (
+        <div onClickCapture={() => logUsage(`tile:${id}`)}>
+          {compact ? (
+            <div className="overflow-auto">{children}</div>
+          ) : (
+            <ResizableTileBody id={id} height={height} onResize={onHeightChange}>
+              {children}
+            </ResizableTileBody>
+          )}
+        </div>
+      )}
     </div>
   );
 }
