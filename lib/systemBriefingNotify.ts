@@ -1,6 +1,8 @@
 import { sendReportEmail } from "@/lib/email";
 import { sendReportPush } from "@/lib/push";
 import { splitLeadSentence } from "@/lib/briefingText";
+import { buildBriefingPush, withBtcPrefix } from "@/lib/briefingPush";
+import type { ZoneLevel } from "@/lib/zones";
 import type { SystemBriefingResult, SystemBriefingScenario } from "@/lib/types";
 
 // E-Mail und Push nach einem erfolgreichen System-Briefing (uebernommen vom
@@ -129,7 +131,9 @@ export interface BriefingNotifySettings {
 
 export async function notifyBriefing(
   result: SystemBriefingResult,
-  settings: BriefingNotifySettings
+  settings: BriefingNotifySettings,
+  // Kurs und Keylevels aus dem Briefing-Kontext -- daraus baut Nexus den Push-Text selbst.
+  market: { kurs: number | null; levels: ZoneLevel[] } = { kurs: null, levels: [] }
 ): Promise<{ emailSent: boolean; pushSent: boolean }> {
   let emailSent = false;
   let pushSent = false;
@@ -142,7 +146,7 @@ export async function notifyBriefing(
       const emailResult = await sendReportEmail({
         to,
         subject: result.schlagzeile
-          ? `BTC · ${result.schlagzeile}`
+          ? withBtcPrefix(result.schlagzeile)
           : `NEXUS Atlas · System-Briefing (${BIAS_STYLE[result.fazit.bias]?.label ?? result.fazit.bias})`,
         html: buildBriefingEmailHtml(result),
       });
@@ -157,11 +161,14 @@ export async function notifyBriefing(
   }
 
   if (settings.push_enabled) {
-    const pushResult = await sendReportPush({
-      title: result.schlagzeile ? `BTC · ${result.schlagzeile}` : "NEXUS Atlas · System-Briefing",
-      body: result.fazit.kernaussage,
-      url: "/",
+    const { title, body } = buildBriefingPush({
+      kurs: market.kurs,
+      levels: market.levels,
+      bias: result.fazit.bias,
+      schlagzeile: result.schlagzeile ?? null,
+      kernaussage: result.fazit.kernaussage,
     });
+    const pushResult = await sendReportPush({ title, body, url: "/" });
     if (!pushResult.attempted) {
       console.warn(`System-Briefing: Push konnte nicht versucht werden: ${pushResult.error}`);
     } else if (!pushResult.success) {
