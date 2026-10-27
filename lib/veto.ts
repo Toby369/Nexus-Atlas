@@ -11,7 +11,7 @@ import type { Side } from "./ruleCheck";
 export type VetoAnswer = "ok" | "warnung" | "veto" | "offen";
 
 export interface VetoRow {
-  id: "funding" | "crowd" | "driver" | "events" | "journal";
+  id: "funding" | "crowd" | "driver" | "stop" | "events" | "journal";
   question: string;
   answer: VetoAnswer;
   label: string;
@@ -29,10 +29,19 @@ export interface VetoInput {
   driverLabel: string | null;
   /** Naechstes Hochrisiko-Zeitfenster innerhalb von 30 Min, z.B. "US-Kasseneröffnung in 12 Min". */
   upcomingRisk: string | null;
+  /** Durchschnittliche 1H-Spanne (ATR 14) in % vom Kurs, siehe hourlyNoisePct(). */
+  noisePct: number | null;
   tradesToday: number;
   lossesInRow: number;
 }
 
+/** Tobys fester Stop-Loss in % vom Kurs. */
+export const STOP_LOSS_PCT = 0.5;
+export const NOISE_ATR_PERIOD = 14;
+// Binance 1H, 60 Tage bis 27.10.2026: ATR(14) im Median 0,50 % -- so gross wie
+// der Stop selbst (P25 0,38 %, P75 0,61 %). Gewarnt wird erst ab 0,6 %, also in
+// den unruhigsten ~25 % der Stunden; bei 0,5 % kaeme die Warnung jede 2. Stunde.
+export const NOISE_WARN_PCT = 0.6;
 export const MAX_TRADES_PER_DAY = 3;
 export const MAX_LOSSES_IN_ROW = 2;
 
@@ -91,6 +100,23 @@ export function evaluateVeto(input: VetoInput): VetoRow[] {
     });
   }
 
+  // Stop-Check (Toby 27.10.2026): liegt der feste Stop innerhalb der ueblichen
+  // 1H-Spanne, loest ihn schon das normale Hin und Her aus.
+  if (input.noisePct === null) {
+    rows.push({ id: "stop", question: `Markt ruhig genug für ${fmt(STOP_LOSS_PCT, 1)} % Stop?`, answer: "offen", label: "—", detail: "Keine 1H-Kerzen." });
+  } else {
+    const tooTight = input.noisePct >= NOISE_WARN_PCT;
+    rows.push({
+      id: "stop",
+      question: `Markt ruhig genug für ${fmt(STOP_LOSS_PCT, 1)} % Stop?`,
+      answer: tooTight ? "warnung" : "ok",
+      label: `${fmt(input.noisePct, 2)} %`,
+      detail: tooTight
+        ? `Eine 1H-Kerze schwankt im Schnitt ${fmt(input.noisePct, 2)} %: Stop zu eng, kleinere Position oder auslassen.`
+        : `Eine 1H-Kerze schwankt im Schnitt ${fmt(input.noisePct, 2)} %: normale Unruhe.`,
+    });
+  }
+
   rows.push({
     id: "events",
     question: "Kein Termin in den nächsten 30 Min?",
@@ -120,6 +146,7 @@ const SHORT_NAME: Record<VetoRow["id"], string> = {
   funding: "Funding",
   crowd: "Masse",
   driver: "Spot treibt nicht",
+  stop: "Stop zu eng",
   events: "Termin",
   journal: "Tageslimit",
 };
@@ -134,4 +161,21 @@ export function vetoSummary(rows: VetoRow[]): { tone: "ok" | "warnung" | "veto";
   const warns = rows.filter((r) => r.answer === "warnung");
   if (warns.length > 0) return { tone: "warnung", short: `Warnung: ${warns.map((r) => SHORT_NAME[r.id]).join(", ")}` };
   return { tone: "ok", short: "Frei" };
+}
+
+/** ATR (Wilder-Mittel der True Range) der letzten Kerzen in % vom letzten Schluss. */
+export function hourlyNoisePct(
+  candles: { high: number; low: number; close: number }[],
+  period = NOISE_ATR_PERIOD
+): number | null {
+  if (candles.length < period + 1) return null;
+  const recent = candles.slice(-(period + 1));
+  let sum = 0;
+  for (let i = 1; i < recent.length; i++) {
+    const c = recent[i];
+    const prevClose = recent[i - 1].close;
+    sum += Math.max(c.high - c.low, Math.abs(c.high - prevClose), Math.abs(c.low - prevClose));
+  }
+  const last = recent[recent.length - 1].close;
+  return last > 0 ? (sum / period / last) * 100 : null;
 }

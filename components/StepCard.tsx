@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import PanelInfo from "@/components/PanelInfo";
+import { logUsage } from "@/lib/tileUsage";
 
 // Kachel im Reiter "Trade" (Toby 25.10.2026, "kein Overinfo"): eingeklappt
 // nur Schritt, Titel und eine Zeile Ergebnis; Details per Antippen.
@@ -17,6 +18,7 @@ export default function StepCard({
   line,
   tone,
   info,
+  usageId,
   children,
 }: {
   step: number;
@@ -24,10 +26,15 @@ export default function StepCard({
   line: ReactNode;
   tone: keyof typeof STEP_TONE;
   info: string;
+  /** Fuer den Nutzungs-Zaehler, z.B. "zones" -> "step:zones". */
+  usageId: string;
   children: ReactNode;
 }) {
   return (
-    <details className="group rounded-lg border border-border bg-surface p-4">
+    <details
+      className="group rounded-lg border border-border bg-surface p-4"
+      onToggle={(e) => e.currentTarget.open && logUsage(`step:${usageId}`)}
+    >
       <summary className="flex cursor-pointer select-none list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
         <span className="min-w-0 space-y-1">
           <span className="block text-[11px] uppercase tracking-[0.14em] text-text-faint">

@@ -10,7 +10,7 @@ import StepCard from "@/components/StepCard";
 import { ruleCheckInfo, vetoInfo } from "@/lib/panelInfo";
 import type { Candle } from "@/lib/candles";
 import { evaluateRuleCheck, type CheckAnswer } from "@/lib/ruleCheck";
-import { evaluateVeto, vetoSummary, MAX_LOSSES_IN_ROW, MAX_TRADES_PER_DAY, type VetoAnswer } from "@/lib/veto";
+import { evaluateVeto, hourlyNoisePct, vetoSummary, MAX_LOSSES_IN_ROW, MAX_TRADES_PER_DAY, type VetoAnswer } from "@/lib/veto";
 import { fundingPctPer8h } from "@/lib/fundingLevels";
 import { summarizePositioning } from "@/lib/positioning";
 import { nextHighRiskWindow, type EconomicEventRow } from "@/lib/tradingHours";
@@ -136,7 +136,7 @@ function useRuleCheck({ keyLevels, candles4h, candles1h, candles15m }: DecisionP
 export function RuleCheckCard(props: DecisionProps) {
   const check = useRuleCheck(props);
   return (
-    <StepCard step={3} title="Regelcheck" line={check.verdict.short} tone={VERDICT_TONE[check.verdict.tone]} info={ruleCheckInfo}>
+    <StepCard step={3} title="Regelcheck" line={check.verdict.short} tone={VERDICT_TONE[check.verdict.tone]} info={ruleCheckInfo} usageId="rule-check">
       <div>
         {check.rows.map((r) => (
           <Row key={r.id} question={r.question} label={r.label} detail={r.detail} tone={ANSWER_STYLE[r.answer]} />
@@ -187,6 +187,7 @@ export function useTradeStatus(props: DecisionProps) {
     perp: spotPerp.result.perpDirection,
     driverLabel: spotPerp.result.verdict ? `${spotPerp.result.verdict.label}: ${spotPerp.result.verdict.text}` : null,
     upcomingRisk: risk ? `${WARNING_LABELS[risk.id]} ${risk.inMin === 0 ? "läuft jetzt" : `in ${risk.inMin} Min`}` : null,
+    noisePct: hourlyNoisePct(props.candles1h),
     tradesToday: journal.trades,
     lossesInRow: journal.losses,
   });
@@ -198,7 +199,7 @@ export function VetoCard(props: DecisionProps) {
   const { veto, summary, journal, setJournal } = useTradeStatus(props);
 
   return (
-    <StepCard step={4} title="Veto vor dem Klick" line={summary.short} tone={VETO_TONE[summary.tone]} info={vetoInfo}>
+    <StepCard step={4} title="Veto vor dem Klick" line={summary.short} tone={VETO_TONE[summary.tone]} info={vetoInfo} usageId="veto">
       <div>
         {veto.map((r) => (
           <Row key={r.id} question={r.question} label={r.label} detail={r.detail} tone={ANSWER_STYLE[r.answer]} />

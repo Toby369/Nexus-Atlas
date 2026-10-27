@@ -82,6 +82,7 @@ describe("evaluateVeto", () => {
     perp: "up" as const,
     driverLabel: null,
     upcomingRisk: null,
+    noisePct: 0.3,
     tradesToday: 0,
     lossesInRow: 0,
   };
@@ -103,6 +104,19 @@ describe("evaluateVeto", () => {
     expect(evaluateVeto({ ...base, upcomingRisk: "FOMC in 10 Min" }).find((r) => r.id === "events")?.answer).toBe("veto");
     expect(evaluateVeto({ ...base, tradesToday: 3 }).find((r) => r.id === "journal")?.answer).toBe("veto");
     expect(evaluateVeto({ ...base, lossesInRow: 2 }).find((r) => r.id === "journal")?.answer).toBe("veto");
+  });
+});
+
+describe("Stop-Check", () => {
+  it("warnt, wenn der Stop innerhalb des 1H-Rauschens liegt", async () => {
+    const { evaluateVeto: ev, hourlyNoisePct } = await import("./veto");
+    const base = { side: "long" as const, fundingPct: 0.01, crowdLongPct: 58, spot: "up" as const, perp: "up" as const, driverLabel: null, upcomingRisk: null, tradesToday: 0, lossesInRow: 0 };
+    expect(ev({ ...base, noisePct: 0.7 }).find((r) => r.id === "stop")?.answer).toBe("warnung");
+    expect(ev({ ...base, noisePct: 0.3 }).find((r) => r.id === "stop")?.answer).toBe("ok");
+    // 15 Kerzen mit je 1'000 Spanne bei 100'000 -> 1 %
+    const candles = Array.from({ length: 15 }, () => ({ high: 100_500, low: 99_500, close: 100_000 }));
+    expect(hourlyNoisePct(candles)).toBeCloseTo(1, 5);
+    expect(hourlyNoisePct(candles.slice(0, 5))).toBeNull();
   });
 });
 
