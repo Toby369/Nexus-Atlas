@@ -215,7 +215,7 @@ export default function HeroHeader({
   initialPriceReferences: PriceReference[];
   // Keylevels (Preis + Seite) aus getChartStructureData(), statisch pro
   // Seitenaufruf -- der TP-Standard-Vorschlag rechnet mit dem Live-Preis.
-  keyLevels: { price: number; side: "resistance" | "support" }[];
+  keyLevels: { price: number }[];
   // Setup-/Regime-Score als Kennzahlen oben, die vollstaendigen Karten
   // (scoreDetails) im Aufklapper "Warum?".
   setupScore: ConfluenceScoreResult;

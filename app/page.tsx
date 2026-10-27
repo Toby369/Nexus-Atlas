@@ -4,7 +4,8 @@ import { supabase } from "@/lib/supabase";
 import { fetchPriceReferences } from "@/lib/priceChanges";
 import { getChartStructureData } from "@/lib/chartStructureContext";
 import { fetchClosedCandles } from "@/lib/candles";
-import { getEma13 } from "@/lib/meinSystemContext";
+import { activeLevels, fetchOwnZones } from "@/lib/ownZones";
+import { bundleLiquidationZones } from "@/lib/leverageMap";
 import { RuleCheckCard, VetoCard } from "@/components/TradeStepCards";
 import { dailyTrendFromMtf } from "@/lib/zones";
 import ZonesCard from "@/components/ZonesCard";
@@ -552,7 +553,7 @@ export default async function Home({
     candles4h,
     candles1h,
     candles15m,
-    ema13,
+    ownZones,
   ] = await Promise.all([
     getSnapshotHistory(),
     getLatestMarketState(),
@@ -592,7 +593,7 @@ export default async function Home({
     fetchClosedCandles("4h", 7),
     fetchClosedCandles("1h", 30),
     fetchClosedCandles("15m", 100),
-    getEma13(),
+    fetchOwnZones(),
   ]);
 
   // Fallback, falls das Bundle-RPC fehlschlaegt (z.B. kurzzeitiger DB-
@@ -613,12 +614,13 @@ export default async function Home({
     positioning_signal: null,
   };
 
+  // Eigene Zonen haben Vorrang, die Nexus-Keylevels sind dann nur Abgleich.
+  const tradeLevels = activeLevels(ownZones, chartStructure.keyLevels);
   const tradeStepProps = {
-    keyLevels: chartStructure.keyLevels.map(({ price }) => ({ price })),
+    keyLevels: tradeLevels,
     candles4h,
     candles1h,
     candles15m,
-    ema13,
     events: upcomingEconomicEvents,
     timeframe,
   };
@@ -634,7 +636,7 @@ export default async function Home({
     upcomingEconomicEvents,
     initialMtfDots: mtfDots,
     initialPriceReferences: priceReferences,
-    keyLevels: chartStructure.keyLevels.map(({ price, side }) => ({ price, side })),
+    keyLevels: tradeLevels,
     setupScore: confluenceScore,
     regimeScore,
     scoreDetails: (
@@ -695,7 +697,16 @@ export default async function Home({
                   tiles={{
                     zones: (
                       <ZonesCard
-                        keyLevels={chartStructure.keyLevels.map(({ price, side }) => ({ price, side }))}
+                        keyLevels={tradeLevels}
+                        ownZones={ownZones}
+                        nexusLevels={chartStructure.keyLevels.map(({ price }) => ({ price }))}
+                        liquidationZones={
+                          latestLeverageMap
+                            ? bundleLiquidationZones(latestLeverageMap.clusters, latestLeverageMap.mid).map(
+                                ({ side, priceLow, priceHigh, massUsd }) => ({ side, priceLow, priceHigh, massUsd })
+                              )
+                            : []
+                        }
                         dailyTrend={dailyTrendFromMtf(mtfDots)}
                       />
                     ),

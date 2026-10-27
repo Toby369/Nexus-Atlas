@@ -26,7 +26,7 @@ const ANSWER_STYLE: Record<CheckAnswer | VetoAnswer, string> = {
   ok: "bg-up/15 text-up",
   nein: "bg-down/15 text-down",
   veto: "bg-down/15 text-down",
-  warnung: "bg-warn/15 text-warn",
+  warnung: "bg-warn/15 text-warn", // nur Veto
   offen: "bg-surface-raised text-text-muted",
 };
 
@@ -123,15 +123,14 @@ export interface DecisionProps {
   candles4h: Candle[];
   candles1h: Candle[];
   candles15m: Candle[];
-  ema13: number | null;
   events: EconomicEventRow[];
   timeframe: TimeframeId;
 }
 
-function useRuleCheck({ keyLevels, candles4h, candles1h, candles15m, ema13 }: DecisionProps) {
+function useRuleCheck({ keyLevels, candles4h, candles1h, candles15m }: DecisionProps) {
   const { latest } = useLivePriceData();
   const price = latest?.last_price ?? null;
-  return evaluateRuleCheck({ levels: keyLevels, price, candles4h, candles1h, candles15m, ema13 });
+  return evaluateRuleCheck({ levels: keyLevels, price, candles4h, candles1h, candles15m });
 }
 
 export function RuleCheckCard(props: DecisionProps) {

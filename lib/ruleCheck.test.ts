@@ -29,7 +29,7 @@ describe("findLatestBodyBreak", () => {
 });
 
 describe("evaluateRuleCheck", () => {
-  const base = { levels, candles4h, ema13: 99_000 };
+  const base = { levels, candles4h };
 
   it("ohne Ausbruch: warten auf den 4H-Koerperschluss", () => {
     const r = evaluateRuleCheck({ ...base, price: 100_900, candles4h: [candles4h[1], candles4h[1]], candles1h: [], candles15m: [] });
@@ -63,18 +63,13 @@ describe("evaluateRuleCheck", () => {
         c(retestStart + H / 2, 100_220, 100_300, 100_150, 100_260),
       ],
     });
-    expect(r.rows.map((x) => x.answer)).toEqual(["ja", "ja", "ja", "ja", "ja"]);
+    expect(r.rows.map((x) => x.answer)).toEqual(["ja", "ja", "ja", "ja"]);
     expect(r.verdict.tone).toBe("trade");
   });
 
   it("Ziel unter 1 % entfernt: kein Trade", () => {
     const r = evaluateRuleCheck({ ...base, levels: [{ price: 100_000 }, { price: 100_700 }], price: 100_200, candles1h: [], candles15m: [] });
     expect(r.rows.find((x) => x.id === "distance")?.answer).toBe("nein");
-  });
-
-  it("gegen D13 nur Warnung", () => {
-    const r = evaluateRuleCheck({ ...base, ema13: 101_000, price: 100_200, candles1h: [], candles15m: [] });
-    expect(r.rows.find((x) => x.id === "d13")?.answer).toBe("warnung");
   });
 });
 

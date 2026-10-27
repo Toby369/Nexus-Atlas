@@ -8,14 +8,14 @@ import { nearestZones, type ZoneLevel } from "./zones";
 //   2. 1H-Retest bis +-0,25 % ans Level, Schluss auf der Ausbruchsseite (Punkt 2)
 //   3. 15m-Bestaetigungskerze plus geschlossene Folgekerze (Punkt 3)
 //   4. Naechstes Ziel mindestens 1 % entfernt (TP-Standard, Punkt 9)
-//   5. D13 nur als Warnung, keine Sperre (Punkt 4)
+// D13 entfiel am 27.10.2026 (Toby).
 // Gesucht wird der juengste Koerperausbruch in den uebergebenen 4H-Kerzen.
 
 export type Side = "long" | "short";
-export type CheckAnswer = "ja" | "nein" | "offen" | "warnung";
+export type CheckAnswer = "ja" | "nein" | "offen";
 
 export interface RuleCheckRow {
-  id: "break4h" | "retest1h" | "confirm15m" | "distance" | "d13";
+  id: "break4h" | "retest1h" | "confirm15m" | "distance";
   question: string;
   answer: CheckAnswer;
   /** Kurzer Wert im Antwort-Chip, z.B. "Ja" oder "+0,6 %". */
@@ -38,7 +38,6 @@ export interface RuleCheckInput {
   candles4h: Candle[];
   candles1h: Candle[];
   candles15m: Candle[];
-  ema13: number | null;
 }
 
 export const MIN_TARGET_DISTANCE_PCT = 1;
@@ -48,14 +47,12 @@ const SHORT_STOP: Record<RuleCheckRow["id"], string> = {
   retest1h: "Retest gescheitert",
   confirm15m: "Bestätigung gescheitert",
   distance: "Ziel unter 1 %",
-  d13: "gegen D13",
 };
 const SHORT_OPEN: Record<RuleCheckRow["id"], string> = {
   break4h: "4H-Schluss abwarten",
   retest1h: "1H-Retest abwarten",
   confirm15m: "15m-Bestätigung abwarten",
   distance: "Ziel prüfen",
-  d13: "D13 prüfen",
 };
 
 const fmt = (n: number, d = 0) => n.toLocaleString("de-CH", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -86,7 +83,7 @@ export function findLatestBodyBreak(levels: number[], candles: Candle[]): BodyBr
 const after = (candles: Candle[], fromMs: number) => candles.filter((c) => new Date(c.openTime).getTime() >= fromMs);
 
 export function evaluateRuleCheck(input: RuleCheckInput): RuleCheckResult {
-  const { levels, price, candles4h, candles1h, candles15m, ema13 } = input;
+  const { levels, price, candles4h, candles1h, candles15m } = input;
   const brk = findLatestBodyBreak(
     levels.map((l) => l.price),
     candles4h
@@ -226,20 +223,8 @@ export function evaluateRuleCheck(input: RuleCheckInput): RuleCheckResult {
     });
   }
 
-  if (price !== null && ema13 !== null) {
-    const withTrend = (price - ema13) * dir > 0;
-    rows.push({
-      id: "d13",
-      question: `Liegt der Kurs ${sideWord} der Tages-EMA 13 (D13)?`,
-      answer: withTrend ? "ja" : "warnung",
-      label: withTrend ? "Ja" : "Nein",
-      detail: withTrend ? `D13 bei ${fmt(ema13)}.` : `D13 bei ${fmt(ema13)}: Trade gegen D13, nur als Warnung.`,
-    });
-  }
-
   const stop = rows.find((r) => r.answer === "nein");
   const open = rows.find((r) => r.answer === "offen");
-  const warn = rows.find((r) => r.answer === "warnung");
   const sideLabel = side === "long" ? "Long" : "Short";
   let verdict: RuleCheckResult["verdict"];
   if (stop) verdict = { tone: "stop", short: `Kein ${sideLabel}: ${SHORT_STOP[stop.id]}`, text: `Kein ${sideLabel}: ${stop.detail}` };
@@ -252,9 +237,9 @@ export function evaluateRuleCheck(input: RuleCheckInput): RuleCheckResult {
   else
     verdict = {
       tone: "trade",
-      short: `${sideLabel}-Setup steht${warn ? " (gegen D13)" : ""}`,
+      short: `${sideLabel}-Setup steht`,
       // Nexus-Keylevels sind nur der Abgleich, massgebend ist Tobys eigener Chart.
-      text: `${sideLabel}-Setup steht. Mit deinem Chart abgleichen, Veto prüfen, dann Einstieg nach Plan.${warn ? " Achtung: gegen D13." : ""}`,
+      text: `${sideLabel}-Setup steht. Mit deinem Chart abgleichen, Veto prüfen, dann Einstieg nach Plan.`,
     };
   return { side, level, rows, verdict };
 }

@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 
 vi.mock("./supabase", () => ({ supabase: {} }));
 
-import { nearestZones, planSentence } from "./zones";
+import { nearestLiquidationTargets, nearestZones, planSentence } from "./zones";
 
 const levels = [{ price: 83_115 }, { price: 82_257 }, { price: 81_933 }, { price: 81_557 }, { price: 80_985 }];
 
@@ -23,5 +23,24 @@ describe("planSentence", () => {
   });
   it("liefert null ohne Kurs", () => {
     expect(planSentence(levels, null)).toBeNull();
+  });
+});
+
+describe("nearestLiquidationTargets", () => {
+  const zones = [
+    { side: "short" as const, priceLow: 82_400, priceHigh: 82_600, massUsd: 1e8 },
+    { side: "short" as const, priceLow: 83_500, priceHigh: 83_700, massUsd: 3e8 },
+    { side: "long" as const, priceLow: 80_900, priceHigh: 81_100, massUsd: 2e8 },
+  ];
+
+  it("nimmt je Seite die naechste Zone jenseits des Kurses", () => {
+    const { above, below } = nearestLiquidationTargets(zones, 81_964);
+    expect(above).toMatchObject({ low: 82_400, high: 82_600 });
+    expect(above?.distancePct).toBeCloseTo(0.53, 2);
+    expect(below).toMatchObject({ low: 80_900, high: 81_100 });
+  });
+
+  it("ignoriert Zonen auf der falschen Seite", () => {
+    expect(nearestLiquidationTargets(zones, 84_000).above).toBeNull();
   });
 });

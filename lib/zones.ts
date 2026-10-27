@@ -59,3 +59,38 @@ export function dailyTrendFromMtf(dots: { timeframe: string; status: string }[])
   const status = dots.find((d) => d.timeframe === "1D")?.status ?? "no_data";
   return status.startsWith("bullish") ? "bullish" : status.startsWith("bearish") ? "bearish" : null;
 }
+
+export interface LiquidationTarget {
+  low: number;
+  high: number;
+  massUsd: number;
+  /** Abstand vom Kurs zum nahen Rand der Zone in Prozent, immer positiv. */
+  distancePct: number;
+}
+
+/**
+ * Naechste Liquidations-Zone ueber (Short-Liquidationen) und unter dem Kurs
+ * (Long-Liquidationen) als Ziel -- Regelwerk Punkt 7 (14.10.2026): "Cluster als Ziel".
+ */
+export function nearestLiquidationTargets(
+  zones: { side: "long" | "short"; priceLow: number; priceHigh: number; massUsd: number }[],
+  price: number | null
+): { above: LiquidationTarget | null; below: LiquidationTarget | null } {
+  if (price === null || price <= 0) return { above: null, below: null };
+  const toTarget = (z: (typeof zones)[number], edge: number): LiquidationTarget => ({
+    low: z.priceLow,
+    high: z.priceHigh,
+    massUsd: z.massUsd,
+    distancePct: (Math.abs(edge - price) / price) * 100,
+  });
+  const above = zones
+    .filter((z) => z.side === "short" && z.priceLow > price)
+    .sort((a, b) => a.priceLow - b.priceLow)[0];
+  const below = zones
+    .filter((z) => z.side === "long" && z.priceHigh < price)
+    .sort((a, b) => b.priceHigh - a.priceHigh)[0];
+  return {
+    above: above ? toTarget(above, above.priceLow) : null,
+    below: below ? toTarget(below, below.priceHigh) : null,
+  };
+}
