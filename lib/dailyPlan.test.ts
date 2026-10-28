@@ -9,6 +9,7 @@ import {
   normalizePlan,
   perpVerdict,
   planText,
+  scenariosForAlarm,
   zonesFromOwn,
   type DailyPlanData,
 } from "./dailyPlan";
@@ -130,5 +131,17 @@ describe("Hilfen", () => {
     expect(t).toMatch(/C LONG \[CRV 0[.,]8 → NICHT HANDELN\]/);
     expect(t).toContain("KEIN TRADE:");
     expect(t).toMatch(/ALARME: +81.800 \/ 81.000 \/ 79.600/);
+  });
+});
+
+describe("scenariosForAlarm", () => {
+  const plan = example();
+  it("Alarm an der Range-Oberkante betrifft Szenario A (Short), nicht C (CRV zu klein)", () => {
+    expect(scenariosForAlarm(plan, 81_300)).toEqual(["A"]);
+  });
+  it("Alarm an der Unterkante betrifft B, in der Mitte keines", () => {
+    expect(scenariosForAlarm(plan, 79_550)).toEqual(["B"]);
+    expect(scenariosForAlarm(plan, 80_300)).toEqual([]);
+    expect(scenariosForAlarm(plan, null)).toEqual([]);
   });
 });

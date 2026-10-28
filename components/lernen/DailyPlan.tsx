@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { supabase } from "@/lib/supabase";
 import { fetchOwnZones } from "@/lib/ownZones";
 import { summarizePositioning } from "@/lib/positioning";
+import { setVisibleInterval } from "@/lib/visibleInterval";
 import type { PositioningSnapshot } from "@/lib/types";
 import {
   MAX_SCENARIOS,
@@ -25,6 +26,7 @@ import {
   resolvedZones,
   trendText,
   zoneLabel,
+  scenariosForAlarm,
   zonesFromOwn,
   type DailyPlanData,
   type Direction,
@@ -54,6 +56,46 @@ interface LiveSuggestion {
   gap: string;
   oi: OiMove | null;
   oiChangePct: number | null;
+}
+
+interface AutarkAlarm {
+  id: number;
+  received_at: string;
+  meldung: string;
+  preis: number | null;
+  schwere: string | null;
+  quelle: string | null;
+}
+
+const ALARM_REFRESH_MS = 60_000;
+
+function zurichDay(iso: string): string {
+  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Zurich" }).format(new Date(iso));
+}
+
+function zurichTime(iso: string): string {
+  return new Intl.DateTimeFormat("de-CH", { timeZone: "Europe/Zurich", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+}
+
+/** Alarme aus AutarkTrade fuer einen Tag (Europe/Zurich), juengste zuerst. */
+async function fetchAlarms(day: string): Promise<AutarkAlarm[]> {
+  // Zwei Tage Puffer um den Tag, dann exakt nach Zuercher Datum filtern (Sommer-/Winterzeit).
+  const from = new Date(Date.parse(`${day}T00:00:00Z`) - 86_400_000).toISOString();
+  const to = new Date(Date.parse(`${day}T00:00:00Z`) + 2 * 86_400_000).toISOString();
+  const { data, error } = await supabase
+    .from("autark_alarms")
+    .select("id, received_at, meldung, preis, schwere, quelle")
+    .gte("received_at", from)
+    .lt("received_at", to)
+    .order("received_at", { ascending: false })
+    .limit(100);
+  if (error) {
+    console.error("Tagesplan: Fehler beim Laden der AutarkTrade-Alarme:", error.message);
+    return [];
+  }
+  return (data ?? [])
+    .map((r) => ({ ...r, preis: r.preis === null ? null : Number(r.preis) }) as AutarkAlarm)
+    .filter((a) => zurichDay(a.received_at) === day);
 }
 
 function todayZurich(): string {
@@ -166,6 +208,21 @@ export default function DailyPlan({ live }: { live: DailyPlanLive }) {
   // Datum, zu dem der geladene Plan gehoert. Gespeichert wird immer dorthin,
   // nie unter einem inzwischen gewaehlten anderen Datum.
   const planDate = useRef(date);
+  const [alarms, setAlarms] = useState<AutarkAlarm[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = () =>
+      fetchAlarms(date).then((a) => {
+        if (!cancelled) setAlarms(a);
+      });
+    load();
+    const stop = setVisibleInterval(load, ALARM_REFRESH_MS);
+    return () => {
+      cancelled = true;
+      stop();
+    };
+  }, [date]);
 
   const loadHistory = useCallback(async () => {
     const { data } = await supabase
@@ -560,6 +617,30 @@ export default function DailyPlan({ live }: { live: DailyPlanLive }) {
             <p className="text-[11px] text-text-faint" aria-live="polite">
               {status}
             </p>
+          </div>
+          <div className="rounded-md border border-border bg-surface-raised p-3 space-y-1.5">
+            <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Alarme aus AutarkTrade</p>
+            {alarms.length === 0 && (
+              <p className="text-[11px] text-text-faint">An diesem Tag ist noch kein Alarm eingegangen.</p>
+            )}
+            {alarms.map((a) => {
+              const hits = scenariosForAlarm(plan, a.preis);
+              return (
+                <div key={a.id} className="text-[11px] space-y-0.5 border-b border-border/60 last:border-0 pb-1.5 last:pb-0">
+                  <p className="text-text-muted">
+                    <span className="font-mono text-text-faint mr-1.5">{zurichTime(a.received_at)}</span>
+                    {a.meldung}
+                  </p>
+                  {hits.length > 0 ? (
+                    <p className="text-accent">
+                      Betrifft Szenario {hits.join(" und ")}: jetzt den Trade-Entscheider durchgehen.
+                    </p>
+                  ) : (
+                    a.preis !== null && <p className="text-text-faint">Keine Zone eines Szenarios auf dem Plan.</p>
+                  )}
+                </div>
+              );
+            })}
           </div>
           <div className="rounded-md border border-border bg-surface-raised p-3 space-y-1">
             <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Letzte Pläne</p>
