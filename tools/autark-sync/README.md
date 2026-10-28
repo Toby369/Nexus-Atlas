@@ -47,7 +47,7 @@ set -a; . ~/.config/autark-sync.env; set +a
 python3 ~/.local/share/autark-sync/autark_sync.py --dry-run
 
 # Einmal senden:
-python3 ~/.local/share/autark-sync/autark_sync.py --once --force
+python3 ~/.local/share/autark-sync/autark_sync.py --once
 
 # Alle 5 Minuten automatisch:
 cp autark-sync.service autark-sync.timer ~/.config/systemd/user/
@@ -56,8 +56,11 @@ systemctl --user enable --now autark-sync.timer
 journalctl --user -u autark-sync -n 20   # Protokoll
 ```
 
-Gesendet wird nur, wenn sich die Zonen geändert haben, und sonst einmal pro
-Stunde. Die Datenbank wird nur lesend geöffnet.
+Gesendet wird bei jedem Lauf (alle 5 Minuten). Nexus schreibt die Zonen nur
+bei einer Änderung neu und führt in `autark_sync_status` den Zeitpunkt des
+letzten Syncs, damit ein Ausfall auffällt. Eine leere Liste wird nicht
+gesendet (sonst wären alle Zonen weg); zum bewussten Leeren
+`AUTARK_ALLOW_EMPTY=1` setzen. Die Datenbank wird nur lesend geöffnet.
 
 Als Zone gilt (nicht ausgeblendet, Symbol BTCUSDT): **Rechteck** (von–bis),
 **Horizontale** und **horizontaler Strahl** (einzelnes Level). Der Name kommt

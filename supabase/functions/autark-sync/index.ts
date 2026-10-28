@@ -7,7 +7,9 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 //   POST  Authorization: Bearer <AUTARK_SYNC_SECRET>
 //   {"symbol": "BTCUSDT", "zones": [{"id": 12, "lo": 81000, "hi": 81300, "label": "..."}]}
 // Die Zonen ersetzen own_zones vollstaendig (replace_own_zones_from_autark,
-// atomar). Eigene Edge Function mit verify_jwt=false wie webhook-tradingview.
+// atomar, nur bei Aenderung; autark_sync_status fuehrt den letzten Sync).
+// Eine leere Liste nur mit "allow_empty": true. Eigene Edge Function mit
+// verify_jwt=false wie webhook-tradingview.
 
 const MAX_ZONES = 60;
 
@@ -31,7 +33,7 @@ Deno.serve(async (req: Request) => {
   const provided = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   if (!provided || !sameSecret(provided, expected)) return json({ success: false, error: "Nicht authentifiziert." }, 401);
 
-  let body: { symbol?: unknown; zones?: unknown };
+  let body: { symbol?: unknown; zones?: unknown; allow_empty?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -59,7 +61,10 @@ Deno.serve(async (req: Request) => {
   }
 
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-  const { data, error } = await supabase.rpc("replace_own_zones_from_autark", { p_zones: zones });
+  const { data, error } = await supabase.rpc("replace_own_zones_from_autark", {
+    p_zones: zones,
+    p_allow_empty: body.allow_empty === true,
+  });
   if (error) return json({ success: false, error: error.message }, 500);
   return json({ success: true, zones: data }, 200);
 });

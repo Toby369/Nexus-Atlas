@@ -17,18 +17,21 @@ Konfiguration ueber Umgebungsvariablen:
   NEXUS_SYNC_URL     https://<projekt>.supabase.co/functions/v1/autark-sync
   NEXUS_SYNC_SECRET  geheimer Schluessel (gleich wie AUTARK_SYNC_SECRET in Supabase)
   AUTARK_SYMBOL      Standard BTCUSDT
-  AUTARK_STATE       Datei fuer den letzten Stand (Standard ~/.autark_sync_state)
+  AUTARK_ALLOW_EMPTY 1 = auch eine leere Liste senden (loescht alle Zonen in Nexus)
 
 Aufruf:
   autark_sync.py --dry-run     zeigt die gefundenen Zonen, sendet nichts
-  autark_sync.py --once        sendet einmal (nur bei Aenderung, sonst stuendlich)
+  autark_sync.py --once        sendet einmal
   autark_sync.py --loop 300    laeuft dauerhaft, alle 300 Sekunden
+
+Gesendet wird bei jedem Lauf, auch ohne Aenderung: Nexus fuehrt damit den
+Zeitpunkt des letzten Syncs (autark_sync_status) und erkennt einen Ausfall.
+Unveraenderte Zonen schreibt Nexus nicht neu.
 """
 
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import sqlite3
@@ -40,7 +43,6 @@ from pathlib import Path
 
 ZONE_TYPES = ("rechteck", "horizontale", "strahlH")
 MAX_ZONES = 60
-HEARTBEAT_SECONDS = 3600
 
 
 def read_zones(db_path: str, symbol: str) -> list[dict]:
@@ -76,26 +78,8 @@ def read_zones(db_path: str, symbol: str) -> list[dict]:
     return zones[:MAX_ZONES]
 
 
-def fingerprint(zones: list[dict]) -> str:
-    return hashlib.sha256(json.dumps(zones, sort_keys=True).encode()).hexdigest()
-
-
-def load_state(path: Path) -> dict:
-    try:
-        return json.loads(path.read_text())
-    except (OSError, json.JSONDecodeError):
-        return {}
-
-
-def save_state(path: Path, state: dict) -> None:
-    try:
-        path.write_text(json.dumps(state))
-    except OSError as e:
-        print(f"Stand nicht gespeichert: {e}", file=sys.stderr)
-
-
-def send(url: str, secret: str, symbol: str, zones: list[dict]) -> dict:
-    body = json.dumps({"symbol": symbol, "zones": zones}).encode()
+def send(url: str, secret: str, symbol: str, zones: list[dict], allow_empty: bool = False) -> dict:
+    body = json.dumps({"symbol": symbol, "zones": zones, "allow_empty": allow_empty}).encode()
     req = urllib.request.Request(
         url,
         data=body,
@@ -110,17 +94,15 @@ def send(url: str, secret: str, symbol: str, zones: list[dict]) -> dict:
         raise RuntimeError(f"Nexus antwortet {e.code}: {detail}") from None
 
 
-def run_once(cfg: dict, state_path: Path, force: bool = False) -> str:
+def run_once(cfg: dict) -> str:
     zones = read_zones(cfg["db"], cfg["symbol"])
-    fp = fingerprint(zones)
-    state = load_state(state_path)
-    due = force or state.get("fingerprint") != fp or time.time() - state.get("sent_at", 0) > HEARTBEAT_SECONDS
-    if not due:
-        return f"unverändert ({len(zones)} Zonen), nichts gesendet"
-    result = send(cfg["url"], cfg["secret"], cfg["symbol"], zones)
+    if not zones and not cfg.get("allow_empty"):
+        # Lieber alte Zonen in Nexus behalten als sie wegen eines Lesefehlers
+        # oder einer leeren Datenbank still zu loeschen.
+        return "keine Zonen gefunden, nichts gesendet (AUTARK_ALLOW_EMPTY=1 zum Leeren)"
+    result = send(cfg["url"], cfg["secret"], cfg["symbol"], zones, bool(cfg.get("allow_empty")))
     if not result.get("success"):
         raise RuntimeError(f"Nexus meldet Fehler: {result}")
-    save_state(state_path, {"fingerprint": fp, "sent_at": time.time()})
     return f"{result.get('zones', len(zones))} Zonen an Nexus übertragen"
 
 
@@ -130,7 +112,7 @@ def config_from_env() -> dict:
         "url": os.environ.get("NEXUS_SYNC_URL", ""),
         "secret": os.environ.get("NEXUS_SYNC_SECRET", ""),
         "symbol": os.environ.get("AUTARK_SYMBOL", "BTCUSDT"),
-        "state": os.environ.get("AUTARK_STATE", str(Path.home() / ".autark_sync_state")),
+        "allow_empty": os.environ.get("AUTARK_ALLOW_EMPTY") == "1",
     }
 
 
@@ -140,7 +122,6 @@ def main(argv: list[str] | None = None) -> int:
     mode.add_argument("--dry-run", action="store_true", help="Zonen anzeigen, nichts senden")
     mode.add_argument("--once", action="store_true", help="einmal senden (bei Änderung oder stündlich)")
     mode.add_argument("--loop", type=int, metavar="SEKUNDEN", help="dauerhaft im Abstand senden")
-    ap.add_argument("--force", action="store_true", help="auch ohne Änderung senden")
     args = ap.parse_args(argv)
 
     cfg = config_from_env()
@@ -160,10 +141,9 @@ def main(argv: list[str] | None = None) -> int:
         print("NEXUS_SYNC_URL und NEXUS_SYNC_SECRET müssen gesetzt sein.", file=sys.stderr)
         return 2
 
-    state_path = Path(cfg["state"])
     if args.once:
         try:
-            print(run_once(cfg, state_path, force=args.force))
+            print(run_once(cfg))
             return 0
         except Exception as e:  # noqa: BLE001 - Fehler soll im Log landen, nicht abstuerzen
             print(f"Fehler: {e}", file=sys.stderr)
@@ -171,10 +151,9 @@ def main(argv: list[str] | None = None) -> int:
 
     while True:
         try:
-            print(time.strftime("%Y-%m-%d %H:%M:%S"), run_once(cfg, state_path, force=args.force), flush=True)
+            print(time.strftime("%Y-%m-%d %H:%M:%S"), run_once(cfg), flush=True)
         except Exception as e:  # noqa: BLE001
             print(time.strftime("%Y-%m-%d %H:%M:%S"), f"Fehler: {e}", file=sys.stderr, flush=True)
-        args.force = False
         time.sleep(max(30, args.loop))
 
 
