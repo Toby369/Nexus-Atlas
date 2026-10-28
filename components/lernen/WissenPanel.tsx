@@ -13,6 +13,7 @@ import LevelStructureCard from "@/components/LevelStructureCard";
 import GrundlagenPanel from "@/components/lernen/GrundlagenPanel";
 import PositionSizeCalculator from "@/components/lernen/grundlagen/PositionSizeCalculator";
 import TradeDecider from "@/components/lernen/TradeDecider";
+import DailyPlan from "@/components/lernen/DailyPlan";
 
 // --- Wissen (Grundlagen/Welz/Salomon/Mein System/Orderflow) ---------------
 // Nachschlage-Sektion aus knowledge_base (statischer Text, siehe
@@ -48,7 +49,6 @@ const MEIN_SYSTEM_SECTIONS: { title: string; items: string[] }[] = [
       "4H-Ausbruch: Kerzenkörper schliesst über/unter einem Keylevel (Docht allein zählt nicht)",
       "1H-Retest: bis ±0,25 % ans Level, Schluss auf der Ausbruchsseite",
       "15m-Entry: Bestätigungskerze am Retest-Level, Einstieg nach Schluss der Folgekerze",
-      "D13 (Tages-EMA 13) geprüft – Trade gegen D13 nur bewusst, als Warnung notiert",
       "Keylevel-Konfluenz vorhanden",
       "RSI-/MACD-Divergenz auf 1H/4H/1D geprüft (nur Hinweis/Warnung, siehe Lagebild)",
     ],
@@ -413,8 +413,9 @@ export default function WissenPanel({
       {module === "mein_system" && (
         <div className="space-y-3">
           <MeinSystemLiveValues data={meinSystemData} />
+          <DailyPlan live={{ price: meinSystemData.closePrice, fundingRatePct: meinSystemData.fundingRatePct }} />
           <TradeDecider
-            live={{ price: meinSystemData.closePrice, ema13: meinSystemData.ema13, fundingPct: meinSystemData.fundingRatePct }}
+            live={{ price: meinSystemData.closePrice, fundingPct: meinSystemData.fundingRatePct }}
           />
           <PositionSizeCalculator livePrice={meinSystemData.closePrice} />
           <GussSignalCard data={gussData} />
