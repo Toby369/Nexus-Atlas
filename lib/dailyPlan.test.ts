@@ -100,9 +100,22 @@ describe("perpVerdict", () => {
 
 describe("Hilfen", () => {
   it("eigene Zonen werden zu Bereichen mit Rolle nach Lage zum Kurs", () => {
-    const z = zonesFromOwn([79500, 82000], 81000);
-    expect(z[0]).toMatchObject({ role: "sell", lo: "81836", hi: "82164" });
+    const z = zonesFromOwn(
+      [
+        { price: 79500, lo: null, hi: null, label: null, source: "manual" },
+        { price: 82000, lo: null, hi: null, label: null, source: "manual" },
+      ],
+      81000
+    );
+    expect(z[0]).toMatchObject({ role: "sell", lo: "81836", hi: "82164", note: "eigene Zone" });
     expect(z[1].role).toBe("buy");
+  });
+
+  it("Zonen aus AutarkTrade behalten Bereich und Namen", () => {
+    const z = zonesFromOwn([{ price: 81150, lo: 81000, hi: 81300, label: "Range-Oberkante", source: "autark" }], 80500);
+    expect(z[0]).toEqual({ role: "sell", lo: "81000", hi: "81300", note: "Range-Oberkante" });
+    const unnamed = zonesFromOwn([{ price: 79400, lo: 79200, hi: 79600, label: null, source: "autark" }], 80500);
+    expect(unnamed[0]).toMatchObject({ role: "buy", note: "aus AutarkTrade" });
   });
 
   it("20-Minuten-Ablauf: Schritt nach Zeit", () => {

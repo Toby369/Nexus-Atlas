@@ -141,16 +141,32 @@ export function nearestPlanZones(plan: DailyPlanData): {
   };
 }
 
-/** Eigene Zonen (nur Preise) als Bereiche; Rolle nach Lage zum Kurs (Rollentausch). */
-export function zonesFromOwn(prices: number[], price: number | null): PlanZone[] {
-  return [...prices]
-    .sort((a, b) => b - a)
-    .map((p) => ({
-      role: price !== null && p < price ? "buy" : "sell",
-      lo: String(Math.round(p * (1 - OWN_ZONE_HALF_WIDTH))),
-      hi: String(Math.round(p * (1 + OWN_ZONE_HALF_WIDTH))),
-      note: "eigene Zone",
-    }));
+export interface OwnZoneInput {
+  price: number;
+  lo: number | null;
+  hi: number | null;
+  label: string | null;
+  source: string | null;
+}
+
+/**
+ * Eigene Zonen (own_zones) als Plan-Zonen. Aus AutarkTrade kommen Bereich und
+ * Name mit; manuelle Zonen haben nur einen Preis und werden +-0,2 % breit.
+ * Rolle nach Lage zum Kurs (Rollentausch): ueber dem Kurs Verkaeufer, darunter Kaeufer.
+ */
+export function zonesFromOwn(zones: OwnZoneInput[], price: number | null): PlanZone[] {
+  return [...zones]
+    .sort((a, b) => b.price - a.price)
+    .map((z) => {
+      const lo = z.lo ?? z.price * (1 - OWN_ZONE_HALF_WIDTH);
+      const hi = z.hi ?? z.price * (1 + OWN_ZONE_HALF_WIDTH);
+      return {
+        role: price !== null && (lo + hi) / 2 < price ? "buy" : "sell",
+        lo: String(Math.round(lo)),
+        hi: String(Math.round(hi)),
+        note: z.label || (z.source === "autark" ? "aus AutarkTrade" : "eigene Zone"),
+      };
+    });
 }
 
 const TREND_TEXT: Record<Trend, string> = {
