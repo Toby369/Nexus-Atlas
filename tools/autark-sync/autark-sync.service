@@ -1,0 +1,7 @@
+[Unit]
+Description=Zonen aus AutarkTrade nach Nexus uebertragen
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/autark-sync.env
+ExecStart=/usr/bin/python3 %h/.local/share/autark-sync/autark_sync.py --once

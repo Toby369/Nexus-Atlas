@@ -141,16 +141,32 @@ export function nearestPlanZones(plan: DailyPlanData): {
   };
 }
 
-/** Eigene Zonen (nur Preise) als Bereiche; Rolle nach Lage zum Kurs (Rollentausch). */
-export function zonesFromOwn(prices: number[], price: number | null): PlanZone[] {
-  return [...prices]
-    .sort((a, b) => b - a)
-    .map((p) => ({
-      role: price !== null && p < price ? "buy" : "sell",
-      lo: String(Math.round(p * (1 - OWN_ZONE_HALF_WIDTH))),
-      hi: String(Math.round(p * (1 + OWN_ZONE_HALF_WIDTH))),
-      note: "eigene Zone",
-    }));
+export interface OwnZoneInput {
+  price: number;
+  lo: number | null;
+  hi: number | null;
+  label: string | null;
+  source: string | null;
+}
+
+/**
+ * Eigene Zonen (own_zones) als Plan-Zonen. Aus AutarkTrade kommen Bereich und
+ * Name mit; manuelle Zonen haben nur einen Preis und werden +-0,2 % breit.
+ * Rolle nach Lage zum Kurs (Rollentausch): ueber dem Kurs Verkaeufer, darunter Kaeufer.
+ */
+export function zonesFromOwn(zones: OwnZoneInput[], price: number | null): PlanZone[] {
+  return [...zones]
+    .sort((a, b) => b.price - a.price)
+    .map((z) => {
+      const lo = z.lo ?? z.price * (1 - OWN_ZONE_HALF_WIDTH);
+      const hi = z.hi ?? z.price * (1 + OWN_ZONE_HALF_WIDTH);
+      return {
+        role: price !== null && (lo + hi) / 2 < price ? "buy" : "sell",
+        lo: String(Math.round(lo)),
+        hi: String(Math.round(hi)),
+        note: z.label || (z.source === "autark" ? "aus AutarkTrade" : "eigene Zone"),
+      };
+    });
 }
 
 const TREND_TEXT: Record<Trend, string> = {
@@ -320,4 +336,24 @@ export function normalizePlan(raw: unknown): DailyPlanData {
     zones: Array.isArray(r.zones) ? r.zones.slice(0, MAX_ZONES) : base.zones,
     scens: Array.isArray(r.scens) ? r.scens.slice(0, MAX_SCENARIOS) : base.scens,
   };
+}
+
+/** Toleranz, mit der ein Alarm-Preis einer Szenario-Zone zugeordnet wird (0,3 %). */
+export const ALARM_ZONE_TOLERANCE = 0.003;
+
+/**
+ * Welche Szenarien betrifft ein ausgeloester Alarm? Nur Szenarien auf dem
+ * Plan (CRV ok), deren Zone den Preis enthaelt oder hoechstens 0,3 % entfernt ist.
+ */
+export function scenariosForAlarm(plan: DailyPlanData, price: number | null): string[] {
+  if (price === null) return [];
+  const out: string[] = [];
+  plan.scens.forEach((sc, i) => {
+    const c = checkScenario(plan, sc);
+    if (!c.onPlan || !c.zone) return;
+    const lo = c.zone.lo * (1 - ALARM_ZONE_TOLERANCE);
+    const hi = c.zone.hi * (1 + ALARM_ZONE_TOLERANCE);
+    if (price >= lo && price <= hi) out.push(SCENARIO_LETTERS[i]);
+  });
+  return out;
 }

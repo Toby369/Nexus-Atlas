@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
-import { fetchOwnZones } from "@/lib/ownZones";
 import { summarizePositioning } from "@/lib/positioning";
+import { setVisibleInterval } from "@/lib/visibleInterval";
 import type { PositioningSnapshot } from "@/lib/types";
 import {
   MAX_SCENARIOS,
@@ -25,7 +25,9 @@ import {
   resolvedZones,
   trendText,
   zoneLabel,
+  scenariosForAlarm,
   zonesFromOwn,
+  type OwnZoneInput,
   type DailyPlanData,
   type Direction,
   type FundingState,
@@ -54,6 +56,62 @@ interface LiveSuggestion {
   gap: string;
   oi: OiMove | null;
   oiChangePct: number | null;
+}
+
+interface AutarkAlarm {
+  id: number;
+  received_at: string;
+  meldung: string;
+  preis: number | null;
+  schwere: string | null;
+  quelle: string | null;
+}
+
+const ALARM_REFRESH_MS = 60_000;
+
+function zurichDay(iso: string): string {
+  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Zurich" }).format(new Date(iso));
+}
+
+function zurichTime(iso: string): string {
+  return new Intl.DateTimeFormat("de-CH", { timeZone: "Europe/Zurich", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+}
+
+/** Alarme aus AutarkTrade fuer einen Tag (Europe/Zurich), juengste zuerst. */
+async function fetchAlarms(day: string): Promise<AutarkAlarm[]> {
+  // Zwei Tage Puffer um den Tag, dann exakt nach Zuercher Datum filtern (Sommer-/Winterzeit).
+  const from = new Date(Date.parse(`${day}T00:00:00Z`) - 86_400_000).toISOString();
+  const to = new Date(Date.parse(`${day}T00:00:00Z`) + 2 * 86_400_000).toISOString();
+  const { data, error } = await supabase
+    .from("autark_alarms")
+    .select("id, received_at, meldung, preis, schwere, quelle")
+    .gte("received_at", from)
+    .lt("received_at", to)
+    .order("received_at", { ascending: false })
+    .limit(100);
+  if (error) {
+    console.error("Tagesplan: Fehler beim Laden der AutarkTrade-Alarme:", error.message);
+    return [];
+  }
+  return (data ?? [])
+    .map((r) => ({ ...r, preis: r.preis === null ? null : Number(r.preis) }) as AutarkAlarm)
+    .filter((a) => zurichDay(a.received_at) === day);
+}
+
+/** own_zones inklusive Bereich und Name (aus AutarkTrade, siehe autark-sync). */
+async function fetchOwnZoneInputs(): Promise<OwnZoneInput[]> {
+  const { data, error } = await supabase.from("own_zones").select("price, price_low, price_high, label, source");
+  if (error) {
+    console.error("Tagesplan: Fehler beim Laden der eigenen Zonen:", error.message);
+    return [];
+  }
+  return (data ?? []).map((r) => ({
+    price: Number(r.price),
+    lo: r.price_low === null ? null : Number(r.price_low),
+    hi: r.price_high === null ? null : Number(r.price_high),
+    label: (r.label as string | null) ?? null,
+    source: (r.source as string | null) ?? null,
+  }));
 }
 
 function todayZurich(): string {
@@ -156,7 +214,7 @@ export default function DailyPlan({ live }: { live: DailyPlanLive }) {
   const [date, setDate] = useState<string>(todayZurich);
   const [plan, setPlan] = useState<DailyPlanData | null>(null);
   const [history, setHistory] = useState<{ plan_date: string; data: DailyPlanData }[]>([]);
-  const [ownPrices, setOwnPrices] = useState<number[]>([]);
+  const [ownZones, setOwnZones] = useState<OwnZoneInput[]>([]);
   const [suggestion, setSuggestion] = useState<LiveSuggestion | null>(null);
   const [status, setStatus] = useState("");
   const [startedAt, setStartedAt] = useState<number | null>(null);
@@ -166,6 +224,21 @@ export default function DailyPlan({ live }: { live: DailyPlanLive }) {
   // Datum, zu dem der geladene Plan gehoert. Gespeichert wird immer dorthin,
   // nie unter einem inzwischen gewaehlten anderen Datum.
   const planDate = useRef(date);
+  const [alarms, setAlarms] = useState<AutarkAlarm[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = () =>
+      fetchAlarms(date).then((a) => {
+        if (!cancelled) setAlarms(a);
+      });
+    load();
+    const stop = setVisibleInterval(load, ALARM_REFRESH_MS);
+    return () => {
+      cancelled = true;
+      stop();
+    };
+  }, [date]);
 
   const loadHistory = useCallback(async () => {
     const { data } = await supabase
@@ -185,21 +258,34 @@ export default function DailyPlan({ live }: { live: DailyPlanLive }) {
       const [{ data: row }, recent, own, sug] = await Promise.all([
         supabase.from("daily_plans").select("data").eq("plan_date", date).maybeSingle(),
         loadHistory(),
-        fetchOwnZones(),
+        fetchOwnZoneInputs(),
         fetchLiveSuggestion(live),
       ]);
       if (cancelled) return;
-      setOwnPrices(own.map((z) => z.price));
+      setOwnZones(own);
       setSuggestion(sug);
       planDate.current = date;
       if (row?.data) {
         setPlan(normalizePlan(row.data));
         setStatus("Gespeicherter Plan geladen.");
       } else {
+        // AutarkTrade fuehrt die Zonen; ohne sie die Zonen des letzten Plans.
+        const autark = own.filter((z) => z.source === "autark");
         const prev = recent.find((r) => (r.plan_date as string) < date);
-        const fresh = emptyPlan(prev ? normalizePlan(prev.data).zones : []);
+        const startZones = autark.length
+          ? zonesFromOwn(autark, num(sug.price)).slice(0, MAX_ZONES)
+          : prev
+          ? normalizePlan(prev.data).zones
+          : [];
+        const fresh = emptyPlan(startZones);
         setPlan({ ...fresh, price: sug.price, funding: sug.funding, crowd: sug.crowd, gap: sug.gap, oi: sug.oi });
-        setStatus(prev ? "Neuer Tag: Zonen vom letzten Plan übernommen, Live-Werte eingesetzt." : "Neuer Plan mit Live-Werten.");
+        setStatus(
+          autark.length
+            ? `Neuer Tag: ${autark.length} Zonen aus AutarkTrade übernommen, Live-Werte eingesetzt.`
+            : prev
+            ? "Neuer Tag: Zonen vom letzten Plan übernommen, Live-Werte eingesetzt."
+            : "Neuer Plan mit Live-Werten."
+        );
       }
       dirty.current = false;
     })();
@@ -409,13 +495,15 @@ export default function DailyPlan({ live }: { live: DailyPlanLive }) {
               >
                 + Zone
               </button>
-              {ownPrices.length > 0 && (
+              {ownZones.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => update({ zones: zonesFromOwn(ownPrices, price).slice(0, MAX_ZONES) })}
+                  onClick={() => update({ zones: zonesFromOwn(ownZones, price).slice(0, MAX_ZONES) })}
                   className="text-[11px] px-2 py-0.5 rounded border border-border text-text-muted"
                 >
-                  Eigene Zonen aus der Zonen-Kachel übernehmen ({ownPrices.length})
+                  {ownZones.some((z) => z.source === "autark")
+                    ? `Zonen aus AutarkTrade neu laden (${ownZones.length})`
+                    : `Eigene Zonen aus der Zonen-Kachel übernehmen (${ownZones.length})`}
                 </button>
               )}
             </div>
@@ -560,6 +648,30 @@ export default function DailyPlan({ live }: { live: DailyPlanLive }) {
             <p className="text-[11px] text-text-faint" aria-live="polite">
               {status}
             </p>
+          </div>
+          <div className="rounded-md border border-border bg-surface-raised p-3 space-y-1.5">
+            <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Alarme aus AutarkTrade</p>
+            {alarms.length === 0 && (
+              <p className="text-[11px] text-text-faint">An diesem Tag ist noch kein Alarm eingegangen.</p>
+            )}
+            {alarms.map((a) => {
+              const hits = scenariosForAlarm(plan, a.preis);
+              return (
+                <div key={a.id} className="text-[11px] space-y-0.5 border-b border-border/60 last:border-0 pb-1.5 last:pb-0">
+                  <p className="text-text-muted">
+                    <span className="font-mono text-text-faint mr-1.5">{zurichTime(a.received_at)}</span>
+                    {a.meldung}
+                  </p>
+                  {hits.length > 0 ? (
+                    <p className="text-accent">
+                      Betrifft Szenario {hits.join(" und ")}: jetzt den Trade-Entscheider durchgehen.
+                    </p>
+                  ) : (
+                    a.preis !== null && <p className="text-text-faint">Keine Zone eines Szenarios auf dem Plan.</p>
+                  )}
+                </div>
+              );
+            })}
           </div>
           <div className="rounded-md border border-border bg-surface-raised p-3 space-y-1">
             <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Letzte Pläne</p>
