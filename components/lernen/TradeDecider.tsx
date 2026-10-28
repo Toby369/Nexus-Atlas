@@ -18,12 +18,11 @@ import {
 import { FUNDING_ELEVATED_PCT } from "@/lib/fundingLevels";
 
 // Trade-Entscheider: eine Frage nach der anderen, nach Tobys Regelwerk.
-// Live-Werte (Preis, D13, Funding) erscheinen als Hinweis bei der
+// Live-Werte (Preis, Funding) erscheinen als Hinweis bei der
 // passenden Frage; beantworten muss Toby selbst.
 
 export interface TradeDeciderLive {
   price: number | null;
-  ema13: number | null;
   fundingPct: number | null;
 }
 
@@ -56,11 +55,6 @@ const EMPTY_FIELDS = { level: "", entry: "", stop: "", target: "", account: "100
 type Fields = typeof EMPTY_FIELDS;
 
 function liveHint(stepId: string, side: Side, live: TradeDeciderLive): string | null {
-  if (stepId === "d13" && live.price !== null && live.ema13 !== null) {
-    const above = live.price > live.ema13;
-    const fits = side === "long" ? above : !above;
-    return `Nexus jetzt: Preis ${fmt(live.price)}, D13 ${fmt(live.ema13)}. Der Preis liegt ${above ? "darüber" : "darunter"}, also eher „${fits ? "Ja" : "Nein"}“.`;
-  }
   if (stepId === "funding" && live.fundingPct !== null) {
     const high = side === "long" ? live.fundingPct >= FUNDING_ELEVATED_PCT : live.fundingPct <= -FUNDING_ELEVATED_PCT;
     return `Nexus jetzt: Funding ${fmt(live.fundingPct, 4)} % (Referenzbörse), also eher „${high ? "Ja" : "Nein"}“.`;

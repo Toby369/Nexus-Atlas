@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { calcRisk, clearFrom, STEPS, verdict, walk, type Answers, type RiskInput } from "./tradeDecision";
 
 const ALL_OK: Answers = {
-  zDaily: 0, z4h: 0, zStrength: 0, zPlan: 0, trend: 0, breakout: 0, d13: 0, atLevel: 0, confluence: 0,
+  zDaily: 0, z4h: 0, zStrength: 0, zPlan: 0, trend: 0, breakout: 0, atLevel: 0, confluence: 0,
   h1close: 0, m15: 0, absorption: 0, funding: 0, crowd: 0, macro: 0, rsi: 0, losses: 0,
 };
 
@@ -62,7 +62,7 @@ describe("walk und verdict", () => {
   });
 
   it("zwei Warnungen -> grenzwertig", () => {
-    const a = { ...ALL_OK, d13: 1, funding: 1 };
+    const a = { ...ALL_OK, confluence: 1, funding: 1 };
     const s = walk("long", a, RETEST, true);
     expect(verdict("long", s, RETEST).kind).toBe("caution");
   });
@@ -75,9 +75,9 @@ describe("walk und verdict", () => {
 
 describe("clearFrom", () => {
   it("verwirft den Schritt und alle danach, behaelt die davor", () => {
-    const r = clearFrom("d13", ALL_OK);
+    const r = clearFrom("atLevel", ALL_OK);
     expect(r.answers.trend).toBe(0);
-    expect(r.answers.d13).toBeUndefined();
+    expect(r.answers.atLevel).toBeUndefined();
     expect(r.answers.funding).toBeUndefined();
     expect(r.resetRisk).toBe(true);
   });

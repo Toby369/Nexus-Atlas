@@ -1,6 +1,7 @@
 // Trade-Entscheider: Tobys Regelwerk als Folge echter Fragen (Zonen,
-// Richtung, Ort, Bestaetigung, Risiko, Perp-Check). Sobald eine Antwort
-// gegen den Trade spricht (stop, wait, late), endet die Pruefung.
+// Richtung, Ort, Bestaetigung, Risiko, Perp-Check; D13 seit 27.10.2026 nicht
+// mehr Teil des Regelwerks). Sobald eine Antwort gegen den Trade spricht
+// (stop, wait, late), endet die Pruefung.
 // Schwellen sind Faustregeln aus dem Regelwerk, keine validierten Signale.
 
 export type Side = "long" | "short";
@@ -111,15 +112,6 @@ export const STEPS: Step[] = [
       { label: "Ja", outcome: "ok" },
       { label: "Nein, nur ein Docht", outcome: "stop", note: "Kein gültiger Ausbruch, also auch kein Retest-Einstieg." },
       { label: "Die 4H-Kerze ist noch offen", outcome: "wait", note: "Warten bis zum Schluss der 4H-Kerze." },
-    ],
-  },
-  {
-    id: "d13", block: 1, kind: "question",
-    q: (s) => L(s, "Liegt der Preis über der Tages-EMA 13 (D13)?", "Liegt der Preis unter der Tages-EMA 13 (D13)?"),
-    hint: () => "Die D13 zeigt die Richtung auf Tagesbasis.",
-    options: () => [
-      { label: "Ja", outcome: "ok" },
-      { label: "Nein", outcome: "warn", note: "Trade gegen D13: nur bewusst und als Warnung notiert." },
     ],
   },
   {
