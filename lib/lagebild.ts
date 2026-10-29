@@ -1,11 +1,9 @@
 import type { MarketState } from "./types";
 import type { MtfTimeframeDot } from "./mtfSignal";
-import type { ConfluenceScoreResult, ConfluenceScoreTier } from "./confluenceScoreContext";
-import type { RegimeScoreResult } from "./regimeScoreContext";
 
 // Lagebild: reine Logik fuer den verdichteten Kopfbereich in
 // HeroHeader.tsx -- Fazit-Satz, MTF-Widerspruchs-Warnung und die
-// Kurzfassungen von Setup-/Regime-Score. Regelbasiert, kein KI-Aufruf.
+// Regelbasiert, kein KI-Aufruf.
 
 export interface MtfDirectionCounts {
   bullish: number;
@@ -60,49 +58,13 @@ export function detectMtfStateConflict(
   return { direction: overallState === "BULLISH" ? "bullish" : "bearish", opposing, total: dots.length };
 }
 
-export interface SetupLead {
-  side: "Long" | "Short";
-  probability: number;
-  tier: ConfluenceScoreTier;
-  otherSide: "Long" | "Short";
-  otherProbability: number | null;
-}
-
-export function setupLead(score: ConfluenceScoreResult): SetupLead | null {
-  const { long, short } = score;
-  if (!long && !short) return null;
-  if (short && (!long || short.probability >= long.probability)) {
-    return { side: "Short", probability: short.probability, tier: short.tier, otherSide: "Long", otherProbability: long?.probability ?? null };
-  }
-  return { side: "Long", probability: long!.probability, tier: long!.tier, otherSide: "Short", otherProbability: short?.probability ?? null };
-}
-
-// Unter diesem Abstand (Prozentpunkte) gelten Auf/Ab als ausgeglichen --
-// die Live-Werte liegen oft nur Zehntel auseinander (z.B. 29,7 vs. 29,6).
-export const REGIME_BALANCED_MAX_DIFF = 2;
-
-export type RegimeLean = "aufwärts" | "abwärts" | "ausgeglichen";
-
-export function regimeLean(score: RegimeScoreResult): RegimeLean | null {
-  if (!score.up || !score.down) return null;
-  const diff = score.up.probability - score.down.probability;
-  if (Math.abs(diff) < REGIME_BALANCED_MAX_DIFF) return "ausgeglichen";
-  return diff > 0 ? "aufwärts" : "abwärts";
-}
-
-function fmtPct(value: number): string {
-  return `${value.toFixed(1)} %`;
-}
-
 export function buildLagebildSentence(input: {
   overallState: MarketState["overall_state"];
   directionSuppressed: boolean;
   conflict: MtfStateConflict | null;
   dots: MtfTimeframeDot[];
-  setup: SetupLead | null;
-  regime: RegimeLean | null;
 }): string {
-  const { overallState, directionSuppressed, conflict, dots, setup, regime } = input;
+  const { overallState, directionSuppressed, conflict, dots } = input;
 
   let head: string;
   if (overallState === "INSUFFICIENT_DATA") head = "Zu wenige Daten für eine Einschätzung.";
@@ -124,10 +86,6 @@ export function buildLagebildSentence(input: {
   else if (shortTerm > 0 && higher > 0) tf = " Zeitrahmen bis 1D überwiegend bullisch.";
   else if (shortTerm < 0 && higher < 0) tf = " Zeitrahmen bis 1D überwiegend bärisch.";
 
-  const parts: string[] = [];
-  if (setup) parts.push(`Setup-Score bevorzugt ${setup.side} (${fmtPct(setup.probability)}, ${setup.tier})`);
-  if (regime) parts.push(`Regime-Score ${regime}`);
-  const scores = parts.length > 0 ? ` ${parts.join(", ")}.` : "";
-
-  return head + tf + scores;
+  // Setup-/Regime-Score entfielen am 29.10.2026 (Toby, Speicherplatz).
+  return head + tf;
 }
