@@ -38,6 +38,9 @@ Der Zonen-Sync liest die Datenbank nur lesend.
 
 ## Phase B — VPS (ab 29.10. morgens, gemeinsam mit Toby)
 
+Stand 29.10.2026: Schritte 1–5 und 7 erledigt, 6 entfällt vorerst. Betrieb und
+Befehle: [AUTARK-VPS-BETRIEB_2026-10-29.md](AUTARK-VPS-BETRIEB_2026-10-29.md).
+
 1. VPS Lite bestellen (1 vCPU, 2 GB RAM, 20 GB). Vorher prüfen, wie gross
    `autarktrade.db` ist und wie schnell sie wächst.
 2. Zugang nur per SSH-Schlüssel, Firewall zu bis auf SSH.
