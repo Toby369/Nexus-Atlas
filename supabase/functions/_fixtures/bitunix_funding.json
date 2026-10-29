@@ -1,0 +1,28 @@
+{
+  "msg": "Success",
+  "code": 0,
+  "data": [
+    {
+      "symbol": "ETHUSDT",
+      "lastPrice": "2317.79",
+      "markPrice": "2317.8",
+      "indexPrice": "2318.75",
+      "fundingRate": "0.004294",
+      "maxFundingRate": "0.3",
+      "minFundingRate": "-0.3",
+      "fundingInterval": 8,
+      "nextFundingTime": "1793289600000"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "lastPrice": "80103.9",
+      "markPrice": "80104",
+      "indexPrice": "80135",
+      "fundingRate": "0.007013",
+      "maxFundingRate": "0.3",
+      "minFundingRate": "-0.3",
+      "fundingInterval": 8,
+      "nextFundingTime": "1793289600000"
+    }
+  ]
+}

@@ -40,14 +40,19 @@ interface LiquidationRow {
 // deno-lint-ignore no-explicit-any
 type JsonRecord = Record<string, any>;
 
+// Kommt keine Verbindung zustande, wird das jetzt als Fehler gemeldet
+// (errors in der Antwort) statt als leere Liste -- eine falsche Adresse sah
+// sonst genau wie ein ruhiger Markt aus (so geschehen bei Binance, siehe
+// collectBinance).
 function collectFromWebSocket(
   url: string,
   onOpen: ((ws: WebSocket) => void) | null,
   parse: (raw: string) => LiquidationRow | LiquidationRow[] | null,
 ): Promise<LiquidationRow[]> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const rows: LiquidationRow[] = [];
     let settled = false;
+    let opened = false;
     let ws: WebSocket | null = null;
 
     const finish = () => {
@@ -58,7 +63,8 @@ function collectFromWebSocket(
       } catch (_err) {
         // noop
       }
-      resolve(rows);
+      if (opened) resolve(rows);
+      else reject(new Error(`Keine WebSocket-Verbindung zu ${url}`));
     };
 
     const timeout = setTimeout(finish, CAPTURE_WINDOW_MS);
@@ -72,6 +78,7 @@ function collectFromWebSocket(
     }
 
     ws.onopen = () => {
+      opened = true;
       try {
         onOpen?.(ws!);
       } catch (_err) {
@@ -157,10 +164,17 @@ function parseBybit(raw: string): LiquidationRow[] | null {
   });
 }
 
+// Binance hat die USDT-M-Streams 2026 auf getrennte Basispfade verteilt
+// (/public, /market); die alten Adressen ohne Pfad sind seit 23.04.2026
+// abgeschaltet. forceOrder gehoert zu /market. Mit der alten Adresse kam
+// seit dem Start dieses Sammlers (19.08.2026) keine einzige Binance-
+// Liquidation an (Befund 29.10.2026). Seit 13.05.2026 liefert der Stream je
+// Sekunde die GROESSTE Liquidation statt der juengsten -- weiterhin eine
+// Stichprobe.
 function collectBinance(): Promise<LiquidationRow[]> {
   const stream = SYMBOL.toLowerCase();
   return collectFromWebSocket(
-    `wss://fstream.binance.com/ws/${stream}@forceOrder`,
+    `wss://fstream.binance.com/market/ws/${stream}@forceOrder`,
     null,
     parseBinance,
   );
