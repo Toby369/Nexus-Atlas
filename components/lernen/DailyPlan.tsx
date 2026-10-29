@@ -507,6 +507,20 @@ export default function DailyPlan({ live }: { live: DailyPlanLive }) {
                 </button>
               )}
             </div>
+            {(() => {
+              // Plan = Tagesprotokoll mit eigener Zonen-Kopie (Szenarien verweisen darauf).
+              // Hinweis, wenn AutarkTrade die Zonen seither geaendert hat.
+              const autark = ownZones.filter((z) => z.source === "autark");
+              if (!autark.length) return null;
+              const key = (zs: PlanZone[]) => zs.map((z) => `${num(z.lo)}-${num(z.hi)}`).sort().join("|");
+              if (key(zonesFromOwn(autark, price)) === key(plan.zones)) return null;
+              return (
+                <p className="text-[11px] text-accent">
+                  Die Zonen in AutarkTrade haben sich seit diesem Plan geändert. Mit „Zonen aus AutarkTrade neu laden“
+                  übernehmen, danach die Zonen der Szenarien prüfen.
+                </p>
+              );
+            })()}
             <Q label="Wo liegt der POC (meistes Volumen) im Fixed Range Volume?">
               <input id="dp-poc" inputMode="decimal" value={plan.poc} onChange={(e) => update({ poc: e.target.value })} className={numCls} />
             </Q>

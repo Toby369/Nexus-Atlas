@@ -84,34 +84,35 @@ class ReadZonesTest(unittest.TestCase):
 class RunOnceTest(unittest.TestCase):
     def setUp(self):
         self.db = make_db([("BTCUSDT", "horizontale", [{"t": 1, "p": 80000}], {}, 0)])
-        fd, self.state = tempfile.mkstemp()
-        os.close(fd)
-        os.unlink(self.state)
         self.cfg = {"db": self.db, "url": "https://example/autark-sync", "secret": "s", "symbol": "BTCUSDT"}
 
     def tearDown(self):
         os.unlink(self.db)
-        if os.path.exists(self.state):
-            os.unlink(self.state)
 
-    def test_sendet_beim_ersten_mal_und_dann_erst_bei_aenderung(self):
+    def test_sendet_bei_jedem_lauf(self):
         with mock.patch.object(autark_sync, "send", return_value={"success": True, "zones": 1}) as send:
-            self.assertIn("1 Zonen", autark_sync.run_once(self.cfg, Path(self.state)))
-            self.assertIn("unverändert", autark_sync.run_once(self.cfg, Path(self.state)))
-            self.assertEqual(send.call_count, 1)
-            con = sqlite3.connect(self.db)
-            con.execute("insert into chart_zeichnungen (symbol, typ, punkte) values ('BTCUSDT', 'horizontale', '[{\"t\":1,\"p\":82000}]')")
-            con.commit()
-            con.close()
-            autark_sync.run_once(self.cfg, Path(self.state))
+            self.assertIn("1 Zonen", autark_sync.run_once(self.cfg))
+            autark_sync.run_once(self.cfg)
             self.assertEqual(send.call_count, 2)
-            self.assertEqual(len(send.call_args.args[3]), 2)
+            self.assertFalse(send.call_args.args[4])
 
-    def test_fehler_von_nexus_wird_gemeldet_und_stand_nicht_gespeichert(self):
+    def test_leere_liste_wird_ohne_flag_nicht_gesendet(self):
+        empty = make_db([])
+        try:
+            cfg = {**self.cfg, "db": empty}
+            with mock.patch.object(autark_sync, "send") as send:
+                self.assertIn("nichts gesendet", autark_sync.run_once(cfg))
+                send.assert_not_called()
+            with mock.patch.object(autark_sync, "send", return_value={"success": True, "zones": 0}) as send:
+                autark_sync.run_once({**cfg, "allow_empty": True})
+                self.assertTrue(send.call_args.args[4])
+        finally:
+            os.unlink(empty)
+
+    def test_fehler_von_nexus_wird_gemeldet(self):
         with mock.patch.object(autark_sync, "send", return_value={"success": False, "error": "x"}):
             with self.assertRaises(RuntimeError):
-                autark_sync.run_once(self.cfg, Path(self.state))
-        self.assertFalse(os.path.exists(self.state))
+                autark_sync.run_once(self.cfg)
 
 
 if __name__ == "__main__":
