@@ -35,8 +35,6 @@ import { buildLiveLeverageMap } from "@/lib/leverageMapContext";
 import { buildCycleIndicators } from "@/lib/cycleIndicatorsContext";
 import { buildVolatilitySnapshot } from "@/lib/volatilityContext";
 import { buildDivergenceRadar } from "@/lib/divergenceRadarContext";
-import { buildConfluenceScore, buildConfluenceSignalDetail } from "@/lib/confluenceScoreContext";
-import { buildRegimeScore, buildRegimeSignalDetail } from "@/lib/regimeScoreContext";
 import { detectEscalationTriggers } from "@/lib/escalationContext";
 import { TRADINGVIEW_SIGNAL_FRESHNESS_HOURS } from "@/lib/tradingViewSignal";
 import { DEFAULT_SERIES_EXCHANGE } from "@/lib/exchanges";
@@ -52,8 +50,6 @@ import RegimeMatrixCard from "@/components/RegimeMatrixCard";
 import QuizTile from "@/components/QuizTile";
 import OrderbookWallCard from "@/components/OrderbookWallCard";
 import DivergenceRadarCard from "@/components/DivergenceRadarCard";
-import ConfluenceScoreCard from "@/components/ConfluenceScoreCard";
-import RegimeScoreCard from "@/components/RegimeScoreCard";
 import SignalReviewCard from "@/components/SignalReviewCard";
 import EscalationCard from "@/components/EscalationCard";
 import TradeDebateCard from "@/components/TradeDebateCard";
@@ -529,10 +525,6 @@ export default async function Home({
     cycleIndicators,
     latestOrderbookWalls,
     divergenceRadar,
-    confluenceScore,
-    confluenceSignalDetail,
-    regimeScore,
-    regimeSignalDetail,
     latestSignalReview,
     escalationTriggers,
     latestEscalation,
@@ -568,10 +560,6 @@ export default async function Home({
     buildCycleIndicators(),
     getLatestOrderbookWalls(),
     buildDivergenceRadar(),
-    buildConfluenceScore(),
-    buildConfluenceSignalDetail(),
-    buildRegimeScore(),
-    buildRegimeSignalDetail(),
     getLatestSignalReview(),
     detectEscalationTriggers(),
     getLatestEscalation(),
@@ -639,14 +627,6 @@ export default async function Home({
     initialMtfDots: mtfDots,
     initialPriceReferences: priceReferences,
     keyLevels: tradeLevels,
-    setupScore: confluenceScore,
-    regimeScore,
-    scoreDetails: (
-      <div className="space-y-3">
-        <ConfluenceScoreCard score={confluenceScore} signalDetail={confluenceSignalDetail} />
-        <RegimeScoreCard score={regimeScore} signalDetail={regimeSignalDetail} />
-      </div>
-    ),
   };
 
   return (

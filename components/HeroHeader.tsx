@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type {
   EconomicCalendarEvent,
@@ -24,14 +24,10 @@ import {
   regimeDescription,
   shouldSuppressRegimeDirectionalLabel,
 } from "@/lib/marketRegime";
-import type { ConfluenceScoreResult } from "@/lib/confluenceScoreContext";
-import type { RegimeScoreResult } from "@/lib/regimeScoreContext";
 import {
   buildLagebildSentence,
   countMtfDirections,
   detectMtfStateConflict,
-  regimeLean,
-  setupLead,
 } from "@/lib/lagebild";
 import { useLivePriceData } from "@/components/LivePriceDataProvider";
 import { getSalomonInterpretation } from "@/lib/salomonInterpretation";
@@ -181,9 +177,6 @@ export default function HeroHeader({
   initialMtfDots,
   initialPriceReferences,
   keyLevels,
-  setupScore,
-  regimeScore,
-  scoreDetails,
   variant = "lage",
   tradeStep,
 }: {
@@ -216,11 +209,6 @@ export default function HeroHeader({
   // Keylevels (Preis + Seite) aus getChartStructureData(), statisch pro
   // Seitenaufruf -- der TP-Standard-Vorschlag rechnet mit dem Live-Preis.
   keyLevels: { price: number }[];
-  // Setup-/Regime-Score als Kennzahlen oben, die vollstaendigen Karten
-  // (scoreDetails) im Aufklapper "Warum?".
-  setupScore: ConfluenceScoreResult;
-  regimeScore: RegimeScoreResult;
-  scoreDetails: ReactNode;
   // 22.10.2026 (Toby): "lage" = Kachel 1 oben, "hintergrund" = Gesamteinschaetzung,
   // Scores, MTF und KI-Bericht als Kachel im Reiter Archiv. Beide Instanzen
   // pollen nur, was sie selbst zeigen.
@@ -437,15 +425,11 @@ export default function HeroHeader({
 
   const mtfCounts = countMtfDirections(mtfDots);
   const mtfConflict = detectMtfStateConflict(state.overall_state, suppressed, mtfDots);
-  const lead = setupLead(setupScore);
-  const lean = regimeLean(regimeScore);
   const sentence = buildLagebildSentence({
     overallState: state.overall_state,
     directionSuppressed: suppressed,
     conflict: mtfConflict,
     dots: mtfDots,
-    setup: lead,
-    regime: lean,
   });
   const fazit = narrativeSnapshot?.result?.fazit;
   // Aeltere Snapshot-Formate (vor der Zusammenlegung mit Chart-Narrativ)
@@ -524,7 +508,7 @@ export default function HeroHeader({
     <section className="rounded-lg border border-border bg-surface-raised p-5">
       <details className="group">
         <summary className="text-sm text-text-muted hover:text-text cursor-pointer select-none">
-          Hintergrund: Gesamteinschätzung, Scores, Marktphase, MTF, KI-Bericht
+          Hintergrund: Gesamteinschätzung, Marktphase, MTF, KI-Bericht
         </summary>
         <div className="pt-3 space-y-4">
       <div className="space-y-1">
@@ -562,45 +546,7 @@ export default function HeroHeader({
       )}
 
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-        <div className="rounded-md border border-border bg-surface p-3 space-y-1">
-          <p className="text-[11px] uppercase tracking-[0.12em] text-text-faint">Setup-Score</p>
-          {lead ? (
-            <>
-              <p className="text-base font-semibold">
-                <span className={lead.side === "Long" ? "text-up" : "text-down"}>{lead.side}</span>{" "}
-                <span className="tabular font-mono">{lead.probability.toFixed(1)} %</span>
-              </p>
-              <p className="text-xs text-text-faint">
-                {lead.tier}
-                {lead.otherProbability !== null &&
-                  ` · ${lead.otherSide} ${lead.otherProbability.toFixed(1)} %`}
-              </p>
-            </>
-          ) : (
-            <p className="text-xs text-text-faint">Keine Daten</p>
-          )}
-        </div>
-        <div className="rounded-md border border-border bg-surface p-3 space-y-1">
-          <p className="text-[11px] uppercase tracking-[0.12em] text-text-faint">Regime-Score</p>
-          {lean && regimeScore.up && regimeScore.down ? (
-            <>
-              <p
-                className={`text-base font-semibold ${
-                  lean === "aufwärts" ? "text-up" : lean === "abwärts" ? "text-down" : "text-text-muted"
-                }`}
-              >
-                {lean === "aufwärts" ? "Aufwärts" : lean === "abwärts" ? "Abwärts" : "Ausgeglichen"}
-              </p>
-              <p className="text-xs text-text-faint">
-                Auf {regimeScore.up.probability.toFixed(1)} % · Ab {regimeScore.down.probability.toFixed(1)} % ·
-                in Aufbau
-              </p>
-            </>
-          ) : (
-            <p className="text-xs text-text-faint">Keine Daten</p>
-          )}
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         <div className="rounded-md border border-border bg-surface p-3 space-y-1.5">
           <p className="text-[11px] uppercase tracking-[0.12em] text-text-faint">MTF-Ampel</p>
           <MtfDotsRow dots={mtfDots} />
@@ -851,7 +797,6 @@ export default function HeroHeader({
             </p>
           </div>
 
-          {scoreDetails}
         </div>
       </details>
         </div>
