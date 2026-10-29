@@ -13,6 +13,7 @@ import { activeLevels, fetchOwnZones } from "@/lib/ownZones";
 import { runTileAnalysis } from "@/lib/ai/router";
 import { checkAndRecordRateLimit } from "@/lib/rateLimit";
 import type { SystemBriefingResult, SystemBriefingTrigger } from "@/lib/types";
+import { baueBasis } from "@/lib/briefingBasis";
 
 // POST /api/system-briefing/generate
 //
@@ -183,6 +184,7 @@ export async function POST(req: NextRequest) {
       liquidationen: syntheseResult.data.liquidationen,
       etfFlows: syntheseResult.data.etfFlows,
       wirtschaftskalender: syntheseResult.data.wirtschaftskalender,
+      basis: baueBasis(context),
     };
 
     const { data: snapshot, error: insertError } = await supabaseAdmin

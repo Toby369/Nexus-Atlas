@@ -226,9 +226,20 @@ Autark-Plan).
 `npm test` und `deno check` für das gemeinsame Sammler-Modul. Ohne die
 Live-Integrationstests (`tests/`), die echte Zugangsdaten brauchen.
 
+## Umsetzung G (29.10.2026): Grundlage unter dem System-Briefing
+
+`lib/briefingBasis.ts` fasst die wichtigsten Zahlen, die die KI bekommt, in
+rund zehn Zeilen zusammen (Kurs, Marktzustand, Marktkontext, RSI, ETF,
+Liquidationen, Key Levels, Divergenzen, Termine, News). Sie werden mit jedem
+Briefing in `result.basis` gespeichert (rund 1 KB, keine neue Spalte) und im
+Lagebild unter „Grundlage: diese Zahlen hat die KI bekommen“ aufklappbar
+gezeigt. Test prüft Einheiten (Prozent, Mio. USD) und dass eine fehlende
+Quelle nur ihre Zeile kostet. Die übrigen KI-Kacheln (Zweitmeinungen,
+Rückblick, YouTube) folgen bei Bedarf.
+
 ## Vorschlag für die Reihenfolge
 
 1. ~~A + B (Datenstand)~~ umgesetzt am 29.10.2026.
 2. ~~C (Datenvertrag) für die Positionierungs- und Preis-Sammler~~ live seit 29.10.2026.
 3. ~~D + E zusammen, zuerst an zwei Kacheln (z. B. Funding, OI) als Muster~~ umgesetzt 29.10.2026 (drei Kacheln).
-4. ~~I~~ umgesetzt 29.10.2026; G, H, J nach Bedarf.
+4. ~~I~~ und ~~G (System-Briefing)~~ umgesetzt 29.10.2026; H, J nach Bedarf.
