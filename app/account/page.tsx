@@ -3,6 +3,7 @@ import { AppFooter, AppHeader } from "@/components/AppHeader";
 import PushNotificationSettings from "@/components/PushNotificationSettings";
 import LogoutButton from "@/components/LogoutButton";
 import TileUsageSummary from "@/components/TileUsageSummary";
+import DbSizeSummary from "@/components/DbSizeSummary";
 import DataFreshnessList from "@/components/DataFreshnessList";
 
 // Nutzungs-Auswertung liest bei jedem Aufruf frisch (wie app/page.tsx).
@@ -34,6 +35,10 @@ export default function AccountPage() {
         <div id="datenstand" className="scroll-mt-4">
           <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted mb-3">Datenstand</h2>
           <DataFreshnessList />
+        </div>
+        <div>
+          <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted mb-3">Datenbank-Speicher</h2>
+          <DbSizeSummary />
         </div>
         <div>
           <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted mb-3">Nutzung der Kacheln</h2>
