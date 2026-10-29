@@ -20,9 +20,11 @@ grant select on public.autark_sync_status to anon, authenticated;
 grant select, insert, update, delete on public.autark_sync_status to service_role;
 revoke insert, update, delete, truncate, references, trigger on public.autark_sync_status from anon, authenticated;
 
-drop function if exists public.replace_own_zones_from_autark(jsonb);
-
-create or replace function public.replace_own_zones_from_autark(p_zones jsonb, p_allow_empty boolean default false)
+-- Neue Fassung mit zwei Parametern. p_allow_empty ohne Standardwert, damit
+-- ein Aufruf nur mit p_zones eindeutig die alte Fassung (jsonb) trifft.
+-- Die alte Fassung bleibt ungenutzt stehen (nur service_role), weil das
+-- Loeschen per MCP eine Bestaetigung braucht, die bei Toby nicht ankommt.
+create or replace function public.replace_own_zones_from_autark(p_zones jsonb, p_allow_empty boolean)
 returns integer
 language plpgsql
 security invoker
@@ -39,32 +41,35 @@ begin
     raise exception 'Leere Zonenliste abgelehnt (ohne p_allow_empty)';
   end if;
 
-  create temporary table neu on commit drop as
-  select ((z->>'lo')::numeric + (z->>'hi')::numeric) / 2 as price,
-         (z->>'lo')::numeric as price_low,
-         (z->>'hi')::numeric as price_high,
-         nullif(left(coalesce(z->>'label', ''), 120), '') as label,
-         nullif(z->>'id', '')::integer as autark_id
-  from jsonb_array_elements(p_zones) as z
-  where (z->>'lo')::numeric > 0 and (z->>'hi')::numeric >= (z->>'lo')::numeric;
-
-  select exists (
-    (select price_low, price_high, label, autark_id from neu
-     except
-     select price_low, price_high, label, autark_id from public.own_zones where source = 'autark')
-    union all
-    (select price_low, price_high, label, autark_id from public.own_zones
-     except
-     select price_low, price_high, label, autark_id from neu)
-  ) into changed;
+  with neu as (
+    select (z->>'lo')::numeric as price_low,
+           (z->>'hi')::numeric as price_high,
+           nullif(left(coalesce(z->>'label', ''), 120), '') as label,
+           nullif(z->>'id', '')::integer as autark_id
+    from jsonb_array_elements(p_zones) as z
+    where (z->>'lo')::numeric > 0 and (z->>'hi')::numeric >= (z->>'lo')::numeric
+  )
+  select (select count(*) from neu),
+         exists (
+           (select price_low, price_high, label, autark_id from neu
+            except
+            select price_low, price_high, label, autark_id from public.own_zones where source = 'autark')
+           union all
+           (select price_low, price_high, label, autark_id from public.own_zones
+            except
+            select price_low, price_high, label, autark_id from neu)
+         )
+    into n, changed;
 
   if changed then
     delete from public.own_zones where true;
     insert into public.own_zones (price, price_low, price_high, label, source, autark_id)
-    select price, price_low, price_high, label, 'autark', autark_id from neu;
+    select (lo + hi) / 2, lo, hi, nullif(left(coalesce(z->>'label', ''), 120), ''), 'autark', nullif(z->>'id', '')::integer
+    from jsonb_array_elements(p_zones) as z,
+         lateral (select (z->>'lo')::numeric as lo, (z->>'hi')::numeric as hi) as v
+    where lo > 0 and hi >= lo;
   end if;
 
-  select count(*) into n from neu;
   update public.autark_sync_status
      set last_sync_at = now(),
          last_change_at = case when changed then now() else last_change_at end,
