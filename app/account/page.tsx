@@ -3,6 +3,7 @@ import { AppFooter, AppHeader } from "@/components/AppHeader";
 import PushNotificationSettings from "@/components/PushNotificationSettings";
 import LogoutButton from "@/components/LogoutButton";
 import TileUsageSummary from "@/components/TileUsageSummary";
+import DataFreshnessList from "@/components/DataFreshnessList";
 
 // Nutzungs-Auswertung liest bei jedem Aufruf frisch (wie app/page.tsx).
 export const revalidate = 0;
@@ -28,6 +29,11 @@ export default function AccountPage() {
             Push-Benachrichtigungen
           </h2>
           <PushNotificationSettings />
+        </div>
+        {/* Ziel der Ampel in der Kopfzeile (components/DataStatusLight.tsx). */}
+        <div id="datenstand" className="scroll-mt-4">
+          <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted mb-3">Datenstand</h2>
+          <DataFreshnessList />
         </div>
         <div>
           <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted mb-3">Nutzung der Kacheln</h2>

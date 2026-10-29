@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { DASHBOARD_TILES, DASHBOARD_TILE_IDS } from "./dashboardTiles";
+import { DATA_SOURCE_KEYS } from "./dataFreshness";
 
 // Strukturelle Regressionstests: DashboardLayout.tsx verlaesst sich darauf,
 // dass jede Kachel-ID eindeutig ist und DASHBOARD_TILE_IDS exakt aus
@@ -19,6 +20,16 @@ describe("dashboardTiles registry", () => {
   it("jede Kachel hat einen nicht-leeren Titel", () => {
     for (const tile of DASHBOARD_TILES) {
       expect(tile.title.trim().length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("dashboardTiles quellen", () => {
+  it("nennt nur Datenquellen, die lib/dataFreshness.ts kennt", () => {
+    for (const tile of DASHBOARD_TILES) {
+      for (const key of tile.quellen ?? []) {
+        expect(DATA_SOURCE_KEYS, `${tile.id}: ${key}`).toContain(key);
+      }
     }
   });
 });

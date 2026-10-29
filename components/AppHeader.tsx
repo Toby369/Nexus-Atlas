@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import DataStatusLight from "@/components/DataStatusLight";
 
 // Gemeinsamer Seitenkopf fuer Dashboard, Lernen und Konto:
 // dieselbe Navigation ueberall, aktive Seite hervorgehoben.
@@ -35,6 +36,7 @@ export function AppHeader({
         </span>
       </Link>
       <div className="flex items-center gap-2 min-w-0">
+        <DataStatusLight />
         {actions}
         <nav aria-label="Hauptnavigation" className="flex items-center gap-0.5">
           {NAV_ITEMS.map((item) =>

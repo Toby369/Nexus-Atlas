@@ -56,7 +56,7 @@ Die drei Punkte mit dem grössten Nutzen für Nexus:
 | 1 | Register | `lib/dashboardTiles.ts` + `lib/dashboardTabs.ts`; neue Kacheln im gespeicherten Layout werden ergänzt (`DashboardLayout.tsx`). Register kennt aber nur `id`, `title`, `size`. Abfragetakt, Quelle und Info-Text stecken in jeder Komponente. | teilweise |
 | 2 | Grundbausteine | Kein Ordner dafür. `rounded-(lg\|xl) border border-border bg-surface` 56-mal von Hand, 19 Komponenten mit eigenem „keine Daten“-Text. Gut: `PanelInfo` (32 Nutzungen), `ClientTimestamp` (14). | fehlt grösstenteils |
 | 3 | Farb-Tokens | `app/globals.css` mit Tokens und geprüften Kontrastwerten, Farbwelt schon nach AutarkTrade (22.10.). Abstände/Radien noch als lose Tailwind-Klassen. | weitgehend da |
-| 4 | Ehrliche Zustände | Einzelne Kacheln zeigen Alter/„veraltet“. Für die 39 Edge Functions gibt es keine gemeinsame Übersicht, wann jede zuletzt erfolgreich lief; nur `autark_sync_status` für den Zonen-Sync. `cron.job_run_details` wird nach 7 Tagen gelöscht und nirgends angezeigt. | fehlt |
+| 4 | Ehrliche Zustände | Einzelne Kacheln zeigen Alter/„veraltet“. **Korrektur 29.10.:** `data_quality` (seit 27.08., stündlich von `refresh_data_quality()` aus den Rohdaten berechnet) gibt es schon, wird aber nirgends angezeigt, ist bis 60 Min alt und kennt Bitunix/Pionex nicht. | in der DB da, in der App fehlte es (A/B umgesetzt, siehe unten) |
 | 5 | Quelle an jeder Zahl | Quellenzeile in 7 Komponenten, je eigener Wortlaut. | teilweise |
 | 6 | KI liest nur ab | KI-Einordnung, System-Briefing, Zweitmeinungen. Kontext wird in `lib/*Context.ts` gebaut und teils getestet (`systemBriefingContext.test.ts`), die Grundlage wird in der Oberfläche aber nicht als „Basis“ gezeigt. | teilweise |
 | 7 | Datenvertrag | Keine gespeicherten Börsen-Antworten, keine Tests für die Parser in den Edge Functions (Deno). | fehlt |
@@ -140,9 +140,31 @@ Autark-Plan).
 - **Zweisprachigkeit (i18n):** Nexus ist nur für Toby, Deutsch reicht.
 - **Eigener Test-Läufer ohne Framework:** Nexus hat Vitest, das ist besser.
 
+## Umsetzung A + B (29.10.2026)
+
+- **RPC `get_data_freshness()`** (Migration `20261029100000_get_data_freshness.sql`):
+  jüngster Zeitstempel je Quelle direkt aus den Rohdaten, über vorhandene
+  Zeit-Indizes und ein 24-Std-Fenster. Keine neue Tabelle, keine Änderung an
+  den Sammlern, also kein zusätzlicher Speicher (DB 411/500 MB). Gemessen ~26 ms.
+- **`lib/dataFreshness.ts`**: Register aller Quellen mit dem Alter, das im
+  gesunden Betrieb höchstens vorkommt (gegen die grösste Lücke der Woche davor
+  geprüft). Gelb über dem Normalalter, rot ab dem Dreifachen oder ohne Daten.
+- **Ampel in der Kopfzeile** (`components/DataStatusLight.tsx`), Klick führt
+  zur Liste aller Quellen im Konto (`/account#datenstand`).
+- **Kachelkopf** (`components/TileFreshness.tsx`): „vor 4 Min“, bei
+  Verspätung gelb/rot mit dem Namen der Quelle. Quellen je Kachel stehen im
+  Register `lib/dashboardTiles.ts` (Feld `quellen`).
+- **Log-Ingestion:** ein gemeinsamer Abruf je Seite, alle 5 Min, nur bei
+  sichtbarem Tab (`lib/dataFreshnessStore.ts`).
+- Bewusst ausgelassen: Liquidationen (keine Liquidation = ruhiger Markt, kein
+  Ausfall) und die KI-Kacheln, die auf Knopfdruck entstehen.
+- **Nebenbefunde:** Binance-Liquidationen wurden laut `liquidation_events` nie
+  gespeichert (nur Bybit). In `data_quality` steht `bgeometrics/miner-net-flow`
+  seit gut 60 Tagen ohne Daten.
+
 ## Vorschlag für die Reihenfolge
 
-1. A + B (Datenstand) in einer Session, weil beide dieselbe Status-Quelle nutzen.
+1. ~~A + B (Datenstand)~~ umgesetzt am 29.10.2026.
 2. C (Datenvertrag) für die Positionierungs- und Preis-Sammler.
 3. D + E zusammen, zuerst an zwei Kacheln (z. B. Funding, OI) als Muster.
 4. G, H, I, J nach Bedarf.
