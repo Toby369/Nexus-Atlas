@@ -7,6 +7,7 @@ import { useDashboardPoll } from "@/components/DashboardPollProvider";
 import { useSpotPerpSummary } from "@/components/SpotPerpFlowPanel";
 import { WARNING_LABELS } from "@/components/TradingHoursBadge";
 import StepCard from "@/components/StepCard";
+import { MIN_STOP_PCT } from "@/lib/zones";
 import { ruleCheckInfo, vetoInfo } from "@/lib/panelInfo";
 import type { Candle } from "@/lib/candles";
 import { evaluateRuleCheck, type CheckAnswer } from "@/lib/ruleCheck";
@@ -188,6 +189,7 @@ export function useTradeStatus(props: DecisionProps) {
     driverLabel: spotPerp.result.verdict ? `${spotPerp.result.verdict.label}: ${spotPerp.result.verdict.text}` : null,
     upcomingRisk: risk ? `${WARNING_LABELS[risk.id]} ${risk.inMin === 0 ? "läuft jetzt" : `in ${risk.inMin} Min`}` : null,
     noisePct: hourlyNoisePct(props.candles1h),
+    stopPct: check.stopPct ?? MIN_STOP_PCT,
     tradesToday: journal.trades,
     lossesInRow: journal.losses,
   });

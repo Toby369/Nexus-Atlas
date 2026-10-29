@@ -330,7 +330,7 @@ Wie du es nutzt: Hedgefonds kaufen Spot oder ETF-Anteile und verkaufen Futures, 
 Quelle: Deribit, stündlich (collect-term-basis). Ältere Tageswerte nachgeladen, dort dient BTC-PERPETUAL als Index-Näherung.`;
 
 // Zonen-Kachel (components/ZonesCard.tsx).
-export const zonesInfo = `So liest du das: Die nächsten Zonen über und unter dem aktuellen Kurs. Über dem Kurs heisst eine Zone Verkäufer-Zone, darunter Käufer-Zone, egal welche Rolle sie früher hatte (Rollentausch). Bei der nächsten Zone je Seite stehen Abstand, Chance-Risiko bei einem Stop von 0,5 % und dein TP-Standard: ab 1,75 % Abstand Standard 1, ab 1,5 % Standard 2, ab 1,25 % Standard 3, ab 1,0 % Standard 4, darunter kein Trade. Gegen den 1D-Trend gilt höchstens Standard 4. Ob ein Level mit dem 4H-Körper gebrochen ist, beantwortet der Regelcheck darunter.
+export const zonesInfo = `So liest du das: Die nächsten Zonen über und unter dem aktuellen Kurs. Über dem Kurs heisst eine Zone Verkäufer-Zone, darunter Käufer-Zone, egal welche Rolle sie früher hatte (Rollentausch). Bei der nächsten Zone je Seite stehen Abstand, Chance-Risiko mit Stop hinter der Zone (0,25 % jenseits der Zonenkante, mindestens 0,5 % vom Einstieg) und dein TP-Standard: ab 1,75 % Abstand Standard 1, ab 1,5 % Standard 2, ab 1,25 % Standard 3, ab 1,0 % Standard 4, darunter kein Trade. Gegen den 1D-Trend gilt höchstens Standard 4. Ob ein Level mit dem 4H-Körper gebrochen ist, beantwortet der Regelcheck darunter.
 
 Zonen aus AutarkTrade: Sobald AutarkTrade Zonen liefert (Abgleich alle 5 Minuten), rechnet Nexus mit ihnen, inklusive Bereich und Name. Der Kurs gilt als „an der Zone“, wenn er zwischen Unterkante −0,25 % und Oberkante +0,25 % liegt; Long erst über der Oberkante, Short erst unter der Unterkante. Kommt länger als 30 Minuten kein Abgleich, warnt die Kachel, weil die Zonen dann veraltet sein können.
 
@@ -346,7 +346,7 @@ Grün heisst erfüllt, rot heisst kein Trade, grau heisst noch offen. Die Kerzen
 
 export const vetoInfo = `So liest du das: Die letzte Prüfung vor dem Klick. Funding ab 0,03 % pro 8 h und eine einseitige Masse (ab 65 % Long-Konten oder unter 50 %) warnen nur, wenn sie auf deiner Seite stehen: Dann bist du Teil der überfüllten Seite, also kleinere Position. „Treibt Spot mit?“ vergleicht Spot- und Perp-Netto-Flow im gewählten Zeitraum; trägt nur der Hebel die Bewegung, ist sie fragil.
 
-„Markt ruhig genug für 0,5 % Stop?“ vergleicht deinen festen Stop mit der durchschnittlichen Spanne einer 1H-Kerze (ATR 14). Üblich sind etwa 0,5 %, also so viel wie dein Stop. Ab 0,6 % (die unruhigsten rund 25 % der Zeit) warnt Nexus: Der Stop wird dann leicht vom normalen Hin und Her ausgelöst.
+Die Stop-Zeile vergleicht deinen Stop hinter der Zone (0,25 % jenseits der Zonenkante, mindestens 0,5 % vom Einstieg) mit der durchschnittlichen Spanne einer 1H-Kerze (ATR 14, üblich etwa 0,5 %). Schwankt eine Kerze im Schnitt mindestens 1,2-mal so weit, wie der Stop entfernt liegt, warnt Nexus: Der Stop wird dann leicht vom normalen Hin und Her ausgelöst. Dazu steht der passende Hebel: Das Risiko bleibt fix bei 10 % Marge (1 USDT), also Hebel = 10 % geteilt durch den Stop-Abstand, höchstens 20x (Stop 0,5 % → 20x, 0,85 % → 11x).
 
 Ein Veto (rot) sperrt den Einstieg: ein Hochrisiko-Zeitfenster (US-Kasseneröffnung, CPI/PCE/NFP, FOMC) läuft oder beginnt in den nächsten 30 Minuten, du hast heute schon 3 Trades oder 2 Verluste in Folge. Trades und Verluste trägst du unten selbst ein; sie gelten nur für heute und nur in diesem Browser.`;
 

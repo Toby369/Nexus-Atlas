@@ -5,14 +5,13 @@ import { useRouter } from "next/navigation";
 import { useLivePriceData } from "@/components/LivePriceDataProvider";
 import StepCard from "@/components/StepCard";
 import { zonesInfo } from "@/lib/panelInfo";
-import { nearestLiquidationTargets, nearestZones, type LiquidationTarget, type ZoneRow } from "@/lib/zones";
+import { entryZone, leverageForStop, nearestLiquidationTargets, nearestZones, stopBehindZone, type LiquidationTarget, type ZoneRow } from "@/lib/zones";
 import { isSyncStale, AUTARK_SYNC_STALE_MINUTES, type AutarkSyncStatus, type OwnZone } from "@/lib/ownZones";
-import { STOP_LOSS_PCT } from "@/lib/veto";
 import { computeTpSuggestions, type TpSuggestion } from "@/lib/tpStandard";
 
 // Zonen-Kachel (Schritt 2 im Dashboard, Toby 22.10.2026): naechste
 // Verkaeufer-Zone ueber und Kaeufer-Zone unter dem Live-Kurs, mit Abstand,
-// Chance-Risiko (SL 0,5 % Kurs) und TP-Standard. Die 4H-Koerperfrage
+// Chance-Risiko (Stop hinter der Einstiegszone, mind. 0,5 %) und TP-Standard. Die 4H-Koerperfrage
 // beantwortet der Regelcheck (lib/ruleCheck.ts).
 // 27.10.2026: eigene Zonen haben Vorrang (Nexus-Keylevels nur Abgleich), dazu
 // je Seite die naechste Liquidations-Zone als Ziel (Regelwerk Punkt 7).
@@ -31,7 +30,7 @@ function verdictText(s: TpSuggestion | undefined): string {
   return `Standard ${s.standard.id} (TP ${s.standard.marginPct} %)${s.againstDaily ? " · ⚠ gegen 1D" : ""}`;
 }
 
-function ZoneBox({ zone, suggestion }: { zone: ZoneRow; suggestion?: TpSuggestion }) {
+function ZoneBox({ zone, suggestion, stopPct }: { zone: ZoneRow; suggestion?: TpSuggestion; stopPct?: number }) {
   const sell = zone.role === "Verkäufer-Zone";
   const sign = sell ? "+" : "−";
   return (
@@ -50,10 +49,11 @@ function ZoneBox({ zone, suggestion }: { zone: ZoneRow; suggestion?: TpSuggestio
       <span className="col-span-2 text-text-muted">
         {sign}
         {zone.distancePct.toFixed(1)} %
-        {suggestion && (
+        {suggestion && stopPct && (
           <>
             {" · CRV "}
-            {(zone.distancePct / STOP_LOSS_PCT).toFixed(1)}
+            {(zone.distancePct / stopPct).toFixed(1)}
+            {` · Stop ${stopPct.toFixed(2)} % · ${leverageForStop(stopPct)}x`}
             {" · "}
             <span className={suggestion.standard ? "text-text" : "text-down"}>{verdictText(suggestion)}</span>
           </>
@@ -222,6 +222,9 @@ export default function ZonesCard({
   const { above, below } = nearestZones(keyLevels, price);
   const [longS, shortS] = computeTpSuggestions(keyLevels, price, dailyTrend);
   const liq = nearestLiquidationTargets(liquidationZones, price);
+  // Stop hinter der Zone, an der eingestiegen wuerde (Long unten, Short oben).
+  const longStop = price !== null ? stopBehindZone("long", entryZone(keyLevels, price, "long"), price).stopPct : undefined;
+  const shortStop = price !== null ? stopBehindZone("short", entryZone(keyLevels, price, "short"), price).stopPct : undefined;
   const autark = ownZones.some((z) => z.source === "autark");
   const [stale, setStale] = useState(false);
   useEffect(() => {
@@ -242,7 +245,7 @@ export default function ZonesCard({
   return (
     <StepCard step={2} title="Zonen" line={line} tone={autark && stale ? "warn" : "neutral"} info={zonesInfo} usageId="zones">
       <p className="text-[11px] text-text-faint">
-        {autark ? "Zonen aus AutarkTrade" : ownZones.length > 0 ? "Deine Zonen" : "Nexus-Keylevels"} · SL 0,5 %
+        {autark ? "Zonen aus AutarkTrade" : ownZones.length > 0 ? "Deine Zonen" : "Nexus-Keylevels"} · Stop hinter der Zone
       </p>
       <LiqLine dir="↑" target={liq.above} />
       {price === null || (above.length === 0 && below.length === 0) ? (
@@ -250,7 +253,7 @@ export default function ZonesCard({
       ) : (
         <div className="flex flex-col gap-1.5">
           {[...above].reverse().map((z, i) => (
-            <ZoneBox key={`a${z.price}`} zone={z} suggestion={i === above.length - 1 ? longS : undefined} />
+            <ZoneBox key={`a${z.price}`} zone={z} suggestion={i === above.length - 1 ? longS : undefined} stopPct={longStop} />
           ))}
           <div className="flex items-center gap-2 text-[11px] text-accent">
             <span className="h-px flex-1 bg-accent/50" />
@@ -258,7 +261,7 @@ export default function ZonesCard({
             <span className="h-px flex-1 bg-accent/50" />
           </div>
           {below.map((z, i) => (
-            <ZoneBox key={`b${z.price}`} zone={z} suggestion={i === 0 ? shortS : undefined} />
+            <ZoneBox key={`b${z.price}`} zone={z} suggestion={i === 0 ? shortS : undefined} stopPct={shortStop} />
           ))}
         </div>
       )}

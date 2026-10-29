@@ -5,6 +5,7 @@ import type { RuleCheckResult } from "./ruleCheck";
 const check = (side: RuleCheckResult["side"], tone: RuleCheckResult["verdict"]["tone"], short: string): RuleCheckResult => ({
   side,
   level: side ? 81_539 : null,
+  stopPct: null,
   rows: [],
   verdict: { tone, short, text: short },
 });

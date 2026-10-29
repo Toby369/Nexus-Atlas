@@ -125,3 +125,44 @@ export function nearestLiquidationTargets(
     below: below ? toTarget(below, below.priceHigh) : null,
   };
 }
+
+/** Regelwerk 29.10.2026 (Toby): Stop hinter der Zone statt fest 0,5 %. */
+export const STOP_BEYOND_ZONE_PCT = 0.25;
+/** Nie enger als dieser Abstand vom Einstieg (1H-Rauschen liegt im Median bei ~0,5 %). */
+export const MIN_STOP_PCT = 0.5;
+
+/**
+ * Stop hinter der Zone: Long 0,25 % unter der Unterkante, Short 0,25 % ueber
+ * der Oberkante -- mindestens 0,5 % vom Einstieg entfernt.
+ */
+export function stopBehindZone(side: "long" | "short", zone: ZoneLevel | null, entry: number): { stop: number; stopPct: number } {
+  const beyond = STOP_BEYOND_ZONE_PCT / 100;
+  const minDist = MIN_STOP_PCT / 100;
+  const stop =
+    side === "long"
+      ? Math.min(zone ? zoneLow(zone) * (1 - beyond) : Infinity, entry * (1 - minDist))
+      : Math.max(zone ? zoneHigh(zone) * (1 + beyond) : -Infinity, entry * (1 + minDist));
+  return { stop, stopPct: (Math.abs(entry - stop) / entry) * 100 };
+}
+
+/**
+ * Zone, an der ein Trade ab Kurs einsteigen wuerde: Long an der naechsten Zone
+ * auf oder unter dem Kurs, Short an der naechsten auf oder ueber dem Kurs.
+ */
+export function entryZone(levels: ZoneLevel[], price: number, side: "long" | "short"): ZoneLevel | null {
+  const tol = ENTRY_LEVEL_TOLERANCE_PCT / 100;
+  if (side === "long") {
+    return levels.filter((l) => zoneLow(l) <= price * (1 + tol)).sort((a, b) => zoneHigh(b) - zoneHigh(a))[0] ?? null;
+  }
+  return levels.filter((l) => zoneHigh(l) >= price * (1 - tol)).sort((a, b) => zoneLow(a) - zoneLow(b))[0] ?? null;
+}
+
+/** Risiko je Trade fix 10 % Marge (Regelwerk 29.10.2026), hoechstens 20x Hebel. */
+export const RISK_MARGIN_PCT = 10;
+export const MAX_LEVERAGE = 20;
+
+/** Hebel, bei dem der Stop genau 10 % Marge kostet: 10 % / Stop-Abstand, abgerundet, max. 20x. */
+export function leverageForStop(stopPct: number): number {
+  if (!(stopPct > 0)) return MAX_LEVERAGE;
+  return Math.max(1, Math.min(MAX_LEVERAGE, Math.floor(RISK_MARGIN_PCT / stopPct + 1e-9)));
+}
