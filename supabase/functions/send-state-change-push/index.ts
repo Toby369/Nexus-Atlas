@@ -248,6 +248,11 @@ const PRE_EVENT_STAGES: { stage: string; offsetMin: number; windowMin: number }[
   { stage: "t15", offsetMin: 15, windowMin: 20 },
 ];
 
+// Datenbank-Speicher, siehe Abschnitt 6 im Handler und CLAUDE.md.
+const DB_LIMIT_MB = 500;
+const DB_WARN_MB = 400;
+const DB_CRITICAL_MB = 450;
+
 // Ergebnis seit 14.10.2026 aus den News statt FRED: die Next.js-Route
 // /api/economic-result/generate fasst die ersten Schlagzeilen per KI
 // zusammen und speichert sie in economic_event_results. Nach 6h ohne
@@ -855,6 +860,41 @@ Deno.serve(async (req: Request) => {
       { interval: tf.interval, candle_time: latestRegime.timestamp_utc, regime: latestRegime.regime },
       { onConflict: "interval,candle_time", ignoreDuplicates: true }
     );
+  }
+
+  // 6) Datenbank-Speicher (Toby 29.10.2026): Supabase Free-Plan erlaubt 500 MB,
+  //    danach wird die DB schreibgeschuetzt. Ab 400 MB alle 3 Tage, ab 450 MB
+  //    taeglich eine Warnung. Dedupe ueber push_messages.kind = "db_size".
+  const { data: dbBytes, error: dbSizeError } = await supabase.rpc("get_db_size_bytes");
+  const dbMb = Number(dbBytes) / 1024 / 1024;
+  if (dbSizeError) console.error("get_db_size_bytes:", dbSizeError.message);
+  if (!dbSizeError && Number.isFinite(dbMb) && dbMb >= DB_WARN_MB) {
+    const critical = dbMb >= DB_CRITICAL_MB;
+    const repeatMs = (critical ? 1 : 3) * 24 * 60 * MINUTE_MS;
+    const { data: recentDbWarning } = await supabase
+      .from("push_messages")
+      .select("id")
+      .eq("kind", "db_size")
+      .gte("created_at", new Date(nowMs - repeatMs).toISOString())
+      .limit(1);
+    if (!recentDbWarning || recentDbWarning.length === 0) {
+      events.push({
+        kind: "db_size",
+        title: `Nexus Atlas — Datenbank ${Math.round(dbMb)} von ${DB_LIMIT_MB} MB`,
+        body: critical
+          ? "Fast voll: Ab 500 MB speichert Nexus keine neuen Marktdaten mehr. Bitte jetzt aufräumen lassen."
+          : "Der Speicher wird knapp. Bitte Claude bitten, Aufräum-Optionen vorzuschlagen.",
+        explanation:
+          "Nexus läuft im kostenlosen Plan von Supabase, der höchstens 500 MB erlaubt. Ist die Grenze erreicht, schaltet Supabase die Datenbank auf „nur lesen“: " +
+          "Kurse, Orderflow und alle anderen Sammel-Daten werden dann nicht mehr gespeichert, das Dashboard friert ein. " +
+          "Aufräumen heisst: Aufbewahrungsfristen kürzen oder grosse Tabellen prüfen; alternativ der Pro-Plan für 25 $ im Monat. Gelöscht wird nur mit deinem Okay.",
+        details: [
+          `Belegt: ${Math.round(dbMb)} MB von ${DB_LIMIT_MB} MB`,
+          critical ? "Stufe: kritisch (ab 450 MB, Erinnerung täglich)" : "Stufe: Warnung (ab 400 MB, Erinnerung alle 3 Tage)",
+        ],
+        link: "/account",
+      });
+    }
   }
 
   if (events.length === 0) {
