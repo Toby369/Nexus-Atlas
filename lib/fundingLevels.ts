@@ -5,7 +5,7 @@
 // die ueblichen Faustregeln formuliert sind.
 //
 // 0,01 % pro 8 h ist der Standardwert (Zinskomponente) bei Binance/Bybit
-// und damit der Ruhezustand, nicht "leicht bullisch". Die Extrem-Schwelle
+// und damit der Grundwert, nicht "leicht bullisch". Die Extrem-Schwelle
 // 0,05 % ist dieselbe wie FUNDING_EXTREME_THRESHOLD in compute-market-state
 // und in Tobys Mein-System-Checkliste. Die uebrigen Stufen sind Faustregeln,
 // keine backtest-validierten Signale (siehe phase6-factor-diagnostics.md:
@@ -47,7 +47,11 @@ const LEVELS: Record<FundingLevelId, Omit<FundingLevel, "id">> = {
   },
   negative: { label: "Negativ", tone: "watch", hint: "Shorts dominieren." },
   slightly_negative: { label: "Leicht negativ", tone: "calm", hint: "Leichter Short-Überhang." },
-  neutral: { label: "Neutral", tone: "calm", hint: "Ruhezustand, Standardwert der Börsen." },
+  neutral: {
+    label: "Neutral",
+    tone: "calm",
+    hint: "Grundwert: Perp und Spot gleichauf. Die Börsen setzen standardmässig 0,01 % pro 8 h. Kein Signal.",
+  },
   elevated: { label: "Erhöht", tone: "watch", hint: "Long-lastig, typisch im Aufwärtstrend." },
   high: { label: "Hoch", tone: "watch", hint: "Deutliches Long-Crowding." },
   extreme: {
@@ -96,4 +100,74 @@ export function classifyFundingPct(pctPer8h: number): FundingLevel {
 export function classifyFunding(rate: number | null, intervalHours = 8): FundingLevel | null {
   if (rate === null || !Number.isFinite(rate)) return null;
   return classifyFundingPct(fundingPctPer8h(rate, intervalHours));
+}
+
+// Grundwert = 0 bis 0,01 % pro 8 h. In ruhigen Phasen liegt das Funding fast
+// immer dort; aussagekraeftig ist, wann es ihn zuletzt verlassen hat.
+export const FUNDING_HISTORY_DAYS = 30;
+
+export interface FundingEvent {
+  t: number; // ms
+  pct: number; // % pro 8 h
+}
+
+export interface FundingBaselineStatus {
+  inBaseline: boolean;
+  /** Text fuer die Kachel, z. B. "Seit 6 Std. im Grundwert." */
+  lines: string[];
+}
+
+export function isFundingBaseline(pctPer8h: number): boolean {
+  const pct = roundPct(pctPer8h);
+  return pct >= 0 && pct <= FUNDING_BASELINE_PCT;
+}
+
+function ago(ms: number): string {
+  const h = ms / 3_600_000;
+  if (h < 1) return `${Math.max(1, Math.round(h * 60))} Min.`;
+  if (h < 48) return `${Math.round(h)} Std.`;
+  return `${Math.round(h / 24)} Tagen`;
+}
+
+function signedPct(pct: number): string {
+  return `${pct >= 0 ? "+" : "−"}${Math.abs(pct).toLocaleString("de-CH", { minimumFractionDigits: 4, maximumFractionDigits: 4 })} %`;
+}
+
+/**
+ * lastNegative/lastAbove: juengster Wert unter 0 bzw. ueber 0,01 % in den
+ * letzten FUNDING_HISTORY_DAYS Tagen; lastBaseline: juengster Wert im
+ * Grundwert (nur noetig, wenn das Funding gerade ausserhalb liegt).
+ */
+export function fundingBaselineStatus(
+  currentPct: number,
+  lastNegative: FundingEvent | null,
+  lastAbove: FundingEvent | null,
+  lastBaseline: FundingEvent | null,
+  now: number,
+): FundingBaselineStatus {
+  const inBaseline = isFundingBaseline(currentPct);
+  const lines: string[] = [];
+  if (inBaseline) {
+    const lastOut = Math.max(lastNegative?.t ?? 0, lastAbove?.t ?? 0);
+    lines.push(
+      lastOut > 0 ? `Seit ${ago(now - lastOut)} im Grundwert.` : `Seit über ${FUNDING_HISTORY_DAYS} Tagen im Grundwert.`,
+    );
+  } else {
+    lines.push(
+      lastBaseline
+        ? `Seit ${ago(now - lastBaseline.t)} ausserhalb des Grundwerts.`
+        : `Seit über ${FUNDING_HISTORY_DAYS} Tagen ausserhalb des Grundwerts.`,
+    );
+  }
+  lines.push(
+    lastNegative
+      ? `Zuletzt negativ (Shorts zahlen): vor ${ago(now - lastNegative.t)}, ${signedPct(lastNegative.pct)}.`
+      : `Negativ: nicht in den letzten ${FUNDING_HISTORY_DAYS} Tagen.`,
+  );
+  lines.push(
+    lastAbove
+      ? `Zuletzt über 0,01 % (Longs zahlen mehr): vor ${ago(now - lastAbove.t)}, ${signedPct(lastAbove.pct)}.`
+      : `Über 0,01 %: nicht in den letzten ${FUNDING_HISTORY_DAYS} Tagen.`,
+  );
+  return { inBaseline, lines };
 }

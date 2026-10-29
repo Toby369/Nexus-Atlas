@@ -19,7 +19,7 @@ const SESSION_LABELS: Record<SessionId, string> = {
   usPost: "US-Nachbörse",
 };
 
-const WARNING_LABELS: Record<WarningId, string> = {
+export const WARNING_LABELS: Record<WarningId, string> = {
   opening: "US-Kasseneröffnung",
   macro: "Wichtige Makro-Daten",
   fomc: "FOMC-Zinsentscheid",
@@ -49,8 +49,12 @@ export default function TradingHoursBadge({ events }: { events: EconomicEventRow
   const activeWarning = highWarning ?? mediumWarning;
 
   const style = highWarning
-    ? "border-accent/40 bg-accent/10 text-accent"
+    ? "border-warn/40 bg-warn/10 text-warn"
     : "border-border bg-surface-raised text-text-muted";
+
+  // 25.10.2026 (Toby, "kurz und klar"): im Kopf nur, wenn ein Warnfenster
+  // laeuft -- die reine Session-Angabe ist kein Handlungsgrund.
+  if (!activeWarning) return null;
 
   const sessionLabel =
     state.active.length > 0 ? SESSION_LABELS[state.active[0].id] : "Keine Hauptsession aktiv";

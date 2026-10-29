@@ -25,7 +25,7 @@ const ZONES: { id: FundingLevelId; range: string; text: string }[] = [
   { id: "extreme_negative", range: `≤ −${X} %`, text: "Shorts überfüllt und zahlen viel. Treibstoff für einen Short-Squeeze." },
   { id: "negative", range: `−${X} bis −${B} %`, text: "Shorts dominieren, häufig nach Abverkäufen oder in Angstphasen." },
   { id: "slightly_negative", range: `−${B} bis 0 %`, text: "Leichter Short-Überhang, noch kein Crowding." },
-  { id: "neutral", range: `0 bis ${B} %`, text: "Ruhezustand. 0,01 % pro 8 h ist der Standardwert der Börsen (≈ 11 % pro Jahr)." },
+  { id: "neutral", range: `0 bis ${B} %`, text: "Grundwert, kein Signal. 0,01 % pro 8 h ist der Standardwert der Börsen (≈ 11 % pro Jahr)." },
   { id: "elevated", range: `${B} bis ${E} %`, text: "Long-lastig, typisch in gesunden Aufwärtstrends." },
   { id: "high", range: `${E} bis ${X} %`, text: "Deutliches Long-Crowding. Rücksetzer fallen heftiger aus." },
   { id: "extreme", range: `${X} bis ${U} %`, text: "Nexus-Schwelle: ab hier bärisches Crowding-Signal (≈ 55 % pro Jahr)." },

@@ -15,22 +15,22 @@ import {
 // pressure), damit hier kein Aufruf an Binance noetig ist -- Binance blockt
 // Anfragen aus US-Rechenzentren.
 
-const COINBASE_URL = "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=300";
+const COINBASE_CANDLES = "https://api.exchange.coinbase.com/products/{product}/candles?granularity=300";
 const FETCH_TIMEOUT_MS = 8000;
 // Coinbase liefert max. 300 Kerzen = 25 h; etwas mehr Binance-Historie
 // laden, damit jede Coinbase-Kerze einen Partner finden kann.
 const BINANCE_LOOKBACK_MS = 26 * 60 * 60 * 1000;
 
-async function fetchCoinbase(): Promise<PricePoint[]> {
+async function fetchCoinbase(product: "BTC-USD" | "USDT-USD"): Promise<PricePoint[]> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(COINBASE_URL, {
+    const res = await fetch(COINBASE_CANDLES.replace("{product}", product), {
       signal: controller.signal,
       headers: { "User-Agent": "nexus-atlas", Accept: "application/json" },
       cache: "no-store",
     });
-    if (!res.ok) throw new Error(`Coinbase HTTP ${res.status}`);
+    if (!res.ok) throw new Error(`Coinbase ${product} HTTP ${res.status}`);
     return parseCoinbaseCandles(await res.json());
   } finally {
     clearTimeout(timeout);
@@ -56,8 +56,15 @@ async function fetchBinanceSpot(): Promise<PricePoint[]> {
 
 export async function GET() {
   try {
-    const [coinbase, binance] = await Promise.all([fetchCoinbase(), fetchBinanceSpot()]);
-    const series = computePremiumSeries(coinbase, binance);
+    // USDT-USD rechnet Binance in echte USD um; ohne Kurse kein Ergebnis,
+    // statt eines USDT-Abschlags, der als Praemie erscheint.
+    const [coinbase, binance, usdtUsd] = await Promise.all([
+      fetchCoinbase("BTC-USD"),
+      fetchBinanceSpot(),
+      fetchCoinbase("USDT-USD"),
+    ]);
+    if (usdtUsd.length === 0) throw new Error("Keine USDT-USD-Kurse von Coinbase");
+    const series = computePremiumSeries(coinbase, binance, usdtUsd);
     return NextResponse.json({
       success: true,
       summary: summarizePremium(series),

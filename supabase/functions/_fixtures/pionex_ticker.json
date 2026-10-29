@@ -1,0 +1,19 @@
+{
+  "data": {
+    "tickers": [
+      {
+        "low": "79666.9",
+        "high": "81765.9",
+        "open": "81540.4",
+        "time": 1793269389672,
+        "close": "80103.9",
+        "count": 818126,
+        "amount": "4765151062.78058529",
+        "symbol": "BTC_USDT_PERP",
+        "volume": "59105.5844"
+      }
+    ]
+  },
+  "result": true,
+  "timestamp": 1793269390398
+}

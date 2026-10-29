@@ -1,109 +1,75 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
-import { DASHBOARD_TABS, DEFAULT_DASHBOARD_TAB } from "@/lib/dashboardTabs";
-
-const STORAGE_KEY = "nexus-atlas-dashboard-tab-v1";
-const FOCUS_STORAGE_KEY = "nexus-atlas-focus-mode-v1";
+import { DASHBOARD_TABS, DEFAULT_DASHBOARD_TAB, OPEN_TAB_EVENT } from "@/lib/dashboardTabs";
+import { logUsage } from "@/lib/tileUsage";
 
 // Reiter-Navigation: jeder Reiter zeigt nur die Kacheln EINES Themas.
 //
-// Bewusst reiner Client-State + localStorage statt URL-Query-Param (anders
-// als TimeframeSelector): der sichtbare Reiter aendert NICHTS an den Server-
-// Daten (alle Kacheln sind bereits serverseitig gerendert, siehe tiles-Prop)
-// -- ein router.replace() waere nur ein unnoetiger Roundtrip pro Klick.
-// Persistenz wie DashboardLayout.tsx (queueMicrotask nach Hydration).
-export default function DashboardTabNav({ tiles }: { tiles: Record<string, ReactNode> }) {
+// 25.10.2026 (Toby): Beim Oeffnen steht immer der Reiter "Trade" vorne (kein
+// gespeicherter Reiter mehr), der Fokus-Modus entfaellt -- "Trade" ist der
+// Fokus. Reiter mit `fixed` zeigen ihre Kacheln in fester Reihenfolge
+// untereinander, ohne Verschieben/Minimieren (Zonen -> Regelcheck -> Veto).
+// Bewusst reiner Client-State statt URL-Query-Param: der sichtbare Reiter
+// aendert nichts an den Server-Daten (alle Kacheln sind serverseitig
+// gerendert, siehe tiles-Prop).
+export default function DashboardTabNav({
+  tiles,
+  tabHeaders = {},
+}: {
+  tiles: Record<string, ReactNode>;
+  // Optionaler Inhalt ueber den Kacheln eines Reiters (z.B. Zeitraum im Reiter Markt).
+  tabHeaders?: Record<string, ReactNode>;
+}) {
   const [activeTab, setActiveTab] = useState(DEFAULT_DASHBOARD_TAB);
-  // Fokus-Modus: blendet NUR den Reiter-Bereich aus, nicht das fest
-  // platzierte Lagebild -- das zeigt aktive Risiko-Faktoren, Warn-Muster und
-  // Handelszeit-Fenster ohnehin. Eine eigene "Warnungen-Leiste" wuerde das
-  // nur duplizieren; der Toggle loest nur das Overload-Problem.
-  const [focusMode, setFocusMode] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
 
+  // Kopf-Zeile (HeadStatus) springt per Event in einen Reiter.
   useEffect(() => {
-    queueMicrotask(() => {
-      try {
-        const stored = window.localStorage.getItem(STORAGE_KEY);
-        if (stored && DASHBOARD_TABS.some((tab) => tab.id === stored)) setActiveTab(stored);
-      } catch {
-        // localStorage kann in privaten Modi/eingeschraenkten Umgebungen
-        // fehlschlagen -- Tab bleibt dann einfach beim Default, kein
-        // Fehlerzustand fuer den Nutzer.
-      }
-      try {
-        setFocusMode(window.localStorage.getItem(FOCUS_STORAGE_KEY) === "1");
-      } catch {
-        // s.o.
-      }
-      setHydrated(true);
-    });
+    const open = (e: Event) => {
+      const id = (e as CustomEvent<string>).detail;
+      if (!DASHBOARD_TABS.some((tab) => tab.id === id)) return;
+      setActiveTab(id);
+      rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    window.addEventListener(OPEN_TAB_EVENT, open);
+    return () => window.removeEventListener(OPEN_TAB_EVENT, open);
   }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    try {
-      window.localStorage.setItem(STORAGE_KEY, activeTab);
-    } catch {
-      // s.o.
-    }
-  }, [activeTab, hydrated]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    try {
-      window.localStorage.setItem(FOCUS_STORAGE_KEY, focusMode ? "1" : "0");
-    } catch {
-      // s.o.
-    }
-  }, [focusMode, hydrated]);
-
   const activeTabMeta = DASHBOARD_TABS.find((tab) => tab.id === activeTab) ?? DASHBOARD_TABS[0];
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-2 border-b border-border pb-2">
-        {!focusMode && (
-          <div role="tablist" aria-label="Dashboard-Bereiche" className="flex gap-1 flex-wrap">
-            {DASHBOARD_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
-                  activeTab === tab.id
-                    ? "border-accent/40 bg-accent/15 text-accent"
-                    : "border-transparent text-text-faint hover:text-text-muted"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        )}
-        <button
-          type="button"
-          onClick={() => setFocusMode((f) => !f)}
-          aria-pressed={focusMode}
-          className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ml-auto ${
-            focusMode
-              ? "border-accent/40 bg-accent/15 text-accent"
-              : "border-border text-text-faint hover:text-text-muted"
-          }`}
-        >
-          {focusMode ? "Fokus-Modus verlassen" : "🔍 Fokus-Modus"}
-        </button>
+    <div ref={rootRef} className="space-y-3 scroll-mt-2">
+      <div role="tablist" aria-label="Dashboard-Bereiche" className="flex gap-1 flex-wrap border-b border-border pb-2">
+        {DASHBOARD_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            onClick={() => {
+              setActiveTab(tab.id);
+              logUsage(`tab:${tab.id}`);
+            }}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
+              activeTab === tab.id
+                ? "border-accent/40 bg-accent/15 text-accent"
+                : "border-transparent text-text-faint hover:text-text-muted"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {focusMode ? (
-        <p className="text-xs text-text-faint italic">
-          Fokus-Modus aktiv — Detail-Kacheln ausgeblendet. Gesamteinschätzung, Setup-Score,
-          Regime-Score und aktive Warnungen (oben) bleiben unverändert sichtbar.
-        </p>
+      {tabHeaders[activeTabMeta.id]}
+
+      {activeTabMeta.fixed ? (
+        <div className="space-y-3">
+          {activeTabMeta.tileIds.map((id) => (
+            <div key={id}>{tiles[id]}</div>
+          ))}
+        </div>
       ) : (
         <DashboardLayout tiles={tiles} tileIds={activeTabMeta.tileIds} />
       )}

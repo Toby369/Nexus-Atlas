@@ -3,6 +3,12 @@ import { NEWS_TILE_CATEGORIES } from "@/lib/newsCategories";
 import { supabase } from "@/lib/supabase";
 import { fetchPriceReferences } from "@/lib/priceChanges";
 import { getChartStructureData } from "@/lib/chartStructureContext";
+import { fetchClosedCandles } from "@/lib/candles";
+import { activeLevels, fetchAutarkSyncStatus, fetchOwnZones } from "@/lib/ownZones";
+import { bundleLiquidationZones } from "@/lib/leverageMap";
+import { RuleCheckCard, VetoCard } from "@/components/TradeStepCards";
+import { dailyTrendFromMtf } from "@/lib/zones";
+import ZonesCard from "@/components/ZonesCard";
 import { fetchRegimeMatrix, regimeIntervalFor } from "@/lib/regimeTimeframe";
 import type {
   DashboardPollBundle,
@@ -544,6 +550,11 @@ export default async function Home({
     regimeMatrixForTimeframe,
     volatilitySnapshot,
     chartStructure,
+    candles4h,
+    candles1h,
+    candles15m,
+    ownZones,
+    autarkSync,
   ] = await Promise.all([
     getSnapshotHistory(),
     getLatestMarketState(),
@@ -578,6 +589,13 @@ export default async function Home({
     fetchRegimeMatrix(regimeIntervalFor(timeframe)),
     buildVolatilitySnapshot(),
     getChartStructureData(),
+    // Regelcheck: 4H fuer den Koerperausbruch der letzten 24 h, 1H/15m fuer
+    // Retest und Bestaetigung danach.
+    fetchClosedCandles("4h", 7),
+    fetchClosedCandles("1h", 30),
+    fetchClosedCandles("15m", 100),
+    fetchOwnZones(),
+    fetchAutarkSyncStatus(),
   ]);
 
   // Fallback, falls das Bundle-RPC fehlschlaegt (z.B. kurzzeitiger DB-
@@ -598,6 +616,39 @@ export default async function Home({
     positioning_signal: null,
   };
 
+  // Eigene Zonen haben Vorrang, die Nexus-Keylevels sind dann nur Abgleich.
+  const tradeLevels = activeLevels(ownZones, chartStructure.keyLevels);
+  const tradeStepProps = {
+    keyLevels: tradeLevels,
+    candles4h,
+    candles1h,
+    candles15m,
+    events: upcomingEconomicEvents,
+    timeframe,
+  };
+
+  // Lage oben und Hintergrund-Kachel im Reiter Marktkontext teilen dieselben Daten.
+  const heroProps = {
+    initialState: marketState,
+    initialRegime: marketStateMatrix?.regime ?? null,
+    timeframe,
+    recentEtfFlows,
+    initialSystemBriefing: latestSystemBriefing,
+    initialBriefingConfig: systemBriefingConfig,
+    upcomingEconomicEvents,
+    initialMtfDots: mtfDots,
+    initialPriceReferences: priceReferences,
+    keyLevels: tradeLevels,
+    setupScore: confluenceScore,
+    regimeScore,
+    scoreDetails: (
+      <div className="space-y-3">
+        <ConfluenceScoreCard score={confluenceScore} signalDetail={confluenceSignalDetail} />
+        <RegimeScoreCard score={regimeScore} signalDetail={regimeSignalDetail} />
+      </div>
+    ),
+  };
+
   return (
     <main className="flex-1 flex flex-col">
       <AppHeader
@@ -605,33 +656,18 @@ export default async function Home({
         current="dashboard"
         actions={
           <>
-            <p className="text-xs text-text-faint hidden md:block">
-              Datentakt: alle 5&nbsp;Minuten · Referenz: Bybit
-            </p>
             <RefreshButton />
           </>
         }
       />
 
-      <section className="flex-1 px-4 sm:px-6 py-8 max-w-3xl lg:max-w-[1600px] w-full mx-auto">
-        <div className="space-y-4">
+      <section className="flex-1 px-4 sm:px-6 pt-3 pb-8 max-w-3xl lg:max-w-[1600px] w-full mx-auto">
+        <div className="space-y-3">
           <DashboardPollProvider
             timeframe={timeframe}
             initialBundle={initialDashboardBundle}
             initialFetchedSinceIso={timeframeSinceIsoValue}
           >
-            {/* Zeitraum ist eine globale Steuerung (wirkt auf mehrere Kacheln
-                unten) und steht deshalb vor dem Lagebild, nicht hinter einem
-                Klick versteckt. */}
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <p className="text-xs uppercase tracking-[0.2em] text-text-faint">
-                Zeitraum
-              </p>
-              <Suspense fallback={<div className="h-6" />}>
-                <TimeframeSelector current={timeframe} />
-              </Suspense>
-            </div>
-
             <LivePriceDataProvider
                 timeframe={timeframe}
                 initialSnapshots={snapshots}
@@ -641,33 +677,45 @@ export default async function Home({
                 initialFetchedSinceIso={timeframeSinceIsoValue}
                 initialOiByExchange={oiByExchange}
               >
-                {/* Setup- und Regime-Score stehen als Kennzahlen im Lagebild
-                    (HeroHeader), ihre vollstaendigen Karten im Aufklapper
-                    "Warum?". HeroHeader sitzt innerhalb von
+                {/* HeroHeader rendert "1 · Lage"; Zonen, Regelcheck und Veto
+                    stehen im Reiter "Trade", Scores und KI-Bericht als Kachel
+                    "lage-hintergrund" im Archiv. Sitzt innerhalb von
                     LivePriceDataProvider, um den Live-Preis zu zeigen. */}
-                <HeroHeader
-                  initialState={marketState}
-                  initialRegime={marketStateMatrix?.regime ?? null}
-                  timeframe={timeframe}
-                  recentEtfFlows={recentEtfFlows}
-                  initialSystemBriefing={latestSystemBriefing}
-                  initialBriefingConfig={systemBriefingConfig}
-                  upcomingEconomicEvents={upcomingEconomicEvents}
-                  initialMtfDots={mtfDots}
-                  initialPriceReferences={priceReferences}
-                  keyLevels={chartStructure.keyLevels.map(({ price, side }) => ({ price, side }))}
-                  setupScore={confluenceScore}
-                  regimeScore={regimeScore}
-                  scoreDetails={
-                    <div className="space-y-3">
-                      <ConfluenceScoreCard score={confluenceScore} signalDetail={confluenceSignalDetail} />
-                      <RegimeScoreCard score={regimeScore} signalDetail={regimeSignalDetail} />
-                    </div>
-                  }
-                />
+                <HeroHeader {...heroProps} tradeStep={tradeStepProps} />
 
                 <DashboardTabNav
+                  // 25.10.2026 (Toby): Zeitraum nutzt er selten -- er steht nur
+                  // noch im Reiter Markt und gilt fuer OI, Spot und CVD (auch im Kopf).
+                  tabHeaders={{
+                    markt: (
+                      <div className="flex flex-wrap items-center gap-2" aria-label="Zeitraum">
+                        <span className="text-[11px] text-text-faint">Zeitraum für OI, Spot und CVD</span>
+                        <Suspense fallback={<div className="h-6" />}>
+                          <TimeframeSelector current={timeframe} />
+                        </Suspense>
+                      </div>
+                    ),
+                  }}
                   tiles={{
+                    zones: (
+                      <ZonesCard
+                        keyLevels={tradeLevels}
+                        ownZones={ownZones}
+                        autarkSync={autarkSync}
+                        nexusLevels={chartStructure.keyLevels.map(({ price }) => ({ price }))}
+                        liquidationZones={
+                          latestLeverageMap
+                            ? bundleLiquidationZones(latestLeverageMap.clusters, latestLeverageMap.mid).map(
+                                ({ side, priceLow, priceHigh, massUsd }) => ({ side, priceLow, priceHigh, massUsd })
+                              )
+                            : []
+                        }
+                        dailyTrend={dailyTrendFromMtf(mtfDots)}
+                      />
+                    ),
+                    "rule-check": <RuleCheckCard {...tradeStepProps} />,
+                    veto: <VetoCard {...tradeStepProps} />,
+                    "lage-hintergrund": <HeroHeader {...heroProps} variant="hintergrund" />,
                     "market-context": <MarketContextCard timeframe={timeframe} />,
                     "regime-matrix": (
                       <RegimeMatrixCard

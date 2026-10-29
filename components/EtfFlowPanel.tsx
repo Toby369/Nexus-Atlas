@@ -7,6 +7,7 @@ import PanelInfo from "@/components/PanelInfo";
 import { etfMacroInfo } from "@/lib/panelInfo";
 import { ShortDate } from "@/components/ClientTimestamp";
 import { setVisibleInterval } from "@/lib/visibleInterval";
+import TermBasisSection from "@/components/TermBasisSection";
 
 // ETF-Flow-Daten aendern sich hoechstens 1x/Tag (T+1) -- seltenes Polling
 // reicht, kein 60s-Live-Takt noetig wie bei Preis/Positioning.
@@ -301,6 +302,8 @@ export default function EtfFlowPanel({
           </div>
         </div>
       )}
+
+      <TermBasisSection etfNetFlow5dUsdM={cumulative} />
 
       <p className="text-xs text-text-faint pt-1">
         Quelle: {latest.source === "sosovalue" ? "SoSoValue" : "Farside Investors"},

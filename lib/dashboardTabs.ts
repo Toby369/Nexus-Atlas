@@ -9,49 +9,42 @@ export interface DashboardTabMeta {
   id: string;
   label: string;
   tileIds: string[];
+  /** Feste Reihenfolge ohne Verschieben/Minimieren; Kacheln nicht in lib/dashboardTiles.ts. */
+  fixed?: boolean;
 }
 
+// 25.10.2026 (Toby): Reiter nach der Frage, die er gerade stellt -- "Trade"
+// (vor jedem Einstieg), "Markt" (warum bewegt sich der Kurs: OI, CVD, Spot
+// Pressure, wer treibt, Funding, Hebel), "Termine", "Wochenblick" (langsame
+// Daten) und "Archiv" (alles, was nicht zum Regelwerk gehoert). Hoechstens
+// 5 Reiter, damit sie am Handy in eine Zeile passen.
 export const DASHBOARD_TABS: DashboardTabMeta[] = [
+  { id: "trade", label: "Trade", tileIds: ["zones", "rule-check", "veto"], fixed: true },
+  { id: "markt", label: "Markt", tileIds: ["market-context", "oi-change", "funding-rate"] },
+  { id: "termine", label: "Termine", tileIds: ["economic-calendar", "news-risk"] },
+  { id: "wochenblick", label: "Wochenblick", tileIds: ["etf-flow", "cycle-indicators"] },
   {
-    id: "marktkontext",
-    label: "Marktkontext",
+    id: "archiv",
+    label: "Archiv",
     tileIds: [
-      "market-context",
+      "lage-hintergrund",
       "regime-matrix",
       "divergence-radar",
-    ],
-  },
-  {
-    id: "preis-orderflow-makro",
-    label: "Preis, Orderflow & Makro",
-    tileIds: [
-      "oi-change",
-      "funding-rate",
-      "orderbook-walls",
-      "leverage-map",
       "volatility",
-      "cycle-indicators",
-      "economic-calendar",
-      "etf-flow",
-      "news-risk",
-    ],
-  },
-  // Bewertende KI-Analysen und aktiv bediente Werkzeuge/Lernen in einem
-  // Reiter -- nach dem Buendeln der wenig genutzten KI-Kacheln sind es nur
-  // noch vier Kacheln (System-Briefing steht im Lagebild).
-  {
-    id: "ki-tools",
-    label: "KI & Tools",
-    tileIds: [
+      "orderbook-walls",
       "second-opinions",
       "signal-review",
       "youtube-monitor",
       "lernen",
+      "leverage-map",
     ],
   },
 ];
 
 export const DEFAULT_DASHBOARD_TAB = DASHBOARD_TABS[0].id;
+
+/** Window-Event mit der Reiter-ID als detail, z.B. aus der Kopf-Zeile ("trade"). */
+export const OPEN_TAB_EVENT = "nexus-atlas-open-tab";
 
 // Ehrlichkeits-/Vollstaendigkeits-Absicherung (gleiches Prinzip wie an
 // anderen Stellen dieser Session): eine neue Kachel, die in
@@ -60,7 +53,7 @@ export const DEFAULT_DASHBOARD_TAB = DASHBOARD_TABS[0].id;
 // wirft in diesem Fall hart -- lieber ein sofortiger Fehler beim Start als
 // eine verschwundene Kachel, die niemand bemerkt.
 export function assertAllTilesAssigned(): void {
-  const assigned = new Set(DASHBOARD_TABS.flatMap((tab) => tab.tileIds));
+  const assigned = new Set(DASHBOARD_TABS.filter((tab) => !tab.fixed).flatMap((tab) => tab.tileIds));
   const missing = DASHBOARD_TILE_IDS.filter((id) => !assigned.has(id));
   if (missing.length > 0) {
     throw new Error(

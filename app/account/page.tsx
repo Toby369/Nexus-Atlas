@@ -1,6 +1,12 @@
 import ChangePasswordForm from "@/components/ChangePasswordForm";
 import { AppFooter, AppHeader } from "@/components/AppHeader";
 import PushNotificationSettings from "@/components/PushNotificationSettings";
+import LogoutButton from "@/components/LogoutButton";
+import TileUsageSummary from "@/components/TileUsageSummary";
+import DataFreshnessList from "@/components/DataFreshnessList";
+
+// Nutzungs-Auswertung liest bei jedem Aufruf frisch (wie app/page.tsx).
+export const revalidate = 0;
 
 // Kein eigener Session-Check hier noetig: proxy.ts's Auth-Gate (Phase 4)
 // deckt bereits jeden Pfad ausser der in lib/authGate.ts::PUBLIC_EXACT_PATHS
@@ -23,6 +29,20 @@ export default function AccountPage() {
             Push-Benachrichtigungen
           </h2>
           <PushNotificationSettings />
+        </div>
+        {/* Ziel der Ampel in der Kopfzeile (components/DataStatusLight.tsx). */}
+        <div id="datenstand" className="scroll-mt-4">
+          <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted mb-3">Datenstand</h2>
+          <DataFreshnessList />
+        </div>
+        <div>
+          <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted mb-3">Nutzung der Kacheln</h2>
+          <TileUsageSummary />
+        </div>
+        {/* Seit 22.10.2026 hier statt in der Kopfzeile (kompakter Kopf auf dem Handy). */}
+        <div>
+          <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted mb-3">Abmelden</h2>
+          <LogoutButton />
         </div>
       </section>
 

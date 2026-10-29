@@ -1,0 +1,16 @@
+{
+  "data": {
+    "indexes": [
+      {
+        "symbol": "BTC_USDT_PERP",
+        "markPrice": "80103.9",
+        "indexPrice": "80146.41803",
+        "updateTime": 1793269389800,
+        "nextFundingRate": "0.0000688246",
+        "nextFundingTime": 1793289600000
+      }
+    ]
+  },
+  "result": true,
+  "timestamp": 1793269390426
+}

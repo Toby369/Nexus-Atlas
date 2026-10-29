@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { VAPID_PUBLIC_KEY, urlBase64ToUint8Array } from "@/lib/webPush";
+import { isPushOptedOut } from "@/lib/pushKeepAlive";
 
 // PWA-Erweiterung: registriert den (bewusst minimalen, siehe public/sw.js)
 // Service Worker. Nur in Production, damit der Next.js-Dev-Modus (Hot
@@ -14,7 +15,11 @@ import { VAPID_PUBLIC_KEY, urlBase64ToUint8Array } from "@/lib/webPush";
 // weniger Stunden (Push-Dienst meldete es als abgelaufen, die Edge Function
 // loeschte es), danach kamen keine Briefing-Pushes mehr an.
 async function refreshPushSubscription() {
-  if (!("PushManager" in window) || Notification.permission !== "granted") return;
+  // 21.10.2026: einzige Selbstheilung (vorher lief parallel PushKeepAlive,
+  // beide riefen gleichzeitig subscribe() auf und erzeugten zwei Abos, von
+  // denen der Push-Dienst eines sofort als ungueltig meldete). Bewusst in
+  // "Konto" deaktiviert -> nicht neu anmelden.
+  if (!("PushManager" in window) || Notification.permission !== "granted" || isPushOptedOut()) return;
   const registration = await navigator.serviceWorker.ready;
   const subscription =
     (await registration.pushManager.getSubscription()) ??

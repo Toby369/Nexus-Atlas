@@ -18,9 +18,12 @@ export default function RefreshButton() {
       }}
       disabled={isReloading}
       aria-label="Dashboard jetzt aktualisieren"
-      className="text-xs text-text-faint hover:text-text-muted underline decoration-dotted disabled:opacity-50 disabled:cursor-wait"
+      title="Aktualisieren"
+      className="h-7 w-7 rounded text-base leading-none text-text-muted hover:text-text hover:bg-surface-raised disabled:opacity-50 disabled:cursor-wait"
     >
-      {isReloading ? "Aktualisiere…" : "Aktualisieren"}
+      <span aria-hidden="true" className={isReloading ? "inline-block animate-spin" : undefined}>
+        ↻
+      </span>
     </button>
   );
 }

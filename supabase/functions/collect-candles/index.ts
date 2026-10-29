@@ -89,6 +89,12 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 // Historie per recompute_market_structure_causal() neu berechnet.
 // Quellcode liegt seit 2026-10-14 auch im Repo (supabase/functions/
 // collect-candles/index.ts).
+//
+// 2026-10-15: Spot-Zuordnung fuer basis_pct nur noch mit 5 Min Toleranz,
+// siehe SPOT_TOLERANCE_MS.
+//
+// 2026-10-16: market_features nur noch fuer geaenderte Zeilen schreiben,
+// siehe keepChangedRows().
 const SYMBOL = "BTCUSDT";
 const INTERVALS = ["1m", "15m", "1h", "4h", "1d", "1w"] as const;
 type Interval = (typeof INTERVALS)[number];
@@ -112,6 +118,18 @@ const FETCH_LIMIT = 1000;
 // Zeilen unnoetig neu zu schreiben -- deckt trotzdem genug juengere
 // Historie ab, um spaete OI-/Basis-Korrekturen nachzuziehen.
 const WRITE_LOOKBACK = 250;
+
+// Spot-Preis fuer die Basis: hoechstens 5 Minuten vor dem Kerzenschluss.
+// spot_market_snapshots ist ein 5-Minuten-Raster, timestamp_utc = Beginn des
+// 5-Min-Fensters, last_price = Kurs am Ende des Fensters. Zur 1h-Kerze mit
+// Schluss 13:59:59.999 passt also der Snapshot 13:55 (Kurs um 14:00).
+// 2026-10-15 (Fehlalarm "Basis/Perpetual-Praemie extrem"): vorher galt die
+// OI-Toleranz (>= 1 h). Lief collect-candles, bevor der 13:55-Snapshot
+// geschrieben war, nahm es den von 13:50 -- 5 Minuten zu alt. Bei einer
+// schnellen Bewegung ergab das +0,33 % statt -0,065 % Basis und eine
+// Risiko-Push. Jetzt: fehlt der passende Snapshot noch, bleibt basis_pct
+// leer und der naechste Lauf (WRITE_LOOKBACK schreibt neu) fuellt ihn nach.
+const SPOT_TOLERANCE_MS = 5 * 60 * 1000;
 
 // Fraktale Swing-Erkennung: ein Hoch/Tief gilt als bestaetigt, wenn es
 // hoeher/tiefer ist als jede der LOOKBACK Kerzen davor und danach
@@ -671,7 +689,7 @@ async function processInterval(supabase: any, interval: Interval): Promise<Proce
   const lookupSpot = buildAsofLookup(spotPoints);
 
   const oiCurrentArr = closeTimesMs.map((t: number) => lookupOi(t, toleranceMs));
-  const spotPriceArr = closeTimesMs.map((t: number) => lookupSpot(t, toleranceMs));
+  const spotPriceArr = closeTimesMs.map((t: number) => lookupSpot(t, SPOT_TOLERANCE_MS));
 
   const oiDeltaPct = oiCurrentArr.map((cur: number | null, i: number) => {
     const prev = i > 0 ? oiCurrentArr[i - 1] : null;
@@ -695,7 +713,7 @@ async function processInterval(supabase: any, interval: Interval): Promise<Proce
   // schreiben. candle_count = Anzahl der im geladenen Fenster verfuegbaren
   // Kerzen bis inkl. dieser -- Basis fuer data_quality (EMA200 braucht 200
   // Kerzen Vorlauf, um wirklich eingeschwungen zu sein).
-  const rows = [];
+  const rows: Record<string, unknown>[] = [];
   for (let i = startIdx; i < n; i++) {
     const candleCount = i + 1;
     const dataQuality = candleCount >= 200 ? "OK" : candleCount >= 50 ? "PRELIMINARY" : "INSUFFICIENT";
@@ -739,17 +757,65 @@ async function processInterval(supabase: any, interval: Interval): Promise<Proce
     });
   }
 
-  const { error: featuresError } = await supabase
-    .from("market_features")
-    .upsert(rows, { onConflict: "symbol,interval,candle_open_time" });
-  if (featuresError) throw new Error(`market_features upsert: ${featuresError.message}`);
+  const changedRows = await keepChangedRows(supabase, interval, rows);
+  if (changedRows.length > 0) {
+    const { error: featuresError } = await supabase
+      .from("market_features")
+      .upsert(changedRows, { onConflict: "symbol,interval,candle_open_time" });
+    if (featuresError) throw new Error(`market_features upsert: ${featuresError.message}`);
+  }
 
   return {
     success: true,
     candlesFetched: closedKlines.length,
     candlesStored: candleRows.length,
-    featuresWritten: rows.length,
+    featuresWritten: changedRows.length,
   };
+}
+
+// 2026-10-16: Nur Zeilen zurueckschreiben, deren Werte sich gegenueber dem
+// gespeicherten Stand aendern. Vorher wurden pro Lauf alle WRITE_LOOKBACK
+// Zeilen je Intervall ueberschrieben (~120'000 Updates/Tag); jedes Update
+// hinterlaesst eine tote Zeilenversion und liess market_features nach dem
+// vacuum full vom 12.10. um ~12 MB/Tag wachsen (Supabase-Free-Limit 500 MB).
+// Ergebnis in der Tabelle ist identisch: unveraenderte Zeilen stehen bereits
+// so drin. Schlaegt das Lesen fehl, wird wie bisher alles geschrieben.
+const KEY_COLUMNS = new Set(["symbol", "interval", "candle_open_time"]);
+
+function sameValue(computed: unknown, stored: unknown): boolean {
+  const a = typeof computed === "number" && Number.isNaN(computed) ? null : computed;
+  if (a === null || a === undefined) return stored === null || stored === undefined;
+  if (stored === null || stored === undefined) return false;
+  if (typeof a === "number") return Number(stored) === a;
+  return a === stored;
+}
+
+async function keepChangedRows(
+  supabase: any,
+  interval: Interval,
+  rows: Record<string, unknown>[],
+): Promise<Record<string, unknown>[]> {
+  if (rows.length === 0) return rows;
+  const columns = Object.keys(rows[0]);
+  const { data: stored, error } = await supabase
+    .from("market_features")
+    .select(columns.join(","))
+    .eq("symbol", SYMBOL)
+    .eq("interval", interval)
+    .gte("candle_open_time", rows[0].candle_open_time)
+    .limit(FETCH_LIMIT);
+  if (error) {
+    console.error(`market_features Vergleich (${interval}):`, error.message);
+    return rows;
+  }
+  const storedByTime = new Map<number, Record<string, unknown>>(
+    (stored ?? []).map((r: any) => [Date.parse(r.candle_open_time), r]),
+  );
+  return rows.filter((row) => {
+    const old = storedByTime.get(Date.parse(row.candle_open_time as string));
+    if (!old) return true;
+    return columns.some((c) => !KEY_COLUMNS.has(c) && !sameValue(row[c], old[c]));
+  });
 }
 
 Deno.serve(async (_req: Request) => {

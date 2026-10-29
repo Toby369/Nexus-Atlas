@@ -48,7 +48,13 @@ Stufen pro 8 h:
 
 Wie du es nutzt: Hohes Funding allein ist kein Short-Signal, es kann im Aufwärtstrend wochenlang hoch bleiben. Gefährlich wird es, wenn Funding über mehrere Intervalle extrem ist, das Open Interest stark steigt und der Preis nicht mehr vorankommt. Die Stufen sind Faustregeln, im Backtest noch nicht validiert.
 
-Quelle: Wert von Bybit (Referenzbörse), von der Börse selbst berechnet. Der Chart zeigt die letzten rund 15 Stunden; der aktuelle Wert je Börse steht im Börsenvergleich.`;
+Quelle: Wert von Bybit (Referenzbörse), von der Börse selbst berechnet. Der Chart zeigt die letzten rund 15 Stunden; der aktuelle Wert je Börse steht im Börsenvergleich.
+
+Positionierung (unten in der Kachel): Kontrakte sind immer 50:50, jeder Long hat einen Short. Die Zahlen zeigen nur, wer auf welcher Seite steht.
+• Masse long: Anteil der Konten mit Long-Position, Mittel über Binance, Bybit, OKX und Bitget. Üblich sind 55–62 %. Ab 65 % ist die Masse stark long, ab 70 % extrem; unter 50 % ist sie mehrheitlich short.
+• Top-Trader long: Binance-Top-Trader nach Positionsgrösse, also wo das grosse Geld liegt.
+• Abstand: Top-Trader minus Masse (Binance). Normal sind etwa +5 bis +20 Pp. Bei 0 oder darunter stehen die grossen Konten eher auf der Gegenseite der kleinen.
+So liest du es zusammen: Masse stark long, Funding hoch, OI steigt und der Preis kommt nicht voran: Die Longs sind der Treibstoff für den nächsten Flush nach unten. Spiegelbildlich gilt das für eine Short-lastige Masse mit negativem Funding. Schwellen aus der eigenen Historie seit 24.08.2026, nicht validiert.`;
 
 export function spotPressureInfo(tfLabel: string): string {
   return `So liest du das: Ordnet den Netto-Taker-Flow einem von vier Verdikten zu: BUYING PRESSURE, SELLING PRESSURE, NEUTRAL oder INSUFFICIENT DATA. Das misst eine Kauf-/Verkaufs-Imbalance im Taker-Orderflow, nicht ob am Spot-Markt tatsächlich netto mehr Coins gekauft als verkauft wurden. Deckt die Stichprobe weniger als 80 % der erwarteten Kerzen im Fenster ab, gilt das Ergebnis als PRELIMINARY, unter 20 % als INSUFFICIENT DATA.
@@ -296,20 +302,54 @@ Quelle: Binance Spot (5-Min-Kerzen) und Binance Futures (Kerzen aus collect-cand
 export const coinbasePremiumInfo = `Was es misst: den Preisabstand von Coinbase (BTC-USD) zu Binance (BTC-USDT) in Prozent, über dieselben 5-Minuten-Kerzen verglichen. Coinbase ist die Hauptbörse der US-Institutionen und ETF-Verwahrer.
 
 Stufen:
-• unter ±0,03 %: Neutral (Rauschen aus Spread und USDT-Kurs)
+• unter ±0,03 %: Neutral (Rauschen aus Spread und Umrechnung)
 • ab +0,03 %: US-Kaufdruck; ab +0,1 %: stark
 • ab −0,03 %: US-Verkaufsdruck; ab −0,1 %: stark
 
 Wie du es nutzt: Zählt nur, wenn die Prämie über Stunden anhält. Eine positive Prämie bei steigendem Preis bestätigt US-Nachfrage; fällt der Preis trotz positiver Prämie, verkaufen andere Regionen oder die Perps. Die Stufen sind Faustregeln, nicht im Backtest geprüft.
 
-Quelle: Coinbase-Exchange-API (letzte 300 Kerzen = 25 h), Binance aus der Nexus-Datenbank. Weicht USDT leicht von 1 USD ab, steckt das in der Prämie.`;
+Quelle: Coinbase-Exchange-API (letzte 300 Kerzen = 25 h), Binance aus der Nexus-Datenbank. Der Binance-Preis in USDT wird mit dem USDT-USD-Kurs von Coinbase in echte USD umgerechnet. Sonst stünde ein USDT-Abschlag (z. B. 0,9987 USD = −0,13 %) fälschlich als US-Verkaufsdruck da.`;
 
 // RSI-/MACD-Divergenz-Hinweis im Lagebild (lib/oscillatorDivergence.ts).
 export const oscillatorDivergenceInfo = `So liest du das: Zeigt aktuelle RSI- und MACD-Divergenzen auf 1H, 4H und 1D. Klassisch bärisch: Kurs macht ein höheres Hoch, der Oszillator ein tieferes (Schwung lässt nach). Versteckt bärisch: Kurs tieferes Hoch, Oszillator höheres (Abwärtstrend setzt sich eher fort). Bullisch spiegelbildlich an den Tiefs. Laut deinem Regelwerk immer nur ein Hinweis bzw. eine Warnung, keine Pflicht und keine Sperre. StochRSI wird nicht mehr verwendet.
 
 So entsteht der Wert: Schlusskurs-Pivots mit je 5 Kerzen links und rechts, verglichen mit RSI(14) bzw. dem MACD-Histogramm an denselben Kerzen. Angezeigt wird nur, wenn das jüngere Pivot höchstens 15 Kerzen zurückliegt. Weil ein Pivot erst nach 5 Folgekerzen bestätigt ist, erscheint eine Divergenz entsprechend verzögert (1H: 5 Stunden, 4H: 20 Stunden, 1D: 5 Tage).`;
 
-// TP-Standard-Vorschlag im Lagebild (lib/tpStandard.ts).
-export const tpStandardInfo = `So liest du das: Je Richtung der nächste Widerstand (Long) bzw. die nächste Unterstützung (Short) und der grösste deiner vier Standards, dessen TP noch vor diesem Level liegt: ab 1,75 % Abstand Standard 1 (TP 35 % Marge), ab 1,5 % Standard 2 (30 %), ab 1,25 % Standard 3 (25 %), ab 1,0 % Standard 4 (20 %). Unter 1,0 % Abstand gilt laut deinem Regelwerk „kein Trade“, weil das CRV bei SL −0,5 % unter 2:1 fällt. Läuft die Richtung gegen den 1D-Trend (MTF-Ampel), steht „⚠ gegen 1D“ und es gilt höchstens Standard 4. Rein rechnerischer Vorschlag, kein Handelssignal. Laut deinem Regelwerk gelten deine im Chart gezeichneten Levels; Nexus' automatische Levels sind nur der Abgleich – liegt dein nächstes Level anders, rechne mit deinem.
 
-So entsteht der Wert: Das Level, an dem der Kurs gerade steht (bis ±0,25 %, also dein Retest-Level), wird übersprungen. Keylevels wie in der Kachel „Chart-Struktur“ (Pivot-Konfluenz über mehrere Zeitrahmen, Liquidations-Cluster, Spot-Volumen), berechnet beim Laden der Seite. Der Abstand wird mit dem Live-Preis gerechnet; ein Level zählt als Widerstand, wenn es über dem aktuellen Kurs liegt, und als Unterstützung, wenn es darunter liegt.`;
+export const termBasisInfo = `Was es misst: die Prämie des vordersten Deribit-Futures (mindestens 30 Tage Restlaufzeit) gegenüber dem Deribit-Index, auf ein Jahr hochgerechnet. Es ist eine Näherung für die CME-Basis, die es nicht kostenlos über eine offizielle Schnittstelle gibt. Die beiden laufen meist ähnlich, sind aber nicht identisch.
+
+Stufen (pro Jahr):
+• unter 0 %: Negativ, Termin unter Spot (Stress)
+• 0 bis 5 %: Schwach, Basis-Trades lohnen kaum
+• 5 bis 10 %: Normal
+• 10 bis 15 %: Erhöht
+• ab 15 %: Überhitzt, historisch oft in späten Rally-Phasen
+
+Wie du es nutzt: Hedgefonds kaufen Spot oder ETF-Anteile und verkaufen Futures, um diese Prämie risikoarm zu kassieren (Basis-Trade). Fällt die Basis deutlich, lösen sie den Trade auf. Dann entstehen ETF-Abflüsse ohne bärische Meinung. Fallen Basis und ETF-Flows gemeinsam, erscheint ein Hinweis. Kontext für Tage bis Wochen, kein Timing-Signal und nicht im Backtest geprüft; fliesst nicht in die Gesamteinschätzung ein.
+
+Quelle: Deribit, stündlich (collect-term-basis). Ältere Tageswerte nachgeladen, dort dient BTC-PERPETUAL als Index-Näherung.`;
+
+// Zonen-Kachel (components/ZonesCard.tsx).
+export const zonesInfo = `So liest du das: Die nächsten Zonen über und unter dem aktuellen Kurs. Über dem Kurs heisst eine Zone Verkäufer-Zone, darunter Käufer-Zone, egal welche Rolle sie früher hatte (Rollentausch). Bei der nächsten Zone je Seite stehen Abstand, Chance-Risiko bei einem Stop von 0,5 % und dein TP-Standard: ab 1,75 % Abstand Standard 1, ab 1,5 % Standard 2, ab 1,25 % Standard 3, ab 1,0 % Standard 4, darunter kein Trade. Gegen den 1D-Trend gilt höchstens Standard 4. Ob ein Level mit dem 4H-Körper gebrochen ist, beantwortet der Regelcheck darunter.
+
+Zonen aus AutarkTrade: Sobald AutarkTrade Zonen liefert (Abgleich alle 5 Minuten), rechnet Nexus mit ihnen, inklusive Bereich und Name. Der Kurs gilt als „an der Zone“, wenn er zwischen Unterkante −0,25 % und Oberkante +0,25 % liegt; Long erst über der Oberkante, Short erst unter der Unterkante. Kommt länger als 30 Minuten kein Abgleich, warnt die Kachel, weil die Zonen dann veraltet sein können.
+
+Notlösung ohne AutarkTrade: Unten trägst du deine Zonen aus dem Chart ein. Sobald eine eingetragen ist, rechnen Zonen, Regelcheck, Kopf-Zeile und Push damit; die Nexus-Keylevels erscheinen nur noch als Abgleich. Zonen, die der Preis ohne Reaktion durchlaufen hat, löschst du mit ×.
+
+Liquidations-Ziel: die nächste Zone über dem Kurs, in der Short-Positionen liquidiert würden, und die nächste darunter mit Long-Liquidationen (Modell aus OI-Aufbau und Hebelstufen). Solche Zonen ziehen den Preis oft an, darum taugen sie als Ziel (Regel 7).
+
+So entsteht der Wert: Nexus-Keylevels wie in der Chart-Struktur (Pivot-Konfluenz über mehrere Zeitrahmen, Liquidations-Cluster, Spot-Volumen). Das Level direkt am Kurs (±0,25 %, dein Retest-Band) wird übersprungen. Massgebend bleiben deine eigenen Zonen im Chart; diese Kachel ist der Abgleich.`;
+
+export const ruleCheckInfo = `So liest du das: Deine Pflichtfragen vor einem Einstieg, von Nexus aus den Binance-Kerzen beantwortet. Gesucht wird der jüngste 4H-Körperschluss über oder unter einem Keylevel in den letzten 24 Stunden; daraus folgt die Richtung (Long oder Short). Danach: Kam eine 1H-Kerze bis ±0,25 % ans Level zurück und schloss auf der Ausbruchsseite? Steht auf 15m eine Bestätigungskerze (Docht ins Level, Schluss in Traderichtung) mit geschlossener Folgekerze? Und liegt das nächste Ziel mindestens 1 % entfernt?
+
+Grün heisst erfüllt, rot heisst kein Trade, grau heisst noch offen. Die Kerzen werden beim Laden der Seite geholt; nach einem Kerzenschluss die Seite aktualisieren. Massgebend bleiben deine eigenen Zonen im Chart.`;
+
+export const vetoInfo = `So liest du das: Die letzte Prüfung vor dem Klick. Funding ab 0,03 % pro 8 h und eine einseitige Masse (ab 65 % Long-Konten oder unter 50 %) warnen nur, wenn sie auf deiner Seite stehen: Dann bist du Teil der überfüllten Seite, also kleinere Position. „Treibt Spot mit?“ vergleicht Spot- und Perp-Netto-Flow im gewählten Zeitraum; trägt nur der Hebel die Bewegung, ist sie fragil.
+
+„Markt ruhig genug für 0,5 % Stop?“ vergleicht deinen festen Stop mit der durchschnittlichen Spanne einer 1H-Kerze (ATR 14). Üblich sind etwa 0,5 %, also so viel wie dein Stop. Ab 0,6 % (die unruhigsten rund 25 % der Zeit) warnt Nexus: Der Stop wird dann leicht vom normalen Hin und Her ausgelöst.
+
+Ein Veto (rot) sperrt den Einstieg: ein Hochrisiko-Zeitfenster (US-Kasseneröffnung, CPI/PCE/NFP, FOMC) läuft oder beginnt in den nächsten 30 Minuten, du hast heute schon 3 Trades oder 2 Verluste in Folge. Trades und Verluste trägst du unten selbst ein; sie gelten nur für heute und nur in diesem Browser.`;
+
+export const headMarketInfo = `So liest du das: OI ist die Veränderung des Open Interest über den gewählten Zeitraum (Standard 4H, umstellbar im Reiter Markt). Spot ist der Netto-Kaufdruck auf Binance Spot, also Käufe minus Verkäufe der aggressiven Seite in Prozent des Volumens. CVD Perp ist dasselbe auf den Binance-Perps. Funding ist die aktuelle Rate pro 8 h.
+
+Die Deutung darunter kombiniert Preis, OI und Spot zu einem Szenario (Long-Aufbau, Short-Aufbau, Short-Covering, Long-Abbau) und nennt den Treiber aus dem Vergleich Spot gegen Perp. Details stehen im Reiter Markt unter Marktkontext.`;

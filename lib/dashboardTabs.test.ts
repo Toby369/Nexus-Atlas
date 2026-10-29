@@ -6,7 +6,7 @@ describe("DASHBOARD_TABS", () => {
   it("weist jede registrierte Kachel genau einem Tab zu (keine verlorene/doppelte Kachel)", () => {
     expect(() => assertAllTilesAssigned()).not.toThrow();
 
-    const allTileIds = DASHBOARD_TABS.flatMap((tab) => tab.tileIds);
+    const allTileIds = DASHBOARD_TABS.filter((tab) => !tab.fixed).flatMap((tab) => tab.tileIds);
     expect(new Set(allTileIds).size).toBe(allTileIds.length);
     expect(new Set(allTileIds)).toEqual(new Set(DASHBOARD_TILE_IDS));
   });
@@ -14,6 +14,11 @@ describe("DASHBOARD_TABS", () => {
   it("hat eindeutige Tab-IDs", () => {
     const ids = DASHBOARD_TABS.map((tab) => tab.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("Trade ist der erste Reiter und hoechstens 5 Reiter", () => {
+    expect(DEFAULT_DASHBOARD_TAB).toBe("trade");
+    expect(DASHBOARD_TABS.length).toBeLessThanOrEqual(5);
   });
 
   it("DEFAULT_DASHBOARD_TAB ist ein tatsaechlich existierender Tab", () => {

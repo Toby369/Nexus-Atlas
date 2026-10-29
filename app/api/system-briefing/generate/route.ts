@@ -9,6 +9,7 @@ import {
   type PreviousBriefing,
 } from "@/lib/systemBriefingContext";
 import { notifyBriefing } from "@/lib/systemBriefingNotify";
+import { activeLevels, fetchOwnZones } from "@/lib/ownZones";
 import { runTileAnalysis } from "@/lib/ai/router";
 import { checkAndRecordRateLimit } from "@/lib/rateLimit";
 import type { SystemBriefingResult, SystemBriefingTrigger } from "@/lib/types";
@@ -214,7 +215,12 @@ export async function POST(req: NextRequest) {
         .eq("id", 1)
         .maybeSingle();
       if (config && (config.email_enabled || config.push_enabled)) {
-        const { emailSent, pushSent } = await notifyBriefing(combined, config);
+        // Push rechnet wie das Dashboard mit Tobys eigenen Zonen, falls eingetragen.
+        const ownZones = await fetchOwnZones();
+        const { emailSent, pushSent } = await notifyBriefing(combined, config, {
+          kurs: context.btc_markt.kurs_usd,
+          levels: activeLevels(ownZones, context.keyLevels),
+        });
         if (emailSent || pushSent) {
           const { error: flagError } = await supabaseAdmin
             .from("system_briefings")

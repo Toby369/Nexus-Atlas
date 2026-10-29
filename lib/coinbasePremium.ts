@@ -7,12 +7,13 @@
 // nur Kerzen mit identischer Open-Zeit, damit kein Zeitversatz als Praemie
 // erscheint.
 //
-// Einschraenkung: USD gegen USDT. Weicht USDT leicht von 1 USD ab, steckt
-// diese Abweichung in der Praemie (ueblich bei allen gaengigen
-// Coinbase-Premium-Indizes, deshalb so belassen).
+// USD gegen USDT: Der Binance-Preis wird mit dem USDT-USD-Kurs (Coinbase,
+// gleiche 5-Min-Kerzen) in echte USD umgerechnet. Ohne diese Korrektur
+// stuende ein USDT-Abschlag direkt als Praemie da -- bei USDT = 0,9987 USD
+// waeren das -0,13 % "Verkaufsdruck", der keiner ist.
 //
 // Schwellen sind Faustregeln: Abweichungen unter 0,03 % liegen im
-// Rauschen von Spread und USDT-Kurs.
+// Rauschen von Spread und Umrechnung.
 
 export const PREMIUM_NOISE_PCT = 0.03;
 export const PREMIUM_STRONG_PCT = 0.1;
@@ -54,15 +55,29 @@ export function parseCoinbaseCandles(raw: unknown): PricePoint[] {
   return out.sort((a, b) => a.t - b.t);
 }
 
-export function computePremiumSeries(coinbase: PricePoint[], binance: PricePoint[]): PremiumPoint[] {
+/**
+ * usdtUsd: USDT-USD-Kerzen. Fehlt zu einer Zeit eine Kerze (kein Handel),
+ * gilt der letzte bekannte Kurs davor; vor dem ersten Kurs wird nicht
+ * verglichen. Ohne Kurse (leere Liste) bleibt es beim Rohvergleich.
+ */
+export function computePremiumSeries(
+  coinbase: PricePoint[],
+  binance: PricePoint[],
+  usdtUsd: PricePoint[] = [],
+): PremiumPoint[] {
   const binanceByT = new Map(binance.map((p) => [p.t, p.close]));
+  const usdt = [...usdtUsd].sort((a, b) => a.t - b.t);
   const series: PremiumPoint[] = [];
-  for (const cb of coinbase) {
+  let ui = -1;
+  for (const cb of [...coinbase].sort((a, b) => a.t - b.t)) {
+    while (ui + 1 < usdt.length && usdt[ui + 1].t <= cb.t) ui++;
+    const rate = usdt.length === 0 ? 1 : ui >= 0 ? usdt[ui].close : null;
     const bn = binanceByT.get(cb.t);
-    if (bn === undefined || bn <= 0) continue;
-    series.push({ t: cb.t, premiumPct: ((cb.close - bn) / bn) * 100 });
+    if (rate === null || bn === undefined || bn <= 0) continue;
+    const bnUsd = bn * rate;
+    series.push({ t: cb.t, premiumPct: ((cb.close - bnUsd) / bnUsd) * 100 });
   }
-  return series.sort((a, b) => a.t - b.t);
+  return series;
 }
 
 const LEVEL_LABELS: Record<PremiumLevel, string> = {
