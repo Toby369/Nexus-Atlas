@@ -22,6 +22,7 @@ import {
   type SeriesExchangeId,
 } from "@/lib/exchanges";
 import { setVisibleInterval } from "@/lib/visibleInterval";
+import Leerzustand from "@/components/basis/Leerzustand";
 
 // Gemeinsamer State/Polling fuer die Preis-Kacheln (OiChangeCard,
 // FundingRateCard) und den Live-Preis im Lagebild: jede
@@ -341,9 +342,9 @@ export default function LivePriceDataProvider({
 // (damals eine) Kachel durch einen einzigen fruehen Return zu ersetzen.
 export function LivePriceEmptyState() {
   return (
-    <div className="rounded-lg border border-border bg-surface p-8 text-center text-text-muted">
-      Noch keine Daten vorhanden. Die Pipeline sammelt alle 5 Minuten einen
-      neuen BTC-Datenpunkt — schau in Kürze wieder vorbei.
-    </div>
+    <Leerzustand
+      titel="Noch keine Marktdaten"
+      text="collect-btc schreibt alle 5 Minuten einen Datenpunkt je Börse. Bleibt das leer, zeigt die Datenstand-Ampel oben, ob der Sammler ausgefallen ist."
+    />
   );
 }

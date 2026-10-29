@@ -33,3 +33,18 @@ describe("dashboardTiles quellen", () => {
     }
   });
 });
+
+describe("dashboardTiles herkunft", () => {
+  it("jede Kachel ausser Lernen nennt ihre Herkunft", () => {
+    for (const tile of DASHBOARD_TILES) {
+      if (tile.id === "lernen") continue;
+      expect(tile.herkunft.length, tile.id).toBeGreaterThan(0);
+    }
+  });
+
+  it("KI-Kacheln sind als KI gekennzeichnet", () => {
+    for (const tile of DASHBOARD_TILES.filter((t) => t.title.includes("(KI)"))) {
+      expect(tile.herkunft.some((q) => q.art === "ki"), tile.id).toBe(true);
+    }
+  });
+});

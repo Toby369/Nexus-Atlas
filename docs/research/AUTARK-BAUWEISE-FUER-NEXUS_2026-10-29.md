@@ -202,9 +202,26 @@ Autark-Plan).
   `20261029130000_data_quality_ohne_miner_net_flow.sql` nimmt sie heraus.
   **Einspielen offen.**
 
+## Umsetzung D + E (29.10.2026): Grundbausteine und Herkunft im Register
+
+- **`components/basis/`**: `Karte` (Hülle mit Titel, Ⓘ und Aktion rechts),
+  `Leerzustand` (immer mit einem Satz, warum), `Hinweis` (Info/Warnung/Fehler),
+  `Pille` (Zustand, Farben nach Bedeutung, ersetzt die eigenen
+  `TONE_STYLES`-Tabellen), `Quellenhinweis`.
+- **`lib/quellen.ts`**: alle Datenquellen an einer Stelle. Das Kachel-Register
+  hat jetzt das Pflichtfeld `herkunft`; `DashboardLayout` schreibt daraus
+  „Daten: …“ unter jede Kachel. Eigene Rechnungen heissen „eigene
+  Berechnung“, KI-Texte „KI-generiert, keine Anlageberatung“ (Test: jede
+  „(KI)“-Kachel trägt die KI-Kennzeichnung).
+- **Muster umgestellt:** OI Change, Funding Rate, Orderbuch-Wände und der
+  gemeinsame Leerzustand der Preis-Kacheln. Die übrigen Kacheln folgen beim
+  nächsten Anfassen.
+- **Korrektur dabei:** Die „CME-Terminbasis“ kommt von Deribit (siehe
+  `collect-term-basis`); Beschriftung in der Datenstand-Liste angepasst.
+
 ## Vorschlag für die Reihenfolge
 
 1. ~~A + B (Datenstand)~~ umgesetzt am 29.10.2026.
 2. ~~C (Datenvertrag) für die Positionierungs- und Preis-Sammler~~ live seit 29.10.2026.
-3. D + E zusammen, zuerst an zwei Kacheln (z. B. Funding, OI) als Muster.
+3. ~~D + E zusammen, zuerst an zwei Kacheln (z. B. Funding, OI) als Muster~~ umgesetzt 29.10.2026 (drei Kacheln).
 4. G, H, I, J nach Bedarf.

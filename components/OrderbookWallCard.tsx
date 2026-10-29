@@ -1,6 +1,6 @@
 import type { OrderbookWallSnapshot } from "@/lib/types";
 import { StaleBadge } from "@/components/ClientTimestamp";
-import PanelInfo from "@/components/PanelInfo";
+import { Karte, Leerzustand } from "@/components/basis";
 
 // Nutzer-Wunsch nach einer "Bookmap"-Ansicht -- echtes Live-L2-Orderbuch
 // (tickgenau, Dauer-Websocket) passt nicht zu Nexus' Architektur (Supabase
@@ -141,22 +141,20 @@ function ExchangeRow({ wall }: { wall: OrderbookWallSnapshot }) {
 export default function OrderbookWallCard({ walls }: { walls: OrderbookWallSnapshot[] }) {
   if (walls.length === 0) {
     return (
-      <div className="rounded-lg border border-border bg-surface p-5">
-        <p className="text-sm font-medium text-text mb-2">Orderbuch-Wände</p>
-        <p className="text-xs text-text-faint">Keine aktuellen Orderbuch-Daten.</p>
-      </div>
+      <Leerzustand
+        titel="Keine aktuellen Orderbuch-Daten"
+        text="collect-orderbook schreibt alle 5 Minuten. Bleibt das leer, zeigt die Datenstand-Ampel oben, ob der Sammler ausgefallen ist."
+      />
     );
   }
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-5 space-y-3">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <span className="flex items-center gap-1.5">
-          <p className="text-sm font-medium text-text">Orderbuch-Wände</p>
-          <PanelInfo title="Orderbuch-Wände" content={INFO_TEXT} />
-        </span>
-        <StaleBadge iso={walls[0].timestamp_utc} />
-      </div>
+    <Karte
+      titel="Orderbuch-Wände"
+      info={{ titel: "Orderbuch-Wände", text: INFO_TEXT }}
+      aktion={<StaleBadge iso={walls[0].timestamp_utc} />}
+      dicht
+    >
 
       <details>
         <CumulativeSummary walls={walls} />
@@ -167,6 +165,6 @@ export default function OrderbookWallCard({ walls }: { walls: OrderbookWallSnaps
           ))}
         </div>
       </details>
-    </div>
+    </Karte>
   );
 }
