@@ -1,4 +1,5 @@
 import { ENTRY_LEVEL_TOLERANCE_PCT } from "./tpStandard";
+import { ganzzahlCh } from "./zahlCh";
 
 // Zonen fuer das Dashboard (Toby 22.10.2026, Abstimmung mit der Session
 // "Bitcoin Preisbewegungen verstehen": "er fragt staendig, wo ist das
@@ -70,7 +71,7 @@ export function nearestZones(
   return { above, below };
 }
 
-const fmt = (n: number) => n.toLocaleString("de-CH", { maximumFractionDigits: 0 });
+const fmt = ganzzahlCh;
 
 /** Plan-Satz nach Tobys Routine: "Ueber X Long am Retest, unter Y Short, dazwischen nichts." */
 export function planSentence(levels: ZoneLevel[], price: number | null): string | null {
