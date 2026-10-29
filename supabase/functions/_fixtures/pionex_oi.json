@@ -1,0 +1,16 @@
+{
+  "data": {
+    "openInterests": [
+      {
+        "symbol": "BTC_USDT_PERP",
+        "openInterest": "1729.0438"
+      },
+      {
+        "symbol": "ETH_USDT_PERP",
+        "openInterest": "27569.79"
+      }
+    ]
+  },
+  "result": true,
+  "timestamp": 1793269390844
+}

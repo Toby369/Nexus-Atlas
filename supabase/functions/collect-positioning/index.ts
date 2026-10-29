@@ -1,5 +1,12 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import {
+  parseBinancePositionierung,
+  parseBitgetPositionierung,
+  parseBybitPositionierung,
+  parseOkxPositionierung,
+  type PositionierungWerte,
+} from "../_shared/boersenParser.ts";
 
 // NEXUS Positioning Collector (Phase 2+3, erweitert Phase 2 Market-Intelligence).
 // Sammelt Long/Short-Ratio, Top-Trader-Ratio und Taker-Buy/Sell-Flow und
@@ -69,142 +76,56 @@ function errorRow(exchange: string, err: unknown): PositioningRow {
   return { ...emptyRow(exchange), status: "error", error: message };
 }
 
-// --- Binance: Global + Top Trader (Account/Position) + Taker Flow ---------
-async function collectBinance(symbol: string): Promise<PositioningRow> {
-  const exchange = "binance";
+// Auslesen der Antworten: supabase/functions/_shared/boersenParser.ts
+// (gegen gespeicherte echte Antworten getestet, wirft bei fehlendem Feld).
+async function collect(exchange: string, lesen: () => Promise<PositionierungWerte>): Promise<PositioningRow> {
   try {
+    return { exchange, ...(await lesen()), status: "ok", error: null };
+  } catch (err) {
+    return errorRow(exchange, err);
+  }
+}
+
+// Binance: Global + Top Trader (Account/Position) + Taker Flow
+const collectBinance = (symbol: string) =>
+  collect("binance", async () => {
     const base = "https://fapi.binance.com/futures/data";
     const period = "5m";
-
     const [global, topAccount, topPosition, taker] = await Promise.all([
       fetchJson(`${base}/globalLongShortAccountRatio?symbol=${symbol}&period=${period}&limit=1`),
       fetchJson(`${base}/topLongShortAccountRatio?symbol=${symbol}&period=${period}&limit=1`),
       fetchJson(`${base}/topLongShortPositionRatio?symbol=${symbol}&period=${period}&limit=1`),
       fetchJson(`${base}/takerlongshortRatio?symbol=${symbol}&period=${period}&limit=1`),
     ]);
+    return parseBinancePositionierung(global, topAccount, topPosition, taker);
+  });
 
-    const g = global?.[0];
-    const ta = topAccount?.[0];
-    const tp = topPosition?.[0];
-    const tk = taker?.[0];
+// Bybit: nur globale Account-Ratio (buyRatio/sellRatio)
+const collectBybit = (symbol: string) =>
+  collect("bybit", async () =>
+    parseBybitPositionierung(
+      await fetchJson(`https://api.bybit.com/v5/market/account-ratio?category=linear&symbol=${symbol}&period=5min&limit=1`),
+    )
+  );
 
-    if (!g || !ta || !tp || !tk) {
-      throw new Error("Unvollstaendige Binance-Positioning-Antwort");
-    }
-
-    return {
-      exchange,
-      global_long_account_ratio: parseFloat(g.longAccount),
-      global_short_account_ratio: parseFloat(g.shortAccount),
-      global_account_long_short_ratio: parseFloat(g.longShortRatio),
-      top_trader_long_account_ratio: parseFloat(ta.longAccount),
-      top_trader_short_account_ratio: parseFloat(ta.shortAccount),
-      top_trader_account_long_short_ratio: parseFloat(ta.longShortRatio),
-      top_trader_long_position_ratio: parseFloat(tp.longAccount),
-      top_trader_short_position_ratio: parseFloat(tp.shortAccount),
-      top_trader_position_long_short_ratio: parseFloat(tp.longShortRatio),
-      taker_buy_vol: parseFloat(tk.buyVol),
-      taker_sell_vol: parseFloat(tk.sellVol),
-      taker_buy_sell_ratio: parseFloat(tk.buySellRatio),
-      status: "ok",
-      error: null,
-    };
-  } catch (err) {
-    return errorRow(exchange, err);
-  }
-}
-
-// --- Bybit: nur globale Account-Ratio (buyRatio/sellRatio) ----------------
-async function collectBybit(symbol: string): Promise<PositioningRow> {
-  const exchange = "bybit";
-  try {
-    const json = await fetchJson(
-      `https://api.bybit.com/v5/market/account-ratio?category=linear&symbol=${symbol}&period=5min&limit=1`,
-    );
-    const entry = json?.result?.list?.[0];
-    if (!entry) throw new Error("Keine Bybit-Positioning-Daten");
-
-    const buyRatio = parseFloat(entry.buyRatio);
-    const sellRatio = parseFloat(entry.sellRatio);
-
-    return {
-      ...emptyRow(exchange),
-      global_long_account_ratio: buyRatio,
-      global_short_account_ratio: sellRatio,
-      global_account_long_short_ratio: sellRatio !== 0 ? buyRatio / sellRatio : null,
-      status: "ok",
-      error: null,
-    };
-  } catch (err) {
-    return errorRow(exchange, err);
-  }
-}
-
-// --- OKX: nur globale Account-Ratio (long/short als Verhaeltnis) ----------
-// OKX liefert im Gegensatz zu Binance/Bybit keine getrennten
-// Long-/Short-Prozentwerte, sondern direkt das Verhaeltnis long/short.
-// Rueckrechnung ueber long+short=1: long = ratio/(1+ratio), short = 1-long.
-async function collectOkx(symbol: string): Promise<PositioningRow> {
-  const exchange = "okx";
-  try {
+// OKX: nur das Verhaeltnis long/short, Rueckrechnung im Parser
+const collectOkx = (symbol: string) =>
+  collect("okx", async () => {
     const instId = symbol.replace("USDT", "-USDT-SWAP");
-    const json = await fetchJson(
-      `https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio-contract?instId=${instId}&period=5m&limit=1`,
+    return parseOkxPositionierung(
+      await fetchJson(
+        `https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio-contract?instId=${instId}&period=5m&limit=1`,
+      ),
     );
-    if (json?.code !== "0") throw new Error(`OKX API-Fehler: ${json?.msg || json?.code}`);
-    const entry = json?.data?.[0];
-    if (!entry) throw new Error("Keine OKX-Positioning-Daten");
+  });
 
-    const ratio = parseFloat(entry[1]);
-    if (Number.isNaN(ratio)) throw new Error("Ungueltiges OKX-Ratio-Format");
-    const longAccount = ratio / (1 + ratio);
-    const shortAccount = 1 - longAccount;
-
-    return {
-      ...emptyRow(exchange),
-      global_long_account_ratio: longAccount,
-      global_short_account_ratio: shortAccount,
-      global_account_long_short_ratio: ratio,
-      status: "ok",
-      error: null,
-    };
-  } catch (err) {
-    return errorRow(exchange, err);
-  }
-}
-
-// --- Bitget: nur globale Account-Ratio -------------------------------------
-// GET /api/v2/mix/market/account-long-short liefert longAccountRatio/
-// shortAccountRatio/longShortAccountRatio direkt als 5-Min-Zeitreihe
-// (verifiziert per Live-Aufruf) -- letzter Eintrag = aktuellster Wert.
-// Keine Top-Trader-Aufschluesselung oeffentlich verfuegbar (wie bei
-// Bybit/OKX), bleibt bewusst null statt erfunden.
-async function collectBitget(symbol: string): Promise<PositioningRow> {
-  const exchange = "bitget";
-  try {
-    const json = await fetchJson(
-      `https://api.bitget.com/api/v2/mix/market/account-long-short?symbol=${symbol}&productType=USDT-FUTURES`,
-    );
-    const list = json?.data;
-    if (!Array.isArray(list) || list.length === 0) throw new Error("Keine Bitget-Positioning-Daten");
-    const entry = list[list.length - 1];
-
-    const longRatio = parseFloat(entry.longAccountRatio);
-    const shortRatio = parseFloat(entry.shortAccountRatio);
-    const longShortRatio = parseFloat(entry.longShortAccountRatio);
-
-    return {
-      ...emptyRow(exchange),
-      global_long_account_ratio: longRatio,
-      global_short_account_ratio: shortRatio,
-      global_account_long_short_ratio: Number.isNaN(longShortRatio) ? null : longShortRatio,
-      status: "ok",
-      error: null,
-    };
-  } catch (err) {
-    return errorRow(exchange, err);
-  }
-}
+// Bitget: nur globale Account-Ratio, keine Top-Trader-Aufschluesselung oeffentlich
+const collectBitget = (symbol: string) =>
+  collect("bitget", async () =>
+    parseBitgetPositionierung(
+      await fetchJson(`https://api.bitget.com/api/v2/mix/market/account-long-short?symbol=${symbol}&productType=USDT-FUTURES`),
+    )
+  );
 
 // --- Divergence Engine (nur auf Binance-Daten, da vollstaendigster Datensatz) --
 // Kombiniert: Retail- vs. Top-Trader-Positionierung (Account UND Position),

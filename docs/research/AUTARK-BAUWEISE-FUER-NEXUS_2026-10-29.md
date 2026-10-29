@@ -162,9 +162,33 @@ Autark-Plan).
   gespeichert (nur Bybit). In `data_quality` steht `bgeometrics/miner-net-flow`
   seit gut 60 Tagen ohne Daten.
 
+## Umsetzung C (29.10.2026): Datenvertrag mit den Börsen
+
+- **`supabase/functions/_shared/boersenParser.ts`**: das Auslesen der
+  Antworten aus `collect-btc` (6 Börsen) und `collect-positioning` (4 Börsen)
+  als reine Funktionen. Pflichtfelder werfen mit Börse und Feldnamen, statt
+  still `NaN` zu speichern (Postgres nimmt `NaN` in `numeric` an).
+- **Fixtures**: 20 echte Antworten unter `supabase/functions/_fixtures/`,
+  aufgezeichnet über `pg_net` (die Cloud-Umgebung sperrt die Börsen direkt).
+- **`lib/boersenVertrag.test.ts`**: prüft Felder, Einheiten (Funding als
+  Dezimalbruch, BTC-Preisbereich, Mark/Last-Abstand, OI × Preis = OI in USD),
+  Anteile (Long + Short = 1) und dass ein fehlendes Feld wirft.
+- **Auffrischen**: `tools/fixtures-auffrischen/` (Node-Skript für PC/VPS).
+- **Befunde dabei:**
+  - OKX: gespeichert wurde `nextFundingTime` = übernächste Abrechnung, 8 Std zu
+    spät (live: OKX 00:00, alle anderen 16:00). Richtig ist `fundingTime`.
+    Der Wert wird in der App und in SQL nirgends ausgewertet, also ohne
+    Folgen bisher.
+  - Bitunix liefert inzwischen einen Index-Preis, der Code verwarf ihn.
+  - Bitget liefert die Positionierung als Zeitreihe, älteste zuerst; gewählt
+    wird jetzt nach Zeitstempel statt nach Position.
+- **Stand:** Code und Tests fertig, beide Sammler noch nicht neu deployed
+  (das Deployment wurde in der Session abgelehnt; live läuft weiter
+  `collect-btc` v15 und `collect-positioning` v11).
+
 ## Vorschlag für die Reihenfolge
 
 1. ~~A + B (Datenstand)~~ umgesetzt am 29.10.2026.
-2. C (Datenvertrag) für die Positionierungs- und Preis-Sammler.
+2. ~~C (Datenvertrag) für die Positionierungs- und Preis-Sammler~~ Code fertig 29.10.2026, Deploy offen.
 3. D + E zusammen, zuerst an zwei Kacheln (z. B. Funding, OI) als Muster.
 4. G, H, I, J nach Bedarf.

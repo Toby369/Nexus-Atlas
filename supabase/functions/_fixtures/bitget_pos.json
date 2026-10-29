@@ -1,0 +1,25 @@
+{
+  "msg": "success",
+  "code": "00000",
+  "data": [
+    {
+      "ts": "1793268300000",
+      "longAccountRatio": "0.7075",
+      "shortAccountRatio": "0.2925",
+      "longShortAccountRatio": "2.4188"
+    },
+    {
+      "ts": "1793268600000",
+      "longAccountRatio": "0.7077",
+      "shortAccountRatio": "0.2923",
+      "longShortAccountRatio": "2.4211"
+    },
+    {
+      "ts": "1793268900000",
+      "longAccountRatio": "0.7073",
+      "shortAccountRatio": "0.2927",
+      "longShortAccountRatio": "2.4164"
+    }
+  ],
+  "requestTime": 1793269390423
+}
