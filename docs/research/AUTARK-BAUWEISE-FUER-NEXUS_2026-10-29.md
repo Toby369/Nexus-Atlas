@@ -182,9 +182,9 @@ Autark-Plan).
   - Bitunix liefert inzwischen einen Index-Preis, der Code verwarf ihn.
   - Bitget liefert die Positionierung als Zeitreihe, älteste zuerst; gewählt
     wird jetzt nach Zeitstempel statt nach Position.
-- **Stand:** Code und Tests fertig, beide Sammler noch nicht neu deployed
-  (das Deployment wurde in der Session abgelehnt; live läuft weiter
-  `collect-btc` v15 und `collect-positioning` v11).
+- **Stand:** live seit 29.10.2026 12:51 UTC (`collect-btc` v16,
+  `collect-positioning` v12). Erster Lauf danach: alle Börsen `ok`, OKX-Funding
+  16:00 UTC wie die anderen, Bitunix mit Index-Preis.
 
 ## Nebenbefunde geklärt (29.10.2026)
 
@@ -194,7 +194,8 @@ Autark-Plan).
   seit 23.04.2026 abgeschaltet. Deshalb kam seit dem Start am 19.08.2026 keine
   einzige Binance-Zeile an. Ein Verbindungsfehler wurde still als leere Liste
   behandelt. Korrigiert auf `/market/ws/btcusdt@forceOrder`; ein Sammler ohne
-  Verbindung meldet das jetzt unter `errors`. **Deploy offen.**
+  Verbindung meldet das jetzt unter `errors`. Live seit 29.10.2026 12:53 UTC
+  (`collect-liquidations` v14); erster Lauf ohne Fehler, beide Streams verbunden.
 - **`bgeometrics/miner-net-flow`:** kein Ausfall. `collect-onchain` fragt die
   Metrik seit 27.08.2026 bewusst nicht mehr ab (kostenpflichtig).
   `refresh_data_quality()` führte sie weiter in ihrer Liste. Migration
@@ -204,6 +205,6 @@ Autark-Plan).
 ## Vorschlag für die Reihenfolge
 
 1. ~~A + B (Datenstand)~~ umgesetzt am 29.10.2026.
-2. ~~C (Datenvertrag) für die Positionierungs- und Preis-Sammler~~ Code fertig 29.10.2026, Deploy offen.
+2. ~~C (Datenvertrag) für die Positionierungs- und Preis-Sammler~~ live seit 29.10.2026.
 3. D + E zusammen, zuerst an zwei Kacheln (z. B. Funding, OI) als Muster.
 4. G, H, I, J nach Bedarf.
