@@ -21,6 +21,79 @@ Datenstände. Ordner und `.at-secret` dort bleiben als Reserve liegen —
 `.at-secret` nicht löschen, ohne sie sind die Börsenschlüssel in einer
 Sicherung nicht lesbar.
 
+## Selbst erledigen (ohne Claude)
+
+Alles im Terminal am PC. Einfügen im Terminal mit **Ctrl+Shift+V**
+(nicht Ctrl+V), kopieren mit Ctrl+Shift+C. `ssh vps` öffnet das
+Serverfenster: die Zeile beginnt dann mit `ubuntu@ov-ebda03`, am PC mit
+`tb@Bernet`. Hängt das Fenster, schliessen und neu `ssh vps`.
+
+**AutarkTrade-Update** (wenn unten links „Update vX.Y.Z“ steht):
+
+```bash
+ssh vps
+cd ~/autarktrade && docker compose pull && docker compose up -d
+docker compose logs --tail 20 journal | grep -i -E "version|ready|FAILED"
+```
+
+Erwartet: `AutarkTrade ready!` und die neue Version. Seite im Browser neu
+laden. Daten, Passwort und Einstellungen bleiben erhalten. Nicht den
+Update-Knopf in der App verwenden (funktioniert im Container nicht).
+Vorsichtig sein, wenn das Update eine neue `docker-compose.yml` verlangt
+(Hinweis in den Release Notes): dann zuerst fragen, die eigene
+`docker-compose.override.yml` bleibt aber in jedem Fall gültig.
+
+**Monatlich: Systemupdates des Servers**
+
+```bash
+ssh vps
+sudo apt update && sudo apt upgrade -y
+```
+
+Steht danach „System restart required“ oder „kernel“: `sudo reboot`, eine
+Minute warten, neu `ssh vps`. AutarkTrade, Tailscale, Sync und Sicherung
+starten von selbst. Kontrolle: `docker compose -f ~/autarktrade/docker-compose.yml ps`
+zeigt `Up`.
+
+**Kontrolle, ob alles läuft** (kurz, z. B. wöchentlich)
+
+```bash
+ssh vps
+docker ps --format '{{.Names}} {{.Status}}'          # autarktrade Up …
+journalctl --user -u autark-sync -n 3 --no-pager      # „… Zonen an Nexus übertragen“
+ls -lh ~/backups | tail -3                            # Sicherung von heute/gestern
+df -h /                                               # Platz (Use% unter 80 %)
+```
+
+Am PC: `ls -lh ~/AutarkTrade-Backups | tail -3` zeigt die abgeholten Sicherungen.
+
+**Wenn etwas nicht geht**
+
+| Anzeichen | Was tun |
+|---|---|
+| Seite lädt nicht | Tailscale am Gerät an? Dann `ssh vps` → `cd ~/autarktrade && docker compose up -d` |
+| „Unbekannter Host“ | Adresse genau so: `https://ov-ebda03.tail55bb6a.ts.net` |
+| Nexus-Zonen-Kachel „Zonen veraltet“ | `journalctl --user -u autark-sync -n 10 --no-pager` lesen; „401“ = Sync-Geheimnis passt nicht mehr (Abschnitt Geheimnisse) |
+| Keine Alarme in Nexus | AutarkTrade › Einstellungen › Benachrichtigungen › Webhook › Test-Knopf |
+| `ssh vps` geht nicht | Tailscale am PC an (`tailscale status`)? Sonst `ssh ubuntu@83.228.196.247`; Notzugang: Konsole im Infomaniak-Manager |
+| Passwort vergessen | siehe unten |
+
+**Passwort vergessen** (Notfall-Reset von AutarkTrade, `AT_RESET_AUTH`):
+
+```bash
+ssh vps
+cd ~/autarktrade
+echo 'AT_RESET_AUTH=1' >> .env && docker compose up -d --force-recreate && sleep 20
+sed -i '/^AT_RESET_AUTH=/d' .env && docker compose up -d --force-recreate
+docker compose logs journal | grep Einrichtungscode | tail -1
+```
+
+Danach im Browser mit dem Code ein neues Passwort festlegen. Die zweite
+Zeile muss mitlaufen, sonst wäre der Schutz bei jedem Neustart wieder aus.
+
+**Jährlich:** Der VPS läuft bis 29.10.2027, Verlängerung im
+Infomaniak-Manager (Buchhaltung › Verlängerung).
+
 ## Aufbau auf dem Server
 
 ```
@@ -101,9 +174,12 @@ ersten Werte auf einem Screenshot sichtbar waren.
 ## Offen
 
 1. AutarkTrade-Update v4.3.2: `docker compose pull && docker compose up -d`.
-2. Nexus-Datenbank (Supabase Free, 0,5 GB) lag am 29.10. bei 0,445 GB und
-   wächst etwa 2–3 MB pro Tag: alte Daten automatisch ausdünnen, sonst
-   Mitte November an der Grenze.
+2. Nexus-Datenbank (Supabase Free, 0,5 GB): am 29.10. abends 289 MB
+   (`pg_database_size`). Ausdünnung läuft schon per Cron
+   (`downsample_old_snapshots`: nach 35 Tagen stündlich,
+   `purge_old_snapshots`: nach 90 Tagen weg, 1m-Kerzen nach 14 Tagen).
+   Ohne eigene Aufbewahrungsregel wachsen noch `market_states`,
+   `market_features`, `candles` (zusammen etwa 0,3 MB/Tag).
 3. Phase C (Doppeltes in Nexus aufräumen) mit der Aufräum-Session.
 4. Optional: SSH nur noch über Tailscale (`sudo ufw delete allow OpenSSH`
    und `sudo ufw allow in on tailscale0 to any port 22`) — erst wenn
