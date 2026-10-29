@@ -56,14 +56,16 @@ Datei zusätzlich unter `supabase/migrations/` ablegen.
 
 ## Offene Aufräum-Punkte
 
-- **`debug-test-webpush-import` in Supabase löschen.** Die deployte Version
-  enthält den privaten VAPID-Schlüssel (Push) hart im Code. Er ist nicht
-  öffentlich sichtbar, gehört aber nicht in eine Funktion. In der Repo-Kopie
-  ist er geschwärzt. Supabase → Edge Functions → Funktion → Delete.
-- **Alte, nicht mehr genutzte Funktionen** (kein Cron, aus der Anfangszeit):
+- **Acht stillgelegte Edge Functions in Supabase löschen** (Supabase →
+  Edge Functions → Funktion → Delete): `debug-test-webpush-import`,
+  `debug-fetch-farside`, `debug-fetch-openrouter-free`,
   `nexus-market-collector`, `nexus-dashboard`, `nexus-public-data`,
-  `nexus-market-data-v2`, `debug-fetch-farside`, `debug-fetch-openrouter-free`,
-  `backfill-title-de`. Können gelöscht werden.
+  `nexus-market-data-v2`, `backfill-title-de`. Kein Cron, kein Aufruf aus
+  App oder Datenbank (geprüft 29.10.2026); die Repo-Kopien sind entfernt.
+  `debug-test-webpush-import` enthielt den privaten VAPID-Schlüssel im Code;
+  seit 29.10.2026 läuft dort eine leere Fassung ohne Schlüssel (v7), die mit
+  410 antwortet. Der Schlüssel war nie öffentlich abrufbar, ein Austausch ist
+  deshalb nicht nötig.
 - **Einmal-Backfills** (`backfill-*`) haben keinen Cron und werden nur bei
   Bedarf von Hand aufgerufen.
 - **FOMC-Termine 2027 nachtragen:** `collect-economic-calendar` kennt nur

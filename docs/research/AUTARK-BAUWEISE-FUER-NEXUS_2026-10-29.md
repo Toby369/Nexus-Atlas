@@ -237,9 +237,19 @@ gezeigt. Test prüft Einheiten (Prozent, Mio. USD) und dass eine fehlende
 Quelle nur ihre Zeile kostet. Die übrigen KI-Kacheln (Zweitmeinungen,
 Rückblick, YouTube) folgen bei Bedarf.
 
+## Umsetzung J (29.10.2026): Aufräumen
+
+- Acht Edge Functions ohne Cron und ohne Aufruf aus App oder Datenbank aus dem
+  Repo entfernt (drei `debug-*`, vier alte `nexus-*`, `backfill-title-de`).
+  Löschen in Supabase geht nur im Dashboard (Liste in `docs/UEBERGABE.md`).
+- `debug-test-webpush-import` enthielt den privaten VAPID-Schlüssel im
+  eingesetzten Code; durch eine leere Fassung ohne Schlüssel ersetzt (v7).
+- Archiv-Kacheln: der Nutzungszähler hat erst 13 Einträge aus zwei Tagen,
+  zu wenig für eine Entscheidung. Neu prüfen ab Mitte November.
+
 ## Vorschlag für die Reihenfolge
 
 1. ~~A + B (Datenstand)~~ umgesetzt am 29.10.2026.
 2. ~~C (Datenvertrag) für die Positionierungs- und Preis-Sammler~~ live seit 29.10.2026.
 3. ~~D + E zusammen, zuerst an zwei Kacheln (z. B. Funding, OI) als Muster~~ umgesetzt 29.10.2026 (drei Kacheln).
-4. ~~I~~ und ~~G (System-Briefing)~~ umgesetzt 29.10.2026; H, J nach Bedarf.
+4. ~~I~~, ~~G (System-Briefing)~~ und ~~J~~ umgesetzt 29.10.2026; F und H nach Bedarf.
