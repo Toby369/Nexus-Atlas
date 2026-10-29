@@ -3,6 +3,7 @@
 import { useLivePriceData, LivePriceEmptyState } from "@/components/LivePriceDataProvider";
 import PriceOiComparisonChart from "@/components/PriceOiComparisonChart";
 import PanelInfo from "@/components/PanelInfo";
+import { Hinweis, Karte } from "@/components/basis";
 import { ClockTime, ShortDate } from "@/components/ClientTimestamp";
 import { oiChangeInfo, btcOiChartInfo, exchangeDivergenceInfo } from "@/lib/panelInfo";
 import { formatSignedPct } from "@/lib/livePriceFormat";
@@ -60,12 +61,10 @@ export default function OiChangeCard() {
 
   return (
     <div className="space-y-3">
-      <section className="rounded-lg border border-border bg-surface p-5">
-        <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
-          <div className="flex items-center gap-1.5">
-            <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">OI Change</h2>
-            <PanelInfo title="OI Change" content={oiChangeInfo(selectedTf.label)} />
-          </div>
+      <Karte
+        titel="OI Change"
+        info={{ titel: "OI Change", text: oiChangeInfo(selectedTf.label) }}
+        aktion={
           <select
             value={seriesExchange}
             onChange={(e) => setSeriesExchange(e.target.value as SeriesExchangeId)}
@@ -77,8 +76,8 @@ export default function OiChangeCard() {
               </option>
             ))}
           </select>
-        </div>
-
+        }
+      >
         <div className="flex items-end gap-6 flex-wrap mb-1">
           <div>
             <span
@@ -105,13 +104,13 @@ export default function OiChangeCard() {
         </div>
 
         {!hasFullHistory && referenceSnapshot && (
-          <p className="text-xs text-text-faint mb-3">
+          <Hinweis className="mb-3">
             Noch keine volle {selectedTf.label}-Historie — Basis ist der
             älteste verfügbare Datenpunkt (<ClockTime iso={referenceSnapshot.timestamp_utc} />
             {", "}
             <ShortDate iso={referenceSnapshot.timestamp_utc} />
             ).
-          </p>
+          </Hinweis>
         )}
 
         <div className="mt-4 pt-4 border-t border-border">
@@ -189,7 +188,7 @@ export default function OiChangeCard() {
             {anyIncomplete && " * Historie für diesen Zeitraum noch unvollständig."}
           </p>
         </details>
-      </section>
+      </Karte>
     </div>
   );
 }

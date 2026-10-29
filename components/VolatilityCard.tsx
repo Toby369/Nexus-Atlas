@@ -230,7 +230,7 @@ export default function VolatilityCard({ data }: { data: VolatilitySnapshot }) {
       )}
 
       <p className="text-[11px] text-text-faint">
-        Quelle: Deribit (DVOL, Optionen), Binance-1h-Kerzen. Stand{" "}
+        DVOL und Optionen von Deribit, Spanne aus Binance-1h-Kerzen. Stand{" "}
         {new Date(data.fetchedAt).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Zurich" })}.
       </p>
     </div>

@@ -20,6 +20,8 @@ import { CSS } from "@dnd-kit/utilities";
 import { DASHBOARD_TILES, DASHBOARD_TILE_IDS } from "@/lib/dashboardTiles";
 import { logUsage } from "@/lib/tileUsage";
 import TileFreshness from "@/components/TileFreshness";
+import Quellenhinweis from "@/components/basis/Quellenhinweis";
+import type { Quelle } from "@/lib/quellen";
 import { visibleOrder, reorderWithinSubset, swapWithinSubset } from "@/lib/dashboardTabReorder";
 
 const STORAGE_KEY = "nexus-atlas-dashboard-layout-v2";
@@ -95,6 +97,7 @@ const defaultWidthById = Object.fromEntries(
 );
 const sizeById = Object.fromEntries(DASHBOARD_TILES.map((t) => [t.id, t.size ?? "content"]));
 const quellenById = Object.fromEntries(DASHBOARD_TILES.map((t) => [t.id, t.quellen ?? []]));
+const herkunftById = Object.fromEntries(DASHBOARD_TILES.map((t) => [t.id, t.herkunft]));
 
 // Drei getrennte Bereiche statt EINES 3-spaltigen Grids (das bei stark
 // unterschiedlichen Hoehen grosse Luecken liess): "compact" (reine
@@ -227,6 +230,7 @@ export default function DashboardLayout({
       id,
       title: titleById[id] ?? id,
       quellen: quellenById[id] ?? [],
+      herkunft: herkunftById[id] ?? [],
       compact,
       width: widths[id] ?? defaultWidthById[id] ?? MIN_WIDTH,
       height: heights[id],
@@ -297,6 +301,7 @@ function SortableTile({
   id,
   title,
   quellen,
+  herkunft,
   compact,
   width,
   height,
@@ -314,6 +319,7 @@ function SortableTile({
   id: string;
   title: string;
   quellen: string[];
+  herkunft: Quelle[];
   // Kompakt-Kacheln (siehe DashboardLayout oben): kein Breiten-Regler, kein
   // freies Hoehen-Resize -- einheitliche, natuerliche Groesse.
   compact: boolean;
@@ -419,6 +425,8 @@ function SortableTile({
               {children}
             </ResizableTileBody>
           )}
+          {/* Herkunft aus dem Register, ausserhalb des scrollbaren Bereichs: bleibt sichtbar. */}
+          <Quellenhinweis quellen={herkunft} className="mt-1.5 px-1" />
         </div>
       )}
     </div>

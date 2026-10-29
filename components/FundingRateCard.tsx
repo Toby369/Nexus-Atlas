@@ -2,7 +2,7 @@
 
 import { useLivePriceData, LivePriceEmptyState } from "@/components/LivePriceDataProvider";
 import TimeSeriesChart from "@/components/TimeSeriesChart";
-import PanelInfo from "@/components/PanelInfo";
+import { Karte, Pille, type PillenTon } from "@/components/basis";
 import { fundingRateInfo } from "@/lib/panelInfo";
 import { formatPercent, clockTimeLabel } from "@/lib/livePriceFormat";
 import { useEffect, useState } from "react";
@@ -62,10 +62,10 @@ async function fetchHistory(): Promise<FundingHistory> {
   return { lastNegative, lastAbove, lastBaseline, fetchedAt: Date.now() };
 }
 
-const TONE_STYLES: Record<FundingTone, string> = {
-  calm: "border-border text-text-muted",
-  watch: "border-accent/40 bg-accent/10 text-accent",
-  risk: "border-down/40 bg-down/10 text-down",
+const PILLEN_TON: Record<FundingTone, PillenTon> = {
+  calm: "ruhig",
+  watch: "beobachten",
+  risk: "risiko",
 };
 
 function pct(value: number): string {
@@ -115,29 +115,27 @@ export default function FundingRateCard() {
       : null;
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
-      <div className="flex items-center justify-between mb-1">
-        <p className="text-xs text-text-muted uppercase tracking-wide">Funding Rate (%)</p>
-        <div className="flex items-center gap-2">
-          <span
-            className={`tabular font-mono text-xs ${
-              latest.funding_rate === null
-                ? "text-text-faint"
-                : latest.funding_rate >= 0
-                ? "text-up"
-                : "text-down"
-            }`}
-          >
-            {formatPercent(latest.funding_rate)}
-          </span>
-          <PanelInfo title="Funding Rate" content={fundingRateInfo} />
-        </div>
-      </div>
+    <Karte
+      titel="Funding Rate (%)"
+      info={{ titel: "Funding Rate", text: fundingRateInfo }}
+      aktion={
+        <span
+          className={`tabular font-mono text-xs ${
+            latest.funding_rate === null
+              ? "text-text-faint"
+              : latest.funding_rate >= 0
+              ? "text-up"
+              : "text-down"
+          }`}
+        >
+          {formatPercent(latest.funding_rate)}
+        </span>
+      }
+      dicht
+    >
       {level && annualPct !== null && (
         <div className="flex items-center gap-2 flex-wrap mb-2" title={level.hint}>
-          <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${TONE_STYLES[level.tone]}`}>
-            {level.label}
-          </span>
+          <Pille ton={PILLEN_TON[level.tone]}>{level.label}</Pille>
           <span className="tabular font-mono text-[11px] text-text-faint">{formatAnnual(annualPct)}</span>
           <span className="text-[11px] text-text-faint">{level.hint}</span>
         </div>
@@ -156,11 +154,7 @@ export default function FundingRateCard() {
         <div className="mt-3 pt-3 border-t border-border/60 space-y-1.5" title={positioning.hint}>
           <div className="flex items-center justify-between gap-2">
             <span className="text-[11px] uppercase tracking-[0.12em] text-text-faint">Positionierung (Konten)</span>
-            <span
-              className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${TONE_STYLES[positioning.tone]}`}
-            >
-              {positioning.label}
-            </span>
+            <Pille ton={PILLEN_TON[positioning.tone]}>{positioning.label}</Pille>
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
             <span>
@@ -186,6 +180,6 @@ export default function FundingRateCard() {
           <p className="text-[11px] text-text-faint">{positioning.hint}</p>
         </div>
       )}
-    </div>
+    </Karte>
   );
 }

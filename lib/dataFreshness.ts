@@ -74,7 +74,7 @@ export const DATA_SOURCES: DataSourceMeta[] = [
   { key: "regime_matrix", label: "Marktphase (Matrix)", normalMaxMin: 2 * STD + 15 * MIN },
   { key: "divergence_radar", label: "Divergenz-Radar", normalMaxMin: 35 * MIN },
   // Zeitstempel = volle Stunde, Lauf um :11.
-  { key: "term_basis", label: "CME-Terminbasis", normalMaxMin: 90 * MIN },
+  { key: "term_basis", label: "Terminbasis (Deribit)", normalMaxMin: 90 * MIN },
   { key: "sentiment", label: "Sentiment (Fear & Greed)", normalMaxMin: 75 * MIN },
   { key: "options", label: "Optionen (Deribit)", normalMaxMin: 40 * MIN },
   { key: "macro", label: "Makro (Indizes, DXY)", normalMaxMin: 40 * MIN },
