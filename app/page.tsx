@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { fetchPriceReferences } from "@/lib/priceChanges";
 import { getChartStructureData } from "@/lib/chartStructureContext";
 import { fetchClosedCandles } from "@/lib/candles";
-import { activeLevels, fetchOwnZones } from "@/lib/ownZones";
+import { activeLevels, fetchAutarkSyncStatus, fetchOwnZones } from "@/lib/ownZones";
 import { bundleLiquidationZones } from "@/lib/leverageMap";
 import { RuleCheckCard, VetoCard } from "@/components/TradeStepCards";
 import { dailyTrendFromMtf } from "@/lib/zones";
@@ -554,6 +554,7 @@ export default async function Home({
     candles1h,
     candles15m,
     ownZones,
+    autarkSync,
   ] = await Promise.all([
     getSnapshotHistory(),
     getLatestMarketState(),
@@ -594,6 +595,7 @@ export default async function Home({
     fetchClosedCandles("1h", 30),
     fetchClosedCandles("15m", 100),
     fetchOwnZones(),
+    fetchAutarkSyncStatus(),
   ]);
 
   // Fallback, falls das Bundle-RPC fehlschlaegt (z.B. kurzzeitiger DB-
@@ -699,6 +701,7 @@ export default async function Home({
                       <ZonesCard
                         keyLevels={tradeLevels}
                         ownZones={ownZones}
+                        autarkSync={autarkSync}
                         nexusLevels={chartStructure.keyLevels.map(({ price }) => ({ price }))}
                         liquidationZones={
                           latestLeverageMap

@@ -332,7 +332,9 @@ Quelle: Deribit, stündlich (collect-term-basis). Ältere Tageswerte nachgeladen
 // Zonen-Kachel (components/ZonesCard.tsx).
 export const zonesInfo = `So liest du das: Die nächsten Zonen über und unter dem aktuellen Kurs. Über dem Kurs heisst eine Zone Verkäufer-Zone, darunter Käufer-Zone, egal welche Rolle sie früher hatte (Rollentausch). Bei der nächsten Zone je Seite stehen Abstand, Chance-Risiko bei einem Stop von 0,5 % und dein TP-Standard: ab 1,75 % Abstand Standard 1, ab 1,5 % Standard 2, ab 1,25 % Standard 3, ab 1,0 % Standard 4, darunter kein Trade. Gegen den 1D-Trend gilt höchstens Standard 4. Ob ein Level mit dem 4H-Körper gebrochen ist, beantwortet der Regelcheck darunter.
 
-Deine Zonen: Unten trägst du deine Zonen aus dem Chart ein. Sobald eine eingetragen ist, rechnen Zonen, Regelcheck, Kopf-Zeile und Push damit; die Nexus-Keylevels erscheinen nur noch als Abgleich. Zonen, die der Preis ohne Reaktion durchlaufen hat, löschst du mit ×.
+Zonen aus AutarkTrade: Sobald AutarkTrade Zonen liefert (Abgleich alle 5 Minuten), rechnet Nexus mit ihnen, inklusive Bereich und Name. Der Kurs gilt als „an der Zone“, wenn er zwischen Unterkante −0,25 % und Oberkante +0,25 % liegt; Long erst über der Oberkante, Short erst unter der Unterkante. Kommt länger als 30 Minuten kein Abgleich, warnt die Kachel, weil die Zonen dann veraltet sein können.
+
+Notlösung ohne AutarkTrade: Unten trägst du deine Zonen aus dem Chart ein. Sobald eine eingetragen ist, rechnen Zonen, Regelcheck, Kopf-Zeile und Push damit; die Nexus-Keylevels erscheinen nur noch als Abgleich. Zonen, die der Preis ohne Reaktion durchlaufen hat, löschst du mit ×.
 
 Liquidations-Ziel: die nächste Zone über dem Kurs, in der Short-Positionen liquidiert würden, und die nächste darunter mit Long-Liquidationen (Modell aus OI-Aufbau und Hebelstufen). Solche Zonen ziehen den Preis oft an, darum taugen sie als Ziel (Regel 7).
 

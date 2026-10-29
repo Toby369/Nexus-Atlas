@@ -19,12 +19,21 @@ const levels = [{ price: 100_000 }, { price: 102_000 }, { price: 98_000 }];
 
 describe("findLatestBodyBreak", () => {
   it("findet den Koerperausbruch und die Richtung", () => {
-    expect(findLatestBodyBreak([100_000], candles4h)).toMatchObject({ side: "long", level: 100_000 });
+    expect(findLatestBodyBreak([{ price: 100_000 }], candles4h)).toMatchObject({ side: "long", level: 100_000 });
+  });
+
+  it("bei einer Zone zaehlt die Oberkante fuer Long, die Unterkante fuer Short", () => {
+    const zone = [{ price: 100_000, low: 99_700, high: 100_300 }];
+    // Schluss 100'400 ueber der Oberkante 100'300
+    expect(findLatestBodyBreak(zone, candles4h)).toMatchObject({ side: "long", level: 100_300 });
+    // Schluss 100'200 noch in der Zone: kein Ausbruch
+    const inside = [candles4h[0], c(T0 + 4 * H, 99_800, 100_250, 99_700, 100_200)];
+    expect(findLatestBodyBreak(zone, inside)).toBeNull();
   });
 
   it("ein Docht allein ist kein Ausbruch", () => {
     const wick = [c(T0, 99_500, 99_900, 99_400, 99_800), c(T0 + 4 * H, 99_800, 100_300, 99_700, 99_900)];
-    expect(findLatestBodyBreak([100_000], wick)).toBeNull();
+    expect(findLatestBodyBreak([{ price: 100_000 }], wick)).toBeNull();
   });
 });
 
