@@ -22,7 +22,7 @@ Bis zum 30.10.2026 vergibt Supabase neuen Tabellen noch automatisch **alle** Rec
 
 # Supabase: Datenbank unter 500 MB halten
 
-Nexus läuft im Free-Plan von Supabase: **höchstens 0,5 GB**. Wird die Grenze überschritten, schaltet Supabase die Datenbank auf „nur lesen“, und die Sammel-Funktionen schreiben nichts mehr. Stand 29.10.2026 nach dem Aufräumen: **289 MB** (vorher 411 MB; Supabase zählt fürs Kontingent etwas mehr). Wachstum ca. 2–3 MB pro Tag. Aktueller Wert: Konto-Seite („Datenbank-Speicher“).
+Nexus läuft im Free-Plan von Supabase: **höchstens 0,5 GB**. Wird die Grenze überschritten, schaltet Supabase die Datenbank auf „nur lesen“, und die Sammel-Funktionen schreiben nichts mehr. Stand 29.10.2026 nach dem Aufräumen: **289 MB** (vorher 411 MB; Supabase zählt fürs Kontingent etwas mehr). Wachstum ca. 2–3 MB pro Tag. Aktueller Wert: Konto-Seite („Datenbank-Speicher“). Ab 400 MB schickt `send-state-change-push` automatisch eine Push-Warnung (alle 3 Tage, ab 450 MB täglich).
 
 - Vor jeder neuen Tabelle oder jedem neuen Sammel-Job abschätzen, wie viel sie pro Tag wächst, und eine Aufbewahrungsfrist mitbauen (Muster: `downsample_old_snapshots()` verdichtet ab 35 Tagen, `purge_old_snapshots()` löscht ab 90 Tagen, beide per pg_cron).
 - Keine Forschungs-/Backtest-Historien dauerhaft in der Live-Datenbank ablegen (die Score-Tabellen mit ~125 MB waren der Grund für den Engpass im Oktober 2026).
