@@ -19,7 +19,7 @@ export default function Hinweis({
   children: ReactNode;
 }) {
   return (
-    <p role={art === "fehler" ? "alert" : undefined} className={`rounded-md border px-3 py-2 text-xs ${ART[art]} ${className}`}>
+    <p role={art === "fehler" ? "alert" : undefined} className={`rounded-feld border px-3 py-2 text-xs ${ART[art]} ${className}`}>
       {children}
     </p>
   );

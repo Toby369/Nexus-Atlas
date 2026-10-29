@@ -29,8 +29,8 @@ export default function Karte({
   const kopf = titel || info || aktion;
   return (
     <section
-      className={`rounded-lg border border-border ${flaeche === "erhoeht" ? "bg-surface-raised" : "bg-surface"} ${
-        dicht ? "p-4" : "p-5"
+      className={`rounded-karte border border-border ${flaeche === "erhoeht" ? "bg-surface-raised" : "bg-surface"} ${
+        dicht ? "p-karte-dicht" : "p-karte"
       } ${className}`}
     >
       {kopf && (

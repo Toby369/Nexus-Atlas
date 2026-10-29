@@ -37,6 +37,21 @@ describe("aggregateSignalReviewCells", () => {
     expect(ctx?.cells[0].window_all?.n).toBe(20);
   });
 
+  it("haelt beide Richtungen desselben Signals getrennt (basis_crowding bullisch/baerisch)", () => {
+    const ctx = aggregateSignalReviewCells([
+      row({ category: "risk_factor", signal_type: "basis_crowding", direction_expected: "bullish", window_label: "90d", n: 3 }),
+      row({ category: "risk_factor", signal_type: "basis_crowding", direction_expected: "bullish", window_label: "all", n: 4 }),
+      row({ category: "risk_factor", signal_type: "basis_crowding", direction_expected: "bearish", window_label: "all", n: 3 }),
+    ]);
+    expect(ctx?.total_cells).toBe(2);
+    const bull = ctx?.cells.find((c) => c.direction_expected === "bullish");
+    const bear = ctx?.cells.find((c) => c.direction_expected === "bearish");
+    expect(bull?.window_90d?.n).toBe(3);
+    expect(bull?.window_all?.n).toBe(4);
+    expect(bear?.window_90d).toBeNull();
+    expect(bear?.window_all?.n).toBe(3);
+  });
+
   it("zaehlt eine Zelle als insufficient_data nur wenn BEIDE Fenster unter der Mindeststichprobe liegen", () => {
     const ctx = aggregateSignalReviewCells([
       row({ window_label: "90d", n: 3 }),

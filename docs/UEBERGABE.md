@@ -56,16 +56,9 @@ Datei zusätzlich unter `supabase/migrations/` ablegen.
 
 ## Offene Aufräum-Punkte
 
-- **Acht stillgelegte Edge Functions in Supabase löschen** (Supabase →
-  Edge Functions → Funktion → Delete): `debug-test-webpush-import`,
-  `debug-fetch-farside`, `debug-fetch-openrouter-free`,
-  `nexus-market-collector`, `nexus-dashboard`, `nexus-public-data`,
-  `nexus-market-data-v2`, `backfill-title-de`. Kein Cron, kein Aufruf aus
-  App oder Datenbank (geprüft 29.10.2026); die Repo-Kopien sind entfernt.
-  `debug-test-webpush-import` enthielt den privaten VAPID-Schlüssel im Code;
-  seit 29.10.2026 läuft dort eine leere Fassung ohne Schlüssel (v7), die mit
-  410 antwortet. Der Schlüssel war nie öffentlich abrufbar, ein Austausch ist
-  deshalb nicht nötig.
+- ~~Acht stillgelegte Edge Functions in Supabase löschen~~ erledigt
+  29.10.2026 (Toby im Dashboard: `debug-*`, alte `nexus-*`,
+  `backfill-title-de`).
 - **Einmal-Backfills** (`backfill-*`) haben keinen Cron und werden nur bei
   Bedarf von Hand aufgerufen.
 - **FOMC-Termine 2027 nachtragen:** `collect-economic-calendar` kennt nur
@@ -73,6 +66,28 @@ Datei zusätzlich unter `supabase/migrations/` ablegen.
   bis die Liste um 2027 ergänzt ist (federalreserve.gov, FOMC-Kalender).
 - `collect-btc-price-history-daily` und `youtube-monitor-scheduler` haben
   aktuell keinen Cron-Job.
+
+## Termine
+
+- **Ab 15.11.2026: Archiv-Kacheln entscheiden.** Welche Kacheln im Reiter
+  „Archiv“ werden genutzt, welche können weg? Grundlage ist der
+  Nutzungszähler (Tabelle `tile_usage`, Auswertung auch auf der Konto-Seite
+  unter „Nutzung der Kacheln“). Am 29.10. lagen erst 13 Einträge aus zwei
+  Tagen vor, zu wenig. Abfrage:
+  ```sql
+  select item, count(*) klicks, max(created_at)::date zuletzt
+  from tile_usage where created_at > now() - interval '30 days'
+  group by item order by klicks desc;
+  ```
+  Kacheln ohne Klick in drei Wochen sind Kandidaten zum Entfernen (Kachel in
+  `lib/dashboardTiles.ts` und `lib/dashboardTabs.ts` austragen, Komponente
+  löschen). Hintergrund: `docs/research/AUTARK-BAUWEISE-FUER-NEXUS_2026-10-29.md`,
+  Punkt J.
+- **Signal-Statistik ansehen** (läuft jeden Montag 05:00 UTC,
+  `weekly-signal-stats`): `select * from signal_stats_results where
+  significant_after_bh` zeigt Signale, die sich signifikant von der
+  Basisrate unterscheiden -- auch nach UNTEN (siehe Punkt H im
+  Recherche-Dokument).
 
 ## Risiko: Supabase pausiert inaktive Gratis-Projekte
 

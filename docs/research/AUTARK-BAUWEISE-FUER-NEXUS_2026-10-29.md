@@ -247,9 +247,37 @@ Rückblick, YouTube) folgen bei Bedarf.
 - Archiv-Kacheln: der Nutzungszähler hat erst 13 Einträge aus zwei Tagen,
   zu wenig für eine Entscheidung. Neu prüfen ab Mitte November.
 
+## Umsetzung H (29.10.2026): Vergleichsgruppe -- gab es schon, lief aber nicht
+
+- **Korrektur zur Recherche:** Nexus misst bereits gegen eine
+  Vergleichsgruppe. `signal_baseline_stats()` liefert die Basisrate über alle
+  1H-Kerzen, `compute_signal_stats()` testet jedes Signal dagegen (z-Test),
+  korrigiert für viele Tests (Benjamini-Hochberg) und gibt unter 10 Fällen
+  keinen p-Wert aus. Das ist strenger als AutarkTrades Vorzeichentest.
+- **Aber:** Der wöchentliche Lauf brach seit 12.10.2026 jeden Montag ab.
+  `basis_crowding` kommt in beiden Richtungen vor, der Schlüssel der
+  Ergebnistabelle kannte die Richtung nicht ("ON CONFLICT DO UPDATE command
+  cannot affect row a second time"). Der KI-Rückblick las drei Wochen lang den
+  Stand vom 12.10. Behoben mit Migration
+  `20261029220000_signal_stats_richtung_im_schluessel.sql` (Richtung im
+  Schlüssel, NULLS NOT DISTINCT) und im Rückblick
+  (`lib/signalReviewContext.ts`). Lauf von Hand nachgeholt am 29.10.
+- **Ergebnis 29.10. (Gesamtfenster):** von 105 Zellen nur drei signifikant,
+  alle drei SCHLECHTER als die Basisrate: `FAIR_VALUE_GAP_BULLISH` 24h trifft
+  33 % (Basis 52 %, n=90), `VOLUME_EXPANSION_BEAR` 12h/24h trifft 25–27 %
+  (Basis 48 %, n≈55). Diese TradingView-Signale zeigen bisher eher in die
+  falsche Richtung. Keine Anlageberatung, aber ein Grund, sie im Regelwerk
+  nicht als Bestätigung zu werten.
+
+## Umsetzung F (29.10.2026): Form-Tokens
+
+`app/globals.css`: `--radius-karte`, `--radius-feld`, `--spacing-karte`,
+`--spacing-karte-dicht` (Klassen `rounded-karte`, `p-karte` usw.), Werte wie
+bisher. Die Grundbausteine nutzen sie; alte Kacheln beim nächsten Anfassen.
+
 ## Vorschlag für die Reihenfolge
 
 1. ~~A + B (Datenstand)~~ umgesetzt am 29.10.2026.
 2. ~~C (Datenvertrag) für die Positionierungs- und Preis-Sammler~~ live seit 29.10.2026.
 3. ~~D + E zusammen, zuerst an zwei Kacheln (z. B. Funding, OI) als Muster~~ umgesetzt 29.10.2026 (drei Kacheln).
-4. ~~I~~, ~~G (System-Briefing)~~ und ~~J~~ umgesetzt 29.10.2026; F und H nach Bedarf.
+4. ~~I~~, ~~G (System-Briefing)~~, ~~J~~, ~~H~~ und ~~F~~ umgesetzt 29.10.2026. Offen: Archiv-Kacheln ab 15.11. (Termin in `docs/UEBERGABE.md`).

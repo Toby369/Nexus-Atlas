@@ -117,7 +117,10 @@ export function aggregateSignalReviewCells(rows: SignalStatsRow[]): SignalReview
 
   const byCell = new Map<string, { row90d?: StatsRow; rowAll?: StatsRow }>();
   for (const row of rows) {
-    const key = `${row.category}|${row.signal_type}|${row.horizon_hours}`;
+    // Richtung gehoert zum Schluessel: basis_crowding/funding_crowding kommen
+    // je nach Vorzeichen bullisch ODER baerisch vor (Migration
+    // 20261029220000_signal_stats_richtung_im_schluessel.sql).
+    const key = `${row.category}|${row.signal_type}|${row.horizon_hours}|${row.direction_expected ?? "-"}`;
     const entry = byCell.get(key) ?? {};
     if (row.window_label === "90d") entry.row90d = row;
     else entry.rowAll = row;
