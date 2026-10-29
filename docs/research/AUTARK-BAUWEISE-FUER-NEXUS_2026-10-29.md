@@ -219,9 +219,16 @@ Autark-Plan).
 - **Korrektur dabei:** Die „CME-Terminbasis“ kommt von Deribit (siehe
   `collect-term-basis`); Beschriftung in der Datenstand-Liste angepasst.
 
+## Umsetzung I (29.10.2026): Prüfen vor dem Merge
+
+`.github/workflows/pruefen.yml` läuft bei jedem PR und jedem Push auf `main`:
+`npm run lint`, `npm run typecheck` (neu: `next typegen && tsc --noEmit`),
+`npm test` und `deno check` für das gemeinsame Sammler-Modul. Ohne die
+Live-Integrationstests (`tests/`), die echte Zugangsdaten brauchen.
+
 ## Vorschlag für die Reihenfolge
 
 1. ~~A + B (Datenstand)~~ umgesetzt am 29.10.2026.
 2. ~~C (Datenvertrag) für die Positionierungs- und Preis-Sammler~~ live seit 29.10.2026.
 3. ~~D + E zusammen, zuerst an zwei Kacheln (z. B. Funding, OI) als Muster~~ umgesetzt 29.10.2026 (drei Kacheln).
-4. G, H, I, J nach Bedarf.
+4. ~~I~~ umgesetzt 29.10.2026; G, H, J nach Bedarf.
