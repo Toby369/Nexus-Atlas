@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLivePriceData } from "@/components/LivePriceDataProvider";
 import StepCard from "@/components/StepCard";
 import { zonesInfo } from "@/lib/panelInfo";
 import { nearestLiquidationTargets, nearestZones, type LiquidationTarget, type ZoneRow } from "@/lib/zones";
-import type { OwnZone } from "@/lib/ownZones";
+import { isSyncStale, AUTARK_SYNC_STALE_MINUTES, type AutarkSyncStatus, type OwnZone } from "@/lib/ownZones";
 import { STOP_LOSS_PCT } from "@/lib/veto";
 import { computeTpSuggestions, type TpSuggestion } from "@/lib/tpStandard";
 
@@ -16,8 +16,14 @@ import { computeTpSuggestions, type TpSuggestion } from "@/lib/tpStandard";
 // beantwortet der Regelcheck (lib/ruleCheck.ts).
 // 27.10.2026: eigene Zonen haben Vorrang (Nexus-Keylevels nur Abgleich), dazu
 // je Seite die naechste Liquidations-Zone als Ziel (Regelwerk Punkt 7).
+// 29.10.2026: Zonen kommen aus AutarkTrade (Bereich + Name, Sync alle 5 Min);
+// dann keine Handeingabe mehr, dafuer "Stand HH:MM" und eine Warnung, wenn
+// der Sync laenger als 30 Min schweigt.
 
 const fmt = (n: number) => n.toLocaleString("de-CH", { maximumFractionDigits: 0 });
+const fmtTime = (iso: string) =>
+  new Date(iso).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Zurich" });
+const STALE_CHECK_MS = 60_000;
 
 function verdictText(s: TpSuggestion | undefined): string {
   if (!s || s.distancePct === null) return "";
@@ -34,8 +40,13 @@ function ZoneBox({ zone, suggestion }: { zone: ZoneRow; suggestion?: TpSuggestio
         sell ? "border-down/40 bg-down/10" : "border-up/40 bg-up/10"
       }`}
     >
-      <span className={`font-semibold ${sell ? "text-down" : "text-up"}`}>{zone.role}</span>
-      <span className="font-mono tabular text-text">{fmt(zone.price)}</span>
+      <span className={`font-semibold ${sell ? "text-down" : "text-up"}`}>
+        {zone.role}
+        {zone.label && <span className="font-normal text-text-muted"> · {zone.label}</span>}
+      </span>
+      <span className="font-mono tabular text-text">
+        {zone.low === zone.high ? fmt(zone.price) : `${fmt(zone.low)}–${fmt(zone.high)}`}
+      </span>
       <span className="col-span-2 text-text-muted">
         {sign}
         {zone.distancePct.toFixed(1)} %
@@ -70,7 +81,21 @@ function LiqLine({ dir, target }: { dir: "↑" | "↓"; target: LiquidationTarge
   );
 }
 
-function OwnZonesEditor({ ownZones, nexusLevels, price }: { ownZones: OwnZone[]; nexusLevels: { price: number }[]; price: number | null }) {
+function OwnZonesEditor({
+  ownZones,
+  nexusLevels,
+  price,
+  autark,
+  sync,
+  stale,
+}: {
+  ownZones: OwnZone[];
+  nexusLevels: { price: number }[];
+  price: number | null;
+  autark: boolean;
+  sync: AutarkSyncStatus | null;
+  stale: boolean;
+}) {
   const router = useRouter();
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -102,8 +127,22 @@ function OwnZonesEditor({ ownZones, nexusLevels, price }: { ownZones: OwnZone[];
 
   return (
     <div className="space-y-2 border-t border-border/60 pt-2">
-      <p className="text-[11px] uppercase tracking-[0.12em] text-text-faint">Deine Zonen aus dem Chart</p>
-      {ownZones.length === 0 ? (
+      {autark ? (
+        <>
+          <p className="text-[11px] uppercase tracking-[0.12em] text-text-faint">
+            Zonen aus AutarkTrade{sync?.lastSyncAt ? ` · Stand ${fmtTime(sync.lastSyncAt)}` : ""}
+          </p>
+          {stale && (
+            <p className="text-xs text-warn">
+              Seit über {AUTARK_SYNC_STALE_MINUTES} Minuten kein Abgleich mit AutarkTrade: Zonen evtl. veraltet. Läuft
+              AutarkTrade auf dem VPS?
+            </p>
+          )}
+        </>
+      ) : (
+        <p className="text-[11px] uppercase tracking-[0.12em] text-text-faint">Deine Zonen aus dem Chart</p>
+      )}
+      {autark ? null : ownZones.length === 0 ? (
         <p className="text-xs text-text-muted">Noch keine eingetragen: Nexus rechnet mit den eigenen Keylevels.</p>
       ) : (
         <div className="flex flex-wrap gap-1.5">
@@ -123,29 +162,33 @@ function OwnZonesEditor({ ownZones, nexusLevels, price }: { ownZones: OwnZone[];
           ))}
         </div>
       )}
-      <form
-        className="flex gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (Number.isFinite(parsed) && parsed > 0) send("POST", { price: parsed });
-        }}
-      >
-        <input
-          inputMode="decimal"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="z. B. 82'250"
-          className="w-32 rounded border border-border bg-surface-raised px-2 py-1 text-xs font-mono text-text"
-        />
-        <button
-          type="submit"
-          disabled={busy || !(Number.isFinite(parsed) && parsed > 0)}
-          className="rounded border border-accent/40 px-3 py-1 text-xs text-accent disabled:opacity-40"
+      {!autark && (
+        <>
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (Number.isFinite(parsed) && parsed > 0) send("POST", { price: parsed });
+          }}
         >
-          Hinzufügen
-        </button>
-      </form>
-      {error && <p className="text-xs text-down">{error}</p>}
+          <input
+            inputMode="decimal"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="z. B. 82'250"
+            className="w-32 rounded border border-border bg-surface-raised px-2 py-1 text-xs font-mono text-text"
+          />
+          <button
+            type="submit"
+            disabled={busy || !(Number.isFinite(parsed) && parsed > 0)}
+            className="rounded border border-accent/40 px-3 py-1 text-xs text-accent disabled:opacity-40"
+          >
+            Hinzufügen
+          </button>
+        </form>
+        {error && <p className="text-xs text-down">{error}</p>}
+        </>
+      )}
       {ownZones.length > 0 && (nexus.above[0] || nexus.below[0]) && (
         <p className="text-[11px] text-text-faint">
           Nexus-Abgleich:{" "}
@@ -164,10 +207,12 @@ export default function ZonesCard({
   nexusLevels,
   liquidationZones,
   dailyTrend,
+  autarkSync,
 }: {
   /** Aktive Levels: eigene Zonen, falls vorhanden, sonst Nexus-Keylevels. */
-  keyLevels: { price: number }[];
+  keyLevels: { price: number; low?: number | null; high?: number | null; label?: string | null }[];
   ownZones: OwnZone[];
+  autarkSync: AutarkSyncStatus | null;
   nexusLevels: { price: number }[];
   liquidationZones: { side: "long" | "short"; priceLow: number; priceHigh: number; massUsd: number }[];
   dailyTrend: "bullish" | "bearish" | null;
@@ -177,16 +222,28 @@ export default function ZonesCard({
   const { above, below } = nearestZones(keyLevels, price);
   const [longS, shortS] = computeTpSuggestions(keyLevels, price, dailyTrend);
   const liq = nearestLiquidationTargets(liquidationZones, price);
-  const line =
+  const autark = ownZones.some((z) => z.source === "autark");
+  const [stale, setStale] = useState(false);
+  useEffect(() => {
+    if (!autark) return;
+    const check = () => setStale(isSyncStale(autarkSync?.lastSyncAt ?? null, Date.now()));
+    check();
+    const interval = setInterval(check, STALE_CHECK_MS);
+    return () => clearInterval(interval);
+  }, [autark, autarkSync?.lastSyncAt]);
+  const baseLine =
     price === null
       ? "Kein Live-Kurs"
       : [above[0] && `↑ ${fmt(above[0].price)} +${above[0].distancePct.toFixed(1)} %`, below[0] && `↓ ${fmt(below[0].price)} −${below[0].distancePct.toFixed(1)} %`]
           .filter(Boolean)
           .join(" · ") || "Keine Zonen in der Nähe";
+  const line = autark && stale ? `${baseLine} · ⚠ Zonen veraltet` : baseLine;
 
   return (
-    <StepCard step={2} title="Zonen" line={line} tone="neutral" info={zonesInfo} usageId="zones">
-      <p className="text-[11px] text-text-faint">{ownZones.length > 0 ? "Deine Zonen" : "Nexus-Keylevels"} · SL 0,5 %</p>
+    <StepCard step={2} title="Zonen" line={line} tone={autark && stale ? "warn" : "neutral"} info={zonesInfo} usageId="zones">
+      <p className="text-[11px] text-text-faint">
+        {autark ? "Zonen aus AutarkTrade" : ownZones.length > 0 ? "Deine Zonen" : "Nexus-Keylevels"} · SL 0,5 %
+      </p>
       <LiqLine dir="↑" target={liq.above} />
       {price === null || (above.length === 0 && below.length === 0) ? (
         <p className="text-xs text-text-faint">Keine Zonen oder kein Live-Kurs verfügbar.</p>
@@ -206,7 +263,14 @@ export default function ZonesCard({
         </div>
       )}
       <LiqLine dir="↓" target={liq.below} />
-      <OwnZonesEditor ownZones={ownZones} nexusLevels={nexusLevels} price={price} />
+      <OwnZonesEditor
+        ownZones={ownZones}
+        nexusLevels={nexusLevels}
+        price={price}
+        autark={autark}
+        sync={autarkSync}
+        stale={stale}
+      />
     </StepCard>
   );
 }

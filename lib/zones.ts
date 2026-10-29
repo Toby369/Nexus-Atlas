@@ -9,12 +9,33 @@ import { ENTRY_LEVEL_TOLERANCE_PCT } from "./tpStandard";
 
 export interface ZoneLevel {
   price: number;
+  /** Zonen-Bereich (AutarkTrade-Rechteck). Fehlt er, ist die Zone eine Linie bei price. */
+  low?: number | null;
+  high?: number | null;
+  label?: string | null;
+}
+
+/** Unter- und Oberkante; bei einer Linie beide = price. */
+export const zoneLow = (l: ZoneLevel) => Math.min(l.low ?? l.price, l.high ?? l.price);
+export const zoneHigh = (l: ZoneLevel) => Math.max(l.low ?? l.price, l.high ?? l.price);
+
+/**
+ * Kurs "an der Zone" (Retest-Band, Abstimmung 28.10.2026):
+ * low*(1-0,25 %) <= Kurs <= high*(1+0,25 %). Fuer eine Linie genau +-0,25 % um den Preis.
+ */
+export function isAtZone(l: ZoneLevel, price: number): boolean {
+  const tol = ENTRY_LEVEL_TOLERANCE_PCT / 100;
+  return zoneLow(l) * (1 - tol) <= price && price <= zoneHigh(l) * (1 + tol);
 }
 
 export interface ZoneRow {
+  /** Kante zum Kurs hin: Unterkante bei Zonen darueber, Oberkante bei Zonen darunter. */
   price: number;
+  low: number;
+  high: number;
+  label: string | null;
   role: "Verkäufer-Zone" | "Käufer-Zone";
-  /** Abstand zum Kurs in Prozent, immer positiv. */
+  /** Abstand vom Kurs zur nahen Kante in Prozent, immer positiv. */
   distancePct: number;
 }
 
@@ -24,22 +45,28 @@ export function nearestZones(
   perSide = 2
 ): { above: ZoneRow[]; below: ZoneRow[] } {
   if (price === null || price <= 0) return { above: [], below: [] };
-  const gap = price * (ENTRY_LEVEL_TOLERANCE_PCT / 100);
-  const toRow = (p: number, role: ZoneRow["role"]): ZoneRow => ({
-    price: p,
-    role,
-    distancePct: (Math.abs(p - price) / price) * 100,
-  });
-  const above = levels
-    .filter((l) => l.price > price + gap)
-    .sort((a, b) => a.price - b.price)
+  const toRow = (l: ZoneLevel, role: ZoneRow["role"]): ZoneRow => {
+    const edge = role === "Verkäufer-Zone" ? zoneLow(l) : zoneHigh(l);
+    return {
+      price: edge,
+      low: zoneLow(l),
+      high: zoneHigh(l),
+      label: l.label ?? null,
+      role,
+      distancePct: (Math.abs(edge - price) / price) * 100,
+    };
+  };
+  const away = levels.filter((l) => !isAtZone(l, price));
+  const above = away
+    .filter((l) => zoneLow(l) > price)
+    .sort((a, b) => zoneLow(a) - zoneLow(b))
     .slice(0, perSide)
-    .map((l) => toRow(l.price, "Verkäufer-Zone"));
-  const below = levels
-    .filter((l) => l.price < price - gap)
-    .sort((a, b) => b.price - a.price)
+    .map((l) => toRow(l, "Verkäufer-Zone"));
+  const below = away
+    .filter((l) => zoneHigh(l) < price)
+    .sort((a, b) => zoneHigh(b) - zoneHigh(a))
     .slice(0, perSide)
-    .map((l) => toRow(l.price, "Käufer-Zone"));
+    .map((l) => toRow(l, "Käufer-Zone"));
   return { above, below };
 }
 
@@ -49,9 +76,12 @@ const fmt = (n: number) => n.toLocaleString("de-CH", { maximumFractionDigits: 0 
 export function planSentence(levels: ZoneLevel[], price: number | null): string | null {
   const { above, below } = nearestZones(levels, price, 1);
   if (above.length === 0 && below.length === 0) return null;
-  if (above.length === 0) return `Unter ${fmt(below[0].price)} Short. Darüber kein Widerstand in den Keylevels.`;
-  if (below.length === 0) return `Über ${fmt(above[0].price)} Long am Retest. Darunter keine Unterstützung in den Keylevels.`;
-  return `Über ${fmt(above[0].price)} Long am Retest, unter ${fmt(below[0].price)} Short. Dazwischen kein Trade.`;
+  // Long erst ueber der Oberkante der Zone darueber, Short erst unter der Unterkante darunter.
+  const longAt = above[0] ? fmt(above[0].high) : null;
+  const shortAt = below[0] ? fmt(below[0].low) : null;
+  if (longAt === null) return `Unter ${shortAt} Short. Darüber kein Widerstand in den Keylevels.`;
+  if (shortAt === null) return `Über ${longAt} Long am Retest. Darunter keine Unterstützung in den Keylevels.`;
+  return `Über ${longAt} Long am Retest, unter ${shortAt} Short. Dazwischen kein Trade.`;
 }
 
 /** 1D-Trend aus der MTF-Ampel fuer den TP-Standard (Regelwerk Punkt 13: Gegentrend hoechstens Standard 4). */

@@ -1,6 +1,6 @@
 import { intervalMs, type Candle } from "./candles";
 import { ENTRY_LEVEL_TOLERANCE_PCT } from "./tpStandard";
-import { nearestZones, type ZoneLevel } from "./zones";
+import { nearestZones, zoneHigh, zoneLow, type ZoneLevel } from "./zones";
 
 // Regelcheck im Dashboard (Toby 22.10.2026, Teil 2 des neuen Layouts): die
 // Pflichtfragen des Trade-Entscheiders, von Nexus aus den Kerzen beantwortet.
@@ -65,17 +65,25 @@ export interface BodyBreak {
   candle: Candle;
 }
 
-/** Juengster 4H-Koerperausbruch: ein Level liegt zwischen zwei aufeinanderfolgenden Schlusskursen. */
-export function findLatestBodyBreak(levels: number[], candles: Candle[]): BodyBreak | null {
+/**
+ * Juengster 4H-Koerperausbruch: zwei aufeinanderfolgende Schlusskurse liegen auf
+ * verschiedenen Seiten einer Zonenkante -- Long ueber die Oberkante, Short unter
+ * die Unterkante. Bei einer Linie ist beides der Preis.
+ */
+export function findLatestBodyBreak(levels: ZoneLevel[], candles: Candle[]): BodyBreak | null {
   for (let i = candles.length - 1; i >= 1; i--) {
     const prev = candles[i - 1].close;
     const last = candles[i];
     const crossed = levels
-      .filter((l) => (prev < l && last.close > l) || (prev > l && last.close < l))
-      .sort((a, b) => Math.abs(a - last.close) - Math.abs(b - last.close));
-    if (crossed.length > 0) {
-      return { side: last.close > crossed[0] ? "long" : "short", level: crossed[0], candle: last };
-    }
+      .flatMap((l): BodyBreak[] => {
+        const top = zoneHigh(l);
+        const bottom = zoneLow(l);
+        if (prev < top && last.close > top) return [{ side: "long", level: top, candle: last }];
+        if (prev > bottom && last.close < bottom) return [{ side: "short", level: bottom, candle: last }];
+        return [];
+      })
+      .sort((a, b) => Math.abs(a.level - last.close) - Math.abs(b.level - last.close));
+    if (crossed.length > 0) return crossed[0];
   }
   return null;
 }
@@ -84,10 +92,7 @@ const after = (candles: Candle[], fromMs: number) => candles.filter((c) => new D
 
 export function evaluateRuleCheck(input: RuleCheckInput): RuleCheckResult {
   const { levels, price, candles4h, candles1h, candles15m } = input;
-  const brk = findLatestBodyBreak(
-    levels.map((l) => l.price),
-    candles4h
-  );
+  const brk = findLatestBodyBreak(levels, candles4h);
   const tol = ENTRY_LEVEL_TOLERANCE_PCT / 100;
   const rows: RuleCheckRow[] = [];
 

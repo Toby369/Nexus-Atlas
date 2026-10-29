@@ -49,15 +49,22 @@ export const ENTRY_LEVEL_TOLERANCE_PCT = 0.25;
 // Nur Levels auf der richtigen Seite des aktuellen Kurses zaehlen -- die
 // Einordnung "resistance"/"support" stammt vom Zeitpunkt der Berechnung,
 // der Live-Preis kann inzwischen darueber/darunter liegen.
-export function computeTpSuggestions<L extends { price: number }>(
+export function computeTpSuggestions<L extends { price: number; low?: number | null; high?: number | null }>(
   levels: L[],
   price: number | null,
   dailyTrend: "bullish" | "bearish" | null = null
 ): TpSuggestion[] {
   if (price === null || price <= 0) return [];
-  const minGap = price * (ENTRY_LEVEL_TOLERANCE_PCT / 100);
-  const above = levels.filter((l) => l.price > price + minGap).sort((a, b) => a.price - b.price)[0] ?? null;
-  const below = levels.filter((l) => l.price < price - minGap).sort((a, b) => b.price - a.price)[0] ?? null;
+  const tol = ENTRY_LEVEL_TOLERANCE_PCT / 100;
+  // Zonen-Bereich (AutarkTrade): Ziel ist die nahe Kante -- Unterkante darueber,
+  // Oberkante darunter. Zonen, an denen der Kurs gerade steht, sind Einstieg, nicht Ziel.
+  const lo = (l: L) => Math.min(l.low ?? l.price, l.high ?? l.price);
+  const hi = (l: L) => Math.max(l.low ?? l.price, l.high ?? l.price);
+  const away = levels.filter((l) => !(lo(l) * (1 - tol) <= price && price <= hi(l) * (1 + tol)));
+  const aboveZone = away.filter((l) => lo(l) > price).sort((a, b) => lo(a) - lo(b))[0];
+  const belowZone = away.filter((l) => hi(l) < price).sort((a, b) => hi(b) - hi(a))[0];
+  const above = aboveZone ? { price: lo(aboveZone) } : null;
+  const below = belowZone ? { price: hi(belowZone) } : null;
   const build = (side: "long" | "short", level: { price: number } | null): TpSuggestion => {
     // Regelwerk Punkt 13 (14.10.2026): gegen den 1D-Trend erlaubt, aber als
     // Warnung und hoechstens Standard 4 -- Gegentrend-Trades laufen kuerzer.
