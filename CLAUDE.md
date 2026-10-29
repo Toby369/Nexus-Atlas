@@ -17,3 +17,13 @@ grant select, insert, update, delete on public.meine_tabelle to service_role;
 ```
 
 Tabellen ohne Lesezugriff aus dem Browser (z. B. `push_subscriptions`) bekommen nur den `service_role`-Grant und keine Policy. Hat die Tabelle eine `identity`- oder `serial`-Spalte, braucht `service_role` zusätzlich `grant usage on sequence ...`.
+
+Bis zum 30.10.2026 vergibt Supabase neuen Tabellen noch automatisch **alle** Rechte an `anon`/`authenticated`. Nicht benötigte Rechte (v. a. `insert`, `update`, `delete`, `truncate`) in derselben Migration mit `revoke` zurücknehmen und die Rechte danach in `information_schema.role_table_grants` prüfen.
+
+# Supabase: Datenbank unter 500 MB halten
+
+Nexus läuft im Free-Plan von Supabase: **höchstens 0,5 GB**. Wird die Grenze überschritten, schaltet Supabase die Datenbank auf „nur lesen“, und die Sammel-Funktionen schreiben nichts mehr. Stand 29.10.2026 nach dem Aufräumen: **289 MB** (vorher 411 MB; Supabase zählt fürs Kontingent etwas mehr). Wachstum ca. 2–3 MB pro Tag. Aktueller Wert: Konto-Seite („Datenbank-Speicher“).
+
+- Vor jeder neuen Tabelle oder jedem neuen Sammel-Job abschätzen, wie viel sie pro Tag wächst, und eine Aufbewahrungsfrist mitbauen (Muster: `downsample_old_snapshots()` verdichtet ab 35 Tagen, `purge_old_snapshots()` löscht ab 90 Tagen, beide per pg_cron).
+- Keine Forschungs-/Backtest-Historien dauerhaft in der Live-Datenbank ablegen (die Score-Tabellen mit ~125 MB waren der Grund für den Engpass im Oktober 2026).
+- Grösse prüfen: `select pg_size_pretty(pg_database_size(current_database()));` oder die Konto-Seite. Ab **400 MB** Toby informieren und Aufräum-Optionen vorschlagen (Aufbewahrung kürzen, grosse Tabellen prüfen, sonst Pro-Plan für 25 $/Monat). Nie ohne Tobys Okay Daten löschen.
