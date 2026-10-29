@@ -186,6 +186,21 @@ Autark-Plan).
   (das Deployment wurde in der Session abgelehnt; live läuft weiter
   `collect-btc` v15 und `collect-positioning` v11).
 
+## Nebenbefunde geklärt (29.10.2026)
+
+- **Binance-Liquidationen:** `collect-liquidations` verband sich mit
+  `wss://fstream.binance.com/ws/…`. Binance hat die USDT-M-Streams 2026 auf
+  getrennte Basispfade verteilt (`/public`, `/market`), die alten Adressen sind
+  seit 23.04.2026 abgeschaltet. Deshalb kam seit dem Start am 19.08.2026 keine
+  einzige Binance-Zeile an. Ein Verbindungsfehler wurde still als leere Liste
+  behandelt. Korrigiert auf `/market/ws/btcusdt@forceOrder`; ein Sammler ohne
+  Verbindung meldet das jetzt unter `errors`. **Deploy offen.**
+- **`bgeometrics/miner-net-flow`:** kein Ausfall. `collect-onchain` fragt die
+  Metrik seit 27.08.2026 bewusst nicht mehr ab (kostenpflichtig).
+  `refresh_data_quality()` führte sie weiter in ihrer Liste. Migration
+  `20261029130000_data_quality_ohne_miner_net_flow.sql` nimmt sie heraus.
+  **Einspielen offen.**
+
 ## Vorschlag für die Reihenfolge
 
 1. ~~A + B (Datenstand)~~ umgesetzt am 29.10.2026.
