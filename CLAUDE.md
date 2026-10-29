@@ -24,6 +24,6 @@ Bis zum 30.10.2026 vergibt Supabase neuen Tabellen noch automatisch **alle** Rec
 
 Nexus läuft im Free-Plan von Supabase: **höchstens 0,5 GB**. Wird die Grenze überschritten, schaltet Supabase die Datenbank auf „nur lesen“, und die Sammel-Funktionen schreiben nichts mehr. Stand 29.10.2026 nach dem Aufräumen: **289 MB** (vorher 411 MB; Supabase zählt fürs Kontingent etwas mehr). Wachstum ca. 2–3 MB pro Tag. Aktueller Wert: Konto-Seite („Datenbank-Speicher“). Ab 400 MB schickt `send-state-change-push` automatisch eine Push-Warnung (alle 3 Tage, ab 450 MB täglich).
 
-- Vor jeder neuen Tabelle oder jedem neuen Sammel-Job abschätzen, wie viel sie pro Tag wächst, und eine Aufbewahrungsfrist mitbauen (Muster: `downsample_old_snapshots()` verdichtet ab 35 Tagen, `purge_old_snapshots()` löscht ab 90 Tagen, beide per pg_cron).
+- Vor jeder neuen Tabelle oder jedem neuen Sammel-Job abschätzen, wie viel sie pro Tag wächst, und eine Aufbewahrungsfrist mitbauen (Muster: `downsample_old_snapshots()` verdichtet ab 35 Tagen, `purge_old_snapshots()` löscht ab 90 Tagen, News ab 30 Tagen, beide per pg_cron).
 - Keine Forschungs-/Backtest-Historien dauerhaft in der Live-Datenbank ablegen (die Score-Tabellen mit ~125 MB waren der Grund für den Engpass im Oktober 2026).
 - Grösse prüfen: `select pg_size_pretty(pg_database_size(current_database()));` oder die Konto-Seite. Ab **400 MB** Toby informieren und Aufräum-Optionen vorschlagen (Aufbewahrung kürzen, grosse Tabellen prüfen, sonst Pro-Plan für 25 $/Monat). Nie ohne Tobys Okay Daten löschen.
