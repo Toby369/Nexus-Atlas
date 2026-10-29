@@ -9,7 +9,7 @@ Geheimnisse stehen hier bewusst nicht drin.
 | Was | Wert |
 |---|---|
 | Server | Infomaniak VPS Lite, 1 CPU / 2 GB / 20 GB, Ubuntu 24.04, Satigny (GE), läuft bis 29.10.2027 |
-| Name / öffentliche IP | `ov-ebda03` / 83.228.196.247 (nur SSH offen) |
+| Name / öffentliche IP | `ov-ebda03` / 83.228.196.247 (seit 29.10. kein Port öffentlich offen, SSH nur über Tailscale) |
 | Tailscale-IP | 100.84.223.106 |
 | **AutarkTrade öffnen** | **https://ov-ebda03.tail55bb6a.ts.net** (nur mit aktivem Tailscale) |
 | Anmeldung am Server | `ssh vps` vom PC (Eintrag in `~/.ssh/config`, Benutzer `ubuntu`) |
@@ -52,7 +52,8 @@ sudo apt update && sudo apt upgrade -y
 
 Steht danach „System restart required“ oder „kernel“: `sudo reboot`, eine
 Minute warten, neu `ssh vps`. AutarkTrade, Tailscale, Sync und Sicherung
-starten von selbst. Kontrolle: `docker compose -f ~/autarktrade/docker-compose.yml ps`
+starten von selbst. Die Meldung „New release '26.04 LTS' available“ ignorieren: kein
+`do-release-upgrade`, 24.04 bekommt noch jahrelang Sicherheitsupdates. Kontrolle: `docker compose -f ~/autarktrade/docker-compose.yml ps`
 zeigt `Up`.
 
 **Kontrolle, ob alles läuft** (kurz, z. B. wöchentlich)
@@ -75,7 +76,7 @@ Am PC: `ls -lh ~/AutarkTrade-Backups | tail -3` zeigt die abgeholten Sicherungen
 | „Unbekannter Host“ | Adresse genau so: `https://ov-ebda03.tail55bb6a.ts.net` |
 | Nexus-Zonen-Kachel „Zonen veraltet“ | `journalctl --user -u autark-sync -n 10 --no-pager` lesen; „401“ = Sync-Geheimnis passt nicht mehr (Abschnitt Geheimnisse) |
 | Keine Alarme in Nexus | AutarkTrade › Einstellungen › Benachrichtigungen › Webhook › Test-Knopf |
-| `ssh vps` geht nicht | Tailscale am PC an (`tailscale status`)? Sonst `ssh ubuntu@83.228.196.247`; Notzugang: Konsole im Infomaniak-Manager |
+| `ssh vps` geht nicht | Tailscale am PC an (`tailscale status`)? Über die öffentliche IP geht es nicht mehr. Notzugang: Konsole im Infomaniak-Manager (Cloud-Server › autarktrade), dort z. B. `sudo tailscale up` oder `sudo ufw allow OpenSSH` |
 | Passwort vergessen | siehe unten |
 
 **Passwort vergessen** (Notfall-Reset von AutarkTrade, `AT_RESET_AUTH`):
@@ -116,6 +117,7 @@ Infomaniak-Manager (Buchhaltung › Verlängerung).
   Container selbst und startet dann nicht (`listen EACCES`).
 - `AT_ALLOWED_HOSTS=ov-ebda03.tail55bb6a.ts.net`, sonst meldet AutarkTrade
   „Unbekannter Host“.
+- Firewall (ufw): einzige Regel `22/tcp on tailscale0`. Docker-Ports nur auf `127.0.0.1`.
 - Benutzer-Timer laufen auch ohne Anmeldung (`loginctl enable-linger ubuntu`).
 
 ## Verbindung zu Nexus
@@ -180,9 +182,6 @@ ersten Werte auf einem Screenshot sichtbar waren.
    `purge_old_snapshots`: nach 90 Tagen weg, 1m-Kerzen nach 14 Tagen).
    Ohne eigene Aufbewahrungsregel wachsen noch `market_states`,
    `market_features`, `candles` (zusammen etwa 0,3 MB/Tag).
-3. Phase C (Doppeltes in Nexus aufräumen) mit der Aufräum-Session.
-4. Optional: SSH nur noch über Tailscale (`sudo ufw delete allow OpenSSH`
-   und `sudo ufw allow in on tailscale0 to any port 22`) — erst wenn
-   `ssh vps` zuverlässig funktioniert, sonst sperrt man sich aus
-   (Notzugang: Konsole im Infomaniak-Manager).
-5. Claude Code mit Remote Control auf dem Server entfällt vorerst (Abo pausiert).
+3. Phase C (Doppeltes in Nexus aufräumen): Liste am 29.10. an die
+   Aufräum-Session, Vorschlag kommt dort, Toby entscheidet pro Punkt.
+4. Claude Code mit Remote Control auf dem Server entfällt vorerst (Abo pausiert).
