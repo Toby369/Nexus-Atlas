@@ -5,6 +5,8 @@
 // bei SL -0,5 %). Parameter der Standards: knowledge_base "Toby Setup -- 4
 // Standards" (20x Hebel, SL 10 % Marge, TP 20-35 % Marge).
 
+import { ganzzahlCh } from "./zahlCh";
+
 export interface TpStandard {
   id: 1 | 2 | 3 | 4;
   /** TP als Kursbewegung in Prozent. */
@@ -85,7 +87,7 @@ export function formatTpSuggestion(s: TpSuggestion): string {
     return `${sideLabel} → ${s.side === "long" ? "kein Widerstand" : "keine Unterstützung"} bekannt`;
   }
   const levelLabel = s.side === "long" ? "Widerstand" : "Unterstützung";
-  const price = s.levelPrice.toLocaleString("de-CH", { maximumFractionDigits: 0 });
+  const price = ganzzahlCh(s.levelPrice);
   const dist = `${s.side === "long" ? "+" : "−"}${s.distancePct.toFixed(1)} %`;
   const verdict = s.standard ? `Standard ${s.standard.id} (TP ${s.standard.marginPct} %)` : "kein Trade (< 1 %)";
   return `${sideLabel} → ${levelLabel} ${price} (${dist}) → ${verdict}${s.againstDaily ? " · ⚠ gegen 1D" : ""}`;

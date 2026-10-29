@@ -1,4 +1,5 @@
 import { nearestZones, planSentence, type ZoneLevel } from "./zones";
+import { ganzzahlCh } from "./zahlCh";
 
 // Push nach dem System-Briefing (Toby 27.10.2026: "Text nicht verstaendlich").
 // Titel und Text baut Nexus selbst statt der KI: Kurs und Richtung im Titel,
@@ -7,7 +8,7 @@ import { nearestZones, planSentence, type ZoneLevel } from "./zones";
 
 const BIAS_LABEL: Record<string, string> = { bullish: "bullisch", bearish: "bärisch", neutral: "neutral" };
 
-const fmt = (n: number) => n.toLocaleString("de-CH", { maximumFractionDigits: 0 });
+const fmt = ganzzahlCh;
 
 export function buildBriefingPush(input: {
   kurs: number | null;

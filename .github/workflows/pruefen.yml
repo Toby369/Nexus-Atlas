@@ -1,0 +1,47 @@
+# Prueft jeden PR und jeden Push auf main, bevor er live geht
+# (docs/research/AUTARK-BAUWEISE-FUER-NEXUS_2026-10-29.md, Punkt I).
+# Vercel baut zwar auch, faengt aber weder rote Tests noch Lint-Fehler ab.
+#
+# Bewusst ohne die Live-Integrationstests (tests/, npm run test:integration):
+# die brauchen echte Supabase-Zugangsdaten und pruefen Produktionsdaten,
+# nicht den Code im PR.
+name: Prüfen
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: pruefen-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: Lint, Typen, Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+
+  edge-functions:
+    # Nur das gemeinsame Modul der Sammler: die Edge Functions selbst haben
+    # aeltere Typfehler (z.B. 9 im Signal-Teil von collect-positioning), die
+    # erst beim naechsten Anfassen behoben werden.
+    name: Sammler-Modul (Deno)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno check supabase/functions/_shared/boersenParser.ts
