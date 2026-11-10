@@ -28,7 +28,7 @@ Alles im Terminal am PC. Einfügen im Terminal mit **Ctrl+Shift+V**
 Serverfenster: die Zeile beginnt dann mit `ubuntu@ov-ebda03`, am PC mit
 `tb@Bernet`. Hängt das Fenster, schliessen und neu `ssh vps`.
 
-**AutarkTrade-Update** (wenn unten links „Update vX.Y.Z“ steht):
+**AutarkTrade-Update**: ausführliche Anleitung in [AUTARKTRADE-UPDATE.md](../AUTARKTRADE-UPDATE.md). Kurzform (wenn unten links „Update vX.Y.Z“ steht):
 
 ```bash
 ssh vps
