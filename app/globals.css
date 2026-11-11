@@ -144,3 +144,5 @@ body {
 .lage-chart .lc-e200-t { fill: var(--lc-e200); }
 .lage-chart .lc-wv-t { fill: var(--lc-wv); }
 .lage-chart .lc-mv-t { fill: var(--lc-mv); }
+.lage-chart .lc-ext { fill: var(--down); }
+.lage-chart .lc-zero { stroke: var(--text-faint); stroke-opacity: 0.55; stroke-width: 1; stroke-dasharray: 3 3; }

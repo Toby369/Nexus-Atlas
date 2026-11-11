@@ -8,6 +8,7 @@ import {
   mergeCandleRows,
   monthStartMs,
   onlyClosed,
+  rsiZone,
   weekStartMs,
   type LageInputCandle,
   type LageKey,
@@ -220,3 +221,65 @@ describe("buildLageSeries", () => {
     expect(s.points[1].wvwap).toBeCloseTo(103.5, 6);
   });
 });
+
+describe("Positionierung", () => {
+  const mk = (i: number, over: Partial<LageInputCandle> = {}): LageInputCandle => ({
+    t: utc(2026, 11, 9, 0) + i * HOUR_MS,
+    open: 100,
+    high: 101,
+    low: 99,
+    close: 100,
+    volume: 10,
+    ema20: 101,
+    ema50: 99.5,
+    ema200: 95,
+    rsi: 55,
+    adx: 30,
+    atr: 1,
+    cvdDelta: 1,
+    cvdCum: i,
+    oiDeltaPct: 0,
+    basisPct: 0.02,
+    funding: null,
+    structure: null,
+    ...over,
+  });
+  const series = (rate: number, oi: number) => {
+    const candles = Array.from({ length: 30 }, (_, i) => mk(i, { oiDeltaPct: oi }));
+    const hourly = candles.map((c) => ({ t: c.t, high: c.high, low: c.low, close: c.close, volume: c.volume }));
+    return buildLageSeries({ interval: "1h", candles, hourly, funding: [{ t: 0, rate }], events: [], keep: 30 });
+  };
+
+  it("Funding am Grundwert 0.01 % und ruhiges OI ist ausgewogen", () => {
+    expect(series(0.0001, 0).points[29].states.fund.label).toBe("Ausgewogen");
+  });
+  it("Funding deutlich unter dem Grundwert ist short-lastig", () => {
+    const s = series(0.00003, 0).points[29].states.fund; // 0.003 %
+    expect(s.label).toBe("Short-lastig");
+    expect(s.kind).toBe("warn");
+  });
+  it("Hebelaufbau im Offenen Interesse (24 h) wird erkannt, auch bei neutralem Funding", () => {
+    const s = series(0.0001, 0.2).points[29].states.fund; // 24 x 0.2 = 4.8 %
+    expect(s.label).toBe("Hebel steigt");
+    expect(s.why).toContain("OI 24 h +4.8 %");
+  });
+  it("kombiniert Long-lastig mit Hebelaufbau", () => {
+    expect(series(0.0003, 0.2).points[29].states.fund.label).toBe("Long-lastig · Hebel steigt");
+  });
+  it("meldet sinkenden Hebel ohne Warnung", () => {
+    const s = series(0.0001, -0.15).points[29].states.fund; // -3.6 %
+    expect(s.label).toBe("Hebel sinkt");
+    expect(s.kind).toBe("flat");
+  });
+});
+
+describe("rsiZone", () => {
+  it("erkennt ueberkauft ab 70 und ueberverkauft bis 30", () => {
+    expect(rsiZone(70)).toBe("überkauft");
+    expect(rsiZone(85)).toBe("überkauft");
+    expect(rsiZone(30)).toBe("überverkauft");
+    expect(rsiZone(50)).toBeNull();
+    expect(rsiZone(null)).toBeNull();
+  });
+});
+
