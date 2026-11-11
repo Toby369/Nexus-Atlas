@@ -9,6 +9,8 @@ import { bundleLiquidationZones } from "@/lib/leverageMap";
 import { RuleCheckCard, VetoCard } from "@/components/TradeStepCards";
 import { dailyTrendFromMtf } from "@/lib/zones";
 import ZonesCard from "@/components/ZonesCard";
+import LageChartCard from "@/components/LageChartCard";
+import { buildLageChart, wallsForChart } from "@/lib/lageChartContext";
 import { fetchRegimeMatrix, regimeIntervalFor } from "@/lib/regimeTimeframe";
 import type {
   DashboardPollBundle,
@@ -547,6 +549,7 @@ export default async function Home({
     candles15m,
     ownZones,
     autarkSync,
+    lageChart,
   ] = await Promise.all([
     getSnapshotHistory(),
     getLatestMarketState(),
@@ -584,6 +587,7 @@ export default async function Home({
     fetchClosedCandles("15m", 100),
     fetchOwnZones(),
     fetchAutarkSyncStatus(),
+    buildLageChart(),
   ]);
 
   // Fallback, falls das Bundle-RPC fehlschlaegt (z.B. kurzzeitiger DB-
@@ -692,6 +696,9 @@ export default async function Home({
                         }
                         dailyTrend={dailyTrendFromMtf(mtfDots)}
                       />
+                    ),
+                    "lage-chart": (
+                      <LageChartCard data={lageChart} zones={tradeLevels} walls={wallsForChart(latestOrderbookWalls)} />
                     ),
                     "rule-check": <RuleCheckCard {...tradeStepProps} />,
                     veto: <VetoCard {...tradeStepProps} />,
