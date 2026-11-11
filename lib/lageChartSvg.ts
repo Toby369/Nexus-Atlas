@@ -1,6 +1,12 @@
 import {
+  FUNDING_HOT_PCT,
+  FUNDING_LOW_PCT,
+  FUNDING_SHORT_HOT_PCT,
+  FUNDING_WARN_PCT,
   HOUR_MS,
   LAGE_KEYS,
+  RSI_OVERBOUGHT,
+  RSI_OVERSOLD,
   nf,
   type LageEvent,
   type LageKey,
@@ -141,10 +147,10 @@ export function drawLage(args: {
     { id: "price", h: priceH },
     { id: "rib", h: LAGE_KEYS.length * 14 + 20, title: "Lage-Verlauf" },
     { id: "cvd", h: Math.round(72 * sub), title: "Fluss · CVD kumuliert (BTC)" },
-    { id: "oi", h: Math.round(62 * sub), title: "Fluss · Offenes Interesse Δ (%)" },
+    { id: "oi", h: Math.round(62 * sub), title: "Positionierung · Offenes Interesse Δ (%)" },
     { id: "fund", h: Math.round(66 * sub), title: "Positionierung · Funding (%)" },
     { id: "basis", h: Math.round(62 * sub), title: "Positionierung · Basis (%)" },
-    ...(opts.rsi ? [{ id: "rsi", h: Math.round(72 * sub), title: "Momentum · RSI 14" }] : []),
+    ...(opts.rsi ? [{ id: "rsi", h: Math.round(72 * sub), title: "Momentum · RSI 14 (rot hinterlegt = überkauft / überverkauft)" }] : []),
   ].map((p) => ({ ...p, y: 0, top: 0, bot: 0 }));
   let y = 8;
   for (const p of panes) {
@@ -166,6 +172,14 @@ export function drawLage(args: {
   for (const j of days) {
     const x = X(j) - st / 2;
     o.push(`<line class="lc-gd" x1="${x}" x2="${x}" y1="8" y2="${H - 24}"/>`);
+  }
+  // RSI im Extrem (>= 70 / <= 30): Spalte ueber alle Spuren rot hinterlegt
+  if (opts.rsi) {
+    vis.forEach((x, j) => {
+      if (x.rsi !== null && (x.rsi >= RSI_OVERBOUGHT || x.rsi <= RSI_OVERSOLD)) {
+        o.push(`<rect class="lc-ext" x="${X(j) - st / 2}" y="8" width="${st}" height="${H - 32}" fill-opacity=".11"/>`);
+      }
+    });
   }
   for (const p of panes) {
     if (p.title) o.push(`<text class="lc-tt" x="${mL}" y="${p.y + 10}">${esc(p.title.toUpperCase())}</text>`);
@@ -350,7 +364,7 @@ export function drawLage(args: {
   // ---------- Lage-Verlauf ----------
   {
     const p = pane("rib")!;
-    const names: Record<LageKey, string> = { trend: "Trend", flow: "Fluss", fund: "Funding", risk: "Risiko" };
+    const names: Record<LageKey, string> = { trend: "Trend", flow: "Fluss", fund: "Position", risk: "Risiko" };
     LAGE_KEYS.forEach((k, r) => {
       const ry = p.top + r * 14;
       o.push(`<text class="lc-tx" x="${L + 6}" y="${ry + 9}">${names[k]}</text>`);
@@ -384,6 +398,7 @@ export function drawLage(args: {
     const m = Math.max(0.01, ...vis.map((x) => Math.abs(x.oiDeltaPct ?? 0))) * 1.1;
     const Y = axis(p, -m, m, 2, 2);
     const z = Y(0);
+    o.push(`<line class="lc-zero" x1="${mL}" x2="${L}" y1="${z}" y2="${z}"/>`);
     vis.forEach((x, j) => {
       if (x.oiDeltaPct === null) return;
       const yy = Y(x.oiDeltaPct);
@@ -396,17 +411,31 @@ export function drawLage(args: {
   {
     const p = pane("fund")!;
     const vals = vis.map((x) => x.funding).filter((v): v is number => v !== null);
-    const lo = Math.min(-0.01, ...vals) * 1.1;
-    const hi = Math.max(0.05, ...vals) * 1.1;
+    // Achse folgt den Daten (nicht den Schwellen), damit kleine Unterschiede sichtbar bleiben.
+    const lo = Math.min(0, ...vals) * 1.25;
+    const hi = Math.max(0.012, ...vals) * 1.2;
     const Y = axis(p, lo, hi, 3, 2);
-    for (const v of [0.025, 0.045]) {
-      o.push(`<line class="lc-th" x1="${mL}" x2="${L}" y1="${Y(v)}" y2="${Y(v)}" stroke-dasharray="2 4"/>`);
-    }
     const z = Y(0);
+    o.push(`<line class="lc-zero" x1="${mL}" x2="${L}" y1="${z}" y2="${z}"/>`);
+    for (const v of [FUNDING_WARN_PCT, FUNDING_HOT_PCT]) {
+      if (v < hi) o.push(`<line class="lc-th" x1="${mL}" x2="${L}" y1="${Y(v)}" y2="${Y(v)}" stroke-dasharray="2 4"/>`);
+    }
+    // Binance-Grundwert 0.01 %: darunter ist der Short-Druck relativ hoeher
+    o.push(
+      `<line class="lc-th" x1="${mL}" x2="${L}" y1="${Y(0.01)}" y2="${Y(0.01)}" stroke-dasharray="1 3"/>`,
+      `<text class="lc-tx" x="${mL + 4}" y="${Y(0.01) - 3}">Grundwert 0.010</text>`
+    );
     vis.forEach((x, j) => {
       if (x.funding === null) return;
       const f = x.funding;
-      const cls = f > 0.045 || f < -0.02 ? "lc-f-hot" : f > 0.025 || f < -0.005 ? "lc-f-warn" : "lc-f-flat";
+      const cls =
+        f > FUNDING_HOT_PCT || f < FUNDING_SHORT_HOT_PCT
+          ? "lc-f-hot"
+          : f > FUNDING_WARN_PCT || f < FUNDING_LOW_PCT
+            ? "lc-f-warn"
+            : f >= 0
+              ? "lc-f-acc"
+              : "lc-f-flat";
       const yy = Y(f);
       o.push(`<rect class="${cls}" x="${X(j) - bw / 2}" y="${Math.min(yy, z)}" width="${bw}" height="${Math.max(1, Math.abs(yy - z))}"/>`);
     });
@@ -422,6 +451,7 @@ export function drawLage(args: {
       const hi = Math.max(...vals);
       const pad = (hi - lo) * 0.15 || 0.01;
       const Y = axis(p, lo - pad, hi + pad, 2, 2);
+      if (lo - pad < 0 && hi + pad > 0) o.push(`<line class="lc-zero" x1="${mL}" x2="${L}" y1="${Y(0)}" y2="${Y(0)}"/>`);
       o.push(`<path class="lc-e50" d="${pathOf((x) => x.basisPct, Y)}" fill="none" stroke-width="1.75" stroke-linejoin="round"/>`);
     }
   }
@@ -429,6 +459,12 @@ export function drawLage(args: {
   if (opts.rsi) {
     const p = pane("rsi")!;
     const Y = lin(0, 100, p.top, p.bot);
+    o.push(
+      `<rect class="lc-ext" x="${mL}" y="${Y(100)}" width="${pw}" height="${Y(RSI_OVERBOUGHT) - Y(100)}" fill-opacity=".14"/>`,
+      `<rect class="lc-ext" x="${mL}" y="${Y(RSI_OVERSOLD)}" width="${pw}" height="${Y(0) - Y(RSI_OVERSOLD)}" fill-opacity=".14"/>`,
+      `<text class="lc-tx" x="${mL + 4}" y="${Y(RSI_OVERBOUGHT) - 3}">überkauft ab ${RSI_OVERBOUGHT}</text>`,
+      `<text class="lc-tx" x="${mL + 4}" y="${Y(RSI_OVERSOLD) + 11}">überverkauft bis ${RSI_OVERSOLD}</text>`
+    );
     for (const v of [30, 50, 70]) {
       o.push(`<line class="${v === 50 ? "lc-g" : "lc-gd"}" x1="${mL}" x2="${L}" y1="${Y(v)}" y2="${Y(v)}"/><text class="lc-tx" x="${L + 6}" y="${Y(v) + 3}">${v}</text>`);
     }

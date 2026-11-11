@@ -8,6 +8,7 @@ import {
   LAGE_KEYS,
   LAGE_KEY_LABEL,
   nf,
+  rsiZone,
   sg,
   type LageKind,
   type LagePoint,
@@ -221,7 +222,7 @@ export default function LageChartCard({
   if (p.oiDeltaPct !== null) readout.push(["OI Δ", `${sg(p.oiDeltaPct, 2)} %`]);
   if (p.funding !== null) readout.push(["Funding", `${nf(p.funding, 3)} %`]);
   if (p.basisPct !== null) readout.push(["Basis", `${nf(p.basisPct, 2)} %`]);
-  if (opts.rsi && p.rsi !== null) readout.push(["RSI", nf(p.rsi, 0)]);
+  if (opts.rsi && p.rsi !== null) readout.push(["RSI", `${nf(p.rsi, 0)}${rsiZone(p.rsi) ? ` ${rsiZone(p.rsi)}` : ""}`]);
 
   const hours = series.hours;
 
@@ -231,7 +232,7 @@ export default function LageChartCard({
       "Was das ist: Preis, Lage, Fluss und Positionierung auf einer gemeinsamen Zeitachse. Oben die Lage zum gewählten Zeitpunkt (Standard: letzte Kerze), darunter der Verlauf derselben Bereiche.",
       "Fahre mit der Maus über den Chart oder tippe auf eine Kerze: Kacheln und Werte springen zu diesem Zeitpunkt. «Zurück zu jetzt» setzt es zurück.",
       "Vollbild: alles passt auf einen Bildschirm, ohne Scrollen. Esc schliesst.",
-      "Lage-Verlauf: Trend (EMA 20/50 + ADX), Fluss (CVD über 6 Kerzen), Funding (Schwellen 0.025 % / 0.045 %), Risiko (Schwankung und Termine). Die Schwellen sind Startwerte und noch nicht mit der Marktphase abgeglichen.",
+      "Lage-Verlauf: Trend (EMA 20/50 + ADX), Fluss (CVD über 6 Kerzen), Positionierung (Funding unter 0.004 % oder über 0.025 % / 0.045 % sowie Hebelaufbau im Offenen Interesse über 24 h), Risiko (Schwankung und Termine). Die Schwellen sind Startwerte und noch nicht mit der Marktphase abgeglichen.",
       "VWAP Woche startet jeden Montag 00:00 UTC, VWAP Monat am 1. des Monats 00:00 UTC (wie in der Datenbank-Funktion get_anchored_vwap_summary). Funding gibt es nur für die letzten ~7 Tage, Basis nur dort, wo market_features sie liefert.",
       "Kein Handelssignal, eine Übersicht über den aktuellen Stand.",
     ].join("\n\n"),

@@ -157,7 +157,14 @@ export const FLOW_WINDOW_CANDLES = 6;
 export const FLOW_Z_THRESHOLD = 0.5;
 export const FUNDING_WARN_PCT = 0.025;
 export const FUNDING_HOT_PCT = 0.045;
-export const FUNDING_SHORT_WARN_PCT = -0.005;
+/** Unter dem Binance-Grundwert von 0.01 %: Shorts zahlen weniger / Longs weniger Druck. Diese Woche ca. 10 % der Zeit. */
+export const FUNDING_LOW_PCT = 0.004;
+/** Offenes Interesse: Summe der letzten 24 h (Prozentpunkte). 30 Tage: 5 % unter -2.2, 95 % ueber +4.1. */
+export const OI_WINDOW_HOURS = 24;
+export const OI_UP_WARN_PCT = 3;
+export const OI_DOWN_NOTE_PCT = -2.5;
+export const RSI_OVERBOUGHT = 70;
+export const RSI_OVERSOLD = 30;
 export const FUNDING_SHORT_HOT_PCT = -0.02;
 export const ATR_HIGH_FACTOR = 1.2;
 export const EVENT_LEAD_HOURS = 6;
@@ -207,14 +214,34 @@ function flowState(candles: LageInputCandle[], i: number): LageState {
   return { kind: "flat", label: "Ausgeglichen", why };
 }
 
-function fundState(c: LageInputCandle): LageState {
+function fundState(candles: LageInputCandle[], i: number, hours: number): LageState {
+  const c = candles[i];
   if (c.funding === null) return { kind: "flat", label: "Keine Daten", why: "Funding fehlt für diese Kerze" };
   const f = c.funding;
-  const why = `Funding ${nf(f, 3)} %` + (c.basisPct !== null ? ` · Basis ${nf(c.basisPct, 2)} %` : "");
-  if (f > FUNDING_HOT_PCT) return { kind: "hot", label: "Überhitzt (Long)", why };
-  if (f > FUNDING_WARN_PCT) return { kind: "warn", label: "Long-lastig", why };
-  if (f < FUNDING_SHORT_HOT_PCT) return { kind: "hot", label: "Überhitzt (Short)", why };
-  if (f < FUNDING_SHORT_WARN_PCT) return { kind: "warn", label: "Short-lastig", why };
+  // Offenes Interesse der letzten 24 h (Summe der Kerzen-Aenderungen, in Prozentpunkten)
+  const n = Math.max(1, Math.round(OI_WINDOW_HOURS / hours));
+  let oi = 0;
+  let oiCount = 0;
+  for (let j = Math.max(0, i - n + 1); j <= i; j++) {
+    const d = candles[j].oiDeltaPct;
+    if (d !== null) {
+      oi += d;
+      oiCount++;
+    }
+  }
+  const oiKnown = oiCount >= Math.ceil(n * 0.8);
+  const parts = [`Funding ${nf(f, 3)} %`];
+  if (c.basisPct !== null) parts.push(`Basis ${nf(c.basisPct, 2)} %`);
+  if (oiKnown) parts.push(`OI ${OI_WINDOW_HOURS} h ${sg(oi, 1)} %`);
+  const why = parts.join(" · ");
+  const oiUp = oiKnown && oi >= OI_UP_WARN_PCT;
+  const withOi = (label: string) => (oiUp ? `${label} · Hebel steigt` : label);
+  if (f > FUNDING_HOT_PCT) return { kind: "hot", label: withOi("Überhitzt (Long)"), why };
+  if (f < FUNDING_SHORT_HOT_PCT) return { kind: "hot", label: withOi("Überhitzt (Short)"), why };
+  if (f > FUNDING_WARN_PCT) return { kind: "warn", label: withOi("Long-lastig"), why };
+  if (f < FUNDING_LOW_PCT) return { kind: "warn", label: withOi("Short-lastig"), why };
+  if (oiUp) return { kind: "warn", label: "Hebel steigt", why };
+  if (oiKnown && oi <= OI_DOWN_NOTE_PCT) return { kind: "flat", label: "Hebel sinkt", why };
   return { kind: "flat", label: "Ausgewogen", why };
 }
 
@@ -253,7 +280,7 @@ export function computeStates(
   return candles.map((c, i) => ({
     trend: trendState(c),
     flow: flowState(candles, i),
-    fund: fundState(c),
+    fund: fundState(candles, i, hours),
     risk: riskState(candles, i, hours, events),
   }));
 }
@@ -416,4 +443,12 @@ export function mergeCandleRows(candles: CandleRow[], features: FeatureRow[]): L
 /** Nur abgeschlossene Kerzen: Beginn + Dauer <= jetzt. */
 export function onlyClosed<T extends { t: number }>(rows: T[], hours: number, nowMs: number): T[] {
   return rows.filter((r) => r.t + hours * HOUR_MS <= nowMs);
+}
+
+/** RSI-Zone fuer Anzeige: ueberkauft ab 70, ueberverkauft bis 30. */
+export function rsiZone(rsi: number | null): "überkauft" | "überverkauft" | null {
+  if (rsi === null) return null;
+  if (rsi >= RSI_OVERBOUGHT) return "überkauft";
+  if (rsi <= RSI_OVERSOLD) return "überverkauft";
+  return null;
 }
