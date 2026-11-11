@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AutarkTrade Update</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #1d232b; --muted: #5d6773;
+    --line: #dde2e8; --code-bg: #10161d; --code-text: #e6edf3;
+    --accent: #0f8b8d; --accent-text: #ffffff; --ok: #1f7a3d; --warn: #a15c00; --bad: #b42318;
+    --ok-bg: #e8f5ec; --warn-bg: #fff4e0; --bad-bg: #fdecea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --card: #161b22; --text: #e6edf3; --muted: #9aa5b1;
+      --line: #2a313a; --code-bg: #05080c; --code-text: #e6edf3;
+      --accent: #2bb3b5; --accent-text: #05080c; --ok: #4cc27a; --warn: #f0a340; --bad: #ff7b72;
+      --ok-bg: #12261a; --warn-bg: #2a1f0e; --bad-bg: #2d1414;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Ubuntu, sans-serif;
+  }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  h2 { font-size: 1.2rem; margin: 0 0 10px; display: flex; align-items: center; gap: 10px; }
+  .num {
+    display: inline-grid; place-items: center; width: 28px; height: 28px; flex: none;
+    border-radius: 50%; background: var(--accent); color: var(--accent-text); font-size: .9rem;
+  }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  section {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 18px 18px 8px; margin: 0 0 16px;
+  }
+  section.done { opacity: .55; }
+  p { margin: 0 0 12px; }
+  .cmd {
+    display: flex; align-items: stretch; gap: 0; margin: 0 0 12px;
+    background: var(--code-bg); border-radius: 8px; overflow: hidden;
+  }
+  .cmd code {
+    flex: 1; padding: 12px 14px; color: var(--code-text); white-space: pre-wrap; word-break: break-all;
+    font: 14px/1.5 ui-monospace, "DejaVu Sans Mono", Menlo, Consolas, monospace;
+  }
+  .cmd button {
+    flex: none; border: 0; padding: 0 16px; cursor: pointer; font: 600 14px system-ui, sans-serif;
+    background: var(--accent); color: var(--accent-text); min-width: 112px;
+  }
+  .cmd button:hover { filter: brightness(1.1); }
+  .cmd button.copied { background: var(--ok); color: #fff; }
+  .ok, .bad, .warn { border-radius: 6px; padding: 8px 12px; margin: 0 0 12px; }
+  .ok { background: var(--ok-bg); color: var(--ok); }
+  .bad { background: var(--bad-bg); color: var(--bad); }
+  .warn { background: var(--warn-bg); color: var(--warn); }
+  .ok code, .bad code, .warn code, p code, td code {
+    font: 13px ui-monospace, "DejaVu Sans Mono", monospace; background: rgba(127,127,127,.15);
+    padding: 1px 5px; border-radius: 4px;
+  }
+  .hint {
+    background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    border-radius: 8px; padding: 12px 14px; margin: 0 0 20px;
+  }
+  label.check { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: .9rem; margin: 0 0 12px; cursor: pointer; }
+  input[type=date] { font: inherit; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--text); }
+  table { width: 100%; border-collapse: collapse; margin: 0 0 12px; font-size: .95rem; }
+  td { border-top: 1px solid var(--line); padding: 8px 6px; vertical-align: top; }
+  td:first-child { width: 40%; }
+  h3 { font-size: 1rem; margin: 26px 0 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .reset { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; }
+  @media (max-width: 560px) {
+    .cmd { flex-direction: column; }
+    .cmd button { padding: 10px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>AutarkTrade updaten</h1>
+  <p class="sub">Auf dem VPS, etwa 5 Minuten. Stand 11.11.2026.</p>
+
+  <div class="hint">
+    <strong>So geht’s:</strong> Auf <b>Kopieren</b> klicken und im Terminal mit <b>Ctrl+Shift+V</b> einfügen (nicht Ctrl+V), dann Enter.<br>
+    <b>Wann?</b> Wenn in AutarkTrade unten links „Update vX.Y.Z“ steht. <b>Nicht</b> den Update-Knopf in der App verwenden.<br>
+    Zeile beginnt mit <code>tb@Bernet</code> = PC, mit <code>ubuntu@ov-ebda03</code> = Server.
+  </div>
+
+  <section data-step="1">
+    <h2><span class="num">1</span>Anmelden</h2>
+    <p>Tailscale am PC muss an sein.</p>
+    <div class="cmd"><code>ssh vps</code><button>Kopieren</button></div>
+    <div class="ok">✅ Die Zeile beginnt mit <code>ubuntu@ov-ebda03</code>.</div>
+    <div class="bad">❌ Fehler? Unten bei „Probleme“ nachsehen.</div>
+    <label class="check"><input type="checkbox"> erledigt</label>
+  </section>
+
+  <section data-step="2">
+    <h2><span class="num">2</span>Aktuelle Version notieren</h2>
+    <div class="cmd"><code>cd ~/autarktrade &amp;&amp; docker compose ps &amp;&amp; docker compose logs journal | grep -i "version" | tail -1</code><button>Kopieren</button></div>
+    <div class="ok">✅ <code>Up …</code> und eine Version, z. B. <code>v4.3.6</code>. Version merken.</div>
+    <label class="check"><input type="checkbox"> erledigt</label>
+  </section>
+
+  <section data-step="3">
+    <h2><span class="num">3</span>Sicherung machen</h2>
+    <div class="cmd"><code>sqlite3 data/tradenote.db ".backup '/home/ubuntu/backups/vor-update-$(date +%F).db'" &amp;&amp; ls -lh ~/backups | tail -2</code><button>Kopieren</button></div>
+    <div class="ok">✅ Eine Datei <code>vor-update-JJJJ-MM-TT.db</code> mit etwa 100 MB oder mehr.</div>
+    <div class="bad">❌ <code>sqlite3: command not found</code> → ganz unten „Einmalig“.</div>
+    <p>Altes Programm merken, falls zurück muss:</p>
+    <div class="cmd"><code>docker image tag ghcr.io/mouses007/autarktrade:latest autarktrade:vorher &amp;&amp; echo OK</code><button>Kopieren</button></div>
+    <div class="ok">✅ <code>OK</code></div>
+    <label class="check"><input type="checkbox"> erledigt</label>
+  </section>
+
+  <section data-step="4">
+    <h2><span class="num">4</span>Update</h2>
+    <div class="cmd"><code>docker compose pull &amp;&amp; docker compose up -d</code><button>Kopieren</button></div>
+    <div class="ok">✅ <code>Pulled</code> und <code>Started</code>.</div>
+    <label class="check"><input type="checkbox"> erledigt</label>
+  </section>
+
+  <section data-step="5">
+    <h2><span class="num">5</span>Prüfen</h2>
+    <p>20 Sekunden warten, dann:</p>
+    <div class="cmd"><code>docker compose logs --tail 40 journal | grep -i -E "version|ready|FAILED|error"</code><button>Kopieren</button></div>
+    <div class="ok">✅ <code>AutarkTrade ready!</code> und die <b>neue</b> Version.</div>
+    <p>Im Browser AutarkTrade neu laden: <a href="https://ov-ebda03.tail55bb6a.ts.net" target="_blank">https://ov-ebda03.tail55bb6a.ts.net</a></p>
+    <div class="ok">✅ Unten links steht die neue Version, die Daten sind da.</div>
+    <p>5 Minuten später den Zonen-Sync zu Nexus prüfen:</p>
+    <div class="cmd"><code>journalctl --user -u autark-sync -n 3 --no-pager</code><button>Kopieren</button></div>
+    <div class="ok">✅ Letzte Zeile mit heutiger Uhrzeit und „… Zonen an Nexus übertragen“.</div>
+    <label class="check"><input type="checkbox"> erledigt</label>
+  </section>
+
+  <section data-step="6">
+    <h2><span class="num">6</span>Abmelden</h2>
+    <div class="cmd"><code>exit</code><button>Kopieren</button></div>
+    <div class="ok">✅ Fertig! 🎉</div>
+    <label class="check"><input type="checkbox"> erledigt</label>
+  </section>
+
+  <p><button class="reset" id="reset">Häkchen zurücksetzen</button></p>
+
+  <h3>Monatlich: Systemupdates des Servers</h3>
+  <section>
+    <div class="cmd"><code>ssh vps</code><button>Kopieren</button></div>
+    <div class="cmd"><code>sudo apt update &amp;&amp; sudo apt upgrade -y</code><button>Kopieren</button></div>
+    <p>Steht danach „System restart required“ oder „Pending kernel upgrade“:</p>
+    <div class="cmd"><code>sudo reboot</code><button>Kopieren</button></div>
+    <p>1–2 Minuten warten, dann kontrollieren:</p>
+    <div class="cmd"><code>ssh vps</code><button>Kopieren</button></div>
+    <div class="cmd"><code>docker ps --format '{{.Names}} {{.Status}}'</code><button>Kopieren</button></div>
+    <div class="ok">✅ <code>autarktrade Up …</code></div>
+    <div class="warn">Bricht die Verbindung während der Updates ab (z. B. „Broken pipe“), 2–3 Minuten warten, neu <code>ssh vps</code>, dann <code>sudo dpkg --configure -a &amp;&amp; sudo apt upgrade -y</code>.<br>
+    „New release '26.04 LTS' available“ <b>ignorieren</b>, kein <code>do-release-upgrade</code>.</div>
+  </section>
+
+  <h3>Zurück zur alten Version (nur wenn das Update kaputt ist)</h3>
+  <section>
+    <p>Zum Beispiel: kein <code>ready!</code>, die Seite lädt nicht oder Fehler in Schritt 5.</p>
+    <div class="cmd"><code>ssh vps</code><button>Kopieren</button></div>
+    <div class="cmd"><code>cd ~/autarktrade &amp;&amp; docker image tag autarktrade:vorher ghcr.io/mouses007/autarktrade:latest &amp;&amp; docker compose up -d --force-recreate</code><button>Kopieren</button></div>
+    <p>20 Sekunden warten, dann Schritt 5 wiederholen. Startet die alte Version nicht, die Sicherung aus Schritt 3 zurückspielen.</p>
+    <p>Datum der Sicherung: <input type="date" id="backupdate"></p>
+    <div class="cmd"><code>cd ~/autarktrade &amp;&amp; docker compose stop journal</code><button>Kopieren</button></div>
+    <div class="cmd"><code>mv data/tradenote.db data/tradenote.db.kaputt; rm -f data/tradenote.db-wal data/tradenote.db-shm</code><button>Kopieren</button></div>
+    <div class="cmd"><code id="restore">cp ~/backups/vor-update-JJJJ-MM-TT.db data/tradenote.db &amp;&amp; docker compose start journal</code><button>Kopieren</button></div>
+    <div class="warn">Danach <b>nicht</b> erneut updaten, bis der Fehler geklärt ist (Claude fragen).</div>
+  </section>
+
+  <h3>Probleme</h3>
+  <section>
+    <table>
+      <tr><td><code>ssh: connect to host … timed out</code></td><td>Tailscale am PC ist aus. Einschalten, dann nochmals <code>ssh vps</code>.</td></tr>
+      <tr><td><code>Permission denied (publickey)</code></td><td><code>cat ~/.ssh/config</code> muss <code>IdentityFile ~/.ssh/id_vps</code> enthalten. Sonst Abschnitt „Notzugang“ in der Betriebsdoku im Nexus-Repo.</td></tr>
+      <tr><td><code>Enter passphrase for key …id_ed25519</code></td><td>Falscher Schlüssel. Mit Ctrl+C abbrechen, <code>~/.ssh/config</code> prüfen (wie oben).</td></tr>
+      <tr><td><code>[sudo] Passwort für tb</code></td><td>Du bist am PC, nicht auf dem Server. Zuerst <code>ssh vps</code>.</td></tr>
+      <tr><td>Seite lädt nicht</td><td>Tailscale am Gerät an? Dann <code>ssh vps</code> und <code>cd ~/autarktrade &amp;&amp; docker compose up -d</code>.</td></tr>
+      <tr><td>„Unbekannter Host“</td><td>Adresse genau so: <code>https://ov-ebda03.tail55bb6a.ts.net</code></td></tr>
+      <tr><td>Release Notes verlangen eine neue <code>docker-compose.yml</code></td><td>Nicht selbst ändern, zuerst Claude fragen.</td></tr>
+      <tr><td>Sync-Zeile zeigt <code>401</code></td><td>Sync-Geheimnis passt nicht mehr, Claude fragen.</td></tr>
+    </table>
+    <div class="bad"><b>Nie</b> im Infomaniak-Manager „Server zurücksetzen“ wählen, das löscht alles.</div>
+  </section>
+
+  <h3>Einmalig (am 10.11.2026 erledigt, nur bei einem neuen Server nötig)</h3>
+  <section>
+    <div class="cmd"><code>ssh vps</code><button>Kopieren</button></div>
+    <div class="cmd"><code>sudo apt update &amp;&amp; sudo apt install -y sqlite3</code><button>Kopieren</button></div>
+  </section>
+</main>
+
+<script>
+  // Kopieren: Clipboard-API, sonst Rückfall über ein verstecktes Textfeld (file:// in manchen Browsern)
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text).catch(() => fallback(text));
+    }
+    return Promise.resolve(fallback(text));
+  }
+  function fallback(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } finally { ta.remove(); }
+  }
+  document.querySelectorAll('.cmd button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const text = btn.previousElementSibling.textContent;
+      copyText(text).then(() => {
+        btn.textContent = 'Kopiert ✓'; btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Kopieren'; btn.classList.remove('copied'); }, 1600);
+      });
+    });
+  });
+
+  // Häkchen pro Schritt merken (nur in diesem Browser)
+  const KEY = 'autarktrade-update-steps';
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}
+  document.querySelectorAll('section[data-step]').forEach(sec => {
+    const box = sec.querySelector('input[type=checkbox]');
+    const id = sec.dataset.step;
+    box.checked = !!saved[id]; sec.classList.toggle('done', box.checked);
+    box.addEventListener('change', () => {
+      saved[id] = box.checked; sec.classList.toggle('done', box.checked);
+      try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {}
+    });
+  });
+  document.getElementById('reset').addEventListener('click', () => {
+    saved = {};
+    try { localStorage.removeItem(KEY); } catch (e) {}
+    document.querySelectorAll('section[data-step]').forEach(sec => {
+      sec.querySelector('input[type=checkbox]').checked = false; sec.classList.remove('done');
+    });
+  });
+
+  // Datum der Sicherung in den Rückspiel-Befehl einsetzen (Standard: heute)
+  const dateInput = document.getElementById('backupdate');
+  const restore = document.getElementById('restore');
+  const t = new Date();
+  dateInput.value = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+  function updateRestore() {
+    restore.textContent = 'cp ~/backups/vor-update-' + (dateInput.value || 'JJJJ-MM-TT') + '.db data/tradenote.db && docker compose start journal';
+  }
+  dateInput.addEventListener('input', updateRestore);
+  updateRestore();
+</script>
+</body>
+</html>
