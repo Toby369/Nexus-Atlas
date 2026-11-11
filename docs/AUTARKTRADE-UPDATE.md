@@ -36,13 +36,14 @@ ssh vps
 ✅ Die Zeile beginnt mit `ubuntu@ov-ebda03`.
 ❌ Fehler? → Abschnitt „Probleme“ unten.
 
-## 2. Aktuelle Version notieren
+## 2. Aktuelle Version anzeigen
 
 ```bash
 cd ~/autarktrade && docker compose ps && docker compose logs journal | grep -i "version" | tail -1
 ```
 
-✅ `Up …` und eine Version, z. B. `v4.3.6`. Version merken.
+✅ `Up …` und eine Version, z. B. `v4.3.6`. Nur anschauen, nichts notieren:
+in Schritt 5 muss dort eine höhere Nummer stehen (im Terminal hochscrollen).
 
 ## 3. Sicherung machen
 
