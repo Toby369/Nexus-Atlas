@@ -1,7 +1,7 @@
 # AutarkTrade updaten (VPS) — Anleitung zum Kopieren
 
 Alles im Terminal am PC. **Einfügen mit Ctrl+Shift+V** (nicht Ctrl+V).
-Dauer: etwa 5 Minuten. Hintergrund und Notfälle:
+Dauer: etwa 5 Minuten. Mit Kopier-Knöpfen: [autarktrade-update.html](autarktrade-update.html) (herunterladen, im Browser öffnen). Hintergrund und Notfälle:
 [AUTARK-VPS-BETRIEB_2026-10-29.md](research/AUTARK-VPS-BETRIEB_2026-10-29.md).
 
 **Wann?** Wenn in AutarkTrade unten links „Update vX.Y.Z“ steht.
