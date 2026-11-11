@@ -96,3 +96,51 @@ body {
     animation: none;
   }
 }
+
+/* Lage-Chart (components/LageChartCard.tsx, Zeichnung in lib/lageChartSvg.ts).
+   Farben als Klassen, damit der als String eingesetzte SVG-Code die Tokens nutzt. */
+.lage-chart {
+  --lc-flat: #5f6a7b;
+  --lc-hot: #e07bd0;
+  --lc-e20: #6ea4ff;
+  --lc-e50: #b58cff;
+  --lc-e200: #8d97a7;
+  --lc-wv: #3cc5d3;
+  --lc-mv: #b4d65a;
+}
+.lage-chart text { font-family: var(--font-mono); }
+.lage-chart .lc-g { stroke: var(--border); stroke-width: 1; shape-rendering: crispEdges; }
+.lage-chart .lc-gd { stroke: var(--border); stroke-width: 1; stroke-dasharray: 2 4; }
+.lage-chart .lc-th { stroke: var(--warn); stroke-opacity: 0.6; }
+.lage-chart .lc-tx { fill: var(--text-faint); font-size: 10px; }
+.lage-chart .lc-tt { fill: var(--text-muted); font-size: 10px; letter-spacing: 0.04em; }
+.lage-chart .lc-day { fill: var(--text-muted); font-weight: 600; }
+.lage-chart .lc-tag { fill: var(--bg); font-size: 10px; font-weight: 600; }
+.lage-chart .lc-up { fill: var(--up); stroke: var(--up); }
+.lage-chart .lc-dn { fill: var(--down); stroke: var(--down); }
+.lage-chart .lc-c-bull { fill: var(--up); }
+.lage-chart .lc-c-bear { fill: var(--down); }
+.lage-chart .lc-c-flat { fill: var(--lc-flat); }
+.lage-chart .lc-c-warn { fill: var(--warn); }
+.lage-chart .lc-c-hot { fill: var(--lc-hot); }
+.lage-chart .lc-f-flat { fill: var(--lc-flat); }
+.lage-chart .lc-f-warn { fill: var(--warn); }
+.lage-chart .lc-f-hot { fill: var(--lc-hot); }
+.lage-chart .lc-f-acc { fill: var(--accent); }
+.lage-chart .lc-acc { stroke: var(--accent); }
+.lage-chart .lc-e20 { stroke: var(--lc-e20); }
+.lage-chart .lc-e50 { stroke: var(--lc-e50); }
+.lage-chart .lc-e200 { stroke: var(--lc-e200); }
+.lage-chart .lc-wv { stroke: var(--lc-wv); }
+.lage-chart .lc-mv { stroke: var(--lc-mv); }
+.lage-chart .lc-zr { fill: var(--down); }
+.lage-chart .lc-zs { fill: var(--up); }
+.lage-chart .lc-wa { stroke: var(--down); }
+.lage-chart .lc-wb { stroke: var(--up); }
+.lage-chart .lc-ev { stroke: var(--warn); stroke-width: 1; }
+.lage-chart .lc-evt { fill: var(--warn); }
+.lage-chart .lc-e20-t { fill: var(--lc-e20); }
+.lage-chart .lc-e50-t { fill: var(--lc-e50); }
+.lage-chart .lc-e200-t { fill: var(--lc-e200); }
+.lage-chart .lc-wv-t { fill: var(--lc-wv); }
+.lage-chart .lc-mv-t { fill: var(--lc-mv); }
