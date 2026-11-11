@@ -9,7 +9,7 @@ Dauer: etwa 5 Minuten. Hintergrund und Notfälle:
 
 ---
 
-## 0. Einmalig (nur beim ersten Mal)
+## 0. Einmalig (am 10.11.2026 erledigt, nur bei einem neuen Server nötig)
 
 Auf dem Server das Sicherungswerkzeug installieren:
 

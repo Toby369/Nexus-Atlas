@@ -220,8 +220,8 @@ Server. Weg über den abgesicherten Modus:
 ## Offen
 
 1. ~~AutarkTrade-Update~~ erledigt am 10.11.2026: v4.3.6 läuft, Sync danach geprüft (11 Zonen).
-   Für die Sicherung vor einem Update fehlt `sqlite3` auf dem Server
-   (`sudo apt install sqlite3`), bis dahin genügt die nächtliche Sicherung.
+   Danach Systemupdates (Kernel 6.8.0-149, Neustart) und `sqlite3` für die
+   Sicherung vor Updates installiert.
 2. Nexus-Datenbank (Supabase Free, 0,5 GB): am 29.10. abends 289 MB
    (`pg_database_size`). Ausdünnung läuft schon per Cron
    (`downsample_old_snapshots`: nach 35 Tagen stündlich,
