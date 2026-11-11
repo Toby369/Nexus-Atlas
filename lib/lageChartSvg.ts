@@ -108,6 +108,9 @@ export function drawLage(args: {
   zones: LageZone[];
   walls: LageWall[];
   events: LageEvent[];
+  /** Vollbild: Hoehe der Preis-Spur in px und Faktor fuer die kleinen Spuren. */
+  priceHeight?: number;
+  subScale?: number;
 }): { svg: string; geom: LageGeom; height: number } {
   const { points, opts, hours } = args;
   const W = Math.max(300, Math.floor(args.width));
@@ -123,14 +126,15 @@ export function drawLage(args: {
   const X = (j: number) => mL + (j + 0.5) * st;
   const o: string[] = [];
 
+  const sub = args.subScale ?? 1;
   const panes: { id: string; h: number; title?: string; y: number; top: number; bot: number }[] = [
-    { id: "price", h: phone ? 250 : 330 },
+    { id: "price", h: args.priceHeight ?? (phone ? 250 : 330) },
     { id: "rib", h: LAGE_KEYS.length * 14 + 20, title: "Lage-Verlauf" },
-    { id: "cvd", h: 72, title: "Fluss · CVD kumuliert (BTC)" },
-    { id: "oi", h: 62, title: "Fluss · Offenes Interesse Δ (%)" },
-    { id: "fund", h: 66, title: "Positionierung · Funding (%)" },
-    { id: "basis", h: 62, title: "Positionierung · Basis (%)" },
-    ...(opts.rsi ? [{ id: "rsi", h: 72, title: "Momentum · RSI 14" }] : []),
+    { id: "cvd", h: Math.round(72 * sub), title: "Fluss · CVD kumuliert (BTC)" },
+    { id: "oi", h: Math.round(62 * sub), title: "Fluss · Offenes Interesse Δ (%)" },
+    { id: "fund", h: Math.round(66 * sub), title: "Positionierung · Funding (%)" },
+    { id: "basis", h: Math.round(62 * sub), title: "Positionierung · Basis (%)" },
+    ...(opts.rsi ? [{ id: "rsi", h: Math.round(72 * sub), title: "Momentum · RSI 14" }] : []),
   ].map((p) => ({ ...p, y: 0, top: 0, bot: 0 }));
   let y = 8;
   for (const p of panes) {

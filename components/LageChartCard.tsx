@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Karte, Leerzustand } from "@/components/basis";
 import type { LageChartData } from "@/lib/lageChartContext";
 import {
@@ -117,6 +118,8 @@ export default function LageChartCard({
   const [opts, setOpts] = useState<LageDrawOpts>(DEFAULT_OPTS);
   const [sel, setSel] = useState<number | null>(null);
   const [width, setWidth] = useState(0);
+  const [full, setFull] = useState(false);
+  const [vh, setVh] = useState(900);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -126,7 +129,26 @@ export default function LageChartCard({
     const ro = new ResizeObserver(() => setWidth(el.clientWidth));
     ro.observe(el);
     return () => ro.disconnect();
-  }, [data]);
+  }, [data, full]);
+
+  // Vollbild: Esc schliesst, Seite dahinter scrollt nicht, Hoehe folgt dem Fenster.
+  useEffect(() => {
+    if (!full) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFull(false);
+    };
+    const onResize = () => setVh(window.innerHeight);
+    onResize();
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onResize);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onResize);
+      document.body.style.overflow = prev;
+    };
+  }, [full]);
 
   const series = data?.series[tf];
   const points = series?.points;
@@ -143,8 +165,10 @@ export default function LageChartCard({
       zones: zones.map((z) => ({ low: zoneLow(z), high: zoneHigh(z), label: z.label ?? null })),
       walls,
       events: data?.events ?? [],
+      priceHeight: full ? Math.max(360, Math.round(vh * 0.55)) : undefined,
+      subScale: full ? 1.35 : 1,
     });
-  }, [series, points, n, width, opts, zones, walls, data?.events]);
+  }, [series, points, n, width, opts, zones, walls, data?.events, full, vh]);
 
   if (!data || !series || !points || points.length < 2) {
     return (
@@ -192,9 +216,7 @@ export default function LageChartCard({
 
   const hours = series.hours;
 
-  return (
-    <Karte
-      info={{
+  const info = {
         titel: "Lage-Chart",
         text: [
           "Was das ist: Preis, Lage, Fluss und Positionierung auf einer gemeinsamen Zeitachse. Oben die Lage zum gewählten Zeitpunkt (Standard: letzte Kerze), darunter der Verlauf derselben Bereiche.",
@@ -203,9 +225,10 @@ export default function LageChartCard({
           "VWAP Woche startet jeden Montag 00:00 UTC, VWAP Monat am 1. des Monats 00:00 UTC (wie in der Datenbank-Funktion get_anchored_vwap_summary). Funding gibt es nur für die letzten ~7 Tage, Basis nur dort, wo market_features sie liefert.",
           "Kein Handelssignal, eine Übersicht über den aktuellen Stand.",
         ].join("\n\n"),
-      }}
-    >
-      <div className="space-y-4 lage-chart">
+  };
+
+  const body = (
+    <div className="space-y-4 lage-chart">
         <div className="flex flex-wrap gap-x-5 gap-y-2">
           <Segment
             label="Zeitrahmen"
@@ -365,7 +388,43 @@ export default function LageChartCard({
             </span>
           ))}
         </div>
-      </div>
+    </div>
+  );
+
+  const fullButton = (
+    <button
+      type="button"
+      onClick={() => setFull((f) => !f)}
+      aria-label={full ? "Vollbild schliessen" : "Vollbild öffnen"}
+      className="px-2.5 py-1 text-xs rounded-md border border-border text-text-muted hover:text-text"
+    >
+      {full ? "Schliessen (Esc)" : "Vollbild"}
+    </button>
+  );
+
+  if (full) {
+    return (
+      <>
+        <Karte info={info}>
+          <p className="text-xs text-text-faint">Der Lage-Chart ist im Vollbild geöffnet.</p>
+        </Karte>
+        {createPortal(
+          <div role="dialog" aria-label="Lage-Chart im Vollbild" className="fixed inset-0 z-50 overflow-auto bg-bg p-3 sm:p-5">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">Lage-Chart</h2>
+              {fullButton}
+            </div>
+            {body}
+          </div>,
+          document.body
+        )}
+      </>
+    );
+  }
+
+  return (
+    <Karte info={info} aktion={fullButton}>
+      {body}
     </Karte>
   );
 }
