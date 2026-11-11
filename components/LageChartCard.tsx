@@ -118,9 +118,10 @@ export default function LageChartCard({
   const [opts, setOpts] = useState<LageDrawOpts>(DEFAULT_OPTS);
   const [sel, setSel] = useState<number | null>(null);
   const [width, setWidth] = useState(0);
+  const [areaH, setAreaH] = useState(0);
   const [full, setFull] = useState(false);
-  const [vh, setVh] = useState(900);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const areaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -131,21 +132,29 @@ export default function LageChartCard({
     return () => ro.disconnect();
   }, [data, full]);
 
-  // Vollbild: Esc schliesst, Seite dahinter scrollt nicht, Hoehe folgt dem Fenster.
+  // Vollbild: die Hoehe der freien Flaeche bestimmt, wie hoch die Spuren werden,
+  // damit alles ohne Scrollen auf einen Bildschirm passt.
+  useEffect(() => {
+    if (!full) return;
+    const el = areaRef.current;
+    if (!el) return;
+    setAreaH(el.clientHeight);
+    const ro = new ResizeObserver(() => setAreaH(el.clientHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [full]);
+
+  // Vollbild: Esc schliesst, die Seite dahinter scrollt nicht.
   useEffect(() => {
     if (!full) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setFull(false);
     };
-    const onResize = () => setVh(window.innerHeight);
-    onResize();
     window.addEventListener("keydown", onKey);
-    window.addEventListener("resize", onResize);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       window.removeEventListener("keydown", onKey);
-      window.removeEventListener("resize", onResize);
       document.body.style.overflow = prev;
     };
   }, [full]);
@@ -156,6 +165,7 @@ export default function LageChartCard({
 
   const drawn = useMemo(() => {
     if (!series || !points || points.length < 2 || width < 200) return null;
+    if (full && areaH < 100) return null;
     return drawLage({
       points,
       n,
@@ -165,10 +175,9 @@ export default function LageChartCard({
       zones: zones.map((z) => ({ low: zoneLow(z), high: zoneHigh(z), label: z.label ?? null })),
       walls,
       events: data?.events ?? [],
-      priceHeight: full ? Math.max(360, Math.round(vh * 0.55)) : undefined,
-      subScale: full ? 1.35 : 1,
+      fitHeight: full ? areaH : undefined,
     });
-  }, [series, points, n, width, opts, zones, walls, data?.events, full, vh]);
+  }, [series, points, n, width, opts, zones, walls, data?.events, full, areaH]);
 
   if (!data || !series || !points || points.length < 2) {
     return (
@@ -217,179 +226,16 @@ export default function LageChartCard({
   const hours = series.hours;
 
   const info = {
-        titel: "Lage-Chart",
-        text: [
-          "Was das ist: Preis, Lage, Fluss und Positionierung auf einer gemeinsamen Zeitachse. Oben die Lage zum gewählten Zeitpunkt (Standard: letzte Kerze), darunter der Verlauf derselben Bereiche.",
-          "Fahre mit der Maus über den Chart oder tippe auf eine Kerze: Kacheln und Werte springen zu diesem Zeitpunkt. «Zurück zu jetzt» setzt es zurück.",
-          "Lage-Verlauf: Trend (EMA 20/50 + ADX), Fluss (CVD über 6 Kerzen), Funding (Schwellen 0.025 % / 0.045 %), Risiko (Schwankung und Termine). Die Schwellen sind Startwerte und noch nicht mit der Marktphase abgeglichen.",
-          "VWAP Woche startet jeden Montag 00:00 UTC, VWAP Monat am 1. des Monats 00:00 UTC (wie in der Datenbank-Funktion get_anchored_vwap_summary). Funding gibt es nur für die letzten ~7 Tage, Basis nur dort, wo market_features sie liefert.",
-          "Kein Handelssignal, eine Übersicht über den aktuellen Stand.",
-        ].join("\n\n"),
+    titel: "Lage-Chart",
+    text: [
+      "Was das ist: Preis, Lage, Fluss und Positionierung auf einer gemeinsamen Zeitachse. Oben die Lage zum gewählten Zeitpunkt (Standard: letzte Kerze), darunter der Verlauf derselben Bereiche.",
+      "Fahre mit der Maus über den Chart oder tippe auf eine Kerze: Kacheln und Werte springen zu diesem Zeitpunkt. «Zurück zu jetzt» setzt es zurück.",
+      "Vollbild: alles passt auf einen Bildschirm, ohne Scrollen. Esc schliesst.",
+      "Lage-Verlauf: Trend (EMA 20/50 + ADX), Fluss (CVD über 6 Kerzen), Funding (Schwellen 0.025 % / 0.045 %), Risiko (Schwankung und Termine). Die Schwellen sind Startwerte und noch nicht mit der Marktphase abgeglichen.",
+      "VWAP Woche startet jeden Montag 00:00 UTC, VWAP Monat am 1. des Monats 00:00 UTC (wie in der Datenbank-Funktion get_anchored_vwap_summary). Funding gibt es nur für die letzten ~7 Tage, Basis nur dort, wo market_features sie liefert.",
+      "Kein Handelssignal, eine Übersicht über den aktuellen Stand.",
+    ].join("\n\n"),
   };
-
-  const body = (
-    <div className="space-y-4 lage-chart">
-        <div className="flex flex-wrap gap-x-5 gap-y-2">
-          <Segment
-            label="Zeitrahmen"
-            items={[
-              { value: "1h", text: "1h" },
-              { value: "4h", text: "4h" },
-            ]}
-            value={tf}
-            onChange={switchTf}
-          />
-          <Segment
-            label="Kerzen"
-            items={WINDOWS[tf].map((v) => ({ value: v, text: String(v) }))}
-            value={win}
-            onChange={(v) => {
-              setWin(v);
-              setSel(null);
-            }}
-          />
-        </div>
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Einblenden">
-          {OVERLAYS.map((ov) => (
-            <button
-              key={ov.key}
-              type="button"
-              aria-pressed={opts[ov.key]}
-              onClick={() => setOpts((o) => ({ ...o, [ov.key]: !o[ov.key] }))}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md border transition-colors ${
-                opts[ov.key] ? "border-text-muted text-text" : "border-border text-text-faint hover:text-text-muted"
-              }`}
-            >
-              <span
-                aria-hidden
-                className="inline-block h-2 w-2 rounded-full border"
-                style={opts[ov.key] ? { backgroundColor: ov.color, borderColor: ov.color } : { borderColor: "var(--text-faint)" }}
-              />
-              {ov.label}
-            </button>
-          ))}
-        </div>
-
-        <div>
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-            <h3 className="text-xs font-medium text-text">
-              {sel === null ? "Lage jetzt" : "Lage am"}{" "}
-              <span className="font-mono text-text-muted">{sel === null ? `· ${whenText(p.t)}` : whenText(p.t)}</span>
-            </h3>
-            {sel !== null && (
-              <button
-                type="button"
-                onClick={() => setSel(null)}
-                className="px-2.5 py-1 text-xs rounded-md border border-border text-text-muted hover:text-text"
-              >
-                Zurück zu jetzt
-              </button>
-            )}
-          </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-            {LAGE_KEYS.map((k) => {
-              const s = p.states[k];
-              const since = p.since[k];
-              const hrs = since.candles * hours;
-              return (
-                <div key={k} className="rounded-feld border border-border bg-surface-raised p-3 space-y-1 min-w-0">
-                  <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">{LAGE_KEY_LABEL[k]}</p>
-                  <p className="flex items-center gap-1.5 text-sm font-semibold text-text">
-                    <Glyph kind={s.kind} />
-                    <span>{s.label}</span>
-                  </p>
-                  <p className="text-xs text-text-muted break-words">{s.why}</p>
-                  <p className="text-[11px] text-text-faint border-t border-border pt-1.5 mt-1.5">
-                    seit {hrs} h{since.prev ? ` · davor ${since.prev}` : ""}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 px-1 pb-2 font-mono text-xs min-h-[2.75rem] content-start">
-            <span className="font-sans font-semibold text-text">{whenText(p.t)}</span>
-            {readout.map(([k, v]) => (
-              <span key={k} className="whitespace-nowrap">
-                <span className="text-text-faint">{k} </span>
-                <span className="text-text">{v}</span>
-              </span>
-            ))}
-          </div>
-          <div
-            ref={wrapRef}
-            className="relative w-full select-none cursor-crosshair"
-            style={{ touchAction: "pan-y" }}
-            onPointerDown={(e) => pick(e.clientX, e.currentTarget.getBoundingClientRect())}
-            onPointerMove={(e) => {
-              if (e.pointerType === "mouse" || e.buttons) pick(e.clientX, e.currentTarget.getBoundingClientRect());
-            }}
-            onPointerLeave={(e) => {
-              if (e.pointerType === "mouse") setSel(null);
-            }}
-          >
-            {drawn && (
-              <>
-                <svg
-                  width={drawn.geom.W}
-                  height={drawn.height}
-                  viewBox={`0 0 ${drawn.geom.W} ${drawn.height}`}
-                  className="block w-full"
-                  role="img"
-                  aria-label="Preis, Lage-Verlauf, CVD, Offenes Interesse, Funding und Basis auf einer Zeitachse"
-                  dangerouslySetInnerHTML={{ __html: drawn.svg }}
-                />
-                {sel !== null && sel >= drawn.geom.i0 && (
-                  <svg
-                    width={drawn.geom.W}
-                    height={drawn.height}
-                    viewBox={`0 0 ${drawn.geom.W} ${drawn.height}`}
-                    className="absolute inset-0 w-full pointer-events-none"
-                    aria-hidden
-                  >
-                    {(() => {
-                      const x = drawn.geom.mL + (sel - drawn.geom.i0 + 0.5) * drawn.geom.st;
-                      return (
-                        <>
-                          <rect
-                            x={x - drawn.geom.st / 2}
-                            y={8}
-                            width={drawn.geom.st}
-                            height={drawn.height - 32}
-                            fill="var(--text)"
-                            fillOpacity={0.1}
-                          />
-                          <line x1={x} x2={x} y1={8} y2={drawn.height - 24} stroke="var(--text-muted)" strokeDasharray="3 3" />
-                        </>
-                      );
-                    })()}
-                  </svg>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-text-muted border-t border-border pt-3">
-          {(
-            [
-              ["bull", "Bullisch / Käufer"],
-              ["bear", "Bärisch / Verkäufer"],
-              ["flat", "Neutral / Range"],
-              ["warn", "Vorsicht"],
-              ["hot", "Extrem"],
-            ] as [LageKind, string][]
-          ).map(([k, t]) => (
-            <span key={k} className="inline-flex items-center gap-1.5">
-              <Glyph kind={k} />
-              {t}
-            </span>
-          ))}
-        </div>
-    </div>
-  );
 
   const fullButton = (
     <button
@@ -402,6 +248,201 @@ export default function LageChartCard({
     </button>
   );
 
+  const segments = (
+    <>
+      <Segment
+        label="Zeitrahmen"
+        items={[
+          { value: "1h", text: "1h" },
+          { value: "4h", text: "4h" },
+        ]}
+        value={tf}
+        onChange={switchTf}
+      />
+      <Segment
+        label="Kerzen"
+        items={WINDOWS[tf].map((v) => ({ value: v, text: String(v) }))}
+        value={win}
+        onChange={(v) => {
+          setWin(v);
+          setSel(null);
+        }}
+      />
+    </>
+  );
+
+  const chips = (
+    <div className={`flex gap-1.5 ${full ? "flex-nowrap sm:flex-wrap w-max sm:w-auto" : "flex-wrap"}`} role="group" aria-label="Einblenden">
+      {OVERLAYS.map((ov) => (
+        <button
+          key={ov.key}
+          type="button"
+          aria-pressed={opts[ov.key]}
+          onClick={() => setOpts((o) => ({ ...o, [ov.key]: !o[ov.key] }))}
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md border transition-colors ${
+            opts[ov.key] ? "border-text-muted text-text" : "border-border text-text-faint hover:text-text-muted"
+          }`}
+        >
+          <span
+            aria-hidden
+            className="inline-block h-2 w-2 rounded-full border"
+            style={opts[ov.key] ? { backgroundColor: ov.color, borderColor: ov.color } : { borderColor: "var(--text-faint)" }}
+          />
+          {ov.label}
+        </button>
+      ))}
+    </div>
+  );
+
+  const stateTiles = (compact: boolean) => (
+    <div className="shrink-0">
+      <div className={`flex flex-wrap items-center justify-between gap-2 ${compact ? "mb-1" : "mb-2"}`}>
+        <h3 className="text-xs font-medium text-text">
+          {sel === null ? "Lage jetzt" : "Lage am"}{" "}
+          <span className="font-mono text-text-muted">{sel === null ? `· ${whenText(p.t)}` : whenText(p.t)}</span>
+        </h3>
+        {sel !== null && (
+          <button
+            type="button"
+            onClick={() => setSel(null)}
+            className="px-2.5 py-1 text-xs rounded-md border border-border text-text-muted hover:text-text"
+          >
+            Zurück zu jetzt
+          </button>
+        )}
+      </div>
+      <div className={`grid grid-cols-2 lg:grid-cols-4 ${compact ? "gap-2" : "gap-2.5"}`}>
+        {LAGE_KEYS.map((k) => {
+          const s = p.states[k];
+          const since = p.since[k];
+          const sinceText = `seit ${since.candles * hours} h${since.prev ? ` · davor ${since.prev}` : ""}`;
+          return (
+            <div
+              key={k}
+              className={`rounded-feld border border-border bg-surface-raised min-w-0 ${compact ? "px-2.5 py-1.5" : "p-3 space-y-1"}`}
+            >
+              <p className="flex items-center justify-between gap-2 text-[10px] uppercase tracking-[0.12em] text-text-faint">
+                <span>{LAGE_KEY_LABEL[k]}</span>
+                {compact && <span className="normal-case tracking-normal text-[10px] truncate">{sinceText}</span>}
+              </p>
+              <p className="flex items-baseline gap-1.5 min-w-0 text-sm font-semibold text-text">
+                <span className="self-center">
+                  <Glyph kind={s.kind} />
+                </span>
+                <span className="shrink-0">{s.label}</span>
+                {compact && (
+                  <span className="text-[11px] font-normal text-text-muted truncate" title={s.why}>
+                    {s.why}
+                  </span>
+                )}
+              </p>
+              {!compact && (
+                <>
+                  <p className="text-xs text-text-muted break-words">{s.why}</p>
+                  <p className="text-[11px] text-text-faint border-t border-border pt-1.5 mt-1.5">{sinceText}</p>
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const readoutEl = (
+    <div
+      className={`shrink-0 flex gap-x-4 gap-y-0.5 px-1 font-mono text-xs ${
+        full ? "pb-1 overflow-x-auto whitespace-nowrap" : "flex-wrap pb-2 min-h-[2.75rem] content-start"
+      }`}
+    >
+      <span className="font-sans font-semibold text-text">{whenText(p.t)}</span>
+      {readout.map(([k, v]) => (
+        <span key={k} className="whitespace-nowrap">
+          <span className="text-text-faint">{k} </span>
+          <span className="text-text">{v}</span>
+        </span>
+      ))}
+    </div>
+  );
+
+  const chartEl = (
+    <div
+      ref={wrapRef}
+      className="relative w-full select-none cursor-crosshair"
+      style={{ touchAction: "pan-y" }}
+      onPointerDown={(e) => pick(e.clientX, e.currentTarget.getBoundingClientRect())}
+      onPointerMove={(e) => {
+        if (e.pointerType === "mouse" || e.buttons) pick(e.clientX, e.currentTarget.getBoundingClientRect());
+      }}
+      onPointerLeave={(e) => {
+        if (e.pointerType === "mouse") setSel(null);
+      }}
+    >
+      {drawn && (
+        <>
+          <svg
+            width={drawn.geom.W}
+            height={drawn.height}
+            viewBox={`0 0 ${drawn.geom.W} ${drawn.height}`}
+            className="block w-full"
+            role="img"
+            aria-label="Preis, Lage-Verlauf, CVD, Offenes Interesse, Funding und Basis auf einer Zeitachse"
+            dangerouslySetInnerHTML={{ __html: drawn.svg }}
+          />
+          {sel !== null && sel >= drawn.geom.i0 && (
+            <svg
+              width={drawn.geom.W}
+              height={drawn.height}
+              viewBox={`0 0 ${drawn.geom.W} ${drawn.height}`}
+              className="absolute inset-0 w-full pointer-events-none"
+              aria-hidden
+            >
+              {(() => {
+                const x = drawn.geom.mL + (sel - drawn.geom.i0 + 0.5) * drawn.geom.st;
+                return (
+                  <>
+                    <rect
+                      x={x - drawn.geom.st / 2}
+                      y={8}
+                      width={drawn.geom.st}
+                      height={drawn.height - 32}
+                      fill="var(--text)"
+                      fillOpacity={0.1}
+                    />
+                    <line x1={x} x2={x} y1={8} y2={drawn.height - 24} stroke="var(--text-muted)" strokeDasharray="3 3" />
+                  </>
+                );
+              })()}
+            </svg>
+          )}
+        </>
+      )}
+    </div>
+  );
+
+  const legendEl = (
+    <div
+      className={`shrink-0 flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted border-t border-border ${
+        full ? "hidden sm:flex [@media(max-height:760px)]:hidden pt-1.5" : "flex pt-3"
+      }`}
+    >
+      {(
+        [
+          ["bull", "Bullisch / Käufer"],
+          ["bear", "Bärisch / Verkäufer"],
+          ["flat", "Neutral / Range"],
+          ["warn", "Vorsicht"],
+          ["hot", "Extrem"],
+        ] as [LageKind, string][]
+      ).map(([k, t]) => (
+        <span key={k} className="inline-flex items-center gap-1.5">
+          <Glyph kind={k} />
+          {t}
+        </span>
+      ))}
+    </div>
+  );
+
   if (full) {
     return (
       <>
@@ -409,12 +450,23 @@ export default function LageChartCard({
           <p className="text-xs text-text-faint">Der Lage-Chart ist im Vollbild geöffnet.</p>
         </Karte>
         {createPortal(
-          <div role="dialog" aria-label="Lage-Chart im Vollbild" className="fixed inset-0 z-50 overflow-auto bg-bg p-3 sm:p-5">
-            <div className="flex items-center justify-between gap-2 mb-3">
+          <div
+            role="dialog"
+            aria-label="Lage-Chart im Vollbild"
+            className="lage-chart fixed inset-0 z-50 flex flex-col gap-2 overflow-auto bg-bg p-3"
+          >
+            <div className="shrink-0 flex flex-wrap items-center gap-x-5 gap-y-1.5">
               <h2 className="text-xs uppercase tracking-[0.15em] text-text-muted">Lage-Chart</h2>
-              {fullButton}
+              {segments}
+              <span className="ml-auto">{fullButton}</span>
             </div>
-            {body}
+            <div className="shrink-0 overflow-x-auto sm:overflow-visible pb-0.5">{chips}</div>
+            {stateTiles(true)}
+            {readoutEl}
+            <div ref={areaRef} className="flex-1 min-h-[320px] overflow-hidden">
+              {chartEl}
+            </div>
+            {legendEl}
           </div>,
           document.body
         )}
@@ -424,7 +476,16 @@ export default function LageChartCard({
 
   return (
     <Karte info={info} aktion={fullButton}>
-      {body}
+      <div className="space-y-4 lage-chart">
+        <div className="flex flex-wrap gap-x-5 gap-y-2">{segments}</div>
+        {chips}
+        {stateTiles(false)}
+        <div>
+          {readoutEl}
+          {chartEl}
+        </div>
+        {legendEl}
+      </div>
     </Karte>
   );
 }
