@@ -31,3 +31,7 @@ Nexus läuft im Free-Plan von Supabase: **höchstens 0,5 GB**. Wird die Grenze �
 # Supabase: Log-Kontingent (1 GB/Monat)
 
 Neben dem Speicher ist das Log-Kontingent des Free-Plans knapp (Stand 29.10.2026: Hochrechnung ~0,85 GB von 1 GB pro Abrechnungsmonat, Zyklus jeweils ab dem 17.). Die „Grace period“ ist vorbei: Wird ein Kontingent überschritten, beantwortet Supabase keine Anfragen mehr. Rund 80 % der Log-Einträge sind REST-Anfragen der Sammler (`edge_logs`), nicht `console.log`. Jeder neue Sammler oder kürzere Cron-Takt erhöht das Log-Volumen; vorher abschätzen (Anfragen pro Lauf × Läufe pro Tag) und Toby fragen. Messen: `query_logs` mit `select source, count(*) from logs group by source`.
+
+# Testgerät
+
+Toby nutzt ein Fairphone 4 (Android, 6,3 Zoll, 1080 × 2340 Pixel, etwa 400 CSS-Pixel breit). Oberflächen immer auch mit Handy-Hochformat (400 × 800) prüfen, nicht nur am Desktop.

@@ -108,9 +108,8 @@ export function drawLage(args: {
   zones: LageZone[];
   walls: LageWall[];
   events: LageEvent[];
-  /** Vollbild: Hoehe der Preis-Spur in px und Faktor fuer die kleinen Spuren. */
-  priceHeight?: number;
-  subScale?: number;
+  /** Vollbild: Gesamthoehe in px, auf die die Spuren verteilt werden (Preis ca. 56 %). */
+  fitHeight?: number;
 }): { svg: string; geom: LageGeom; height: number } {
   const { points, opts, hours } = args;
   const W = Math.max(300, Math.floor(args.width));
@@ -126,9 +125,20 @@ export function drawLage(args: {
   const X = (j: number) => mL + (j + 0.5) * st;
   const o: string[] = [];
 
-  const sub = args.subScale ?? 1;
+  // Hoehen der kleinen Spuren: Grundwert 72/62/66/62 (+72 mit RSI), im Vollbild
+  // so skaliert, dass alles in fitHeight passt.
+  const subBase = 72 + 62 + 66 + 62 + (opts.rsi ? 72 : 0);
+  const gap = args.fitHeight ? 8 : 14;
+  let priceH = phone ? 250 : 330;
+  let sub = 1;
+  if (args.fitHeight) {
+    const fixed = 8 + 24 + (LAGE_KEYS.length * 14 + 20) + gap * (opts.rsi ? 6 : 5);
+    const avail = args.fitHeight - fixed;
+    priceH = Math.max(170, Math.round(avail * 0.56));
+    sub = Math.max(0.4, Math.min(1.5, (avail - priceH) / subBase));
+  }
   const panes: { id: string; h: number; title?: string; y: number; top: number; bot: number }[] = [
-    { id: "price", h: args.priceHeight ?? (phone ? 250 : 330) },
+    { id: "price", h: priceH },
     { id: "rib", h: LAGE_KEYS.length * 14 + 20, title: "Lage-Verlauf" },
     { id: "cvd", h: Math.round(72 * sub), title: "Fluss · CVD kumuliert (BTC)" },
     { id: "oi", h: Math.round(62 * sub), title: "Fluss · Offenes Interesse Δ (%)" },
@@ -141,9 +151,9 @@ export function drawLage(args: {
     p.y = y;
     p.top = y + (p.id === "price" ? (phone ? 40 : 24) : 18);
     p.bot = y + p.h;
-    y += p.h + 14;
+    y += p.h + gap;
   }
-  const H = y - 14 + 24;
+  const H = y - gap + 24;
   const pane = (id: string) => panes.find((p) => p.id === id);
   const bw = Math.max(1, st * 0.64);
 
@@ -163,9 +173,12 @@ export function drawLage(args: {
 
   const axis = (p: { top: number; bot: number }, lo: number, hi: number, d: number, count = 2, fmt?: (v: number) => string) => {
     const Y = lin(lo, hi, p.top, p.bot);
+    let lastLabelY = -1e9;
     for (const v of niceTicks(lo, hi, count)) {
+      const label = Math.abs(Y(v) - lastLabelY) >= 11;
+      if (label) lastLabelY = Y(v);
       o.push(
-        `<line class="lc-g" x1="${mL}" x2="${L}" y1="${Y(v)}" y2="${Y(v)}"/><text class="lc-tx" x="${L + 6}" y="${Y(v) + 3}">${fmt ? fmt(v) : fmtTick(v, d)}</text>`
+        `<line class="lc-g" x1="${mL}" x2="${L}" y1="${Y(v)}" y2="${Y(v)}"/>${label ? `<text class="lc-tx" x="${L + 6}" y="${Y(v) + 3}">${fmt ? fmt(v) : fmtTick(v, d)}</text>` : ""}`
       );
     }
     return Y;
