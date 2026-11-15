@@ -73,7 +73,7 @@ const SESSIONS: SessionDef[] = [
 ];
 
 const MARKS: MarkDef[] = [
-  { id: "macro830", zone: ZONE_US, zeit: "08:30", benoetigtEreignis: ["cpi", "pce", "nfp"] },
+  { id: "macro830", zone: ZONE_US, zeit: "08:30", benoetigtEreignis: ["cpi", "ppi", "pce", "nfp"] },
   { id: "cashOpen", zone: ZONE_US, zeit: "09:30" },
   { id: "fomc1400", zone: ZONE_US, zeit: "14:00", benoetigtEreignis: ["fomc"] },
   { id: "cashClose", zone: ZONE_US, zeit: "16:00" },
@@ -87,10 +87,14 @@ const MARKS: MarkDef[] = [
 // zum ersten Mal sieht. Betrifft sowohl die Kachel (TradingHoursBadge) als
 // auch die Push-Vorwarnung, siehe supabase/functions/
 // send-state-change-push.
+// nachMin (Toby 15.11.2026, Punkt D): 30 Min nach CPI/PPI/PCE/NFP, beim FOMC
+// 60 Min (bis 21:00 Schweizer Zeit, Pressekonferenz ab 20:30). Zusammen mit
+// dem 30-Min-Horizont im Veto (nextHighRiskWindow) sperrt das Veto damit ab
+// 45 Min vorher bis 30 bzw. 60 Min danach.
 const WARNINGS: WarningDef[] = [
   { id: "opening", mark: "cashOpen", vorMin: 5, nachMin: 15, level: "high" },
-  { id: "macro", mark: "macro830", vorMin: 15, nachMin: 10, level: "high" },
-  { id: "fomc", mark: "fomc1400", vorMin: 15, nachMin: 20, level: "high" },
+  { id: "macro", mark: "macro830", vorMin: 15, nachMin: 30, level: "high" },
+  { id: "fomc", mark: "fomc1400", vorMin: 15, nachMin: 60, level: "high" },
   { id: "close", mark: "cashClose", vorMin: 15, nachMin: 5, level: "medium" },
   { id: "cme", mark: "cmePause", vorMin: 0, nachMin: 0, level: "medium" },
 ];

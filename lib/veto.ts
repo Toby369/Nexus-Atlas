@@ -12,7 +12,7 @@ import { leverageForStop } from "./zones";
 export type VetoAnswer = "ok" | "warnung" | "veto" | "offen";
 
 export interface VetoRow {
-  id: "funding" | "crowd" | "driver" | "stop" | "events" | "journal";
+  id: "funding" | "crowd" | "driver" | "stop" | "events" | "dataday" | "journal";
   question: string;
   answer: VetoAnswer;
   label: string;
@@ -30,6 +30,8 @@ export interface VetoInput {
   driverLabel: string | null;
   /** Naechstes Hochrisiko-Zeitfenster innerhalb von 30 Min, z.B. "US-Kasseneröffnung in 12 Min". */
   upcomingRisk: string | null;
+  /** Heute ist ein US-Datentag, z.B. "CPI 14:30" (lib/macroGuide.ts::dataDayLabel), sonst null. */
+  dataDay: string | null;
   /** Durchschnittliche 1H-Spanne (ATR 14) in % vom Kurs, siehe hourlyNoisePct(). */
   noisePct: number | null;
   /** Stop hinter der Zone in % vom Einstieg (lib/zones.ts::stopBehindZone); ohne Setup der Mindest-Stop. */
@@ -132,6 +134,18 @@ export function evaluateVeto(input: VetoInput): VetoRow[] {
     detail: input.upcomingRisk ? `${input.upcomingRisk}. Erst nach dem Termin und der ersten Reaktion.` : "Kein Hochrisiko-Fenster.",
   });
 
+  // Toby 15.11.2026 (Punkt D): am Datentag halbe Groesse. Warnung, kein Veto:
+  // ausserhalb des Termin-Fensters darf gehandelt werden, nur kleiner.
+  rows.push({
+    id: "dataday",
+    question: "Kein US-Datentag heute?",
+    answer: input.dataDay ? "warnung" : "ok",
+    label: input.dataDay ? "Datentag" : "Normal",
+    detail: input.dataDay
+      ? `Datentag (${input.dataDay}): halbe Grösse, Risiko 0,5 statt 1 USDT.`
+      : "Volle Grösse (Risiko 1 USDT).",
+  });
+
   const tooManyTrades = input.tradesToday >= MAX_TRADES_PER_DAY;
   const tooManyLosses = input.lossesInRow >= MAX_LOSSES_IN_ROW;
   rows.push({
@@ -155,6 +169,7 @@ const SHORT_NAME: Record<VetoRow["id"], string> = {
   driver: "Spot treibt nicht",
   stop: "Stop zu eng",
   events: "Termin",
+  dataday: "Datentag, halbe Grösse",
   journal: "Tageslimit",
 };
 

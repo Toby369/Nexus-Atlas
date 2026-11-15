@@ -704,7 +704,6 @@ export default async function Home({
                             </>
                           ),
                           us: <EtfFlowPanel initialFlows={recentEtfFlows} macroNews={highImpactNews} />,
-                          macro: <EconomicCalendarPanel initialEvents={upcomingEconomicEvents} />,
                         }}
                       />
                     ),

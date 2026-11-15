@@ -27,6 +27,8 @@ import {
 import type { EconomicCalendarEvent, EtfFlowDay, MarketState } from "@/lib/types";
 import type { EconomicEventResult } from "@/lib/economicEventResult";
 import type { PremiumSummary } from "@/lib/coinbasePremium";
+import Link from "next/link";
+import { MACRO_DATA_DAY_KEYS, MACRO_EVENT_GUIDE } from "@/lib/macroGuide";
 
 // Reiter "Lage" (Toby 15.11.2026): vier Fragen, je eine Zeile mit Ampel,
 // darueber ein Satz Gesamtlage. Keine Diagramme auf dem Startbildschirm;
@@ -37,12 +39,78 @@ const LIGHT_TEXT: Record<Light, string> = { up: "text-up", down: "text-down", wa
 const ETF_DAYS = 5;
 const PREMIUM_REFRESH_MS = 5 * 60_000;
 const CLOCK_MS = 60_000;
-const MACRO_KEYS = ["cpi", "pce", "nfp", "fomc"];
+const MACRO_KEYS = MACRO_DATA_DAY_KEYS;
+const BIAS_TEXT = { bullish: "bullisch", bearish: "bärisch", neutral: "neutral" } as const;
+const BIAS_CLASS = { bullish: "text-up", bearish: "text-down", neutral: "text-text-muted" } as const;
 
 const dateCh = (ms: number) =>
   new Intl.DateTimeFormat("de-CH", { timeZone: "Europe/Zurich", day: "numeric", month: "numeric" }).format(ms);
 const timeCh = (ms: number) =>
   new Intl.DateTimeFormat("de-CH", { timeZone: "Europe/Zurich", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(ms);
+
+/** Aufklapper "US-Makro": naechster Termin mit Erklaerung, letzte Einordnung, naechste Termine. */
+function MacroDetail({
+  upcoming,
+  lastResult,
+  lastLabel,
+  nowMs,
+}: {
+  upcoming: { label: string; key: string; ms: number }[];
+  lastResult: EconomicEventResult | null;
+  lastLabel: string | null;
+  nowMs: number | null;
+}) {
+  const next = upcoming[0];
+  const guide = next ? MACRO_EVENT_GUIDE[next.key] : undefined;
+  const hours = next && nowMs !== null ? (next.ms - nowMs) / 3_600_000 : null;
+  return (
+    <div className="space-y-2.5 rounded-md border border-border bg-surface-raised p-3 text-sm">
+      {next && guide ? (
+        <div className="space-y-1.5">
+          <p className="flex items-baseline justify-between gap-2">
+            <span className="font-medium text-text">
+              {guide.short} · {guide.name}
+            </span>
+            <span className={`shrink-0 font-mono text-xs ${hours !== null && hours <= 24 ? "text-warn" : "text-text-faint"}`}>
+              {dateCh(next.ms)} {timeCh(next.ms)}
+            </span>
+          </p>
+          <dl className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-2 gap-y-1 text-xs">
+            <dt className="text-text-faint">Misst</dt>
+            <dd className="text-text">{guide.measures}</dd>
+            <dt className="text-text-faint">Wirkung</dt>
+            <dd className="text-text">{guide.effect}</dd>
+            <dt className="text-text-faint">Regeln</dt>
+            <dd className="text-text">{guide.rules}</dd>
+          </dl>
+        </div>
+      ) : (
+        <p className="text-xs text-text-faint">Kein Termin im Kalender.</p>
+      )}
+      {lastResult && (
+        <p className="border-t border-border/60 pt-2 text-xs text-text-muted">
+          Zuletzt {lastLabel} {dateCh(Date.parse(lastResult.event_date))}:{" "}
+          <span className={BIAS_CLASS[lastResult.bias]}>{BIAS_TEXT[lastResult.bias]}</span> · {lastResult.summary}
+        </p>
+      )}
+      {upcoming.length > 1 && (
+        <ul className="space-y-0.5 border-t border-border/60 pt-2 text-xs text-text-muted">
+          {upcoming.slice(1, 4).map((u) => (
+            <li key={`${u.key}${u.ms}`} className="flex justify-between gap-2">
+              <span>{MACRO_EVENT_GUIDE[u.key]?.short ?? u.label}</span>
+              <span className="font-mono">
+                {dateCh(u.ms)} {timeCh(u.ms)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <Link href="/lernen" className="inline-block text-xs text-accent">
+        Alles zu Makro-Daten unter Lernen →
+      </Link>
+    </div>
+  );
+}
 
 function Question({ row, children }: { row: LageRow; children?: ReactNode }) {
   return (
@@ -145,14 +213,15 @@ export default function LageCard({
   const sentiment = marketState?.factors?.sentiment?.basis as { value?: number; classification?: string } | undefined;
   const macroBasis = marketState?.factors?.macro?.basis as { regime?: string } | undefined;
 
-  const nextEvent =
+  const upcomingEvents =
     nowMs === null
-      ? null
+      ? []
       : events
           .filter((e) => MACRO_KEYS.includes(e.event_key))
           .map((e) => ({ e, ms: economicEventMarkMs(e.event_key, e.event_date) }))
           .filter((x): x is { e: EconomicCalendarEvent; ms: number } => x.ms !== null && x.ms > nowMs)
-          .sort((a, b) => a.ms - b.ms)[0] ?? null;
+          .sort((a, b) => a.ms - b.ms);
+  const nextEvent = upcomingEvents[0] ?? null;
   const labelFor = (key: string) => events.find((e) => e.event_key === key)?.label ?? key.toUpperCase();
 
   const rows: LageRow[] = [
@@ -208,6 +277,14 @@ export default function LageCard({
       <div>
         {rows.map((r) => (
           <Question key={r.id} row={r}>
+            {r.id === "macro" && (
+              <MacroDetail
+                upcoming={upcomingEvents.map(({ e, ms }) => ({ label: e.label, key: e.event_key, ms }))}
+                lastResult={lastResult}
+                lastLabel={lastResult ? MACRO_EVENT_GUIDE[lastResult.event_key]?.short ?? labelFor(lastResult.event_key) : null}
+                nowMs={nowMs}
+              />
+            )}
             {details[r.id]}
           </Question>
         ))}
