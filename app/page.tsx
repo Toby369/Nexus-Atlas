@@ -63,6 +63,7 @@ import CycleIndicatorsCard from "@/components/CycleIndicatorsCard";
 import VolatilityCard from "@/components/VolatilityCard";
 import TimeframeSelector from "@/components/TimeframeSelector";
 import DashboardTabNav from "@/components/DashboardTabNav";
+import LageCard from "@/components/LageCard";
 import DashboardPollProvider from "@/components/DashboardPollProvider";
 import HeroHeader from "@/components/HeroHeader";
 import { AppFooter, AppHeader } from "@/components/AppHeader";
@@ -610,6 +611,11 @@ export default async function Home({
 
   // Eigene Zonen haben Vorrang, die Nexus-Keylevels sind dann nur Abgleich.
   const tradeLevels = activeLevels(ownZones, chartStructure.keyLevels);
+  const liquidationZonesForUi = latestLeverageMap
+    ? bundleLiquidationZones(latestLeverageMap.clusters, latestLeverageMap.mid).map(
+        ({ side, priceLow, priceHigh, massUsd }) => ({ side, priceLow, priceHigh, massUsd })
+      )
+    : [];
   const tradeStepProps = {
     keyLevels: tradeLevels,
     candles4h,
@@ -671,9 +677,10 @@ export default async function Home({
                   // 25.10.2026 (Toby): Zeitraum nutzt er selten -- er steht nur
                   // noch im Reiter Markt und gilt fuer OI, Spot und CVD (auch im Kopf).
                   tabHeaders={{
-                    markt: (
+                    // 15.11.2026: Zeitraum selten genutzt -- im Archiv statt ueber der ruhigen Lage.
+                    archiv: (
                       <div className="flex flex-wrap items-center gap-2" aria-label="Zeitraum">
-                        <span className="text-[11px] text-text-faint">Zeitraum für OI, Spot und CVD</span>
+                        <span className="text-[11px] text-text-faint">Zeitraum für OI, Spot und CVD (gilt auch in „Lage“)</span>
                         <Suspense fallback={<div className="h-6" />}>
                           <TimeframeSelector current={timeframe} />
                         </Suspense>
@@ -681,19 +688,33 @@ export default async function Home({
                     ),
                   }}
                   tiles={{
+                    lage: (
+                      <LageCard
+                        timeframe={timeframe}
+                        marketState={marketState}
+                        etfFlows={recentEtfFlows}
+                        events={upcomingEconomicEvents}
+                        liquidationZones={liquidationZonesForUi}
+                        details={{
+                          driver: <MarketContextCard timeframe={timeframe} />,
+                          leverage: (
+                            <>
+                              <OiChangeCard />
+                              <FundingRateCard />
+                            </>
+                          ),
+                          us: <EtfFlowPanel initialFlows={recentEtfFlows} macroNews={highImpactNews} />,
+                          macro: <EconomicCalendarPanel initialEvents={upcomingEconomicEvents} />,
+                        }}
+                      />
+                    ),
                     zones: (
                       <ZonesCard
                         keyLevels={tradeLevels}
                         ownZones={ownZones}
                         autarkSync={autarkSync}
                         nexusLevels={chartStructure.keyLevels.map(({ price }) => ({ price }))}
-                        liquidationZones={
-                          latestLeverageMap
-                            ? bundleLiquidationZones(latestLeverageMap.clusters, latestLeverageMap.mid).map(
-                                ({ side, priceLow, priceHigh, massUsd }) => ({ side, priceLow, priceHigh, massUsd })
-                              )
-                            : []
-                        }
+                        liquidationZones={liquidationZonesForUi}
                         dailyTrend={dailyTrendFromMtf(mtfDots)}
                       />
                     ),

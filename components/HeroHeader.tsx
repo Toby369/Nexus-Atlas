@@ -482,14 +482,7 @@ export default function HeroHeader({
       )}
 
       {tradeStep && (
-        <HeadStatus
-          tradeStep={tradeStep}
-          plan={plan}
-          oiChangePct={marketContext.oiChangePct}
-          spotNetFlowPct={marketContext.spotNetFlowPct}
-          contextLabel={marketContext.result.label}
-          contextBias={marketContext.result.bias}
-        />
+        <HeadStatus tradeStep={tradeStep} plan={plan} />
       )}
 
       {!lastSyncOk && (

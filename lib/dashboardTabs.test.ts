@@ -16,9 +16,10 @@ describe("DASHBOARD_TABS", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("Trade ist der erste Reiter und hoechstens 5 Reiter", () => {
-    expect(DEFAULT_DASHBOARD_TAB).toBe("trade");
-    expect(DASHBOARD_TABS.length).toBeLessThanOrEqual(5);
+  it("Lage ist der erste Reiter, Trade dahinter, hoechstens 4 Reiter", () => {
+    expect(DEFAULT_DASHBOARD_TAB).toBe("lage");
+    expect(DASHBOARD_TABS[1].id).toBe("trade");
+    expect(DASHBOARD_TABS.length).toBeLessThanOrEqual(4);
   });
 
   it("DEFAULT_DASHBOARD_TAB ist ein tatsaechlich existierender Tab", () => {
