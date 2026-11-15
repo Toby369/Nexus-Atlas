@@ -77,3 +77,14 @@ describe("getTradingHoursState", () => {
     expect(state.upcoming.length).toBeGreaterThan(0);
   });
 });
+
+describe("Termin-Fenster nach Punkt D (15.11.2026)", () => {
+  it("CPI/PPI sperren bis 30 Min danach, FOMC bis 60 Min danach (21:00 Schweiz)", () => {
+    const ppi = [{ event_key: "ppi", event_date: DI }];
+    expect(getTradingHoursState(iso(DI, "12:55:00"), ppi).warnings.some((w) => w.id === "macro")).toBe(true);
+    expect(getTradingHoursState(iso(DI, "13:05:00"), ppi).warnings.some((w) => w.id === "macro")).toBe(false);
+    const fomc = [{ event_key: "fomc", event_date: DI }];
+    expect(getTradingHoursState(iso(DI, "18:55:00"), fomc).warnings.some((w) => w.id === "fomc")).toBe(true);
+    expect(getTradingHoursState(iso(DI, "19:05:00"), fomc).warnings.some((w) => w.id === "fomc")).toBe(false);
+  });
+});

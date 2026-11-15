@@ -348,7 +348,9 @@ export const vetoInfo = `So liest du das: Die letzte Prüfung vor dem Klick. Fun
 
 Die Stop-Zeile vergleicht deinen Stop hinter der Zone (0,25 % jenseits der Zonenkante, mindestens 0,5 % vom Einstieg) mit der durchschnittlichen Spanne einer 1H-Kerze (ATR 14, üblich etwa 0,5 %). Schwankt eine Kerze im Schnitt mindestens 1,2-mal so weit, wie der Stop entfernt liegt, warnt Nexus: Der Stop wird dann leicht vom normalen Hin und Her ausgelöst. Dazu steht der passende Hebel: Das Risiko bleibt fix bei 10 % Marge (1 USDT), also Hebel = 10 % geteilt durch den Stop-Abstand, höchstens 20x (Stop 0,5 % → 20x, 0,85 % → 11x).
 
-Ein Veto (rot) sperrt den Einstieg: ein Hochrisiko-Zeitfenster (US-Kasseneröffnung, CPI/PCE/NFP, FOMC) läuft oder beginnt in den nächsten 30 Minuten, du hast heute schon 3 Trades oder 2 Verluste in Folge. Trades und Verluste trägst du unten selbst ein; sie gelten nur für heute und nur in diesem Browser.`;
+An einem US-Datentag (CPI, PPI, PCE, NFP, FOMC) warnt Nexus den ganzen Tag: halbe Grösse, Risiko 0,5 statt 1 USDT.
+
+Ein Veto (rot) sperrt den Einstieg: ein Hochrisiko-Zeitfenster läuft oder beginnt in den nächsten 30 Minuten (US-Kasseneröffnung; CPI, PPI, PCE und NFP bis 30 Min danach; FOMC bis 21:00), du hast heute schon 3 Trades oder 2 Verluste in Folge. Trades und Verluste trägst du unten selbst ein; sie gelten nur für heute und nur in diesem Browser.`;
 
 export const lageInfo = `So liest du das: Vier Fragen, je eine Zeile mit Ampel. Antippen zeigt die Details dazu.
 

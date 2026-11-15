@@ -42,6 +42,8 @@ const FRED_TRACKED: FredTrackedSeries[] = [
   { eventKey: "cpi", seriesId: "CPIAUCSL", label: "Verbraucherpreisindex (CPI)", typicalTimeEt: "8:30 Uhr ET" },
   { eventKey: "pce", seriesId: "PCEPI", label: "PCE-Preisindex", typicalTimeEt: "8:30 Uhr ET" },
   { eventKey: "nfp", seriesId: "PAYEMS", label: "Nonfarm Payrolls", typicalTimeEt: "8:30 Uhr ET" },
+  // PPI (Toby 15.11.2026, Punkt D): nur Kalender und Veto, keine Push.
+  { eventKey: "ppi", seriesId: "PPIFIS", label: "Produzentenpreise (PPI)", typicalTimeEt: "8:30 Uhr ET" },
 ];
 
 // Offizieller Fed-Sitzungskalender (federalreserve.gov/monetarypolicy/
@@ -57,6 +59,22 @@ const FOMC_DECISION_DATES_2026 = [
   "2026-10-28",
   "2026-12-09",
 ];
+
+// 2027 (Stand 15.11.2026): von der Fed als vorlaeufig ("tentative")
+// veroeffentlicht; federalreserve.gov ist aus der Sandbox nicht erreichbar,
+// darum aus Sekundaerquellen uebernommen. Im Januar 2027 gegenpruefen.
+const FOMC_DECISION_DATES_2027 = [
+  "2027-01-27",
+  "2027-03-17",
+  "2027-04-28",
+  "2027-06-09",
+  "2027-07-28",
+  "2027-09-15",
+  "2027-10-27",
+  "2027-12-08",
+];
+
+const FOMC_DECISION_DATES = [...FOMC_DECISION_DATES_2026, ...FOMC_DECISION_DATES_2027];
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -133,13 +151,13 @@ async function resolveNextFredDate(
 }
 
 function resolveNextFomcDate(todayIso: string): CalendarRow {
-  const nextDate = FOMC_DECISION_DATES_2026.find((d) => d >= todayIso) ?? null;
+  const nextDate = FOMC_DECISION_DATES.find((d) => d >= todayIso) ?? null;
   return {
     event_key: "fomc",
     label: "FOMC-Zinsentscheid",
     event_date: nextDate,
     typical_time_et: "14:00 Uhr ET",
-    source: nextDate ? "static" : "error: Liste 2026 erschoepft, naechsten Jahrgang ergaenzen",
+    source: nextDate ? "static" : "error: FOMC-Liste erschoepft, naechsten Jahrgang ergaenzen",
   };
 }
 

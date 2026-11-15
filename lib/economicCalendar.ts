@@ -11,6 +11,7 @@ export const ECONOMIC_EVENT_INTERPRETATION: Record<string, string> = {
   cpi: "Höher als erwartete CPI-Daten werden am Markt häufig als Signal für eine straffere Fed-Politik gelesen, was Risikoassets wie BTC tendenziell belastet — niedriger als erwartet wirkt oft umgekehrt. Kein Automatismus, keine Anlageberatung.",
   pce: "PCE ist der von der Fed selbst bevorzugte Inflationsmesswert und fließt direkt in ihre Zinsentscheide ein — die Marktreaktion verläuft tendenziell in dieselbe Richtung wie bei CPI. Kein Automatismus, keine Anlageberatung.",
   nfp: "Überraschend starke Beschäftigungsdaten werden oft als Argument für eine straffere Fed-Politik gelesen (belastend für Risikoassets), schwache Daten oft umgekehrt — die tatsächliche Reaktion hängt stark vom Gesamtkontext ab. Kein Automatismus, keine Anlageberatung.",
+  ppi: "Der Produzentenpreisindex misst, was Firmen für ihre Waren verlangen, und gilt als Vorbote für den CPI. Höher als erwartet wird meist wie ein heisser CPI gelesen (belastend für BTC), die Reaktion fällt aber meist kleiner aus. Kein Automatismus, keine Anlageberatung.",
   fomc: "Der Zinsentscheid selbst und vor allem die begleitenden Aussagen zur weiteren Ausrichtung bewegen Risikoassets oft stärker als andere Einzeltermine — Überraschungen gegenüber den Markterwartungen lösen typischerweise die stärkste Reaktion aus. Kein Automatismus, keine Anlageberatung.",
 };
 
@@ -25,6 +26,7 @@ export const EVENT_HIGHER_MEANS_BEARISH: Record<string, boolean> = {
   cpi: true,
   pce: true,
   nfp: true,
+  ppi: true,
   fomc: true, // Zinserhöhung = bärisch, Zinssenkung = bullisch
 };
 
@@ -46,6 +48,7 @@ export const EVENT_TIME_ET: Record<string, string> = {
   cpi: "08:30",
   pce: "08:30",
   nfp: "08:30",
+  ppi: "08:30",
   fomc: "14:00",
 };
 
@@ -60,6 +63,13 @@ export const RESULT_DISPLAY_MS = 1 * HOUR_MS;
 export const AWAITING_MAX_MS = 6 * HOUR_MS;
 
 /** Veroeffentlichungszeitpunkt (UTC-ms) eines verfolgten Termins, sonst null. */
+/**
+ * Termine, fuer die nach der Veroeffentlichung eine Einordnung entsteht
+ * (send-state-change-push). PPI (15.11.2026) steht nur im Kalender und im
+ * Veto, ohne Push und ohne Einordnung -- weniger Push- und Log-Volumen.
+ */
+export const RESULT_TRACKED_KEYS = ["cpi", "pce", "nfp", "fomc"];
+
 export function economicEventMarkMs(eventKey: string, eventDate: string): number | null {
   const timeEt = EVENT_TIME_ET[eventKey];
   return timeEt ? zonedWallTimeToUtc(eventDate, timeEt, ZONE_US) : null;
@@ -116,6 +126,8 @@ export async function getHeroEconomicEventStatus(
       return { ...base, phase: "upcoming", result: null };
     }
 
+    // Ohne Einordnung (PPI) nicht stundenlang "wartet auf Ergebnis" zeigen.
+    if (!RESULT_TRACKED_KEYS.includes(event.event_key)) continue;
     const result = await fetchResult(event.event_key, event.event_date);
     if (!result) {
       if (nowMs - markMs > AWAITING_MAX_MS) continue;

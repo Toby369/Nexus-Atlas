@@ -29,7 +29,7 @@ export const WARNING_LABELS: Record<WarningId, string> = {
 
 const INFO_TEXT = [
   "Was das ist: zeigt an, ob gerade eine bekannt volatile/spread-weite Phase läuft, in der ein 15m/5m-Einstieg riskanter ist -- unabhängig von der Marktrichtung. Konzept übernommen aus dem Crypto-Trading-Journal (Live-Trading-Fenster).",
-  "Rot (hohe Warnung): 5min vor bis 15min nach US-Kasseneröffnung (09:30 ET), sowie bei tatsächlich terminierten CPI/PCE/NFP-Releases (08:30 ET, ±2/10min) und FOMC-Entscheiden (14:00 ET, ±2/20min) -- nur wenn im Wirtschaftskalender ein echter Termin an diesem Tag steht, nicht pauschal jeden Tag.",
+  "Rot (hohe Warnung): 5min vor bis 15min nach US-Kasseneröffnung (09:30 ET), sowie bei tatsächlich terminierten CPI/PPI/PCE/NFP-Releases (08:30 ET, 15 Min vor bis 30 Min nach) und FOMC-Entscheiden (14:00 ET, 15 Min vor bis 60 Min nach, also bis 21:00 Schweizer Zeit) -- nur wenn im Wirtschaftskalender ein echter Termin an diesem Tag steht, nicht pauschal jeden Tag.",
   "Gelb (mittlere Warnung): US-Kassenschluss (16:00 ET, ±15/5min) und die tägliche CME-Wartungspause (17:00-18:00 ET, Mo-Do).",
   "Kein Handelssignal -- reine Zeitfenster-Information, ersetzt nicht die eigene Einschätzung.",
 ].join("\n\n");
