@@ -19,14 +19,23 @@ export interface DashboardTabMeta {
 // Daten) und "Archiv" (alles, was nicht zum Regelwerk gehoert). Hoechstens
 // 5 Reiter, damit sie am Handy in eine Zeile passen.
 export const DASHBOARD_TABS: DashboardTabMeta[] = [
+  // 15.11.2026 (Toby: "Ruhe im Dashboard, Klarheit"): "Lage" vorne mit vier
+  // Fragen, "Trade" nach hinten, "Markt" und "Termine" aufgeloest -- ihre
+  // Kacheln stecken als Details in "Lage" und bleiben im Archiv. Geloescht
+  // wird nichts.
+  { id: "lage", label: "Lage", tileIds: ["lage"], fixed: true },
   { id: "trade", label: "Trade", tileIds: ["zones", "rule-check", "veto"], fixed: true },
-  { id: "markt", label: "Markt", tileIds: ["lage-chart", "market-context", "oi-change", "funding-rate"] },
-  { id: "termine", label: "Termine", tileIds: ["economic-calendar", "news-risk"] },
   { id: "wochenblick", label: "Wochenblick", tileIds: ["etf-flow", "cycle-indicators"] },
   {
     id: "archiv",
     label: "Archiv",
     tileIds: [
+      "lage-chart",
+      "market-context",
+      "oi-change",
+      "funding-rate",
+      "economic-calendar",
+      "news-risk",
       "lage-hintergrund",
       "regime-matrix",
       "divergence-radar",

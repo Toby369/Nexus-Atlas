@@ -350,6 +350,14 @@ Die Stop-Zeile vergleicht deinen Stop hinter der Zone (0,25 % jenseits der Zonen
 
 Ein Veto (rot) sperrt den Einstieg: ein Hochrisiko-Zeitfenster (US-Kasseneröffnung, CPI/PCE/NFP, FOMC) läuft oder beginnt in den nächsten 30 Minuten, du hast heute schon 3 Trades oder 2 Verluste in Folge. Trades und Verluste trägst du unten selbst ein; sie gelten nur für heute und nur in diesem Browser.`;
 
-export const headMarketInfo = `So liest du das: OI ist die Veränderung des Open Interest über den gewählten Zeitraum (Standard 4H, umstellbar im Reiter Markt). Spot ist der Netto-Kaufdruck auf Binance Spot, also Käufe minus Verkäufe der aggressiven Seite in Prozent des Volumens. CVD Perp ist dasselbe auf den Binance-Perps. Funding ist die aktuelle Rate pro 8 h.
+export const lageInfo = `So liest du das: Vier Fragen, je eine Zeile mit Ampel. Antippen zeigt die Details dazu.
 
-Die Deutung darunter kombiniert Preis, OI und Spot zu einem Szenario (Long-Aufbau, Short-Aufbau, Short-Covering, Long-Abbau) und nennt den Treiber aus dem Vergleich Spot gegen Perp. Details stehen im Reiter Markt unter Marktkontext.`;
+Wer treibt? Vergleicht den Netto-Kaufdruck auf Spot und Perps (CVD) und die Veränderung des Open Interest. Kauft Spot mit, ist die Bewegung getragen (grün); verkauft Spot, rot; bewegt sich nur der Perp-Markt, treibt der Hebel (gelb).
+
+Hebel und Masse: Funding ab 0,03 % pro 8 h oder mindestens 65 % Long-Konten heisst „Longs überfüllt“, negatives Funding oder unter 50 % Long-Konten „Shorts überfüllt“ (gelb). Dazu das nächste Liquidations-Ziel darüber und darunter.
+
+US-Anleger: ETF-Flows der letzten 5 Handelstage und die Coinbase-Prämie (US-Nachfrage, ab ±0,03 %) zählen. Fear & Greed steht nur als Kontext daneben.
+
+US-Makro: nächster Termin (CPI, PCE, NFP, FOMC), die letzte Einordnung und das Makro-Regime aus Dollar, Renditen und Indizes. Gelb, wenn ein Termin in den nächsten 24 Stunden ansteht.
+
+Die Gesamtlage fasst nur diese vier Zeilen zusammen, regelbasiert, ohne KI. Sie ist eine Einordnung, kein Handelssignal.`;

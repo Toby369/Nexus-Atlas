@@ -3,13 +3,12 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { DASHBOARD_TABS, DEFAULT_DASHBOARD_TAB, OPEN_TAB_EVENT } from "@/lib/dashboardTabs";
-import { logUsage } from "@/lib/tileUsage";
+import { logDwell, logUsage } from "@/lib/tileUsage";
 
 // Reiter-Navigation: jeder Reiter zeigt nur die Kacheln EINES Themas.
 //
-// 25.10.2026 (Toby): Beim Oeffnen steht immer der Reiter "Trade" vorne (kein
-// gespeicherter Reiter mehr), der Fokus-Modus entfaellt -- "Trade" ist der
-// Fokus. Reiter mit `fixed` zeigen ihre Kacheln in fester Reihenfolge
+// Beim Oeffnen steht immer der erste Reiter vorne (kein gespeicherter Reiter),
+// seit 15.11.2026 "Lage" statt "Trade". Reiter mit `fixed` zeigen ihre Kacheln in fester Reihenfolge
 // untereinander, ohne Verschieben/Minimieren (Zonen -> Regelcheck -> Veto).
 // Bewusst reiner Client-State statt URL-Query-Param: der sichtbare Reiter
 // aendert nichts an den Server-Daten (alle Kacheln sind serverseitig
@@ -36,6 +35,28 @@ export default function DashboardTabNav({
     window.addEventListener(OPEN_TAB_EVENT, open);
     return () => window.removeEventListener(OPEN_TAB_EVENT, open);
   }, []);
+
+  // Verweildauer (15.11.2026): sichtbare Zeit des aktiven Reiters, gemeldet
+  // beim Wechsel und wenn die Seite in den Hintergrund geht.
+  useEffect(() => {
+    let startMs: number | null = document.visibilityState === "visible" ? Date.now() : null;
+    const flush = () => {
+      if (startMs !== null) logDwell(activeTab, (Date.now() - startMs) / 1000);
+      startMs = null;
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+      else startMs = Date.now();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      flush();
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flush);
+    };
+  }, [activeTab]);
+
   const activeTabMeta = DASHBOARD_TABS.find((tab) => tab.id === activeTab) ?? DASHBOARD_TABS[0];
 
   return (
