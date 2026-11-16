@@ -96,14 +96,22 @@ export function macroRow(input: {
   next: { label: string; whenText: string; hoursAway: number } | null;
   lastResult: { label: string; bias: "bullish" | "bearish" | "neutral"; dateText: string } | null;
   regime: string | null;
+  /** Zinskurs (lib/rateCourse.ts): langsamer Hintergrund, ueber Monate. */
+  rate?: { short: string; light: Light } | null;
 }): LageRow {
   const soon = input.next !== null && input.next.hoursAway <= 24;
   const regime = input.regime ?? "";
   const regimeLight: Light = /risk.?off/i.test(regime) ? "down" : /risk.?on/i.test(regime) ? "up" : "neutral";
-  const light: Light = soon ? "warn" : regimeLight;
+  // Regime (Tage) und Zinskurs (Monate): einig oder einer neutral -> dieser
+  // Ton; widersprechen sie sich -> neutral.
+  const rateLight: Light = input.rate?.light ?? "neutral";
+  const background: Light =
+    regimeLight === "neutral" ? rateLight : rateLight === "neutral" || rateLight === regimeLight ? regimeLight : "neutral";
+  const light: Light = soon ? "warn" : background;
   const chip = soon ? `${input.next!.label} bald` : input.next ? `${input.next.label} ${input.next.whenText}` : regime || "ruhig";
   const biasWord = { bullish: "bullisch", bearish: "bärisch", neutral: "neutral" } as const;
   const parts = [
+    input.rate ? `Zinskurs ${input.rate.short}` : null,
     input.next ? `Nächster Termin: ${input.next.label} ${input.next.whenText}` : null,
     input.lastResult ? `zuletzt ${input.lastResult.label} ${input.lastResult.dateText}: ${biasWord[input.lastResult.bias]}` : null,
     regime ? `Makro ${regime}` : null,

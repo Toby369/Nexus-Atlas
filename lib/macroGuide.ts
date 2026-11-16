@@ -80,6 +80,14 @@ export const MACRO_MECHANISM = {
     "Der Zusammenhang gilt meistens, nicht immer. Bei einer Liquidationskaskade oder ETF-Abflüssen kann BTC auch gegen gute Daten fallen.",
 };
 
+/** Langfristige Wirkung (Toby 15.11.2026): ein Zinsentscheid wirkt ueber Monate. */
+export const MACRO_RATE_COURSE = {
+  text: "Ein Zinsentscheid wirkt nicht nur am Tag selbst. Steigende oder hoch bleibende Zinsen ziehen über Monate Kapital aus Risikoanlagen ab: Anleihen bringen mehr, der Dollar wird stärker, Kredit wird teurer. Das ist Gegenwind für BTC. Sinkende Zinsen wirken umgekehrt.",
+  direction: "Wichtiger als ein einzelner Schritt ist die Richtung, der Zinskurs. Ein erwarteter Schritt ist am Tag selbst oft schon im Preis.",
+  expectation: "Was der Markt als Nächstes erwartet, zeigt die 2-jährige US-Rendite. Liegt sie deutlich über dem Leitzins, rechnet er mit Erhöhungen, deutlich darunter mit Senkungen.",
+  where: "Nexus zeigt den Zinskurs in Lage unter „US-Makro“, mit dem Leitzins, dem letzten Schritt und der 2J-Rendite.",
+};
+
 export const MACRO_PRICE_BEHAVIOUR = {
   text: "Nach der Veröffentlichung kommen heftige Dochte in beide Richtungen, weil Stopps auf beiden Seiten abgeholt werden. Der erste Ausschlag ist oft falsch.",
   example:

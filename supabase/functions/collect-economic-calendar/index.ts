@@ -150,6 +150,54 @@ async function resolveNextFredDate(
   }
 }
 
+// Zinskurs (Toby 15.11.2026): Aenderungen des Fed-Zielbands dauerhaft in
+// fed_rate_changes, damit ein Zinsentscheid nicht nach 1 h verschwindet.
+// FRED DFEDTARL/DFEDTARU (Unter-/Obergrenze, taeglich, auch Wochenenden).
+// Effective date = Tag, ab dem das neue Band gilt (meist Tag nach dem FOMC).
+// Fester Start (nicht gleitend), sonst entstuende jeden Tag eine neue
+// "Ausgangsband"-Zeile. Ab 2023 ist der ganze Zyklus seit dem Hoch drin.
+const FED_RATE_START = "2023-01-01";
+
+async function fetchFredObservations(apiKey: string, seriesId: string, startIso: string): Promise<Map<string, number>> {
+  const json = await fetchJson(
+    `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&observation_start=${startIso}`,
+  );
+  const out = new Map<string, number>();
+  for (const o of json?.observations ?? []) {
+    const v = parseFloat(o?.value);
+    if (typeof o?.date === "string" && !Number.isNaN(v)) out.set(o.date, v);
+  }
+  return out;
+}
+
+async function collectFedRateChanges(
+  supabase: ReturnType<typeof createClient>,
+  apiKey: string,
+): Promise<{ changes: number; error: string | null }> {
+  try {
+    const startIso = FED_RATE_START;
+    const lower = await fetchFredObservations(apiKey, "DFEDTARL", startIso);
+    await sleep(FRED_STAGGER_MS);
+    const upper = await fetchFredObservations(apiKey, "DFEDTARU", startIso);
+    const dates = [...upper.keys()].filter((d) => lower.has(d)).sort();
+    const rows: { effective_date: string; lower_pct: number; upper_pct: number; updated_at: string }[] = [];
+    let prev: number | null = null;
+    for (const d of dates) {
+      const u = upper.get(d)!;
+      // Erste Beobachtung als Ausgangsband speichern, danach nur Aenderungen.
+      if (prev === null || u !== prev) {
+        rows.push({ effective_date: d, lower_pct: lower.get(d)!, upper_pct: u, updated_at: new Date().toISOString() });
+      }
+      prev = u;
+    }
+    if (rows.length === 0) return { changes: 0, error: "keine Beobachtungen" };
+    const { error } = await supabase.from("fed_rate_changes").upsert(rows, { onConflict: "effective_date" });
+    return { changes: rows.length, error: error?.message ?? null };
+  } catch (err) {
+    return { changes: 0, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 function resolveNextFomcDate(todayIso: string): CalendarRow {
   const nextDate = FOMC_DECISION_DATES.find((d) => d >= todayIso) ?? null;
   return {
@@ -192,6 +240,10 @@ Deno.serve(async (_req: Request) => {
 
   rows.push(resolveNextFomcDate(todayIso));
 
+  const fedRate = fredApiKey && !keyError
+    ? await collectFedRateChanges(supabase, fredApiKey)
+    : { changes: 0, error: "kein FRED_API_KEY" };
+
   // Nur Zeilen mit tatsaechlich aufgeloestem Datum upserten -- ein Fehler
   // bei einer Quelle soll den zuletzt bekannten guten Wert der anderen
   // event_keys nicht ueberschreiben oder loeschen.
@@ -224,6 +276,7 @@ Deno.serve(async (_req: Request) => {
     JSON.stringify({
       success: true,
       results: rows.map((r) => ({ event_key: r.event_key, event_date: r.event_date, source: r.source })),
+      fed_rate: fedRate,
     }),
     { headers: { "Content-Type": "application/json" } },
   );

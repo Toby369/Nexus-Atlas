@@ -29,6 +29,7 @@ import type { EconomicEventResult } from "@/lib/economicEventResult";
 import type { PremiumSummary } from "@/lib/coinbasePremium";
 import Link from "next/link";
 import { MACRO_DATA_DAY_KEYS, MACRO_EVENT_GUIDE } from "@/lib/macroGuide";
+import { expectationLine, rateCourse, rateCourseLine, type FedRateChange, type RateCourse } from "@/lib/rateCourse";
 
 // Reiter "Lage" (Toby 15.11.2026): vier Fragen, je eine Zeile mit Ampel,
 // darueber ein Satz Gesamtlage. Keine Diagramme auf dem Startbildschirm;
@@ -53,11 +54,16 @@ function MacroDetail({
   upcoming,
   lastResult,
   lastLabel,
+  lastFomc,
+  rate,
   nowMs,
 }: {
   upcoming: { label: string; key: string; ms: number }[];
   lastResult: EconomicEventResult | null;
   lastLabel: string | null;
+  /** Letzter Fed-Entscheid, bleibt bis zum naechsten FOMC stehen. */
+  lastFomc: EconomicEventResult | null;
+  rate: RateCourse | null;
   nowMs: number | null;
 }) {
   const next = upcoming[0];
@@ -65,6 +71,21 @@ function MacroDetail({
   const hours = next && nowMs !== null ? (next.ms - nowMs) / 3_600_000 : null;
   return (
     <div className="space-y-2.5 rounded-md border border-border bg-surface-raised p-3 text-sm">
+      {rate && (
+        <div className="space-y-0.5 border-b border-border/60 pb-2 text-xs">
+          <p className="text-sm">
+            <span className="font-medium text-text">Zinskurs: {rate.short}</span>{" "}
+            <span className={LIGHT_TEXT[rate.light]}>→ {rate.effect}</span>
+          </p>
+          <p className="text-text-muted">{rateCourseLine(rate, (d) => dateCh(Date.parse(d)))}</p>
+          {expectationLine(rate) && <p className="text-text-muted">{expectationLine(rate)}</p>}
+          {lastFomc && lastFomc.event_key !== lastResult?.event_key && (
+            <p className="text-text-muted">
+              Fed {dateCh(Date.parse(lastFomc.event_date))}: {lastFomc.summary}
+            </p>
+          )}
+        </div>
+      )}
       {next && guide ? (
         <div className="space-y-1.5">
           <p className="flex items-baseline justify-between gap-2">
@@ -156,6 +177,9 @@ export default function LageCard({
   const { bundle, fetchedSinceIso, fetchedAtMs } = useDashboardPoll();
   const [premium, setPremium] = useState<PremiumSummary | null>(null);
   const [lastResult, setLastResult] = useState<EconomicEventResult | null>(null);
+  const [lastFomc, setLastFomc] = useState<EconomicEventResult | null>(null);
+  const [rateChanges, setRateChanges] = useState<FedRateChange[]>([]);
+  const [twoYear, setTwoYear] = useState<number | null>(null);
   const [nowMs, setNowMs] = useState<number | null>(null);
 
   useEffect(() => {
@@ -185,6 +209,38 @@ export default function LageCard({
       .limit(1)
       .maybeSingle()
       .then(({ data }) => setLastResult((data as EconomicEventResult | null) ?? null));
+    supabase
+      .from("economic_event_results")
+      .select("event_key, event_date, bias, summary, created_at")
+      .eq("event_key", "fomc")
+      .order("event_date", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setLastFomc((data as EconomicEventResult | null) ?? null));
+    // Zinskurs: Fed-Zielband (fed_rate_changes) und 2J-Rendite (macro_snapshots).
+    supabase
+      .from("fed_rate_changes")
+      .select("effective_date, lower_pct, upper_pct")
+      .order("effective_date", { ascending: false })
+      .limit(12)
+      .then(({ data }) =>
+        setRateChanges(
+          ((data ?? []) as { effective_date: string; lower_pct: number | string; upper_pct: number | string }[]).map((r) => ({
+            effective_date: r.effective_date,
+            lower_pct: Number(r.lower_pct),
+            upper_pct: Number(r.upper_pct),
+          }))
+        )
+      );
+    supabase
+      .from("macro_snapshots")
+      .select("last_price")
+      .eq("symbol", "DGS2")
+      .eq("status", "ok")
+      .order("timestamp_utc", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setTwoYear(data?.last_price == null ? null : Number(data.last_price)));
   }, []);
 
   useEffect(() => {
@@ -222,6 +278,7 @@ export default function LageCard({
           .filter((x): x is { e: EconomicCalendarEvent; ms: number } => x.ms !== null && x.ms > nowMs)
           .sort((a, b) => a.ms - b.ms);
   const nextEvent = upcomingEvents[0] ?? null;
+  const rate = nowMs === null ? null : rateCourse(rateChanges, twoYear, nowMs);
   const labelFor = (key: string) => events.find((e) => e.event_key === key)?.label ?? key.toUpperCase();
 
   const rows: LageRow[] = [
@@ -260,6 +317,7 @@ export default function LageCard({
         ? { label: labelFor(lastResult.event_key), bias: lastResult.bias, dateText: dateCh(Date.parse(lastResult.event_date)) }
         : null,
       regime: macroBasis?.regime ?? null,
+      rate: rate ? { short: rate.short, light: rate.light } : null,
     }),
   ];
   const overall = overallSentence(rows);
@@ -282,6 +340,8 @@ export default function LageCard({
                 upcoming={upcomingEvents.map(({ e, ms }) => ({ label: e.label, key: e.event_key, ms }))}
                 lastResult={lastResult}
                 lastLabel={lastResult ? MACRO_EVENT_GUIDE[lastResult.event_key]?.short ?? labelFor(lastResult.event_key) : null}
+                lastFomc={lastFomc}
+                rate={rate}
                 nowMs={nowMs}
               />
             )}

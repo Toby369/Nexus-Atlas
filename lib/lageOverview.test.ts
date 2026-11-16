@@ -29,6 +29,13 @@ describe("Lage: vier Fragen", () => {
     expect(macroRow({ next: null, lastResult: null, regime: "Risk-Off" }).light).toBe("down");
   });
 
+  it("US-Makro: Zinskurs als Hintergrund, Widerspruch zum Regime = neutral", () => {
+    const rate = { short: "Erhöhungen", light: "down" as const };
+    expect(macroRow({ next: null, lastResult: null, regime: null, rate })).toMatchObject({ light: "down" });
+    expect(macroRow({ next: null, lastResult: null, regime: null, rate }).line).toContain("Zinskurs Erhöhungen");
+    expect(macroRow({ next: null, lastResult: null, regime: "Risk-On", rate }).light).toBe("neutral");
+  });
+
   it("Gesamtlage in einem Satz", () => {
     const rows = [
       driverRow({ spot: "flat", perp: "up", verdictLabel: "x", oiChangePct: 1, scenarioLabel: "y" }),
