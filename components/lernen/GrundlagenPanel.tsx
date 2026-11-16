@@ -9,7 +9,7 @@ import ZoneTrainer from "@/components/lernen/grundlagen/ZoneTrainer";
 import SpotPerpReader from "@/components/lernen/grundlagen/SpotPerpReader";
 import PositionSizeCalculator from "@/components/lernen/grundlagen/PositionSizeCalculator";
 import { LiveHint, Pill, type Tone } from "@/components/lernen/grundlagen/ui";
-import { MACRO_EVENT_GUIDE, MACRO_MECHANISM, MACRO_PRICE_BEHAVIOUR, MACRO_RULES } from "@/lib/macroGuide";
+import { MACRO_EVENT_GUIDE, MACRO_MECHANISM, MACRO_PRICE_BEHAVIOUR, MACRO_RATE_COURSE, MACRO_RULES } from "@/lib/macroGuide";
 
 // Lernpfad "Wie der Bitcoin-Preis entsteht": von der Orderbuch-Mechanik ueber
 // Kennzahlen mit konkreten Schwellen bis zum Risikomanagement. Ersetzt das
@@ -452,6 +452,13 @@ export default function GrundlagenPanel({
           ])}
         />
         <P>{MACRO_MECHANISM.companions}</P>
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-text">Zinskurs: die langfristige Wirkung</p>
+          <P>{MACRO_RATE_COURSE.text}</P>
+          <P>{MACRO_RATE_COURSE.direction}</P>
+          <P>{MACRO_RATE_COURSE.expectation}</P>
+          <P>{MACRO_RATE_COURSE.where}</P>
+        </div>
         <div className="space-y-1.5">
           <p className="text-xs font-medium text-text">Preisverhalten in den ersten Minuten</p>
           <P>{MACRO_PRICE_BEHAVIOUR.text}</P>

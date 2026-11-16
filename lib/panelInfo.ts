@@ -360,6 +360,8 @@ Hebel und Masse: Funding ab 0,03 % pro 8 h oder mindestens 65 % Long-Konten heis
 
 US-Anleger: ETF-Flows der letzten 5 Handelstage und die Coinbase-Prämie (US-Nachfrage, ab ±0,03 %) zählen. Fear & Greed steht nur als Kontext daneben.
 
-US-Makro: nächster Termin (CPI, PCE, NFP, FOMC), die letzte Einordnung und das Makro-Regime aus Dollar, Renditen und Indizes. Gelb, wenn ein Termin in den nächsten 24 Stunden ansteht.
+US-Makro: der Zinskurs, der nächste Termin (CPI, PPI, PCE, NFP, FOMC), die letzte Einordnung und das Makro-Regime aus Dollar, Renditen und Indizes. Gelb, wenn ein Termin in den nächsten 24 Stunden ansteht.
+
+Zinskurs: Wohin die Fed zuletzt bewegt hat (Erhöhungen, Senkungen oder Pause ab 6 Monaten ohne Schritt) und was der Markt erwartet. Liegt die 2-jährige US-Rendite mehr als 0,25 Prozentpunkte über der Mitte des Leitzins-Bands, rechnet er mit Erhöhungen, darunter mit Senkungen. Beides zusammen ergibt Rückenwind oder Gegenwind für BTC über Wochen, kein Signal für einen Einstieg.
 
 Die Gesamtlage fasst nur diese vier Zeilen zusammen, regelbasiert, ohne KI. Sie ist eine Einordnung, kein Handelssignal.`;
