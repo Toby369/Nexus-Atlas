@@ -115,6 +115,10 @@ const RISK_FACTOR_EXPLANATIONS_DE: Record<string, string> = {
     "Die durchschnittliche Schwankung einer 1h-Kerze (ATR) liegt über 1 % des Preises, also über dem obersten Zehntel der Normalwerte. Bewegungen sind grösser und schneller als üblich, Stopps werden leichter erreicht. Positionsgrösse und Stopp-Abstand anpassen.",
 };
 
+// Muster, die zwar erkannt und im Lagebild angezeigt werden, aber keinen Push
+// ausloesen (kein belegter Vorhersagewert).
+const SILENT_PATTERNS = new Set(["Fragile Bullish"]);
+
 // Was die warnenden Muster aus compute-market-state bedeuten.
 const PATTERN_EXPLANATIONS_DE: Record<string, string> = {
   "Bullish Confirmation":
@@ -783,7 +787,13 @@ Deno.serve(async (req: Request) => {
 
     // 3a) Warnende Muster -- Crossing auf Pattern-NAME-Ebene.
     const prevPatternNames = new Set((previous.patterns ?? []).map((p) => p.name));
-    const newPatterns = (latest.patterns ?? []).filter((p) => !prevPatternNames.has(p.name));
+    // "Fragile Bullish" sendet seit 16.11.2026 keinen Push mehr (bleibt als
+    // Muster in market_states/Lagebild): kein Vorhersagewert bei 1-4 h
+    // (1898 Ereignisse seit 2022, Trefferquote ~Muenzwurf, siehe
+    // docs/research/PUSH-QUALITAET_2026-11-15.md).
+    const newPatterns = (latest.patterns ?? []).filter(
+      (p) => !prevPatternNames.has(p.name) && !SILENT_PATTERNS.has(p.name)
+    );
     for (const pattern of newPatterns) {
       events.push({
         kind: "pattern",
