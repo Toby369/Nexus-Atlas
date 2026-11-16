@@ -46,6 +46,23 @@ deshalb ist Bullish Confirmation nicht über lange Zeit nachrechenbar.
 Nach 1 h fällt der Kurs sogar seltener als sonst (47 % statt 49 %). Der Unterschied zur Baseline nach 4 h
 beträgt −2,4 bps bei einem Messfehler von ca. ±2,2: kein belastbarer Effekt.
 
+## Ergebnis C: Fragile Bullish nach Marktphase (16.11.2026)
+
+Regime je Stunde aus `market_state_matrix` (1 h), zu vier Gruppen zusammengefasst. Gleiche 1.898 Ereignisse
+wie in B, jeweils gegen die Baseline derselben Marktphase.
+
+| Marktphase | Ereignisse | Treffer ↓ 1 h / 2 h / 4 h | Baseline ↓ 4 h | Ø bps 4 h (Baseline) |
+|---|---|---|---|---|
+| Trend bullisch | 846 | 49 / 51 / 51 % | 52 % | −1,3 (+2,9) |
+| Range / Squeeze | 617 | 48 / 48 / 51 % | 49 % | −1,7 (+0,4) |
+| Hohe Vola / unklar | 264 | 43 / 47 / 47 % | 48 % | +5,6 (+2,6) |
+| Trend bärisch | 172 | 43 / 48 / 50 % | 47 % | −8,4 (+0,1) |
+
+In keiner Marktphase liegt die Trefferquote nennenswert über der Baseline (Unterschied höchstens 3 Prozentpunkte).
+Der größte Ausschlag (Trend bärisch, −8,4 bps nach 4 h) liegt bei einem Messfehler von ca. ±6,8 bps bei rund
+1,2 Standardabweichungen und damit im Bereich des Zufalls. Bei vier Gruppen wäre so ein Wert auch ohne Effekt zu erwarten.
+**Fragile Bullish ist also auch nicht in einer bestimmten Marktphase brauchbar.**
+
 ## Befunde
 
 1. **Fragile Bullish hat keinen Vorhersagewert** bei 1–4 h. 1.898 Ereignisse über 4 Jahre, Trefferquote ≈ Münzwurf.
@@ -59,7 +76,7 @@ beträgt −2,4 bps bei einem Messfehler von ca. ±2,2: kein belastbarer Effekt.
 ## Grenzen / nicht geprüft
 
 - Einstiegsfilter: nur 9 Pushes, nicht ausgewertet.
-- Marktphasen-Aufteilung (Trend/Range/Volatilität) nicht gemacht.
+- Marktphasen-Aufteilung nur für Fragile Bullish gemacht (Ergebnis C); für die übrigen Muster sind die Stichproben zu klein.
 - Zeitraum der echten Pushes nur ca. 4 Wochen, der Markt seitwärts bis leicht abwärts.
 - Ereignisse aus `market_states`, nicht aus den exakten Push-Zeitstempeln (Versatz ca. 3 min, für 1–4 h unerheblich).
 - Keine Kosten, kein Handelsansatz bewertet. Auswertung beschreibt nur, ob die Richtung stimmt.
