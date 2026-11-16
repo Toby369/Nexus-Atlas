@@ -18,6 +18,8 @@ grant select, insert, update, delete on public.meine_tabelle to service_role;
 
 Tabellen ohne Lesezugriff aus dem Browser (z. B. `push_subscriptions`) bekommen nur den `service_role`-Grant und keine Policy. Hat die Tabelle eine `identity`- oder `serial`-Spalte, braucht `service_role` zusätzlich `grant usage on sequence ...`.
 
+Stand 16.11.2026 (Migration `20261116090000_tighten_public_grants.sql`): alle Tabellen in `public` sind aufgeräumt. `anon`/`authenticated` haben nur noch `select` (und nur bei Tabellen mit Lese-Policy), Sequenzen und Wartungsfunktionen (`downsample_old_snapshots`, `refresh_*`, `run_*_tests`) nur noch `service_role`. Alle Schreibzugriffe der App laufen über `lib/supabaseAdmin.ts`.
+
 Bis zum 30.10.2026 vergibt Supabase neuen Tabellen noch automatisch **alle** Rechte an `anon`/`authenticated`. Nicht benötigte Rechte (v. a. `insert`, `update`, `delete`, `truncate`) in derselben Migration mit `revoke` zurücknehmen und die Rechte danach in `information_schema.role_table_grants` prüfen.
 
 # Supabase: Datenbank unter 500 MB halten
