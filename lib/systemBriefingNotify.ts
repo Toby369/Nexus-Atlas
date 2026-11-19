@@ -1,5 +1,6 @@
 import { sendReportEmail } from "@/lib/email";
 import { sendReportPush } from "@/lib/push";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { splitLeadSentence } from "@/lib/briefingText";
 import { buildBriefingPush, withBtcPrefix } from "@/lib/briefingPush";
 import type { ZoneLevel } from "@/lib/zones";
@@ -124,6 +125,21 @@ export function buildBriefingEmailHtml(result: SystemBriefingResult): string {
   );
 }
 
+async function sameAsLastBriefingPush(body: string): Promise<boolean> {
+  try {
+    const { data } = await getSupabaseAdmin()
+      .from("push_messages")
+      .select("body")
+      .eq("kind", "briefing")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return data?.body === body;
+  } catch {
+    return false;
+  }
+}
+
 export interface BriefingNotifySettings {
   email_enabled: boolean;
   push_enabled: boolean;
@@ -168,7 +184,13 @@ export async function notifyBriefing(
       schlagzeile: result.schlagzeile ?? null,
       kernaussage: result.fazit.kernaussage,
     });
-    const pushResult = await sendReportPush({ title, body, url: "/" });
+    // Weniger Rauschen (Toby 29.10.2026): Push nur, wenn sich Zonen oder Plan
+    // seit der letzten Briefing-Push geaendert haben (der Kurs im Titel zaehlt nicht).
+    if (await sameAsLastBriefingPush(body)) {
+      console.info("System-Briefing: Plan unveraendert, Push uebersprungen.");
+      return { emailSent, pushSent };
+    }
+    const pushResult = await sendReportPush({ title, body, url: "/", kind: "briefing" });
     if (!pushResult.attempted) {
       console.warn(`System-Briefing: Push konnte nicht versucht werden: ${pushResult.error}`);
     } else if (!pushResult.success) {

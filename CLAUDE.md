@@ -17,3 +17,23 @@ grant select, insert, update, delete on public.meine_tabelle to service_role;
 ```
 
 Tabellen ohne Lesezugriff aus dem Browser (z. B. `push_subscriptions`) bekommen nur den `service_role`-Grant und keine Policy. Hat die Tabelle eine `identity`- oder `serial`-Spalte, braucht `service_role` zusätzlich `grant usage on sequence ...`.
+
+Stand 16.11.2026 (Migration `20261116090000_tighten_public_grants.sql`): alle Tabellen in `public` sind aufgeräumt. `anon`/`authenticated` haben nur noch `select` (und nur bei Tabellen mit Lese-Policy), Sequenzen und Wartungsfunktionen (`downsample_old_snapshots`, `refresh_*`, `run_*_tests`) nur noch `service_role`. Alle Schreibzugriffe der App laufen über `lib/supabaseAdmin.ts`.
+
+Bis zum 30.10.2026 vergibt Supabase neuen Tabellen noch automatisch **alle** Rechte an `anon`/`authenticated`. Nicht benötigte Rechte (v. a. `insert`, `update`, `delete`, `truncate`) in derselben Migration mit `revoke` zurücknehmen und die Rechte danach in `information_schema.role_table_grants` prüfen.
+
+# Supabase: Datenbank unter 500 MB halten
+
+Nexus läuft im Free-Plan von Supabase: **höchstens 0,5 GB**. Wird die Grenze überschritten, schaltet Supabase die Datenbank auf „nur lesen“, und die Sammel-Funktionen schreiben nichts mehr. Stand 29.10.2026 nach dem Aufräumen: **289 MB** (vorher 411 MB; Supabase zählt fürs Kontingent etwas mehr). Wachstum ca. 2–3 MB pro Tag. Aktueller Wert: Konto-Seite („Datenbank-Speicher“). Ab 400 MB schickt `send-state-change-push` automatisch eine Push-Warnung (alle 3 Tage, ab 450 MB täglich).
+
+- Vor jeder neuen Tabelle oder jedem neuen Sammel-Job abschätzen, wie viel sie pro Tag wächst, und eine Aufbewahrungsfrist mitbauen (Muster: `downsample_old_snapshots()` verdichtet ab 35 Tagen, `purge_old_snapshots()` löscht ab 90 Tagen, News ab 30 Tagen, beide per pg_cron).
+- Keine Forschungs-/Backtest-Historien dauerhaft in der Live-Datenbank ablegen (die Score-Tabellen mit ~125 MB waren der Grund für den Engpass im Oktober 2026).
+- Grösse prüfen: `select pg_size_pretty(pg_database_size(current_database()));` oder die Konto-Seite. Ab **400 MB** Toby informieren und Aufräum-Optionen vorschlagen (Aufbewahrung kürzen, grosse Tabellen prüfen, sonst Pro-Plan für 25 $/Monat). Nie ohne Tobys Okay Daten löschen.
+
+# Supabase: Log-Kontingent (1 GB/Monat)
+
+Neben dem Speicher ist das Log-Kontingent des Free-Plans knapp (Stand 29.10.2026: Hochrechnung ~0,85 GB von 1 GB pro Abrechnungsmonat, Zyklus jeweils ab dem 17.). Die „Grace period“ ist vorbei: Wird ein Kontingent überschritten, beantwortet Supabase keine Anfragen mehr. Rund 80 % der Log-Einträge sind REST-Anfragen der Sammler (`edge_logs`), nicht `console.log`. Jeder neue Sammler oder kürzere Cron-Takt erhöht das Log-Volumen; vorher abschätzen (Anfragen pro Lauf × Läufe pro Tag) und Toby fragen. Messen: `query_logs` mit `select source, count(*) from logs group by source`.
+
+# Testgerät
+
+Toby nutzt ein Fairphone 4 (Android, 6,3 Zoll, 1080 × 2340 Pixel, etwa 400 CSS-Pixel breit). Oberflächen immer auch mit Handy-Hochformat (400 × 800) prüfen, nicht nur am Desktop.

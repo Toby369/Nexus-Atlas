@@ -219,9 +219,65 @@ Autark-Plan).
 - **Korrektur dabei:** Die „CME-Terminbasis“ kommt von Deribit (siehe
   `collect-term-basis`); Beschriftung in der Datenstand-Liste angepasst.
 
+## Umsetzung I (29.10.2026): Prüfen vor dem Merge
+
+`.github/workflows/pruefen.yml` läuft bei jedem PR und jedem Push auf `main`:
+`npm run lint`, `npm run typecheck` (neu: `next typegen && tsc --noEmit`),
+`npm test` und `deno check` für das gemeinsame Sammler-Modul. Ohne die
+Live-Integrationstests (`tests/`), die echte Zugangsdaten brauchen.
+
+## Umsetzung G (29.10.2026): Grundlage unter dem System-Briefing
+
+`lib/briefingBasis.ts` fasst die wichtigsten Zahlen, die die KI bekommt, in
+rund zehn Zeilen zusammen (Kurs, Marktzustand, Marktkontext, RSI, ETF,
+Liquidationen, Key Levels, Divergenzen, Termine, News). Sie werden mit jedem
+Briefing in `result.basis` gespeichert (rund 1 KB, keine neue Spalte) und im
+Lagebild unter „Grundlage: diese Zahlen hat die KI bekommen“ aufklappbar
+gezeigt. Test prüft Einheiten (Prozent, Mio. USD) und dass eine fehlende
+Quelle nur ihre Zeile kostet. Die übrigen KI-Kacheln (Zweitmeinungen,
+Rückblick, YouTube) folgen bei Bedarf.
+
+## Umsetzung J (29.10.2026): Aufräumen
+
+- Acht Edge Functions ohne Cron und ohne Aufruf aus App oder Datenbank aus dem
+  Repo entfernt (drei `debug-*`, vier alte `nexus-*`, `backfill-title-de`).
+  Löschen in Supabase geht nur im Dashboard (Liste in `docs/UEBERGABE.md`).
+- `debug-test-webpush-import` enthielt den privaten VAPID-Schlüssel im
+  eingesetzten Code; durch eine leere Fassung ohne Schlüssel ersetzt (v7).
+- Archiv-Kacheln: der Nutzungszähler hat erst 13 Einträge aus zwei Tagen,
+  zu wenig für eine Entscheidung. Neu prüfen ab Mitte November.
+
+## Umsetzung H (29.10.2026): Vergleichsgruppe -- gab es schon, lief aber nicht
+
+- **Korrektur zur Recherche:** Nexus misst bereits gegen eine
+  Vergleichsgruppe. `signal_baseline_stats()` liefert die Basisrate über alle
+  1H-Kerzen, `compute_signal_stats()` testet jedes Signal dagegen (z-Test),
+  korrigiert für viele Tests (Benjamini-Hochberg) und gibt unter 10 Fällen
+  keinen p-Wert aus. Das ist strenger als AutarkTrades Vorzeichentest.
+- **Aber:** Der wöchentliche Lauf brach seit 12.10.2026 jeden Montag ab.
+  `basis_crowding` kommt in beiden Richtungen vor, der Schlüssel der
+  Ergebnistabelle kannte die Richtung nicht ("ON CONFLICT DO UPDATE command
+  cannot affect row a second time"). Der KI-Rückblick las drei Wochen lang den
+  Stand vom 12.10. Behoben mit Migration
+  `20261029220000_signal_stats_richtung_im_schluessel.sql` (Richtung im
+  Schlüssel, NULLS NOT DISTINCT) und im Rückblick
+  (`lib/signalReviewContext.ts`). Lauf von Hand nachgeholt am 29.10.
+- **Ergebnis 29.10. (Gesamtfenster):** von 105 Zellen nur drei signifikant,
+  alle drei SCHLECHTER als die Basisrate: `FAIR_VALUE_GAP_BULLISH` 24h trifft
+  33 % (Basis 52 %, n=90), `VOLUME_EXPANSION_BEAR` 12h/24h trifft 25–27 %
+  (Basis 48 %, n≈55). Diese TradingView-Signale zeigen bisher eher in die
+  falsche Richtung. Keine Anlageberatung, aber ein Grund, sie im Regelwerk
+  nicht als Bestätigung zu werten.
+
+## Umsetzung F (29.10.2026): Form-Tokens
+
+`app/globals.css`: `--radius-karte`, `--radius-feld`, `--spacing-karte`,
+`--spacing-karte-dicht` (Klassen `rounded-karte`, `p-karte` usw.), Werte wie
+bisher. Die Grundbausteine nutzen sie; alte Kacheln beim nächsten Anfassen.
+
 ## Vorschlag für die Reihenfolge
 
 1. ~~A + B (Datenstand)~~ umgesetzt am 29.10.2026.
 2. ~~C (Datenvertrag) für die Positionierungs- und Preis-Sammler~~ live seit 29.10.2026.
 3. ~~D + E zusammen, zuerst an zwei Kacheln (z. B. Funding, OI) als Muster~~ umgesetzt 29.10.2026 (drei Kacheln).
-4. G, H, I, J nach Bedarf.
+4. ~~I~~, ~~G (System-Briefing)~~, ~~J~~, ~~H~~ und ~~F~~ umgesetzt 29.10.2026. Offen: Archiv-Kacheln ab 15.11. (Termin in `docs/UEBERGABE.md`).

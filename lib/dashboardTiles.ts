@@ -40,6 +40,15 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
     quellen: ["market_state", "regime_matrix", "briefing"],
     herkunft: [...FUTURES_QUELLEN, Q.nexus, Q.ki],
   },
+  // 11.11.2026: Lage-Chart (Prototyp) -- Preis, Lage-Verlauf, Fluss und
+  // Positionierung auf einer Zeitachse, siehe components/LageChartCard.tsx.
+  {
+    id: "lage-chart",
+    title: "Lage-Chart",
+    fullWidth: true,
+    quellen: ["candles_1h", ...FUTURES_KEYS],
+    herkunft: [Q.binance, ...FUTURES_QUELLEN, Q.nexus],
+  },
   {
     id: "market-context",
     title: "Marktkontext",

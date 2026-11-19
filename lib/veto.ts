@@ -2,6 +2,7 @@ import { FUNDING_ELEVATED_PCT } from "./fundingLevels";
 import { CROWD_HEAVY_LONG, CROWD_SHORT } from "./positioning";
 import type { FlowDirection } from "./spotPerpFlow";
 import type { Side } from "./ruleCheck";
+import { leverageForStop } from "./zones";
 
 // Veto vor dem Klick (Toby 22.10.2026): letzte Pruefung nach dem Regelcheck.
 // Funding und Positionierung warnen nur gegen die ueberfuellte Seite
@@ -11,7 +12,7 @@ import type { Side } from "./ruleCheck";
 export type VetoAnswer = "ok" | "warnung" | "veto" | "offen";
 
 export interface VetoRow {
-  id: "funding" | "crowd" | "driver" | "stop" | "events" | "journal";
+  id: "funding" | "crowd" | "driver" | "stop" | "events" | "dataday" | "journal";
   question: string;
   answer: VetoAnswer;
   label: string;
@@ -29,19 +30,22 @@ export interface VetoInput {
   driverLabel: string | null;
   /** Naechstes Hochrisiko-Zeitfenster innerhalb von 30 Min, z.B. "US-Kasseneröffnung in 12 Min". */
   upcomingRisk: string | null;
+  /** Heute ist ein US-Datentag, z.B. "CPI 14:30" (lib/macroGuide.ts::dataDayLabel), sonst null. */
+  dataDay: string | null;
   /** Durchschnittliche 1H-Spanne (ATR 14) in % vom Kurs, siehe hourlyNoisePct(). */
   noisePct: number | null;
+  /** Stop hinter der Zone in % vom Einstieg (lib/zones.ts::stopBehindZone); ohne Setup der Mindest-Stop. */
+  stopPct: number;
   tradesToday: number;
   lossesInRow: number;
 }
 
-/** Tobys fester Stop-Loss in % vom Kurs. */
-export const STOP_LOSS_PCT = 0.5;
 export const NOISE_ATR_PERIOD = 14;
-// Binance 1H, 60 Tage bis 27.10.2026: ATR(14) im Median 0,50 % -- so gross wie
-// der Stop selbst (P25 0,38 %, P75 0,61 %). Gewarnt wird erst ab 0,6 %, also in
-// den unruhigsten ~25 % der Stunden; bei 0,5 % kaeme die Warnung jede 2. Stunde.
-export const NOISE_WARN_PCT = 0.6;
+// Binance 1H, 60 Tage bis 27.10.2026: ATR(14) im Median 0,50 % (P25 0,38 %,
+// P75 0,61 %). Gewarnt wird, wenn eine durchschnittliche 1H-Kerze mindestens
+// 1,2-mal so weit schwankt wie der Stop entfernt liegt -- beim fruehesten
+// Mindest-Stop von 0,5 % also ab 0,6 % (die unruhigsten ~25 % der Stunden).
+export const NOISE_WARN_FACTOR = 1.2;
 export const MAX_TRADES_PER_DAY = 3;
 export const MAX_LOSSES_IN_ROW = 2;
 
@@ -100,22 +104,27 @@ export function evaluateVeto(input: VetoInput): VetoRow[] {
     });
   }
 
-  // Stop-Check (Toby 27.10.2026): liegt der feste Stop innerhalb der ueblichen
-  // 1H-Spanne, loest ihn schon das normale Hin und Her aus.
+  // Stop-Check (Toby 27./29.10.2026): Stop hinter der Zone, mindestens 0,5 %.
+  // Liegt er innerhalb der ueblichen 1H-Spanne, loest ihn schon das normale
+  // Hin und Her aus.
+  const stopQuestion = `Stop (${fmt(input.stopPct, 2)} % hinter der Zone) weiter als das 1H-Rauschen?`;
   if (input.noisePct === null) {
-    rows.push({ id: "stop", question: `Markt ruhig genug für ${fmt(STOP_LOSS_PCT, 1)} % Stop?`, answer: "offen", label: "—", detail: "Keine 1H-Kerzen." });
+    rows.push({ id: "stop", question: stopQuestion, answer: "offen", label: "—", detail: "Keine 1H-Kerzen." });
   } else {
-    const tooTight = input.noisePct >= NOISE_WARN_PCT;
+    const tooTight = input.noisePct >= input.stopPct * NOISE_WARN_FACTOR;
     rows.push({
       id: "stop",
-      question: `Markt ruhig genug für ${fmt(STOP_LOSS_PCT, 1)} % Stop?`,
+      question: stopQuestion,
       answer: tooTight ? "warnung" : "ok",
       label: `${fmt(input.noisePct, 2)} %`,
       detail: tooTight
         ? `Eine 1H-Kerze schwankt im Schnitt ${fmt(input.noisePct, 2)} %: Stop zu eng, kleinere Position oder auslassen.`
-        : `Eine 1H-Kerze schwankt im Schnitt ${fmt(input.noisePct, 2)} %: normale Unruhe.`,
+        : `Eine 1H-Kerze schwankt im Schnitt ${fmt(input.noisePct, 2)} %: Stop hat Luft.`,
     });
   }
+  // Risiko fix 10 % Marge: Hebel passt sich dem Stop an.
+  const lev = leverageForStop(input.stopPct);
+  rows[rows.length - 1].detail += ` Hebel ${lev}x (Stop ${fmt(input.stopPct, 2)} % = 10 % Marge).`;
 
   rows.push({
     id: "events",
@@ -123,6 +132,18 @@ export function evaluateVeto(input: VetoInput): VetoRow[] {
     answer: input.upcomingRisk ? "veto" : "ok",
     label: input.upcomingRisk ? "Termin" : "Frei",
     detail: input.upcomingRisk ? `${input.upcomingRisk}. Erst nach dem Termin und der ersten Reaktion.` : "Kein Hochrisiko-Fenster.",
+  });
+
+  // Toby 15.11.2026 (Punkt D): am Datentag halbe Groesse. Warnung, kein Veto:
+  // ausserhalb des Termin-Fensters darf gehandelt werden, nur kleiner.
+  rows.push({
+    id: "dataday",
+    question: "Kein US-Datentag heute?",
+    answer: input.dataDay ? "warnung" : "ok",
+    label: input.dataDay ? "Datentag" : "Normal",
+    detail: input.dataDay
+      ? `Datentag (${input.dataDay}): halbe Grösse, Risiko 0,5 statt 1 USDT.`
+      : "Volle Grösse (Risiko 1 USDT).",
   });
 
   const tooManyTrades = input.tradesToday >= MAX_TRADES_PER_DAY;
@@ -148,6 +169,7 @@ const SHORT_NAME: Record<VetoRow["id"], string> = {
   driver: "Spot treibt nicht",
   stop: "Stop zu eng",
   events: "Termin",
+  dataday: "Datentag, halbe Grösse",
   journal: "Tageslimit",
 };
 

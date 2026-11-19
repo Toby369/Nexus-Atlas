@@ -404,6 +404,9 @@ export interface SystemBriefingResult {
   liquidationen?: string;
   etfFlows?: string;
   wirtschaftskalender?: string;
+  // Auszug der Zahlen, die die KI bekommen hat (lib/briefingBasis.ts). Fehlt
+  // in Snapshots vor dem 29.10.2026.
+  basis?: { id: string; label: string; text: string }[];
 }
 
 // Zeitplan/Benachrichtigungen des System-Briefings (system_briefing_config,

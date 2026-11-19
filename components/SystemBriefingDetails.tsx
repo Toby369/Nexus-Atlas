@@ -158,6 +158,27 @@ export default function SystemBriefingDetails({ result }: { result: SystemBriefi
         </ul>
       </Section>
 
+      {/* Die Zahlen, auf denen der Text beruht (lib/briefingBasis.ts) -- damit
+          sich jede Aussage nachpruefen laesst. Zu, weil man sie selten braucht. */}
+      {result.basis && result.basis.length > 0 && (
+        <details className="pt-2 border-t border-border/60">
+          <summary className="cursor-pointer select-none text-[10px] uppercase tracking-[0.12em] text-text-faint">
+            Grundlage: diese Zahlen hat die KI bekommen
+          </summary>
+          <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+            {result.basis.map((z) => (
+              <div key={z.id} className="contents">
+                <dt className="text-text-faint">{z.label}</dt>
+                <dd className="text-text-muted tabular-nums">{z.text}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-2 text-[11px] text-text-faint">
+            Auszug: Regelwerk, Chart-Struktur und Levels hat die KI ausführlicher gesehen.
+          </p>
+        </details>
+      )}
+
       <p className="text-xs text-text-faint">
         Entscheidungsunterstützung anhand deines eigenen Regelwerks, keine automatisierte Anlageberatung.
       </p>

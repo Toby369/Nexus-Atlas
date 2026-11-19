@@ -80,3 +80,34 @@ describe("isSyncStale", () => {
     expect(isSyncStale(null, now)).toBe(true);
   });
 });
+
+describe("Stop hinter der Zone (Regelwerk 29.10.2026)", () => {
+  it("Long: 0,25 % unter der Unterkante, mindestens 0,5 % vom Einstieg", async () => {
+    const { stopBehindZone } = await import("./zones");
+    // breite Zone: 100'000-100'600, Einstieg 100'600 -> Stop 99'750 (0,845 %)
+    const wide = stopBehindZone("long", { price: 100_300, low: 100_000, high: 100_600 }, 100_600);
+    expect(wide.stop).toBeCloseTo(99_750, 5);
+    expect(wide.stopPct).toBeCloseTo(0.845, 2);
+    // Linie: 0,25 % waere zu eng -> Mindestabstand 0,5 %
+    expect(stopBehindZone("long", { price: 100_000 }, 100_000).stopPct).toBeCloseTo(0.5, 5);
+    // Short spiegelbildlich
+    expect(stopBehindZone("short", { price: 99_700, low: 99_400, high: 100_000 }, 99_400).stop).toBeCloseTo(100_250, 5);
+  });
+
+  it("Einstiegszone: Long an der naechsten Zone auf/unter dem Kurs", async () => {
+    const { entryZone } = await import("./zones");
+    const zones = [{ price: 99_000 }, { price: 99_500 }, { price: 101_000 }];
+    expect(entryZone(zones, 100_000, "long")?.price).toBe(99_500);
+    expect(entryZone(zones, 100_000, "short")?.price).toBe(101_000);
+  });
+});
+
+describe("leverageForStop", () => {
+  it("haelt den Verlust bei 10 % Marge, hoechstens 20x", async () => {
+    const { leverageForStop } = await import("./zones");
+    expect(leverageForStop(0.5)).toBe(20);
+    expect(leverageForStop(0.85)).toBe(11);
+    expect(leverageForStop(0.3)).toBe(20);
+    expect(leverageForStop(2)).toBe(5);
+  });
+});

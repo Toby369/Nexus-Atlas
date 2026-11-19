@@ -1,6 +1,6 @@
 import { intervalMs, type Candle } from "./candles";
 import { ENTRY_LEVEL_TOLERANCE_PCT } from "./tpStandard";
-import { nearestZones, zoneHigh, zoneLow, type ZoneLevel } from "./zones";
+import { nearestZones, stopBehindZone, zoneHigh, zoneLow, type ZoneLevel } from "./zones";
 
 // Regelcheck im Dashboard (Toby 22.10.2026, Teil 2 des neuen Layouts): die
 // Pflichtfragen des Trade-Entscheiders, von Nexus aus den Kerzen beantwortet.
@@ -26,6 +26,8 @@ export interface RuleCheckRow {
 export interface RuleCheckResult {
   side: Side | null;
   level: number | null;
+  /** Stop hinter der gebrochenen Zone in % vom Einstieg (Einstieg = Zonenkante). */
+  stopPct: number | null;
   rows: RuleCheckRow[];
   /** short = eine Zeile fuer die eingeklappte Kachel. */
   verdict: { tone: "trade" | "wait" | "stop"; short: string; text: string };
@@ -63,6 +65,7 @@ export interface BodyBreak {
   side: Side;
   level: number;
   candle: Candle;
+  zone: ZoneLevel;
 }
 
 /**
@@ -78,8 +81,8 @@ export function findLatestBodyBreak(levels: ZoneLevel[], candles: Candle[]): Bod
       .flatMap((l): BodyBreak[] => {
         const top = zoneHigh(l);
         const bottom = zoneLow(l);
-        if (prev < top && last.close > top) return [{ side: "long", level: top, candle: last }];
-        if (prev > bottom && last.close < bottom) return [{ side: "short", level: bottom, candle: last }];
+        if (prev < top && last.close > top) return [{ side: "long", level: top, candle: last, zone: l }];
+        if (prev > bottom && last.close < bottom) return [{ side: "short", level: bottom, candle: last, zone: l }];
         return [];
       })
       .sort((a, b) => Math.abs(a.level - last.close) - Math.abs(b.level - last.close));
@@ -112,6 +115,7 @@ export function evaluateRuleCheck(input: RuleCheckInput): RuleCheckResult {
     return {
       side: null,
       level: null,
+      stopPct: null,
       rows,
       verdict: {
         tone: "wait",
@@ -246,5 +250,5 @@ export function evaluateRuleCheck(input: RuleCheckInput): RuleCheckResult {
       // Nexus-Keylevels sind nur der Abgleich, massgebend ist Tobys eigener Chart.
       text: `${sideLabel}-Setup steht. Mit deinem Chart abgleichen, Veto prüfen, dann Einstieg nach Plan.`,
     };
-  return { side, level, rows, verdict };
+  return { side, level, stopPct: stopBehindZone(side, brk.zone, level).stopPct, rows, verdict };
 }

@@ -7,6 +7,7 @@ import { useDashboardPoll } from "@/components/DashboardPollProvider";
 import { useSpotPerpSummary } from "@/components/SpotPerpFlowPanel";
 import { WARNING_LABELS } from "@/components/TradingHoursBadge";
 import StepCard from "@/components/StepCard";
+import { MIN_STOP_PCT } from "@/lib/zones";
 import { ruleCheckInfo, vetoInfo } from "@/lib/panelInfo";
 import type { Candle } from "@/lib/candles";
 import { evaluateRuleCheck, type CheckAnswer } from "@/lib/ruleCheck";
@@ -14,6 +15,7 @@ import { evaluateVeto, hourlyNoisePct, vetoSummary, MAX_LOSSES_IN_ROW, MAX_TRADE
 import { fundingPctPer8h } from "@/lib/fundingLevels";
 import { summarizePositioning } from "@/lib/positioning";
 import { nextHighRiskWindow, type EconomicEventRow } from "@/lib/tradingHours";
+import { dataDayLabel } from "@/lib/macroGuide";
 import { getTimeframe, type TimeframeId } from "@/lib/timeframes";
 
 // Schritte 3 und 4 im Reiter "Trade" (Toby 22./25.10.2026): Regelcheck aus
@@ -160,9 +162,13 @@ export function useTradeStatus(props: DecisionProps) {
   const { bundle, fetchedSinceIso } = useDashboardPoll();
   const [journal, setJournal] = useDayJournal();
   const [risk, setRisk] = useState<{ id: keyof typeof WARNING_LABELS; inMin: number } | null>(null);
+  const [dataDay, setDataDay] = useState<string | null>(null);
 
   useEffect(() => {
-    const update = () => setRisk(nextHighRiskWindow(Date.now(), events));
+    const update = () => {
+      setRisk(nextHighRiskWindow(Date.now(), events));
+      setDataDay(dataDayLabel(Date.now(), events));
+    };
     update();
     const interval = setInterval(update, UPDATE_INTERVAL_MS);
     return () => clearInterval(interval);
@@ -187,7 +193,9 @@ export function useTradeStatus(props: DecisionProps) {
     perp: spotPerp.result.perpDirection,
     driverLabel: spotPerp.result.verdict ? `${spotPerp.result.verdict.label}: ${spotPerp.result.verdict.text}` : null,
     upcomingRisk: risk ? `${WARNING_LABELS[risk.id]} ${risk.inMin === 0 ? "läuft jetzt" : `in ${risk.inMin} Min`}` : null,
+    dataDay,
     noisePct: hourlyNoisePct(props.candles1h),
+    stopPct: check.stopPct ?? MIN_STOP_PCT,
     tradesToday: journal.trades,
     lossesInRow: journal.losses,
   });

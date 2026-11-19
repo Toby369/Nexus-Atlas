@@ -9,6 +9,8 @@ import { bundleLiquidationZones } from "@/lib/leverageMap";
 import { RuleCheckCard, VetoCard } from "@/components/TradeStepCards";
 import { dailyTrendFromMtf } from "@/lib/zones";
 import ZonesCard from "@/components/ZonesCard";
+import LageChartCard from "@/components/LageChartCard";
+import { buildLageChart, wallsForChart } from "@/lib/lageChartContext";
 import { fetchRegimeMatrix, regimeIntervalFor } from "@/lib/regimeTimeframe";
 import type {
   DashboardPollBundle,
@@ -35,8 +37,6 @@ import { buildLiveLeverageMap } from "@/lib/leverageMapContext";
 import { buildCycleIndicators } from "@/lib/cycleIndicatorsContext";
 import { buildVolatilitySnapshot } from "@/lib/volatilityContext";
 import { buildDivergenceRadar } from "@/lib/divergenceRadarContext";
-import { buildConfluenceScore, buildConfluenceSignalDetail } from "@/lib/confluenceScoreContext";
-import { buildRegimeScore, buildRegimeSignalDetail } from "@/lib/regimeScoreContext";
 import { detectEscalationTriggers } from "@/lib/escalationContext";
 import { TRADINGVIEW_SIGNAL_FRESHNESS_HOURS } from "@/lib/tradingViewSignal";
 import { DEFAULT_SERIES_EXCHANGE } from "@/lib/exchanges";
@@ -52,8 +52,6 @@ import RegimeMatrixCard from "@/components/RegimeMatrixCard";
 import QuizTile from "@/components/QuizTile";
 import OrderbookWallCard from "@/components/OrderbookWallCard";
 import DivergenceRadarCard from "@/components/DivergenceRadarCard";
-import ConfluenceScoreCard from "@/components/ConfluenceScoreCard";
-import RegimeScoreCard from "@/components/RegimeScoreCard";
 import SignalReviewCard from "@/components/SignalReviewCard";
 import EscalationCard from "@/components/EscalationCard";
 import TradeDebateCard from "@/components/TradeDebateCard";
@@ -65,6 +63,7 @@ import CycleIndicatorsCard from "@/components/CycleIndicatorsCard";
 import VolatilityCard from "@/components/VolatilityCard";
 import TimeframeSelector from "@/components/TimeframeSelector";
 import DashboardTabNav from "@/components/DashboardTabNav";
+import LageCard from "@/components/LageCard";
 import DashboardPollProvider from "@/components/DashboardPollProvider";
 import HeroHeader from "@/components/HeroHeader";
 import { AppFooter, AppHeader } from "@/components/AppHeader";
@@ -529,10 +528,6 @@ export default async function Home({
     cycleIndicators,
     latestOrderbookWalls,
     divergenceRadar,
-    confluenceScore,
-    confluenceSignalDetail,
-    regimeScore,
-    regimeSignalDetail,
     latestSignalReview,
     escalationTriggers,
     latestEscalation,
@@ -555,6 +550,7 @@ export default async function Home({
     candles15m,
     ownZones,
     autarkSync,
+    lageChart,
   ] = await Promise.all([
     getSnapshotHistory(),
     getLatestMarketState(),
@@ -568,10 +564,6 @@ export default async function Home({
     buildCycleIndicators(),
     getLatestOrderbookWalls(),
     buildDivergenceRadar(),
-    buildConfluenceScore(),
-    buildConfluenceSignalDetail(),
-    buildRegimeScore(),
-    buildRegimeSignalDetail(),
     getLatestSignalReview(),
     detectEscalationTriggers(),
     getLatestEscalation(),
@@ -596,6 +588,7 @@ export default async function Home({
     fetchClosedCandles("15m", 100),
     fetchOwnZones(),
     fetchAutarkSyncStatus(),
+    buildLageChart(),
   ]);
 
   // Fallback, falls das Bundle-RPC fehlschlaegt (z.B. kurzzeitiger DB-
@@ -618,6 +611,11 @@ export default async function Home({
 
   // Eigene Zonen haben Vorrang, die Nexus-Keylevels sind dann nur Abgleich.
   const tradeLevels = activeLevels(ownZones, chartStructure.keyLevels);
+  const liquidationZonesForUi = latestLeverageMap
+    ? bundleLiquidationZones(latestLeverageMap.clusters, latestLeverageMap.mid).map(
+        ({ side, priceLow, priceHigh, massUsd }) => ({ side, priceLow, priceHigh, massUsd })
+      )
+    : [];
   const tradeStepProps = {
     keyLevels: tradeLevels,
     candles4h,
@@ -639,14 +637,6 @@ export default async function Home({
     initialMtfDots: mtfDots,
     initialPriceReferences: priceReferences,
     keyLevels: tradeLevels,
-    setupScore: confluenceScore,
-    regimeScore,
-    scoreDetails: (
-      <div className="space-y-3">
-        <ConfluenceScoreCard score={confluenceScore} signalDetail={confluenceSignalDetail} />
-        <RegimeScoreCard score={regimeScore} signalDetail={regimeSignalDetail} />
-      </div>
-    ),
   };
 
   return (
@@ -687,9 +677,10 @@ export default async function Home({
                   // 25.10.2026 (Toby): Zeitraum nutzt er selten -- er steht nur
                   // noch im Reiter Markt und gilt fuer OI, Spot und CVD (auch im Kopf).
                   tabHeaders={{
-                    markt: (
+                    // 15.11.2026: Zeitraum selten genutzt -- im Archiv statt ueber der ruhigen Lage.
+                    archiv: (
                       <div className="flex flex-wrap items-center gap-2" aria-label="Zeitraum">
-                        <span className="text-[11px] text-text-faint">Zeitraum für OI, Spot und CVD</span>
+                        <span className="text-[11px] text-text-faint">Zeitraum für OI, Spot und CVD (gilt auch in „Lage“)</span>
                         <Suspense fallback={<div className="h-6" />}>
                           <TimeframeSelector current={timeframe} />
                         </Suspense>
@@ -697,21 +688,37 @@ export default async function Home({
                     ),
                   }}
                   tiles={{
+                    lage: (
+                      <LageCard
+                        timeframe={timeframe}
+                        marketState={marketState}
+                        etfFlows={recentEtfFlows}
+                        events={upcomingEconomicEvents}
+                        liquidationZones={liquidationZonesForUi}
+                        details={{
+                          driver: <MarketContextCard timeframe={timeframe} />,
+                          leverage: (
+                            <>
+                              <OiChangeCard />
+                              <FundingRateCard />
+                            </>
+                          ),
+                          us: <EtfFlowPanel initialFlows={recentEtfFlows} macroNews={highImpactNews} />,
+                        }}
+                      />
+                    ),
                     zones: (
                       <ZonesCard
                         keyLevels={tradeLevels}
                         ownZones={ownZones}
                         autarkSync={autarkSync}
                         nexusLevels={chartStructure.keyLevels.map(({ price }) => ({ price }))}
-                        liquidationZones={
-                          latestLeverageMap
-                            ? bundleLiquidationZones(latestLeverageMap.clusters, latestLeverageMap.mid).map(
-                                ({ side, priceLow, priceHigh, massUsd }) => ({ side, priceLow, priceHigh, massUsd })
-                              )
-                            : []
-                        }
+                        liquidationZones={liquidationZonesForUi}
                         dailyTrend={dailyTrendFromMtf(mtfDots)}
                       />
+                    ),
+                    "lage-chart": (
+                      <LageChartCard data={lageChart} zones={tradeLevels} walls={wallsForChart(latestOrderbookWalls)} />
                     ),
                     "rule-check": <RuleCheckCard {...tradeStepProps} />,
                     veto: <VetoCard {...tradeStepProps} />,

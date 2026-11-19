@@ -46,6 +46,8 @@ const EXCHANGE_NAMES: Record<string, string> = {
 // 5-Min-Sammler: ein ausgefallener Lauf ist noch "frisch" (groesste Luecke
 // der Woche: 10 Min, plus Reserve fuer die Laufzeit des Sammlers).
 const FUENF_MIN_SAMMLER = 12 * MIN;
+// Seit 29.10.2026 (Log-Kontingent) alle 15 Min: ein ausgefallener Lauf plus Reserve.
+const FUENFZEHN_MIN_SAMMLER = 35 * MIN;
 
 export const DATA_SOURCES: DataSourceMeta[] = [
   ...FUTURES_EXCHANGES.map((ex) => ({
@@ -61,7 +63,7 @@ export const DATA_SOURCES: DataSourceMeta[] = [
   ...ORDERBOOK_EXCHANGES.map((ex) => ({
     key: `orderbook_${ex}`,
     label: `Orderbuch ${EXCHANGE_NAMES[ex]}`,
-    normalMaxMin: FUENF_MIN_SAMMLER,
+    normalMaxMin: FUENFZEHN_MIN_SAMMLER,
   })),
   // Spot-Kerze traegt ihre Startzeit: bis 10 Min alt, plus ein Lauf Reserve.
   { key: "spot_binance", label: "Spot Binance (Taker-Flow)", normalMaxMin: 15 * MIN },
@@ -72,7 +74,7 @@ export const DATA_SOURCES: DataSourceMeta[] = [
   { key: "candles_1d", label: "Kerzen 1D", normalMaxMin: 49 * STD },
   { key: "market_state", label: "Marktzustand (Engine)", normalMaxMin: 20 * MIN },
   { key: "regime_matrix", label: "Marktphase (Matrix)", normalMaxMin: 2 * STD + 15 * MIN },
-  { key: "divergence_radar", label: "Divergenz-Radar", normalMaxMin: 35 * MIN },
+  { key: "divergence_radar", label: "Divergenz-Radar", normalMaxMin: 135 * MIN },
   // Zeitstempel = volle Stunde, Lauf um :11.
   { key: "term_basis", label: "Terminbasis (Deribit)", normalMaxMin: 90 * MIN },
   { key: "sentiment", label: "Sentiment (Fear & Greed)", normalMaxMin: 75 * MIN },

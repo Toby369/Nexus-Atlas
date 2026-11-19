@@ -9,6 +9,7 @@ import ZoneTrainer from "@/components/lernen/grundlagen/ZoneTrainer";
 import SpotPerpReader from "@/components/lernen/grundlagen/SpotPerpReader";
 import PositionSizeCalculator from "@/components/lernen/grundlagen/PositionSizeCalculator";
 import { LiveHint, Pill, type Tone } from "@/components/lernen/grundlagen/ui";
+import { MACRO_EVENT_GUIDE, MACRO_MECHANISM, MACRO_PRICE_BEHAVIOUR, MACRO_RATE_COURSE, MACRO_RULES } from "@/lib/macroGuide";
 
 // Lernpfad "Wie der Bitcoin-Preis entsteht": von der Orderbuch-Mechanik ueber
 // Kennzahlen mit konkreten Schwellen bis zum Risikomanagement. Ersetzt das
@@ -422,7 +423,53 @@ export default function GrundlagenPanel({
         </P>
       </Section>
 
-      <Section n={10} title="Risiko: der Teil, der profitabel macht" intro="Zuerst festlegen, wie viel du verlieren darfst.">
+      {/* 15.11.2026 (Toby, Punkt D): US-Makrodaten im Detail. Inhalt aus lib/macroGuide.ts,
+          dieselben Texte wie im Reiter "Lage" -> US-Makro. */}
+      <Section n={10} title="US-Makrodaten: CPI, PPI, PCE, NFP, FOMC" intro="Warum BTC an Datentagen springt und wie du dich verhältst.">
+        <div className="space-y-1.5">
+          {[MACRO_MECHANISM.up, MACRO_MECHANISM.down].map((chain, i) => (
+            <p key={i} className="text-xs text-text-muted">
+              {chain.map((step, j) => (
+                <span key={step}>
+                  {j > 0 && <span className="text-text-faint"> → </span>}
+                  <span className={j === chain.length - 1 ? (i === 0 ? "text-down" : "text-up") : "text-text"}>{step}</span>
+                </span>
+              ))}
+            </p>
+          ))}
+        </div>
+        <P>
+          <span className="font-medium text-text">{MACRO_MECHANISM.surprise.split(".")[0]}.</span>
+          {MACRO_MECHANISM.surprise.slice(MACRO_MECHANISM.surprise.indexOf(".") + 1)}
+        </P>
+        <Table
+          head={["Daten", "Wann (Schweizer Zeit)", "Misst", "Wirkung auf BTC"]}
+          rows={Object.values(MACRO_EVENT_GUIDE).map((g) => [
+            <span key="k" className="font-medium">{g.short}</span>,
+            g.when,
+            g.measures,
+            g.effect,
+          ])}
+        />
+        <P>{MACRO_MECHANISM.companions}</P>
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-text">Zinskurs: die langfristige Wirkung</p>
+          <P>{MACRO_RATE_COURSE.text}</P>
+          <P>{MACRO_RATE_COURSE.direction}</P>
+          <P>{MACRO_RATE_COURSE.expectation}</P>
+          <P>{MACRO_RATE_COURSE.where}</P>
+        </div>
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-text">Preisverhalten in den ersten Minuten</p>
+          <P>{MACRO_PRICE_BEHAVIOUR.text}</P>
+          <P>{MACRO_PRICE_BEHAVIOUR.example}</P>
+        </div>
+        <Steps items={MACRO_RULES.map((r) => ({ title: `${r.when}:`, body: r.text }))} />
+        <P>{MACRO_MECHANISM.caveat}</P>
+        <LiveHint>Reiter „Lage“ → US-Makro: nächster Termin mit Wirkung und Regeln, letzte Einordnung. Das Veto im Reiter „Trade“ sperrt rund um die Termine.</LiveHint>
+      </Section>
+
+      <Section n={11} title="Risiko: der Teil, der profitabel macht" intro="Zuerst festlegen, wie viel du verlieren darfst.">
         <PositionSizeCalculator livePrice={livePrice} />
         <Steps
           items={[
