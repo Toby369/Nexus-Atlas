@@ -1,6 +1,8 @@
 # Spot-Volumen als Support/Resistance -- Status & offener Nachcheck
 
-**Datum:** 24.10.2026 (erster valider Testversuch), Folgecheck geplant fuer 18.11.2026.
+**Datum:** 24.10.2026 (erster valider Testversuch), 19.11.2026 (zweiter
+Nachcheck, erneut zu wenig Daten -- siehe unten). Naechster Schritt mit
+Toby noch zu klaeren (kein neuer Termin automatisch gesetzt).
 
 ## Hypothese
 
@@ -62,15 +64,54 @@ analog `lib/signalReviewContext.ts`) bei Weitem nicht erreicht. Ehrliche
 "zu wenig Daten"-Kennzeichnung statt erzwungener Aussage, wie im
 Projekt-Standard ueblich.
 
-## Offener Nachcheck
+## Nachcheck 19.11.2026: wieder zu wenig Daten -- Grund diesmal deutlicher
 
-Geplant fuer **18.11.2026** -- sowohl als automatische Erinnerung
-(Claude-Scheduled-Trigger `trig_01R8xaSMvjy99XpBiRmNNhaS`) als auch hier
-im Repo dokumentiert, falls die Erinnerung durch eine laengere Pause (Abo
-pausiert/gestoppt) nicht feuert oder verloren geht.
+Datengrundlage inzwischen 29.491 Zeilen, 49,6 Tage, 253 Preis-Buckets --
+Zeilenzahl kein Problem mehr. Split wiederholt: Formation 30.09.-25.10.
+(~25 Tage), Test 25.10.-19.11. (~25 Tage). 14 Kandidaten-Levels gefunden
+(7 Support: 81.300-82.600, 7 Resistance: 80.800-85.500, je |Netto-
+Imbalance| > 5%, obere Volumen-Haelfte).
+
+**Befund:** BTC ist im Test-Fenster nicht etwa seitwaerts gelaufen,
+sondern in einem einzigen anhaltenden Abwaertstrend von ~82k auf ~62k
+gefallen (-29% in den sieben Wochen seit Anfang Oktober, siehe
+`docs/UEBERGABE.md`/Tagescharts fuer Kontext). Entsprechend:
+
+- **Resistance-Seite:** Nur 3 von 7 Kandidaten ueberhaupt beruehrt, und
+  zwar alle in EINER zusammenhaengenden Bewegung vom 25.10. bis 05.11. --
+  der Preis ist durch diese Level einmal durchgefallen, nicht wiederholt
+  angelaufen. Keine unabhaengige Episode.
+- **Support-Seite:** 5 von 7 Kandidaten beruehrt, aber alle innerhalb von
+  nur 2 Tagen (28.-29.10.) -- wieder eine einzige durchlaufende Bewegung,
+  keine wiederholten, unabhaengigen Tests.
+
+**Effektiv 0 unabhaengige Episoden auf beiden Seiten** -- sogar weniger
+als beim ersten Check am 24.10. Kein Ergebnis zur Hypothese gemeldet,
+erneut ehrlich als "zu wenig Daten" gekennzeichnet.
+
+**Wichtiger Unterschied zum ersten Check:** Es ist nicht mehr nur "noch
+nicht genug Zeit vergangen" -- der Markt ist jetzt seit **sieben Wochen
+ununterbrochen trendend**, nicht ein einziges Mal seitwaerts/range-bound.
+Diese Test-Methodik (Formation-Fenster vs. spaeteres Retest-Fenster)
+braucht aber zwingend wiederholte Annaeherungen an dieselben Level, um
+unabhaengige Stichproben zu erzeugen -- die bekommt sie in einem reinen
+Trendmarkt strukturell nicht, unabhaengig davon, wie viel Kalenderzeit
+vergeht. Blosses Weiterwarten loest das moeglicherweise nicht.
+
+**Offen fuer Toby zu entscheiden (noch keine neue Erinnerung gesetzt):**
+
+1. Trotzdem weiter warten (z. B. 6 statt 3 Wochen bis zum naechsten
+   Check), in der Annahme, dass der Markt irgendwann wieder in eine Range
+   uebergeht, oder
+2. Die Test-Methodik ueberdenken -- z. B. statt eines einzigen
+   Formation/Test-Splits ueber die GESAMTE verfuegbare Historie testen,
+   welche Level (unabhaengig vom Entstehungszeitpunkt) im Nachhinein
+   mehrfach angelaufen wurden, und deren Reaktion auswerten, statt auf
+   ein klassisches Out-of-Sample-Fenster zu bestehen (Kompromiss:
+   schwaecheres Look-ahead-Schutzniveau, dafuer mehr nutzbare Faelle).
 
 **Naechster Schritt, falls dieser Check (automatisch oder manuell durch
-Toby) aufgegriffen wird:**
+Toby) erneut aufgegriffen wird, bevor diese Entscheidung gefallen ist:**
 
 1. Denselben Split-Test wiederholen, aber mit aktuellem Datenstand
    (Formation-Fenster ggf. verschieben/verlaengern, Test-Fenster bis
@@ -87,5 +128,7 @@ Toby) aufgegriffen wird:**
    melden (traegt oder traegt nicht, beides valide) und ggf. besprechen
    ob/wie es in Key Levels oder System-Briefing einfliessen soll.
 5. Falls weiterhin zu wenig: wieder ehrlich melden, Grund nennen (z. B.
-   weiterhin Trendmarkt statt Range), und erneut eine neue, datenbasierte
-   Erinnerung vorschlagen statt stillschweigend nichts zu tun.
+   weiterhin Trendmarkt statt Range), und mit Toby klaeren, ob eine neue
+   Erinnerung (und mit welchem Intervall/welcher Methodik) sinnvoll ist,
+   statt stillschweigend nichts zu tun oder unbegrenzt im selben Rhythmus
+   weiterzumachen.
