@@ -27,10 +27,10 @@ export function buildBriefingPush(input: {
   const { above, below } = nearestZones(levels, kurs, 1);
   const lage =
     above[0] && below[0]
-      ? `Kurs zwischen Unterstützung ${fmt(below[0].price)} und Widerstand ${fmt(above[0].price)}.`
+      ? `Kurs zwischen S ${fmt(below[0].price)} und R ${fmt(above[0].price)}.`
       : above[0]
-        ? `Kurs unter dem Widerstand ${fmt(above[0].price)}.`
-        : `Kurs über der Unterstützung ${fmt(below[0].price)}.`;
+        ? `Kurs unter R ${fmt(above[0].price)}.`
+        : `Kurs über S ${fmt(below[0].price)}.`;
   return { title, body: `${lage} ${plan}` };
 }
 

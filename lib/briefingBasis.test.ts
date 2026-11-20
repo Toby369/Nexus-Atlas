@@ -70,7 +70,7 @@ describe("baueBasis", () => {
   });
 
   it("Levels nach Seite getrennt, hoechstes zuerst", () => {
-    expect(zeile(baueBasis(voll), "levels")).toBe("Widerstand 81’200, 80’089 · Unterstützung 79’553");
+    expect(zeile(baueBasis(voll), "levels")).toBe("R 81’200, 80’089 · S 79’553");
   });
 
   it("Liquidationen als Stichprobe gekennzeichnet", () => {

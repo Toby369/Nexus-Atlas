@@ -217,8 +217,8 @@ export default function TradeDecider({ live }: { live: TradeDeciderLive }) {
               )}
               <p className="text-sm font-medium text-text">
                 {side === "long"
-                  ? "Liegt zwischen Einstieg und Ziel kein Widerstand?"
-                  : "Liegt zwischen Einstieg und Ziel keine Unterstützung?"}
+                  ? "Liegt zwischen Einstieg und Ziel kein R?"
+                  : "Liegt zwischen Einstieg und Ziel kein S?"}
               </p>
               <div className="grid gap-1.5">
                 {[

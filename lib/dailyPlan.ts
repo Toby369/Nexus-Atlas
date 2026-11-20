@@ -123,7 +123,7 @@ export function resolvedZones(plan: DailyPlanData): ResolvedZone[] {
 }
 
 export function zoneLabel(z: ResolvedZone): string {
-  return `${z.role === "sell" ? "Verkäufer" : "Käufer"} ${fmt(z.lo)}–${fmt(z.hi)}${z.note ? ` (${z.note})` : ""}`;
+  return `${z.role === "sell" ? "R" : "S"} ${fmt(z.lo)}–${fmt(z.hi)}${z.note ? ` (${z.note})` : ""}`;
 }
 
 export function nearestPlanZones(plan: DailyPlanData): {
@@ -249,7 +249,7 @@ export function checkScenario(plan: DailyPlanData, sc: Scenario): ScenarioCheck 
     const against = (sc.dir === "long" && zone.role === "sell") || (sc.dir === "short" && zone.role === "buy");
     if (against && !/ausbruch|körper|retest/i.test(sc.confirm)) {
       problems.push({
-        text: `${sc.dir === "long" ? "Long an einer Verkäufer-Zone" : "Short an einer Käufer-Zone"}: nur als Ausbruch mit 4H-Körper und Retest.`,
+        text: `${sc.dir === "long" ? "Long an einem R" : "Short an einem S"}: nur als Ausbruch mit 4H-Körper und Retest.`,
         blocking: false,
       });
     }

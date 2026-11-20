@@ -35,7 +35,7 @@ function TierBadge({ tier, label }: { tier: 1 | 2 | 3; label: string }) {
 }
 
 function ZoneRow({ zone }: { zone: LevelStructureZone }) {
-  const phaseLabel = zone.phase === "respecting" ? (zone.side === "resistance" ? "Widerstand hält" : "Unterstützung hält") : "Gebrochen";
+  const phaseLabel = zone.phase === "respecting" ? (zone.side === "resistance" ? "R hält" : "S hält") : "Gebrochen";
   const phaseColor = zone.phase === "respecting" ? (zone.side === "resistance" ? "text-down" : "text-up") : "text-accent";
 
   return (
@@ -77,7 +77,7 @@ export default function LevelStructureCard({ zones }: { zones: LevelStructureZon
         <>
           {resistances.length > 0 && (
             <div className="space-y-1.5">
-              <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Widerstand</p>
+              <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">R</p>
               {resistances.map((z, i) => (
                 <ZoneRow key={`r-${z.price}-${i}`} zone={z} />
               ))}
@@ -85,7 +85,7 @@ export default function LevelStructureCard({ zones }: { zones: LevelStructureZon
           )}
           {supports.length > 0 && (
             <div className="space-y-1.5 pt-1 border-t border-border/60">
-              <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">Unterstützung</p>
+              <p className="text-[10px] uppercase tracking-[0.12em] text-text-faint">S</p>
               {supports.map((z, i) => (
                 <ZoneRow key={`s-${z.price}-${i}`} zone={z} />
               ))}

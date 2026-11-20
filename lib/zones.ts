@@ -35,7 +35,8 @@ export interface ZoneRow {
   low: number;
   high: number;
   label: string | null;
-  role: "Verkäufer-Zone" | "Käufer-Zone";
+  /** R = Widerstand (ueber dem Kurs), S = Unterstuetzung (darunter), Kurzform Toby 20.11.2026. */
+  role: "R" | "S";
   /** Abstand vom Kurs zur nahen Kante in Prozent, immer positiv. */
   distancePct: number;
 }
@@ -47,7 +48,7 @@ export function nearestZones(
 ): { above: ZoneRow[]; below: ZoneRow[] } {
   if (price === null || price <= 0) return { above: [], below: [] };
   const toRow = (l: ZoneLevel, role: ZoneRow["role"]): ZoneRow => {
-    const edge = role === "Verkäufer-Zone" ? zoneLow(l) : zoneHigh(l);
+    const edge = role === "R" ? zoneLow(l) : zoneHigh(l);
     return {
       price: edge,
       low: zoneLow(l),
@@ -62,12 +63,12 @@ export function nearestZones(
     .filter((l) => zoneLow(l) > price)
     .sort((a, b) => zoneLow(a) - zoneLow(b))
     .slice(0, perSide)
-    .map((l) => toRow(l, "Verkäufer-Zone"));
+    .map((l) => toRow(l, "R"));
   const below = away
     .filter((l) => zoneHigh(l) < price)
     .sort((a, b) => zoneHigh(b) - zoneHigh(a))
     .slice(0, perSide)
-    .map((l) => toRow(l, "Käufer-Zone"));
+    .map((l) => toRow(l, "S"));
   return { above, below };
 }
 
@@ -80,8 +81,8 @@ export function planSentence(levels: ZoneLevel[], price: number | null): string 
   // Long erst ueber der Oberkante der Zone darueber, Short erst unter der Unterkante darunter.
   const longAt = above[0] ? fmt(above[0].high) : null;
   const shortAt = below[0] ? fmt(below[0].low) : null;
-  if (longAt === null) return `Unter ${shortAt} Short. Darüber kein Widerstand in den Keylevels.`;
-  if (shortAt === null) return `Über ${longAt} Long am Retest. Darunter keine Unterstützung in den Keylevels.`;
+  if (longAt === null) return `Unter ${shortAt} Short. Darüber kein R in den Keylevels.`;
+  if (shortAt === null) return `Über ${longAt} Long am Retest. Darunter kein S in den Keylevels.`;
   return `Über ${longAt} Long am Retest, unter ${shortAt} Short. Dazwischen kein Trade.`;
 }
 

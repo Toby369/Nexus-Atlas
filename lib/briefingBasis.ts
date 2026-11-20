@@ -102,9 +102,9 @@ export function baueBasis(ctx: BasisKontext): BasisZeile[] {
   const levels = [...ctx.keyLevels].sort((a, b) => b.price - a.price);
   dazu("levels", "Key Levels", [
     levels.filter((x) => x.side === "resistance").length > 0 &&
-      `Widerstand ${levels.filter((x) => x.side === "resistance").map((x) => ganzzahlCh(x.price)).join(", ")}`,
+      `R ${levels.filter((x) => x.side === "resistance").map((x) => ganzzahlCh(x.price)).join(", ")}`,
     levels.filter((x) => x.side === "support").length > 0 &&
-      `Unterstützung ${levels.filter((x) => x.side === "support").map((x) => ganzzahlCh(x.price)).join(", ")}`,
+      `S ${levels.filter((x) => x.side === "support").map((x) => ganzzahlCh(x.price)).join(", ")}`,
   ]);
 
   if (ctx.divergenzen.length > 0) dazu("divergenzen", "Divergenzen", [ctx.divergenzen.join(", ")]);

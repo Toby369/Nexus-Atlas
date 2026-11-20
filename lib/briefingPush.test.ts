@@ -8,7 +8,7 @@ describe("buildBriefingPush", () => {
   it("baut Titel und Text aus Kurs, Zonen und Plan", () => {
     expect(buildBriefingPush({ ...base, kurs: 79_838 })).toEqual({
       title: "BTC 79’838 · bärisch",
-      body: "Kurs zwischen Unterstützung 79’553 und Widerstand 80’089. Über 80’089 Long am Retest, unter 79’553 Short. Dazwischen kein Trade.",
+      body: "Kurs zwischen S 79’553 und R 80’089. Über 80’089 Long am Retest, unter 79’553 Short. Dazwischen kein Trade.",
     });
   });
 

@@ -45,7 +45,7 @@ function ZoneBox({
   stopPct?: number;
   history?: string;
 }) {
-  const sell = zone.role === "Verkäufer-Zone";
+  const sell = zone.role === "R";
   const sign = sell ? "+" : "−";
   return (
     <div
@@ -54,7 +54,7 @@ function ZoneBox({
       }`}
     >
       <span className={`font-semibold ${sell ? "text-down" : "text-up"}`}>
-        {sell ? "R" : "S"}
+        {zone.role}
         {zone.label && <span className="font-normal text-text-muted"> · {zone.label}</span>}
       </span>
       <span className="font-mono tabular text-text">

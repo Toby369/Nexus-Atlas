@@ -84,9 +84,9 @@ export function computeTpSuggestions<L extends { price: number; low?: number | n
 export function formatTpSuggestion(s: TpSuggestion): string {
   const sideLabel = s.side === "long" ? "Long" : "Short";
   if (s.levelPrice === null || s.distancePct === null) {
-    return `${sideLabel} → ${s.side === "long" ? "kein Widerstand" : "keine Unterstützung"} bekannt`;
+    return `${sideLabel} → ${s.side === "long" ? "kein R" : "kein S"} bekannt`;
   }
-  const levelLabel = s.side === "long" ? "Widerstand" : "Unterstützung";
+  const levelLabel = s.side === "long" ? "R" : "S";
   const price = ganzzahlCh(s.levelPrice);
   const dist = `${s.side === "long" ? "+" : "−"}${s.distancePct.toFixed(1)} %`;
   const verdict = s.standard ? `Standard ${s.standard.id} (TP ${s.standard.marginPct} %)` : "kein Trade (< 1 %)";

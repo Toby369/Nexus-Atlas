@@ -28,7 +28,7 @@ function AvwapRow({ level }: { level: ChartStructureData["avwapPivotLevels"][num
   return (
     <div className="flex items-center justify-between text-xs">
       <span className="text-text-faint">
-        {level.side === "resistance" ? "Widerstand" : "Unterstützung"} (seit{" "}
+        {level.side === "resistance" ? "R" : "S"} (seit{" "}
         {new Date(level.anchorOpenTime).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit" })})
       </span>
       <span className={level.side === "resistance" ? "text-down" : "text-up"}>{formatPrice(level.value)}</span>

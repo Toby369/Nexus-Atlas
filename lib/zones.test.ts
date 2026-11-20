@@ -10,9 +10,9 @@ describe("nearestZones", () => {
   it("benennt Zonen nach Lage zum Kurs und ueberspringt das Level am Kurs", () => {
     const { above, below } = nearestZones(levels, 81_964);
     expect(above.map((z) => z.price)).toEqual([82_257, 83_115]);
-    expect(above[0].role).toBe("Verkäufer-Zone");
+    expect(above[0].role).toBe("R");
     expect(below.map((z) => z.price)).toEqual([81_557, 80_985]); // 81'933 liegt im Retest-Band
-    expect(below[0].role).toBe("Käufer-Zone");
+    expect(below[0].role).toBe("S");
     expect(below[0].distancePct).toBeCloseTo(0.497, 2);
   });
 });

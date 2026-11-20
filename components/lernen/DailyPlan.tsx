@@ -474,8 +474,8 @@ export default function DailyPlan({ live }: { live: DailyPlanLive }) {
               {plan.zones.map((z, i) => (
                 <div key={i} className="grid grid-cols-[6.5rem_6rem_6rem_minmax(0,1fr)_auto] gap-1.5 items-center max-sm:grid-cols-3">
                   <select id={`dp-z-role-${i}`} value={z.role} onChange={(e) => updateZone(i, { role: e.target.value as PlanZone["role"] })} className={inputCls} aria-label="Rolle">
-                    <option value="sell">Verkäufer</option>
-                    <option value="buy">Käufer</option>
+                    <option value="sell">R</option>
+                    <option value="buy">S</option>
                   </select>
                   <input id={`dp-z-lo-${i}`} inputMode="decimal" placeholder="von" value={z.lo} onChange={(e) => updateZone(i, { lo: e.target.value })} className={`${inputCls} font-mono`} aria-label="von" />
                   <input id={`dp-z-hi-${i}`} inputMode="decimal" placeholder="bis" value={z.hi} onChange={(e) => updateZone(i, { hi: e.target.value })} className={`${inputCls} font-mono`} aria-label="bis" />

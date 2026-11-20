@@ -322,7 +322,7 @@ export function riskEntries(side: Side, r: RiskInput, c: RiskCalc): LogEntry[] {
   if (r.clearPath !== null) {
     out.push({
       ...base,
-      q: L(side, "Liegt zwischen Einstieg und Ziel kein Widerstand?", "Liegt zwischen Einstieg und Ziel keine Unterstützung?"),
+      q: L(side, "Liegt zwischen Einstieg und Ziel kein R?", "Liegt zwischen Einstieg und Ziel kein S?"),
       a: r.clearPath ? "Ja, freie Bahn" : "Nein, es liegt einer dazwischen",
       outcome: r.clearPath ? "ok" : "warn",
       note: r.clearPath ? "" : "Ziel auf dieses Level setzen und das Chance-Risiko neu rechnen.",

@@ -118,7 +118,7 @@ export function interpretLevelStructure(
   }
 
   if (!breakCandle) {
-    const sideLabel = level.side === "resistance" ? "Widerstand" : "Unterstützung";
+    const sideLabel = level.side === "resistance" ? "R" : "S";
     const patternLabel = level.side === "resistance" ? "höhere Hochs" : "tiefere Tiefs";
     let narrative = `${sideLabel} seit ${fmtDateDE(level.anchorOpenTime)} intakt -- kein Schlusskurs ist seither über die Zone hinweg bestätigt, keine ${patternLabel} gegen sie.`;
     if (closestApproach && closestApproach.distancePct < 5) {
