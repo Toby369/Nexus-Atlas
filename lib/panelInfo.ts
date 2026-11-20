@@ -336,6 +336,8 @@ Zonen aus AutarkTrade: Sobald AutarkTrade Zonen liefert (Abgleich alle 5 Minuten
 
 Notlösung ohne AutarkTrade: Unten trägst du deine Zonen aus dem Chart ein. Sobald eine eingetragen ist, rechnen Zonen, Regelcheck, Kopf-Zeile und Push damit; die Nexus-Keylevels erscheinen nur noch als Abgleich. Zonen, die der Preis ohne Reaktion durchlaufen hat, löschst du mit ×.
 
+Geschichte unter jeder Zone (Zonen mit Gedächtnis): was an der Zone früher passiert ist, berechnet aus den Schlusskursen der Zeiteinheit am Anfang ihres Namens in AutarkTrade („1h …“, „4h …“, „1D …“). Berührung: Die Kerze läuft in die Zone oder bis 0,25 ATR davor (knapp) und schliesst auf derselben Seite. Bruch: zwei Schlüsse in Folge jenseits der Zone oder drei Kerzen ohne Rückkehr. Schliesst der Kurs innerhalb von drei Kerzen wieder auf der alten Seite, ist es ein Fehlausbruch und zählt als Berührung. Retest: Berührung nach dem Bruch von der anderen Seite; dann ist die Zone gedreht. Ausgewertet werden die letzten 720 Kerzen (1h: 30 Tage, 4h: 120 Tage, 1D: knapp 2 Jahre). Die Geschichte ist ein Ziel, keine Vorhersage: Ob die Zone hält, zeigt sich erst in der Zone.
+
 Liquidations-Ziel: die nächste Zone über dem Kurs, in der Short-Positionen liquidiert würden, und die nächste darunter mit Long-Liquidationen (Modell aus OI-Aufbau und Hebelstufen). Solche Zonen ziehen den Preis oft an, darum taugen sie als Ziel (Regel 7).
 
 So entsteht der Wert: Nexus-Keylevels wie in der Chart-Struktur (Pivot-Konfluenz über mehrere Zeitrahmen, Liquidations-Cluster, Spot-Volumen). Das Level direkt am Kurs (±0,25 %, dein Retest-Band) wird übersprungen. Massgebend bleiben deine eigenen Zonen im Chart; diese Kachel ist der Abgleich.`;

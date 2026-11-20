@@ -43,10 +43,11 @@ Beispiel für eine Zone, die zuerst Unterstützung ist (Widerstand gespiegelt):
 
 | Begriff | Regel |
 |---|---|
-| Berührung | Tief der Kerze reicht in die Zone, Schluss bleibt darüber; aufeinanderfolgende Kerzen in der Zone zählen einmal |
+| Berührung | Tief der Kerze reicht in die Zone **oder bis 0,25 ATR davor** („knapp“, Toby 20.11.), Schluss bleibt darüber; aufeinanderfolgende Kerzen zählen einmal |
 | Unterstützung bestätigt | mindestens 2 Berührungen |
-| Bruch | Schluss unter der Zonen-Untergrenze |
-| Retest | Kurs hat sich nach dem Bruch mindestens 1 ATR entfernt und läuft wieder in die Zone |
+| Bruch | Schluss unter der Zonen-Untergrenze, **bestätigt** durch einen zweiten Schluss darunter direkt danach oder dadurch, dass der Kurs 3 Kerzen lang nicht über die Zone zurückschliesst (Toby 20.11., Folge aus Phase 1) |
+| Fehlausbruch | Schluss darunter, aber innerhalb von 3 Kerzen wieder ein Schluss über der Zone; zählt als Berührung (Beispiel 04.11.2026, 02:00 UTC) |
+| Retest | Berührung nach dem Bruch von der neuen Seite her (in der Anzeige ohne Mindestabstand; im Phase-1-Test mit 1 ATR Entfernung) |
 | gedreht (jetzt Widerstand) | Retest schliesst wieder unter der Zone |
 | Reclaim | Schluss über der Zonen-Obergrenze; Rolle wechselt zurück |
 
@@ -59,9 +60,9 @@ Nach jeder Phase entscheidet Toby, ob es weitergeht.
 
 | Phase | Inhalt | Ergebnis | Status |
 |---|---|---|---|
-| 0. Grundlagen | Begriffe oben festzurren, Konvention für Zeiteinheit in der Beschriftung | dieses Dokument | Entwurf |
+| 0. Grundlagen | Begriffe oben festzurren, Konvention für Zeiteinheit in der Beschriftung | dieses Dokument | erledigt (20.11.) |
 | 1. Test („nett zu wissen“, keine Voraussetzung) | Passiert an gedrehten Zonen mehr als an Zufallsniveaus? Reaktion in beide Richtungen: relatives Volumen, Dochte, Spanne danach. Zonen werden dafür aus den Kerzen erkannt, weil Tobys frühere Zonen nicht gespeichert sind | Bericht auf Deutsch in `docs/research/` | erledigt, siehe `ZONEN-GEDAECHTNIS-PHASE1-TEST_2026-11-20.md` |
-| 2. Version 1: Anzeige | Pro Autark-Zone Rolle und Kurzgeschichte (Daten von Berührungen, Bruch, Retest) in der Zonen-Kachel. Logik in `lib/` mit Tests, Handy-Ansicht 400 × 800 prüfen | sichtbare Erinnerung | offen |
+| 2. Version 1: Anzeige | Pro Autark-Zone Rolle und Kurzgeschichte (Daten von Berührungen, Bruch, Retest) in der Zonen-Kachel. Logik in `lib/` mit Tests, Handy-Ansicht 400 × 800 prüfen | sichtbare Erinnerung | umgesetzt (`lib/zoneHistory.ts`, `ZonesCard`), wartet auf Tobys Test in der App |
 | 3. Version 2: In der Zone | Kurs in der Zone: Dochte und Schlüsse, CVD, OI-Veränderung, Liquidationen (Long/Short), Orderbuch-Wände als neutrale Zusammenfassung | „Was passiert hier?“-Block | offen |
 | 4. Version 3: Alarme | Push bei Annäherung (ATR-Abstand), Eintritt und Ergebnis (akzeptiert / abgelehnt). Nur gedrehte oder starke Zonen. Log-Kontingent vorher abschätzen und Toby fragen | Push-Nachrichten | offen |
 | 5. Später, optional | Nexus-Keylevels als Abgleich: „Diese gedrehte Zone fehlt bei dir“ | Vorschläge, Nexus zeichnet nichts selbst | offen |

@@ -8,6 +8,7 @@ import { zonesInfo } from "@/lib/panelInfo";
 import { entryZone, leverageForStop, nearestLiquidationTargets, nearestZones, stopBehindZone, type LiquidationTarget, type ZoneRow } from "@/lib/zones";
 import { isSyncStale, AUTARK_SYNC_STALE_MINUTES, type AutarkSyncStatus, type OwnZone } from "@/lib/ownZones";
 import { computeTpSuggestions, type TpSuggestion } from "@/lib/tpStandard";
+import { zoneKey } from "@/lib/zoneHistory";
 
 // Zonen-Kachel (Schritt 2 im Dashboard, Toby 22.10.2026): naechste
 // Verkaeufer-Zone ueber und Kaeufer-Zone unter dem Live-Kurs, mit Abstand,
@@ -18,6 +19,9 @@ import { computeTpSuggestions, type TpSuggestion } from "@/lib/tpStandard";
 // 29.10.2026: Zonen kommen aus AutarkTrade (Bereich + Name, Sync alle 5 Min);
 // dann keine Handeingabe mehr, dafuer "Stand HH:MM" und eine Warnung, wenn
 // der Sync laenger als 30 Min schweigt.
+// 20.11.2026: Zonen mit Gedaechtnis (lib/zoneHistory.ts): unter jeder Zone ihre
+// Geschichte (Beruehrungen, Fehlausbruch, Bruch, Retest), berechnet aus den
+// Kerzen der Zeiteinheit im Namen.
 
 const fmt = (n: number) => n.toLocaleString("de-CH", { maximumFractionDigits: 0 });
 const fmtTime = (iso: string) =>
@@ -30,7 +34,17 @@ function verdictText(s: TpSuggestion | undefined): string {
   return `Standard ${s.standard.id} (TP ${s.standard.marginPct} %)${s.againstDaily ? " · ⚠ gegen 1D" : ""}`;
 }
 
-function ZoneBox({ zone, suggestion, stopPct }: { zone: ZoneRow; suggestion?: TpSuggestion; stopPct?: number }) {
+function ZoneBox({
+  zone,
+  suggestion,
+  stopPct,
+  history,
+}: {
+  zone: ZoneRow;
+  suggestion?: TpSuggestion;
+  stopPct?: number;
+  history?: string;
+}) {
   const sell = zone.role === "Verkäufer-Zone";
   const sign = sell ? "+" : "−";
   return (
@@ -59,6 +73,7 @@ function ZoneBox({ zone, suggestion, stopPct }: { zone: ZoneRow; suggestion?: Tp
           </>
         )}
       </span>
+      {history && <span className="col-span-2 mt-1 border-t border-border/40 pt-1 text-[11px] text-text-faint">{history}</span>}
     </div>
   );
 }
@@ -208,6 +223,7 @@ export default function ZonesCard({
   liquidationZones,
   dailyTrend,
   autarkSync,
+  zoneHistories = {},
 }: {
   /** Aktive Levels: eigene Zonen, falls vorhanden, sonst Nexus-Keylevels. */
   keyLevels: { price: number; low?: number | null; high?: number | null; label?: string | null }[];
@@ -216,6 +232,8 @@ export default function ZonesCard({
   nexusLevels: { price: number }[];
   liquidationZones: { side: "long" | "short"; priceLow: number; priceHigh: number; massUsd: number }[];
   dailyTrend: "bullish" | "bearish" | null;
+  /** Geschichte je eigener Zone, Schluessel zoneKey(low, high). */
+  zoneHistories?: Record<string, string>;
 }) {
   const { latest } = useLivePriceData();
   const price = latest?.last_price ?? null;
@@ -253,7 +271,13 @@ export default function ZonesCard({
       ) : (
         <div className="flex flex-col gap-1.5">
           {[...above].reverse().map((z, i) => (
-            <ZoneBox key={`a${z.price}`} zone={z} suggestion={i === above.length - 1 ? longS : undefined} stopPct={longStop} />
+            <ZoneBox
+              key={`a${z.price}`}
+              zone={z}
+              suggestion={i === above.length - 1 ? longS : undefined}
+              stopPct={longStop}
+              history={zoneHistories[zoneKey(z.low, z.high)]}
+            />
           ))}
           <div className="flex items-center gap-2 text-[11px] text-accent">
             <span className="h-px flex-1 bg-accent/50" />
@@ -261,7 +285,13 @@ export default function ZonesCard({
             <span className="h-px flex-1 bg-accent/50" />
           </div>
           {below.map((z, i) => (
-            <ZoneBox key={`b${z.price}`} zone={z} suggestion={i === 0 ? shortS : undefined} stopPct={shortStop} />
+            <ZoneBox
+              key={`b${z.price}`}
+              zone={z}
+              suggestion={i === 0 ? shortS : undefined}
+              stopPct={shortStop}
+              history={zoneHistories[zoneKey(z.low, z.high)]}
+            />
           ))}
         </div>
       )}

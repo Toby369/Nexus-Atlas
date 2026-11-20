@@ -5,6 +5,7 @@ import { fetchPriceReferences } from "@/lib/priceChanges";
 import { getChartStructureData } from "@/lib/chartStructureContext";
 import { fetchClosedCandles } from "@/lib/candles";
 import { activeLevels, fetchAutarkSyncStatus, fetchOwnZones } from "@/lib/ownZones";
+import { ZONE_HISTORY_CANDLES, zoneHistoryTexts } from "@/lib/zoneHistory";
 import { bundleLiquidationZones } from "@/lib/leverageMap";
 import { RuleCheckCard, VetoCard } from "@/components/TradeStepCards";
 import { dailyTrendFromMtf } from "@/lib/zones";
@@ -551,6 +552,9 @@ export default async function Home({
     ownZones,
     autarkSync,
     lageChart,
+    zoneCandles1h,
+    zoneCandles4h,
+    zoneCandles1d,
   ] = await Promise.all([
     getSnapshotHistory(),
     getLatestMarketState(),
@@ -589,6 +593,10 @@ export default async function Home({
     fetchOwnZones(),
     fetchAutarkSyncStatus(),
     buildLageChart(),
+    // Zonen-Geschichte (Zonen mit Gedaechtnis, Phase 2): je Zeiteinheit 720 Kerzen.
+    fetchClosedCandles("1h", ZONE_HISTORY_CANDLES),
+    fetchClosedCandles("4h", ZONE_HISTORY_CANDLES),
+    fetchClosedCandles("1d", ZONE_HISTORY_CANDLES),
   ]);
 
   // Fallback, falls das Bundle-RPC fehlschlaegt (z.B. kurzzeitiger DB-
@@ -611,6 +619,10 @@ export default async function Home({
 
   // Eigene Zonen haben Vorrang, die Nexus-Keylevels sind dann nur Abgleich.
   const tradeLevels = activeLevels(ownZones, chartStructure.keyLevels);
+  const zoneHistories = zoneHistoryTexts(
+    ownZones.map((z) => ({ low: z.low ?? z.price, high: z.high ?? z.price, label: z.label })),
+    { "1h": zoneCandles1h, "4h": zoneCandles4h, "1d": zoneCandles1d }
+  );
   const liquidationZonesForUi = latestLeverageMap
     ? bundleLiquidationZones(latestLeverageMap.clusters, latestLeverageMap.mid).map(
         ({ side, priceLow, priceHigh, massUsd }) => ({ side, priceLow, priceHigh, massUsd })
@@ -715,6 +727,7 @@ export default async function Home({
                         nexusLevels={chartStructure.keyLevels.map(({ price }) => ({ price }))}
                         liquidationZones={liquidationZonesForUi}
                         dailyTrend={dailyTrendFromMtf(mtfDots)}
+                        zoneHistories={zoneHistories}
                       />
                     ),
                     "lage-chart": (

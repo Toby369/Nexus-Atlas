@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 
-// Abgeschlossene Binance-Kerzen fuer den Regelcheck (lib/ruleCheck.ts).
+// Abgeschlossene Binance-Kerzen fuer den Regelcheck (lib/ruleCheck.ts) und die
+// Zonen-Geschichte (lib/zoneHistory.ts).
 
 export interface Candle {
   openTime: string;
@@ -10,7 +11,12 @@ export interface Candle {
   close: number;
 }
 
-const INTERVAL_MS = { "15m": 15 * 60 * 1000, "1h": 60 * 60 * 1000, "4h": 4 * 60 * 60 * 1000 } as const;
+const INTERVAL_MS = {
+  "15m": 15 * 60 * 1000,
+  "1h": 60 * 60 * 1000,
+  "4h": 4 * 60 * 60 * 1000,
+  "1d": 24 * 60 * 60 * 1000,
+} as const;
 export type CandleInterval = keyof typeof INTERVAL_MS;
 
 export function intervalMs(interval: CandleInterval): number {
