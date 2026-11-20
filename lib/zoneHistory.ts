@@ -159,12 +159,13 @@ function dayText(iso: string, refIso: string | null): string {
   const sameYear = refIso === null || yearFmt.format(d) === yearFmt.format(new Date(refIso));
   return sameYear ? dayFmt.format(d) : `${dayFmt.format(d)}${yearFmt.format(d)}`;
 }
-const roleOf = (s: ZoneSide) => (s === "above" ? "Unterstützung" : "Widerstand");
+// Kurzform wie in der Zonen-Kachel (Toby 20.11.2026): S = Unterstuetzung, R = Widerstand.
+const roleOf = (s: ZoneSide) => (s === "above" ? "S" : "R");
 const TF_TEXT: Record<ZoneTimeframe, string> = { "1h": "1h", "4h": "4h", "1d": "1D" };
 
 /**
  * Kurzgeschichte fuer die Zonen-Kachel, z. B.
- * "1h: Unterstützung, 7× berührt (30.10.–04.11.), Fehlausbruch 04.11. · Bruch 05.11. · Retest 06.11.–08.11. (3×) → jetzt Widerstand".
+ * "1h: S, 7× berührt (30.10.–04.11.), Fehlausbruch 04.11. · Bruch 05.11. · Retest 06.11.–07.11. (5×) → jetzt R".
  * Bei mehreren Rollenwechseln nur die letzten zwei Abschnitte.
  */
 export function zoneHistoryText(h: ZoneHistory): string {

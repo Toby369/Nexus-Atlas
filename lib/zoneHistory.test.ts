@@ -56,7 +56,7 @@ describe("computeZoneHistory", () => {
     const h = computeZoneHistory(candles([103, 101, 98.5, 97, 95, 94, 96, 99.2, 97, 95]), 99, 100, "1h");
     expect(h.events.map((e) => e.kind)).toEqual(["bruch", "beruehrung"]);
     expect(h.side).toBe("below");
-    expect(zoneHistoryText(h)).toMatch(/Bruch 01\.11\. · Retest 01\.11\. → jetzt Widerstand$/);
+    expect(zoneHistoryText(h)).toMatch(/Bruch 01\.11\. · Retest 01\.11\. → jetzt R$/);
   });
 
   it("bestaetigt einen Bruch, wenn der Kurs 3 Kerzen lang nicht auf die alte Seite zurueckschliesst", () => {
@@ -87,10 +87,10 @@ describe("computeZoneHistory", () => {
     expect(brk?.time.slice(0, 10)).toBe("2026-11-05");
     expect(h.side).toBe("below");
     const text = zoneHistoryText(h);
-    expect(text).toMatch(/^1h: Unterstützung, \d+× berührt/);
+    expect(text).toMatch(/^1h: S, \d+× berührt/);
     expect(text).toContain("Fehlausbruch 04.11.");
     expect(text).toContain("Bruch 05.11.");
-    expect(text).toMatch(/Retest .* → jetzt Widerstand/);
+    expect(text).toMatch(/Retest .* → jetzt R$/);
   });
 });
 
@@ -103,7 +103,7 @@ describe("zoneHistoryText", () => {
       low: close - 0.2,
       close,
     }));
-    expect(zoneHistoryText(computeZoneHistory(daily, 99, 100.4, "1d"))).toBe("1D: Unterstützung, 1× berührt (31.12.25)");
+    expect(zoneHistoryText(computeZoneHistory(daily, 99, 100.4, "1d"))).toBe("1D: S, 1× berührt (31.12.25)");
   });
 });
 

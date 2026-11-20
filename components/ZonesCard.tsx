@@ -54,7 +54,7 @@ function ZoneBox({
       }`}
     >
       <span className={`font-semibold ${sell ? "text-down" : "text-up"}`}>
-        {zone.role}
+        {sell ? "R" : "S"}
         {zone.label && <span className="font-normal text-text-muted"> · {zone.label}</span>}
       </span>
       <span className="font-mono tabular text-text">
