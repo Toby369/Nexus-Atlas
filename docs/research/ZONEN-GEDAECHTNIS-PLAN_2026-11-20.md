@@ -67,6 +67,19 @@ Nach jeder Phase entscheidet Toby, ob es weitergeht.
 | 4. Version 3: Alarme | Push bei Annäherung (ATR-Abstand), Eintritt und Ergebnis (akzeptiert / abgelehnt). Nur gedrehte oder starke Zonen. Log-Kontingent vorher abschätzen und Toby fragen | Push-Nachrichten | offen |
 | 5. Später, optional | Nexus-Keylevels als Abgleich: „Diese gedrehte Zone fehlt bei dir“ | Vorschläge, Nexus zeichnet nichts selbst | offen |
 
+## Merkliste (noch nicht eingeplant)
+
+- **Wochenzonen (1W)** (Toby 20.11.2026: „als Erinnerung ins Repo“). Heute
+  ohne Geschichte, z. B. „W close 29.6.26“, „W Close 8.4 24“. Umsetzung:
+  `timeframeFromLabel` um „1W“/„W“ erweitern, Wochenkerzen laden
+  (`candles` interval `1w`, vorhanden ab 2019, Wochenbeginn Montag 00:00
+  UTC wie Binance), `fetchClosedCandles` um `1w` ergänzen. Regeln
+  unverändert (Schlusskurse der Woche, Fehlausbruch 3 Wochen). Achtung:
+  Bei 1W ist ein bestätigter Bruch erst nach 2 Wochenschlüssen sicher, die
+  Geschichte reagiert also langsam.
+- **Hinweis bei breiten Zonen** (Vorschlag, offen): Zone breiter als 1 ATR
+  ihrer Zeiteinheit → „breit, eher Range“.
+
 ## Phase 1 im Detail
 
 - **Daten:** Binance-Futures-Kerzen BTCUSDT 1h/4h/1D, 08.2022–19.11.2026, aus
