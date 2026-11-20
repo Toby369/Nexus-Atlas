@@ -60,7 +60,7 @@ Nach jeder Phase entscheidet Toby, ob es weitergeht.
 | Phase | Inhalt | Ergebnis | Status |
 |---|---|---|---|
 | 0. Grundlagen | Begriffe oben festzurren, Konvention für Zeiteinheit in der Beschriftung | dieses Dokument | Entwurf |
-| 1. Test („nett zu wissen“, keine Voraussetzung) | Passiert an gedrehten Zonen mehr als an Zufallsniveaus? Reaktion in beide Richtungen: relatives Volumen, Dochte, Spanne danach. Zonen werden dafür aus den Kerzen erkannt, weil Tobys frühere Zonen nicht gespeichert sind | Bericht auf Deutsch in `docs/research/` | Daten geladen |
+| 1. Test („nett zu wissen“, keine Voraussetzung) | Passiert an gedrehten Zonen mehr als an Zufallsniveaus? Reaktion in beide Richtungen: relatives Volumen, Dochte, Spanne danach. Zonen werden dafür aus den Kerzen erkannt, weil Tobys frühere Zonen nicht gespeichert sind | Bericht auf Deutsch in `docs/research/` | erledigt, siehe `ZONEN-GEDAECHTNIS-PHASE1-TEST_2026-11-20.md` |
 | 2. Version 1: Anzeige | Pro Autark-Zone Rolle und Kurzgeschichte (Daten von Berührungen, Bruch, Retest) in der Zonen-Kachel. Logik in `lib/` mit Tests, Handy-Ansicht 400 × 800 prüfen | sichtbare Erinnerung | offen |
 | 3. Version 2: In der Zone | Kurs in der Zone: Dochte und Schlüsse, CVD, OI-Veränderung, Liquidationen (Long/Short), Orderbuch-Wände als neutrale Zusammenfassung | „Was passiert hier?“-Block | offen |
 | 4. Version 3: Alarme | Push bei Annäherung (ATR-Abstand), Eintritt und Ergebnis (akzeptiert / abgelehnt). Nur gedrehte oder starke Zonen. Log-Kontingent vorher abschätzen und Toby fragen | Push-Nachrichten | offen |
