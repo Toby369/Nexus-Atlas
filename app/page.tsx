@@ -6,6 +6,7 @@ import { getChartStructureData } from "@/lib/chartStructureContext";
 import { fetchClosedCandles } from "@/lib/candles";
 import { activeLevels, fetchAutarkSyncStatus, fetchOwnZones } from "@/lib/ownZones";
 import { ZONE_HISTORY_CANDLES, zoneHistoryTexts } from "@/lib/zoneHistory";
+import { buildZoneWatches } from "@/lib/zoneWatchContext";
 import { bundleLiquidationZones } from "@/lib/leverageMap";
 import { RuleCheckCard, VetoCard } from "@/components/TradeStepCards";
 import { dailyTrendFromMtf } from "@/lib/zones";
@@ -619,6 +620,13 @@ export default async function Home({
 
   // Eigene Zonen haben Vorrang, die Nexus-Keylevels sind dann nur Abgleich.
   const tradeLevels = activeLevels(ownZones, chartStructure.keyLevels);
+  // Zonen-Beobachtung (Phase 3): nur wenn der Kurs an einer eigenen Zone steht, sonst keine Abfrage.
+  const zoneWatches = await buildZoneWatches(
+    ownZones,
+    candles15m,
+    { "1h": zoneCandles1h, "4h": zoneCandles4h, "1d": zoneCandles1d },
+    latestOrderbookWalls
+  );
   const zoneHistories = zoneHistoryTexts(
     ownZones.map((z) => ({ low: z.low ?? z.price, high: z.high ?? z.price, label: z.label })),
     { "1h": zoneCandles1h, "4h": zoneCandles4h, "1d": zoneCandles1d }
@@ -728,6 +736,7 @@ export default async function Home({
                         liquidationZones={liquidationZonesForUi}
                         dailyTrend={dailyTrendFromMtf(mtfDots)}
                         zoneHistories={zoneHistories}
+                        zoneWatches={zoneWatches}
                       />
                     ),
                     "lage-chart": (

@@ -9,6 +9,9 @@ export interface Candle {
   high: number;
   low: number;
   close: number;
+  /** Volumen und Taker-Kaufvolumen (BTC), fuer das CVD in der Zonen-Beobachtung (lib/zoneWatch.ts). */
+  volume?: number;
+  takerBuy?: number;
 }
 
 const INTERVAL_MS = {
@@ -31,7 +34,7 @@ export async function fetchClosedCandles(
 ): Promise<Candle[]> {
   const { data, error } = await supabase
     .from("candles")
-    .select("open_time, open, high, low, close")
+    .select("open_time, open, high, low, close, volume, taker_buy_base_vol")
     .eq("exchange", "binance")
     .eq("symbol", "BTCUSDT")
     .eq("interval", interval)
@@ -48,6 +51,9 @@ export async function fetchClosedCandles(
       high: Number(r.high),
       low: Number(r.low),
       close: Number(r.close),
+      ...(r.volume !== null && r.taker_buy_base_vol !== null
+        ? { volume: Number(r.volume), takerBuy: Number(r.taker_buy_base_vol) }
+        : {}),
     }))
     .filter((c) => new Date(c.openTime).getTime() + INTERVAL_MS[interval] <= nowMs)
     .slice(0, limit)

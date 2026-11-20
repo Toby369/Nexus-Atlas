@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import { useLivePriceData } from "@/components/LivePriceDataProvider";
 import StepCard from "@/components/StepCard";
 import { zonesInfo } from "@/lib/panelInfo";
-import { entryZone, leverageForStop, nearestLiquidationTargets, nearestZones, stopBehindZone, type LiquidationTarget, type ZoneRow } from "@/lib/zones";
+import { entryZone, isAtZone, leverageForStop, nearestLiquidationTargets, nearestZones, stopBehindZone, type LiquidationTarget, type ZoneRow } from "@/lib/zones";
 import { isSyncStale, AUTARK_SYNC_STALE_MINUTES, type AutarkSyncStatus, type OwnZone } from "@/lib/ownZones";
 import { computeTpSuggestions, type TpSuggestion } from "@/lib/tpStandard";
 import { zoneKey } from "@/lib/zoneHistory";
+import type { ZoneWatchView } from "@/lib/zoneWatchContext";
 
 // Zonen-Kachel (Schritt 2 im Dashboard, Toby 22.10.2026): naechste
 // Verkaeufer-Zone ueber und Kaeufer-Zone unter dem Live-Kurs, mit Abstand,
@@ -74,6 +75,28 @@ function ZoneBox({
         )}
       </span>
       {history && <span className="col-span-2 mt-1 border-t border-border/40 pt-1 text-[11px] text-text-faint">{history}</span>}
+    </div>
+  );
+}
+
+/** Phase 3: Kurs steht an einer eigenen Zone -- was passiert dort seit dem Eintritt (neutral). */
+function ZoneWatchBox({ watch }: { watch: ZoneWatchView }) {
+  return (
+    <div className="rounded-md border border-accent/50 bg-accent/10 px-3 py-2 text-xs">
+      <p className="flex justify-between gap-3 font-semibold text-accent">
+        <span>
+          In der Zone{watch.label && <span className="font-normal text-text-muted"> · {watch.label}</span>}
+        </span>
+        <span className="font-mono tabular text-text">
+          {watch.low === watch.high ? fmt(watch.low) : `${fmt(watch.low)}–${fmt(watch.high)}`}
+        </span>
+      </p>
+      {watch.lines.map((l) => (
+        <p key={l} className="text-text-muted">
+          {l}
+        </p>
+      ))}
+      <p className="text-[11px] text-text-faint">Stand {fmtTime(watch.asOf)} (15m)</p>
     </div>
   );
 }
@@ -224,6 +247,7 @@ export default function ZonesCard({
   dailyTrend,
   autarkSync,
   zoneHistories = {},
+  zoneWatches = [],
 }: {
   /** Aktive Levels: eigene Zonen, falls vorhanden, sonst Nexus-Keylevels. */
   keyLevels: { price: number; low?: number | null; high?: number | null; label?: string | null }[];
@@ -234,6 +258,8 @@ export default function ZonesCard({
   dailyTrend: "bullish" | "bearish" | null;
   /** Geschichte je eigener Zone, Schluessel zoneKey(low, high). */
   zoneHistories?: Record<string, string>;
+  /** Phase 3: Beobachtung je Zone, an der der Kurs beim Laden stand. */
+  zoneWatches?: ZoneWatchView[];
 }) {
   const { latest } = useLivePriceData();
   const price = latest?.last_price ?? null;
@@ -284,6 +310,11 @@ export default function ZonesCard({
             <span className="font-mono tabular">Kurs {fmt(price)}</span>
             <span className="h-px flex-1 bg-accent/50" />
           </div>
+          {zoneWatches
+            .filter((w) => isAtZone({ price: w.low, low: w.low, high: w.high }, price))
+            .map((w) => (
+              <ZoneWatchBox key={w.key} watch={w} />
+            ))}
           {below.map((z, i) => (
             <ZoneBox
               key={`b${z.price}`}
