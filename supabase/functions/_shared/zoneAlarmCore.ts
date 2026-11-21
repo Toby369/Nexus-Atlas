@@ -28,6 +28,13 @@ const fmt = (n: number) => {
 };
 const dayFmt = new Intl.DateTimeFormat("de-CH", { day: "2-digit", month: "2-digit", timeZone: "Europe/Zurich" });
 const day = (iso: string) => dayFmt.format(new Date(iso));
+const clockFmt = new Intl.DateTimeFormat("de-CH", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Europe/Zurich" });
+const TF_MS: Record<ZoneTimeframe, number> = { "1h": 3_600_000, "4h": 14_400_000, "1d": 86_400_000 };
+/** Schlusszeit der entscheidenden Kerze, z.B. "21.11. 15:00" (Zürcher Zeit). */
+const closeStamp = (openIso: string, tf: ZoneTimeframe) => {
+  const d = new Date(new Date(openIso).getTime() + TF_MS[tf]);
+  return `${day(d.toISOString())} ${clockFmt.format(d)}`;
+};
 
 /**
  * Alarme fuer Ereignisse, die mit einer Kerze ab `sinceIso` (Kerzenbeginn)
@@ -42,7 +49,9 @@ export function zoneAlarms(
   const hi = Math.max(zone.low, zone.high);
   const tf = TF_TEXT[h.tf];
   const range = lo === hi ? fmt(lo) : `${fmt(lo)}–${fmt(hi)}`;
-  const name = `Zone ${range} (${tf}${zone.label ? ` · ${zone.label}` : ""})`;
+  // Das Label aus AutarkTrade beginnt oft mit der Zeiteinheit ("1h, retestzone"): nicht doppelt nennen.
+  const label = (zone.label ?? "").replace(new RegExp(`^${tf}\\b[\\s,·:-]*`, "i"), "").trim();
+  const name = `Zone ${range} (${tf}${label ? ` · ${label}` : ""})`;
   const sinceMs = new Date(sinceIso).getTime();
   const out: ZoneAlarm[] = [];
   let lastBreak: string | null = null;
@@ -54,7 +63,7 @@ export function zoneAlarms(
     const sideAfter = e.kind === "bruch" ? (e.side === "above" ? "below" : "above") : e.side;
     const role = sideAfter === "above" ? "S" : "R";
     const where = sideAfter === "above" ? "über" : "unter";
-    const close = `${tf}-Schluss ${fmt(e.decidedClose)} ${where} der Zone`;
+    const close = `${tf}-Schluss ${fmt(e.decidedClose)} ${where} der Zone (${closeStamp(e.decidedAt, h.tf)})`;
     if (e.kind === "beruehrung" && afterBreak) retests++;
     if (afterBreak && fresh) {
       const key = `zone:${lo}-${hi}:${h.tf}:${e.kind}:${e.time}`;
@@ -87,4 +96,28 @@ export function zoneAlarms(
     }
   }
   return out;
+}
+
+/**
+ * Alarme fuer den Push: wie zoneAlarms, aber
+ * - ohne Ereignisse, die schon vor dem Anlegen der Zone entschieden waren
+ *   (sonst wuerde eine neue Zone ihre ganze juengste Vorgeschichte nachliefern), und
+ * - nur das juengste Ereignis je Zone: ein aelteres ist dann ueberholt
+ *   (z.B. "Retest abgelehnt" um 12 Uhr, "akzeptiert" um 13 Uhr).
+ * Wiederholte Laeufe liefern dieselbe Auswahl, daher bleibt die Dedupe ueber `key` stabil.
+ */
+export function zoneAlarmsForPush(
+  h: ZoneHistory,
+  zone: { low: number; high: number; label: string | null },
+  sinceIso: string,
+  createdAtIso: string | null
+): ZoneAlarm[] {
+  const createdMs = createdAtIso ? new Date(createdAtIso).getTime() : null;
+  const fresh = zoneAlarms(h, zone, sinceIso).filter((a) => {
+    if (createdMs === null) return true;
+    // key endet auf ":<Ereigniszeit>" (ISO enthaelt selbst Doppelpunkte), daher ueber die Ereignisliste suchen.
+    const ev = h.events.find((e) => a.key.endsWith(`:${e.kind}:${e.time}`));
+    return !ev || new Date(ev.decidedAt).getTime() + TF_MS[h.tf] > createdMs;
+  });
+  return fresh.slice(-1);
 }

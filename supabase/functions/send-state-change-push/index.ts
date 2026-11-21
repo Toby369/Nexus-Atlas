@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
-import { zoneAlarms } from "../_shared/zoneAlarmCore.ts";
+import { zoneAlarmsForPush } from "../_shared/zoneAlarmCore.ts";
 import {
   computeZoneHistory,
   timeframeFromLabel,
@@ -576,16 +576,17 @@ function dueZoneTimeframes(nowMs: number): ZoneTimeframe[] {
 async function zoneAlarmEvents(supabase: ReturnType<typeof createClient>, nowMs: number): Promise<PushEvent[]> {
   const due = dueZoneTimeframes(nowMs);
   if (due.length === 0) return [];
-  const { data: zones, error: zonesError } = await supabase.from("own_zones").select("price, price_low, price_high, label");
+  const { data: zones, error: zonesError } = await supabase.from("own_zones").select("price, price_low, price_high, label, created_at");
   if (zonesError || !zones) {
     if (zonesError) console.error("own_zones:", zonesError.message);
     return [];
   }
-  const wanted = (zones as { price: number; price_low: number | null; price_high: number | null; label: string | null }[])
+  const wanted = (zones as { price: number; price_low: number | null; price_high: number | null; label: string | null; created_at: string | null }[])
     .map((z) => ({
       low: Number(z.price_low ?? z.price),
       high: Number(z.price_high ?? z.price),
       label: z.label,
+      createdAt: z.created_at,
       tf: timeframeFromLabel(z.label),
     }))
     .filter((z): z is typeof z & { tf: ZoneTimeframe } => z.tf !== null && due.includes(z.tf));
@@ -617,7 +618,7 @@ async function zoneAlarmEvents(supabase: ReturnType<typeof createClient>, nowMs:
     const c = candlesByTf.get(z.tf);
     if (!c) return [];
     const since = c[c.length - ZONE_LOOKBACK_CANDLES].openTime;
-    return zoneAlarms(computeZoneHistory(c, z.low, z.high, z.tf), z, since);
+    return zoneAlarmsForPush(computeZoneHistory(c, z.low, z.high, z.tf), z, since, z.createdAt);
   });
   if (alarms.length === 0) return [];
 
