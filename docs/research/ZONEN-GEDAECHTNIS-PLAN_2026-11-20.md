@@ -65,7 +65,7 @@ Nach jeder Phase entscheidet Toby, ob es weitergeht.
 | 2. Version 1: Anzeige | Pro Autark-Zone Rolle und Kurzgeschichte (Daten von Berührungen, Bruch, Retest) in der Zonen-Kachel. Logik in `lib/` mit Tests, Handy-Ansicht 400 × 800 prüfen | sichtbare Erinnerung | live seit 20.11. (`lib/zoneHistory.ts`, `ZonesCard`) |
 | 3. Version 2: In der Zone | Kurs in der Zone: Dochte und Schlüsse, CVD, OI-Veränderung, Liquidationen (Long/Short), Orderbuch-Wände als neutrale Zusammenfassung | „Was passiert hier?“-Block | umgesetzt (`lib/zoneWatch.ts`, `lib/zoneWatchContext.ts`, `ZonesCard`); höchstens 2 zusätzliche Abfragen, nur wenn der Kurs an einer Zone steht |
 | 4. Version 3: Alarme | Toby 21.11.: nur Ergebnis-Alarme (Retest abgelehnt, Fehlausbruch, akzeptiert), nur gedrehte Zonen; Annäherung und Eintritt meldet AutarkTrade. Im bestehenden `send-state-change-push`, nur im ersten Lauf nach einem Kerzenschluss (ca. 30–40 Abfragen pro Tag), Dedupe über `push_messages`, kein neuer Zeitplan, keine neue Tabelle. Kern in `supabase/functions/_shared/zoneHistoryCore.ts` und `zoneAlarmCore.ts`, gemeinsam mit der App | Push-Nachrichten | live seit 21.11. (send-state-change-push v24) |
-| 5. Später, optional | Nexus-Keylevels als Abgleich: „Diese gedrehte Zone fehlt bei dir“ | Vorschläge, Nexus zeichnet nichts selbst | offen |
+| 5. Abgleich | Nexus-Keylevels als Abgleich: „Fehlt bei dir“ für gedrehte Keylevels (Bruch + Retest, gleiche Regeln) ohne eigene Zone in der Nähe, höchstens je eines über und unter dem Kurs | Vorschläge, Nexus zeichnet nichts selbst | umgesetzt (`lib/zoneSuggestions.ts`, `ZonesCard`), keine zusätzlichen Abfragen |
 
 ## Merkliste (noch nicht eingeplant)
 

@@ -340,6 +340,8 @@ Geschichte unter jeder Zone (Zonen mit Gedächtnis): was an der Zone früher pas
 
 In der Zone: Steht der Kurs an einer deiner Zonen (±0,25 %), zeigt Nexus seit dem Eintritt (15m-Kerzen, höchstens 25 Stunden zurück): Schlüsse über, in und unter der Zone; Dochte über die Oberkante mit Schluss darunter (oben) bzw. unter die Unterkante mit Schluss darüber (unten); den letzten Schluss der Zeiteinheit der Zone; CVD (Taker-Kauf minus -Verkauf in BTC); OI-Veränderung; Liquidationen Long/Short (nur Stichprobe, Anzahl); die grösste Orderbuch-Wand in der Zone. Keine Deutung: Was das heisst, entscheidest du. Stand ist die letzte 15m-Kerze beim Laden der Seite.
 
+Fehlt bei dir: Nexus prüft seine eigenen Keylevels mit denselben Regeln wie deine Zonen. Ist eines gedreht (bestätigter Bruch, danach mindestens ein Retest) und liegt bei keiner deiner Zonen, steht es hier als Vorschlag, höchstens eines über und eines unter dem Kurs. Nexus zeichnet nichts selbst; ob du die Zone in AutarkTrade übernimmst, entscheidest du.
+
 Liquidations-Ziel: die nächste Zone über dem Kurs, in der Short-Positionen liquidiert würden, und die nächste darunter mit Long-Liquidationen (Modell aus OI-Aufbau und Hebelstufen). Solche Zonen ziehen den Preis oft an, darum taugen sie als Ziel (Regel 7).
 
 So entsteht der Wert: Nexus-Keylevels wie in der Chart-Struktur (Pivot-Konfluenz über mehrere Zeitrahmen, Liquidations-Cluster, Spot-Volumen). Das Level direkt am Kurs (±0,25 %, dein Retest-Band) wird übersprungen. Massgebend bleiben deine eigenen Zonen im Chart; diese Kachel ist der Abgleich.`;

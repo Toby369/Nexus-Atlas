@@ -7,6 +7,7 @@ import { fetchClosedCandles } from "@/lib/candles";
 import { activeLevels, fetchAutarkSyncStatus, fetchOwnZones } from "@/lib/ownZones";
 import { ZONE_HISTORY_CANDLES, zoneHistoryTexts } from "@/lib/zoneHistory";
 import { buildZoneWatches } from "@/lib/zoneWatchContext";
+import { suggestMissingZones, suggestionText } from "@/lib/zoneSuggestions";
 import { bundleLiquidationZones } from "@/lib/leverageMap";
 import { RuleCheckCard, VetoCard } from "@/components/TradeStepCards";
 import { dailyTrendFromMtf } from "@/lib/zones";
@@ -627,6 +628,16 @@ export default async function Home({
     { "1h": zoneCandles1h, "4h": zoneCandles4h, "1d": zoneCandles1d },
     latestOrderbookWalls
   );
+  // Phase 5: gedrehte Nexus-Keylevels, die bei keiner eigenen Zone liegen (nur Vorschlag).
+  const missing = suggestMissingZones(
+    chartStructure.keyLevels.map(({ price, timeframes }) => ({ price, timeframes })),
+    ownZones.map((z) => ({ price: z.price, low: z.low, high: z.high })),
+    { "1h": zoneCandles1h, "4h": zoneCandles4h, "1d": zoneCandles1d },
+    candles15m[candles15m.length - 1]?.close ?? null
+  );
+  const zoneSuggestions = [missing.above, missing.below]
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+    .map((x) => ({ price: x.price, role: x.role, text: suggestionText(x) }));
   const zoneHistories = zoneHistoryTexts(
     ownZones.map((z) => ({ low: z.low ?? z.price, high: z.high ?? z.price, label: z.label })),
     { "1h": zoneCandles1h, "4h": zoneCandles4h, "1d": zoneCandles1d }
@@ -737,6 +748,7 @@ export default async function Home({
                         dailyTrend={dailyTrendFromMtf(mtfDots)}
                         zoneHistories={zoneHistories}
                         zoneWatches={zoneWatches}
+                        zoneSuggestions={zoneSuggestions}
                       />
                     ),
                     "lage-chart": (

@@ -126,6 +126,7 @@ function OwnZonesEditor({
   autark,
   sync,
   stale,
+  suggestions,
 }: {
   ownZones: OwnZone[];
   nexusLevels: { price: number }[];
@@ -133,6 +134,7 @@ function OwnZonesEditor({
   autark: boolean;
   sync: AutarkSyncStatus | null;
   stale: boolean;
+  suggestions: { price: number; role: "R" | "S"; text: string }[];
 }) {
   const router = useRouter();
   const [input, setInput] = useState("");
@@ -227,6 +229,15 @@ function OwnZonesEditor({
         {error && <p className="text-xs text-down">{error}</p>}
         </>
       )}
+      {ownZones.length > 0 &&
+        price !== null &&
+        suggestions
+          .filter((sg) => (sg.role === "R") === (sg.price > price))
+          .map((sg) => (
+            <p key={sg.text} className="text-[11px] text-text-muted">
+              <span className="text-accent">Fehlt bei dir:</span> {sg.text}
+            </p>
+          ))}
       {ownZones.length > 0 && (nexus.above[0] || nexus.below[0]) && (
         <p className="text-[11px] text-text-faint">
           Nexus-Abgleich:{" "}
@@ -248,6 +259,7 @@ export default function ZonesCard({
   autarkSync,
   zoneHistories = {},
   zoneWatches = [],
+  zoneSuggestions = [],
 }: {
   /** Aktive Levels: eigene Zonen, falls vorhanden, sonst Nexus-Keylevels. */
   keyLevels: { price: number; low?: number | null; high?: number | null; label?: string | null }[];
@@ -260,6 +272,8 @@ export default function ZonesCard({
   zoneHistories?: Record<string, string>;
   /** Phase 3: Beobachtung je Zone, an der der Kurs beim Laden stand. */
   zoneWatches?: ZoneWatchView[];
+  /** Phase 5: gedrehte Nexus-Keylevels ohne eigene Zone (nur Vorschlag). */
+  zoneSuggestions?: { price: number; role: "R" | "S"; text: string }[];
 }) {
   const { latest } = useLivePriceData();
   const price = latest?.last_price ?? null;
@@ -334,6 +348,7 @@ export default function ZonesCard({
         autark={autark}
         sync={autarkSync}
         stale={stale}
+        suggestions={zoneSuggestions}
       />
     </StepCard>
   );
