@@ -80,13 +80,16 @@ export function computeTpSuggestions<L extends { price: number; low?: number | n
   return [build("long", above), build("short", below)];
 }
 
-/** Kurztext, z.B. "Long → Widerstand 83'750 (+1,4 %) → Standard 3". */
+/**
+ * Kurztext, z.B. "Long → Widerstand 83'750 (+1,4 %) → Standard 3". Geht an die KI
+ * (System-Briefing), darum ausgeschrieben statt R/S (Toby 21.11.2026).
+ */
 export function formatTpSuggestion(s: TpSuggestion): string {
   const sideLabel = s.side === "long" ? "Long" : "Short";
   if (s.levelPrice === null || s.distancePct === null) {
-    return `${sideLabel} → ${s.side === "long" ? "kein R" : "kein S"} bekannt`;
+    return `${sideLabel} → ${s.side === "long" ? "kein Widerstand" : "keine Unterstützung"} bekannt`;
   }
-  const levelLabel = s.side === "long" ? "R" : "S";
+  const levelLabel = s.side === "long" ? "Widerstand" : "Unterstützung";
   const price = ganzzahlCh(s.levelPrice);
   const dist = `${s.side === "long" ? "+" : "−"}${s.distancePct.toFixed(1)} %`;
   const verdict = s.standard ? `Standard ${s.standard.id} (TP ${s.standard.marginPct} %)` : "kein Trade (< 1 %)";

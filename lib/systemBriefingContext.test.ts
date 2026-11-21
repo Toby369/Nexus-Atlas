@@ -83,7 +83,7 @@ describe("sliceForTrigger", () => {
     expect(slice.keyLevels).toBe(ctx.keyLevels);
     // 90'000 liegt 6,8 % ueber 84'250 -> Standard 1; keine Unterstuetzung im Fixture.
     expect(slice.tp_standard[0]).toContain("Standard 1");
-    expect(slice.tp_standard[1]).toBe("Short → kein S bekannt");
+    expect(slice.tp_standard[1]).toBe("Short → keine Unterstützung bekannt");
   });
 });
 

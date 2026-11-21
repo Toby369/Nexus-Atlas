@@ -56,11 +56,11 @@ describe("computeTpSuggestions", () => {
   it("meldet fehlende Levels", () => {
     const [long] = computeTpSuggestions([{ price: 80_000, side: "support" }], 82_000);
     expect(long.levelPrice).toBeNull();
-    expect(formatTpSuggestion(long)).toBe("Long → kein R bekannt");
+    expect(formatTpSuggestion(long)).toBe("Long → kein Widerstand bekannt");
   });
 
   it("formatiert den Vorschlag", () => {
     const [, short] = computeTpSuggestions(levels, 82_400);
-    expect(formatTpSuggestion(short)).toBe("Short → S 81’000 (−1.7 %) → Standard 2 (TP 30 %)");
+    expect(formatTpSuggestion(short)).toBe("Short → Unterstützung 81’000 (−1.7 %) → Standard 2 (TP 30 %)");
   });
 });
