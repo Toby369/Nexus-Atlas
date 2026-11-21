@@ -1,6 +1,14 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
+import { zoneAlarms } from "../_shared/zoneAlarmCore.ts";
+import {
+  computeZoneHistory,
+  timeframeFromLabel,
+  ZONE_HISTORY_CANDLES,
+  type ZoneCandle,
+  type ZoneTimeframe,
+} from "../_shared/zoneHistoryCore.ts";
 
 // Push-Benachrichtigung bei Zustandswechsel (Nutzer-Wunsch: "ich moechte
 // sowas [grosse Bewegungen] davor oder waehrend dessen als Signal
@@ -541,6 +549,97 @@ async function riskFactorDetails(
   return [];
 }
 
+// Zonen mit Gedaechtnis, Phase 4 (Toby 21.11.2026): Ergebnis-Alarme fuer
+// gedrehte eigene Zonen. Laeuft nur im ersten Lauf nach einem Kerzenschluss
+// (Minute 3 der Stunde): 1h jede Stunde, 4h um 0/4/8/12/16/20 UTC, 1D um
+// 0 UTC. Ausgewertet werden Ereignisse, die mit einer der letzten 3 Kerzen
+// entschieden wurden (faengt einen ausgefallenen Lauf auf); Dedupe ueber
+// push_messages (kind "zone", Schluessel in details[0]). Abfragen: own_zones,
+// je faellige Zeiteinheit 1 Kerzen-Abfrage, 1 Dedupe-Abfrage.
+const ZONE_TF_MS: Record<ZoneTimeframe, number> = { "1h": 3_600_000, "4h": 14_400_000, "1d": 86_400_000 };
+const ZONE_LOOKBACK_CANDLES = 3;
+const ZONE_EXPLANATION =
+  "Eine deiner Zonen aus AutarkTrade wurde gebrochen und hat seither die Rolle getauscht (Unterstützung ↔ Widerstand). " +
+  "Nexus meldet nach dem Schluss der Zeiteinheit der Zone, was dort passiert ist: Retest abgelehnt (Schluss blieb auf der neuen Seite), " +
+  "Fehlausbruch (kurz zurück, wieder abgelehnt) oder akzeptiert (Bruch bestätigt, Rolle wieder getauscht). " +
+  "Gezählt werden Schlusskurse; ein Bruch braucht zwei Schlüsse in Folge oder drei Kerzen ohne Rückkehr. Das ist eine Erinnerung, keine Vorhersage.";
+
+function dueZoneTimeframes(nowMs: number): ZoneTimeframe[] {
+  const d = new Date(nowMs);
+  if (d.getUTCMinutes() >= 15) return [];
+  const due: ZoneTimeframe[] = ["1h"];
+  if (d.getUTCHours() % 4 === 0) due.push("4h");
+  if (d.getUTCHours() === 0) due.push("1d");
+  return due;
+}
+
+async function zoneAlarmEvents(supabase: ReturnType<typeof createClient>, nowMs: number): Promise<PushEvent[]> {
+  const due = dueZoneTimeframes(nowMs);
+  if (due.length === 0) return [];
+  const { data: zones, error: zonesError } = await supabase.from("own_zones").select("price, price_low, price_high, label");
+  if (zonesError || !zones) {
+    if (zonesError) console.error("own_zones:", zonesError.message);
+    return [];
+  }
+  const wanted = (zones as { price: number; price_low: number | null; price_high: number | null; label: string | null }[])
+    .map((z) => ({
+      low: Number(z.price_low ?? z.price),
+      high: Number(z.price_high ?? z.price),
+      label: z.label,
+      tf: timeframeFromLabel(z.label),
+    }))
+    .filter((z): z is typeof z & { tf: ZoneTimeframe } => z.tf !== null && due.includes(z.tf));
+  if (wanted.length === 0) return [];
+
+  const candlesByTf = new Map<ZoneTimeframe, ZoneCandle[]>();
+  for (const tf of new Set(wanted.map((z) => z.tf))) {
+    const { data, error } = await supabase
+      .from("candles")
+      .select("open_time, open, high, low, close")
+      .eq("exchange", "binance")
+      .eq("symbol", "BTCUSDT")
+      .eq("interval", tf)
+      .order("open_time", { ascending: false })
+      .limit(ZONE_HISTORY_CANDLES + 1);
+    if (error || !data) {
+      if (error) console.error(`candles ${tf}:`, error.message);
+      continue;
+    }
+    const closed = (data as { open_time: string; open: number; high: number; low: number; close: number }[])
+      .map((r) => ({ openTime: r.open_time, open: Number(r.open), high: Number(r.high), low: Number(r.low), close: Number(r.close) }))
+      .filter((c) => new Date(c.openTime).getTime() + ZONE_TF_MS[tf] <= nowMs)
+      .slice(0, ZONE_HISTORY_CANDLES)
+      .reverse();
+    if (closed.length > ZONE_LOOKBACK_CANDLES) candlesByTf.set(tf, closed);
+  }
+
+  const alarms = wanted.flatMap((z) => {
+    const c = candlesByTf.get(z.tf);
+    if (!c) return [];
+    const since = c[c.length - ZONE_LOOKBACK_CANDLES].openTime;
+    return zoneAlarms(computeZoneHistory(c, z.low, z.high, z.tf), z, since);
+  });
+  if (alarms.length === 0) return [];
+
+  const { data: sentRows } = await supabase
+    .from("push_messages")
+    .select("details")
+    .eq("kind", "zone")
+    .gte("created_at", new Date(nowMs - 7 * 24 * 60 * MINUTE_MS).toISOString());
+  const sentKeys = new Set(
+    ((sentRows ?? []) as { details: unknown }[]).map((r) => (Array.isArray(r.details) ? String(r.details[0]) : ""))
+  );
+  return alarms
+    .filter((a) => !sentKeys.has(a.key))
+    .map((a) => ({
+      kind: "zone",
+      title: `Nexus Atlas — ${a.title}`,
+      body: a.body,
+      explanation: ZONE_EXPLANATION,
+      details: a.details,
+    }));
+}
+
 Deno.serve(async (req: Request) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -870,6 +969,13 @@ Deno.serve(async (req: Request) => {
       { interval: tf.interval, candle_time: latestRegime.timestamp_utc, regime: latestRegime.regime },
       { onConflict: "interval,candle_time", ignoreDuplicates: true }
     );
+  }
+
+  // 6a) Zonen-Ergebnis (Zonen mit Gedaechtnis, Phase 4), siehe zoneAlarmEvents.
+  try {
+    events.push(...(await zoneAlarmEvents(supabase, nowMs)));
+  } catch (err) {
+    console.error("Zonen-Alarme:", err instanceof Error ? err.message : String(err));
   }
 
   // 6) Datenbank-Speicher (Toby 29.10.2026): Supabase Free-Plan erlaubt 500 MB,
