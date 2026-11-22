@@ -81,6 +81,67 @@ class ReadZonesTest(unittest.TestCase):
         self.assertEqual(before, Path(self.db).read_bytes())
 
 
+class ReadDrawingsTest(unittest.TestCase):
+    def setUp(self):
+        self.db = make_db(
+            [
+                ("BTCUSDT", "avwap", [{"t": 1795219200000, "p": 0}], {"text": " AVWAP 59273.4 ", "baender": 1, "farbe": "#f80"}, 0),
+                ("BTCUSDT", "rechteck", [{"t": 1, "p": 59050}, {"t": 2, "p": 59372.8}], {"text": "1h, retestzone"}, 0),
+                ("BTCUSDT", "pinsel", [{"t": i, "p": 1} for i in range(200)], {}, 0),
+                ("BTCUSDT", "emoji", [{"t": 1, "p": 60000}], {}, 0),
+                ("BTCUSDT", "trendlinie", [{"t": 1, "p": 58000}, {"t": 2, "p": 61000}], {}, 1),
+                ("BTCUSDT", "position", [{"t": 1, "p": 59100}, {"t": 1, "p": 61000}, {"t": 1, "p": 58600}], {}, 0),
+                ("BTCUSDT", "fib", "kaputt", {}, 0),
+                ("ETHUSDT", "avwap", [{"t": 1, "p": 0}], {}, 0),
+            ]
+        )
+        con = sqlite3.connect(self.db)
+        con.execute("update chart_zeichnungen set sichtbarAuf = ?, geaendertAm = 1795250000000 where id = 1", (json.dumps(["15m", "1h"]),))
+        con.commit()
+        con.close()
+
+    def tearDown(self):
+        os.unlink(self.db)
+
+    def test_alle_sichtbaren_ohne_pinsel_emoji(self):
+        drawings = autark_sync.read_drawings(self.db, "BTCUSDT")
+        self.assertEqual([d["kind"] for d in drawings], ["avwap", "rechteck", "position"])
+        avwap = drawings[0]
+        self.assertEqual(avwap["label"], "AVWAP 59273.4")
+        self.assertEqual(avwap["style"], {"text": " AVWAP 59273.4 ", "baender": 1})
+        self.assertEqual(avwap["visible_on"], ["15m", "1h"])
+        self.assertEqual(avwap["updated_at"], 1795250000000)
+        self.assertEqual(avwap["points"], [{"t": 1795219200000, "p": 0}])
+        self.assertIsNone(drawings[1]["visible_on"])
+        self.assertIsNone(drawings[1]["updated_at"])
+        self.assertEqual(len(drawings[2]["points"]), 3)
+
+    def test_leere_zeichnungsliste_nur_mit_flag_im_body(self):
+        captured = {}
+
+        class FakeRes:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def read(self):
+                return b'{"success": true}'
+
+        def fake_urlopen(req, timeout):
+            captured["body"] = json.loads(req.data)
+            return FakeRes()
+
+        with mock.patch.object(autark_sync.urllib.request, "urlopen", fake_urlopen):
+            autark_sync.send("https://example/autark-sync", "s", "BTCUSDT", [], False, [])
+            self.assertNotIn("drawings", captured["body"])
+            autark_sync.send("https://example/autark-sync", "s", "BTCUSDT", [], True, [])
+            self.assertEqual(captured["body"]["drawings"], [])
+            autark_sync.send("https://example/autark-sync", "s", "BTCUSDT", [], False, [{"id": 1}])
+            self.assertEqual(captured["body"]["drawings"], [{"id": 1}])
+
+
 class RunOnceTest(unittest.TestCase):
     def setUp(self):
         self.db = make_db([("BTCUSDT", "horizontale", [{"t": 1, "p": 80000}], {}, 0)])
@@ -90,8 +151,9 @@ class RunOnceTest(unittest.TestCase):
         os.unlink(self.db)
 
     def test_sendet_bei_jedem_lauf(self):
-        with mock.patch.object(autark_sync, "send", return_value={"success": True, "zones": 1}) as send:
-            self.assertIn("1 Zonen", autark_sync.run_once(self.cfg))
+        with mock.patch.object(autark_sync, "send", return_value={"success": True, "zones": 1, "drawings": 1}) as send:
+            self.assertIn("1 Zonen, 1 Zeichnungen", autark_sync.run_once(self.cfg))
+            self.assertEqual(send.call_args.args[5][0]["kind"], "horizontale")
             autark_sync.run_once(self.cfg)
             self.assertEqual(send.call_count, 2)
             self.assertFalse(send.call_args.args[4])

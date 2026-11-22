@@ -56,12 +56,27 @@ starten von selbst. Die Meldung „New release '26.04 LTS' available“ ignorier
 `do-release-upgrade`, 24.04 bekommt noch jahrelang Sicherheitsupdates. Kontrolle: `docker compose -f ~/autarktrade/docker-compose.yml ps`
 zeigt `Up`.
 
+**Sync-Skript aktualisieren** (z. B. 22.11.2026: Zonen plus alle Zeichnungen)
+
+Nach einer neuen Version von `tools/autark-sync/autark_sync.py` in Nexus (main):
+
+```bash
+ssh vps
+curl -fsSL https://raw.githubusercontent.com/Toby369/Nexus-Atlas/main/tools/autark-sync/autark_sync.py -o ~/.local/share/autark-sync/autark_sync.py
+journalctl --user -u autark-sync -n 5 --no-pager      # nach ≤ 5 min: „… Zonen, … Zeichnungen an Nexus übertragen“
+```
+
+Der Timer nimmt die neue Datei beim nächsten Lauf automatisch, kein Neustart nötig.
+Die Edge Function `autark-sync` (v5) nimmt alte und neue Skriptversionen an.
+Übertragen werden alle sichtbaren Zeichnungen ausser Pinsel und Emoji;
+ausgeblendete Zeichnungen gehen bewusst nicht an Nexus.
+
 **Kontrolle, ob alles läuft** (kurz, z. B. wöchentlich)
 
 ```bash
 ssh vps
 docker ps --format '{{.Names}} {{.Status}}'          # autarktrade Up …
-journalctl --user -u autark-sync -n 3 --no-pager      # „… Zonen an Nexus übertragen“
+journalctl --user -u autark-sync -n 3 --no-pager      # „… Zonen, … Zeichnungen an Nexus übertragen“
 ls -lh ~/backups | tail -3                            # Sicherung von heute/gestern
 df -h /                                               # Platz (Use% unter 80 %)
 ```

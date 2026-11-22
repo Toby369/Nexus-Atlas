@@ -7,6 +7,7 @@ Plan: [docs/research/AUTARK-NEXUS-PLAN_2026-10-28.md](../../docs/research/AUTARK
 |---|---|---|
 | Alarme | AutarkTrade-Webhook → Edge Function `webhook-autark` | Tabelle `autark_alarms`, Tagesplan „Alarme aus AutarkTrade“ |
 | Zonen | dieses Skript → Edge Function `autark-sync` | ersetzt `own_zones` (Zonen-Kachel, Plan-Satz, Tagesplan) |
+| Zeichnungen (seit 22.11.2026) | gleicher Request, Feld `drawings` | ersetzt `autark_drawings`: alle sichtbaren Zeichnungen ausser Pinsel/Emoji; AVWAP nur mit Anker, Wert rechnet Nexus |
 
 ## Geheimnisse (einmalig)
 
