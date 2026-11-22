@@ -27,11 +27,15 @@ export function driverRow(input: {
   verdictLabel: string | null;
   oiChangePct: number | null;
   scenarioLabel: string;
+  /** Letzte zwei Stunden gegen die 4H-Richtung (lib/spotHourly.ts::spotTurn). */
+  turn?: "up" | "down" | null;
 }): LageRow {
   const { spot, perp } = input;
   let light: Light = "neutral";
   let chip = "unklar";
-  if (spot === "up") [light, chip] = ["up", "Spot kauft"];
+  if (input.turn === "up") [light, chip] = ["warn", "Spot dreht: kauft seit 2 h"];
+  else if (input.turn === "down") [light, chip] = ["warn", "Spot dreht: verkauft seit 2 h"];
+  else if (spot === "up") [light, chip] = ["up", "Spot kauft"];
   else if (spot === "down") [light, chip] = ["down", "Spot verkauft"];
   else if (perp === "up" || perp === "down") [light, chip] = ["warn", "nur Hebel"];
   else if (spot === "flat") chip = "ruhig";
@@ -78,13 +82,26 @@ export function usInvestorsRow(input: {
   premiumLabel: string | null;
   fearGreed: number | null;
   fearGreedLabel: string | null;
+  /** Datum des juengsten ETF-Tages, z. B. "Do 19.11.". */
+  etfDateText?: string | null;
+  /** US-Wochenende (New York): Daten sind alt, die Zeile zaehlt nicht. */
+  usClosed?: boolean;
 }): LageRow {
   let score = 0;
   if (input.etfSumUsdM !== null) score += input.etfSumUsdM > 0 ? 1 : input.etfSumUsdM < 0 ? -1 : 0;
   if (input.premiumPct !== null) score += input.premiumPct > 0.03 ? 1 : input.premiumPct < -0.03 ? -1 : 0;
-  const [light, chip]: [Light, string] = score > 0 ? ["up", "kaufen"] : score < 0 ? ["down", "verkaufen"] : ["neutral", "gemischt"];
+  // Toby 22.11.2026: Sonntagmorgen stand rot "verkaufen" mit ETF-Zahlen vom
+  // Donnerstag. Am US-Wochenende grau und ohne Gewicht in der Gesamtlage.
+  const [light, chip]: [Light, string] = input.usClosed
+    ? ["neutral", "US geschlossen"]
+    : score > 0
+      ? ["up", "kaufen"]
+      : score < 0
+        ? ["down", "verkaufen"]
+        : ["neutral", "gemischt"];
+  const stand = input.etfDateText ? `, Stand ${input.etfDateText}` : "";
   const parts = [
-    input.etfSumUsdM === null ? null : `ETF ${signed(input.etfSumUsdM, 0)} Mio. $ (${input.etfDays} T)`,
+    input.etfSumUsdM === null ? null : `ETF ${signed(input.etfSumUsdM, 0)} Mio. $ (${input.etfDays} T${stand})`,
     input.premiumPct === null ? null : `Coinbase ${signed(input.premiumPct, 3)} %`,
     input.fearGreed === null ? null : `F&G ${input.fearGreed}${input.fearGreedLabel ? ` ${input.fearGreedLabel}` : ""}`,
   ].filter(Boolean);
@@ -143,4 +160,17 @@ export function overallSentence(rows: LageRow[]): { light: Light; text: string }
   const light: Light = tail.length > 0 ? "warn" : score > 0 ? "up" : score < 0 ? "down" : "neutral";
   const body = reasons.length > 0 ? `: ${reasons.join(", ")}.` : ": keine klare Seite.";
   return { light, text: `${head}${body}${tail.length ? ` ${tail.join(". ")}.` : ""}` };
+}
+
+/** Samstag oder Sonntag in New York: kein US-Handel, keine neuen ETF-Daten. */
+export function isUsWeekend(nowMs: number): boolean {
+  const wd = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short" }).format(nowMs);
+  return wd === "Sat" || wd === "Sun";
+}
+
+/** "Do 19.11." aus "2026-11-19". */
+export function etfDateText(isoDate: string): string {
+  const d = new Date(`${isoDate}T12:00:00Z`);
+  const wd = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][d.getUTCDay()];
+  return `${wd} ${d.getUTCDate()}.${d.getUTCMonth() + 1}.`;
 }
