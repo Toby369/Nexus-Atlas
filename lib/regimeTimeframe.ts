@@ -5,8 +5,9 @@ import type { TimeframeId } from "./timeframes";
 // Marktphase je Zeitrahmen: die Kachel folgt der Zeitraum-Auswahl oben.
 // 1h liegt persistiert in market_state_matrix (Cron refresh-market-state-
 // matrix-every-15-min, lesen dort auch Briefing/Scores/Push). Die uebrigen
-// Kerzen-Intervalle rechnet compute_market_state_matrix_latest live aus den
-// letzten 400 Kerzen -- gleiche Formeln, nichts zusaetzlich gespeichert
+// Kerzen-Intervalle rechnet compute_market_state_matrix_latest aus den
+// letzten 400 Kerzen -- gleiche Formeln. Seit 22.11.2026 vorberechnet in
+// market_state_latest (eine Zeile je Intervall), live nur als Rueckfall
 // (siehe docs/research/MARKTPHASE-ZEITRAHMEN_2026-10-13.md).
 
 // 15M zeigt bewusst 1H (Entscheid Toby 13.10.2026): auf 15m-Kerzen schlaegt
@@ -33,6 +34,9 @@ export function regimeIntervalFor(timeframe: TimeframeId): RegimeInterval {
   return INTERVAL_BY_TIMEFRAME[timeframe];
 }
 
+/** Cron laeuft alle 15 Min; zwei verpasste Laeufe toleriert, dann live. */
+export const CACHE_MAX_AGE_MS = 40 * 60 * 1000;
+
 export async function fetchRegimeMatrix(
   interval: RegimeInterval
 ): Promise<{ data: MarketStateMatrix | null; ok: boolean }> {
@@ -50,6 +54,20 @@ export async function fetchRegimeMatrix(
       return { data: null, ok: false };
     }
     return { data, ok: true };
+  }
+
+  // 4H/1D/1W: zuerst der vorberechnete Wert (market_state_latest, Cron alle
+  // 15 Min, Toby 21.11.2026). Live gerechnet dauerte 4h ~6,4 s und lief bei
+  // Last ins 8-s-Zeitlimit. Live-Rechnung nur noch als Rueckfall, wenn der
+  // Cache fehlt oder aelter als CACHE_MAX_AGE_MS ist.
+  const cached = await supabase
+    .from("market_state_latest")
+    .select("data, computed_at")
+    .eq("interval", interval)
+    .maybeSingle();
+  if (!cached.error && cached.data && Date.now() - Date.parse(cached.data.computed_at) <= CACHE_MAX_AGE_MS) {
+    const row = cached.data.data as Omit<MarketStateMatrix, "id" | "symbol" | "interval" | "created_at">;
+    return { data: { ...row, id: 0, symbol: "BTCUSDT", interval, created_at: row.timestamp_utc }, ok: true };
   }
 
   const { data, error } = await supabase.rpc("compute_market_state_matrix_latest", {
