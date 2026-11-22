@@ -1,10 +1,9 @@
 "use client";
 
 import { useLivePriceData, LivePriceEmptyState } from "@/components/LivePriceDataProvider";
-import TimeSeriesChart from "@/components/TimeSeriesChart";
 import { Karte, Pille, type PillenTon } from "@/components/basis";
 import { fundingRateInfo } from "@/lib/panelInfo";
-import { formatPercent, clockTimeLabel } from "@/lib/livePriceFormat";
+import { formatPercent } from "@/lib/livePriceFormat";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { setVisibleInterval } from "@/lib/visibleInterval";
@@ -77,7 +76,7 @@ function formatAnnual(pct: number): string {
 }
 
 export default function FundingRateCard() {
-  const { latest, fundingSeries } = useLivePriceData();
+  const { latest } = useLivePriceData();
   const { bundle } = useDashboardPoll();
   const [history, setHistory] = useState<FundingHistory | null>(null);
 
@@ -140,7 +139,7 @@ export default function FundingRateCard() {
           <span className="text-[11px] text-text-faint">{level.hint}</span>
         </div>
       )}
-      <TimeSeriesChart data={fundingSeries} color="#4fae7c" formatAxisTime={clockTimeLabel} />
+      {/* 22.11.2026 (Toby): Funding-Diagramm entfernt, "nutze ich nie". Wert, Einordnung und Verlauf in Worten bleiben. */}
       {baseline && (
         <div className="mt-2 space-y-0.5">
           {baseline.lines.map((line, i) => (
