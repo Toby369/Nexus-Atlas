@@ -411,8 +411,8 @@ export async function buildSystemBriefingContext(): Promise<SystemBriefingContex
     { label: "ema13", price: meinSystemChecklist.ema13 },
     { label: "ema50", price: meinSystemChecklist.ema50 },
     { label: "ema200", price: meinSystemChecklist.ema200 },
-    { label: "vwap_daily", price: tradingIndicators.vwapVector.dayVwap },
     { label: "vwap_weekly", price: tradingIndicators.vwapVector.weeklyVwap },
+    { label: "vwap_monthly", price: tradingIndicators.vwapVector.monthlyVwap },
     { label: "vwap_swing_high", price: tradingIndicators.vwapVector.swingHighVwap },
     { label: "vwap_swing_low", price: tradingIndicators.vwapVector.swingLowVwap },
   ]);
@@ -520,10 +520,10 @@ export function sliceForRegelwerk(ctx: SystemBriefingContext) {
 export function sliceForChartStruktur(ctx: SystemBriefingContext) {
   const { triangle, continuationFormation, swingFormations, recentCandlestickPatterns, keyLevels, levelStruktur } =
     ctx;
-  const { dayVwap, weeklyVwap, monthlyVwap } = ctx.trading_indicators.vwapVector;
+  const { weeklyVwap, monthlyVwap } = ctx.trading_indicators.vwapVector;
   return {
     btc_markt: ctx.btc_markt,
-    vwap: { tag: dayVwap, woche: weeklyVwap, monat: monthlyVwap },
+    vwap: { woche: weeklyVwap, monat: monthlyVwap },
     triangle,
     continuationFormation,
     swingFormations,

@@ -65,8 +65,8 @@ export default async function LernenPage() {
     { label: "ema13", price: meinSystemData.ema13 },
     { label: "ema50", price: meinSystemData.ema50 },
     { label: "ema200", price: meinSystemData.ema200 },
-    { label: "vwap_daily", price: tradingIndicators.vwapVector.dayVwap },
     { label: "vwap_weekly", price: tradingIndicators.vwapVector.weeklyVwap },
+    { label: "vwap_monthly", price: tradingIndicators.vwapVector.monthlyVwap },
     { label: "vwap_swing_high", price: tradingIndicators.vwapVector.swingHighVwap },
     { label: "vwap_swing_low", price: tradingIndicators.vwapVector.swingLowVwap },
   ]);

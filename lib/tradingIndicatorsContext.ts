@@ -267,7 +267,6 @@ export interface FibLevel {
 
 export interface VwapVectorData {
   currentPrice: number | null;
-  dayVwap: number | null;
   weeklyVwap: number | null;
   weeklyAnchorUtc: string | null;
   monthlyVwap: number | null;
@@ -332,23 +331,17 @@ async function computeVwapVector(base: TradingIndicatorsBaseData): Promise<VwapV
   const { candles } = base;
   const lastCandle = candles[candles.length - 1] ?? null;
 
-  const dayAnchor = new Date();
-  dayAnchor.setUTCHours(0, 0, 0, 0);
-
-  const [anchoredRes, dayRes, emaFans] = await Promise.all([
+  // Kein Tages-VWAP (Toby 11. und 22.11.2026: nutzt nur Woche und Monat).
+  const [anchoredRes, emaFans] = await Promise.all([
     // Deckt weekly_vwap/monthly_vwap bereits vollstaendig ab (siehe
     // Umsetzungsplan Punkt 4/Recherche pg_get_functiondef) -- kein
     // Doppelaufbau derselben Arithmetik.
     supabase.rpc("get_anchored_vwap_summary"),
-    supabase.rpc("get_vwap_since", { p_anchor_utc: dayAnchor.toISOString() }),
     Promise.all(VWAP_EMA_INTERVALS.map((interval) => fetchEmaFan(interval))),
   ]);
 
   if (anchoredRes.error) {
     console.error("tradingIndicatorsContext: Fehler bei get_anchored_vwap_summary:", anchoredRes.error.message);
-  }
-  if (dayRes.error) {
-    console.error("tradingIndicatorsContext: Fehler bei get_vwap_since (Tag-Anker):", dayRes.error.message);
   }
 
   const anchored = (anchoredRes.data ?? null) as Record<string, unknown> | null;
@@ -405,7 +398,6 @@ async function computeVwapVector(base: TradingIndicatorsBaseData): Promise<VwapV
 
   return {
     currentPrice: (anchored?.current_price as number | null) ?? lastCandle?.close ?? null,
-    dayVwap: (dayRes.data as number | null) ?? null,
     weeklyVwap: (anchored?.weekly_vwap as number | null) ?? null,
     weeklyAnchorUtc: (anchored?.weekly_anchor_utc as string | null) ?? null,
     monthlyVwap: (anchored?.monthly_vwap as number | null) ?? null,

@@ -753,8 +753,8 @@ export type KeyLevelConfirmation =
   | "ema13"
   | "ema50"
   | "ema200"
-  | "vwap_daily"
   | "vwap_weekly"
+  | "vwap_monthly"
   | "vwap_swing_high"
   | "vwap_swing_low";
 

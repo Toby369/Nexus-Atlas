@@ -540,7 +540,7 @@ describe("withConfirmationLevels", () => {
     ]);
     const result = withConfirmationLevels(data, [
       { label: "ema50", price: 1001 }, // ~0,1% entfernt -> innerhalb 0,3%
-      { label: "vwap_daily", price: 1100 }, // weit entfernt -> nicht getaggt
+      { label: "vwap_monthly", price: 1100 }, // weit entfernt -> nicht getaggt
     ]);
     expect(result.keyLevels[0].confirmedBy).toEqual(["ema50"]);
   });
