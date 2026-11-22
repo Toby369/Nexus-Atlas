@@ -27,14 +27,14 @@ export function driverRow(input: {
   verdictLabel: string | null;
   oiChangePct: number | null;
   scenarioLabel: string;
-  /** Letzte zwei Stunden gegen die 4H-Richtung (lib/spotHourly.ts::spotTurn). */
+  /** Letzte geschlossene plus laufende Stunde gegen die 4H-Richtung (lib/spotHourly.ts::spotTurn). */
   turn?: "up" | "down" | null;
 }): LageRow {
   const { spot, perp } = input;
   let light: Light = "neutral";
   let chip = "unklar";
-  if (input.turn === "up") [light, chip] = ["warn", "Spot dreht: kauft seit 2 h"];
-  else if (input.turn === "down") [light, chip] = ["warn", "Spot dreht: verkauft seit 2 h"];
+  if (input.turn === "up") [light, chip] = ["warn", "Spot dreht: kauft"];
+  else if (input.turn === "down") [light, chip] = ["warn", "Spot dreht: verkauft"];
   else if (spot === "up") [light, chip] = ["up", "Spot kauft"];
   else if (spot === "down") [light, chip] = ["down", "Spot verkauft"];
   else if (perp === "up" || perp === "down") [light, chip] = ["warn", "nur Hebel"];

@@ -346,6 +346,16 @@ Liquidations-Ziel: die nächste Zone über dem Kurs, in der Short-Positionen liq
 
 So entsteht der Wert: Nexus-Keylevels wie in der Chart-Struktur (Pivot-Konfluenz über mehrere Zeitrahmen, Liquidations-Cluster, Spot-Volumen). Das Level direkt am Kurs (±0,25 %, dein Retest-Band) wird übersprungen. Massgebend bleiben deine eigenen Zonen im Chart; diese Kachel ist der Abgleich.`;
 
+export const setupInfo = `So liest du das: Nexus liest deine Zeichnungen aus AutarkTrade (Zonen, Linien, AVWAP) und legt EMA 50/200 (15m), Wochen- und Monats-VWAP dazu. Level, die höchstens 0,3 % auseinanderliegen, werden ein Cluster (zwei Swing-Level: 0,6 %). Es zählen nur Cluster mit mindestens einer eigenen Zeichnung. Den AVWAP rechnet Nexus aus den Binance-15m-Kerzen ab deinem Anker, wie dein Chart.
+
+Ob ein Cluster Unterstützung oder Widerstand ist, entscheidet die Herkunft: Kam der Kurs von oben, ist es eine Long-Idee, sonst eine Short-Idee.
+
+Belege am Cluster, höchstens 10 Punkte: 15m-Schluss auf der richtigen Seite nach dem Test 2, Spot in Traderichtung (letzte geschlossene und laufende Stunde je ab ±5 %, die laufende ab 15 Minuten) 3, Momentum höchstens 2 (RSI-Divergenz 2, RSI unter 30 bzw. über 70 1, MACD-Kreuz in den letzten 3 Kerzen 1, RSI über bzw. unter 50 1), Testkerze mit weniger Volumen als der Schnitt der 20 davor 1, OI gefallen 1, Funding und Masse nicht gegen dich 1. Ab 7 Punkten ohne Veto steht das Setup, darunter heisst es beobachten.
+
+Einstieg am Cluster, Stop 0,25 % hinter dem Cluster, mindestens 0,5 % und nie enger als das 1,2-Fache der 1H-Spanne. Ziele an den nächsten Clustern ab 1 % Abstand. Hebel = 10 % ÷ Stop-Abstand, höchstens 20x; das Risiko bleibt 1 USDT. Zeigen zwei von drei Hintergrund-Punkten gegen dich (Kurs hinter EMA 50 und 200, hinter dem Wochen-VWAP, Spot über 4H dagegen) oder ist US-Datentag, gilt halbe Grösse.
+
+Veto: Termin-Fenster, 3 Trades oder 2 Verluste heute, kein Ziel ab 1 % oder CRV unter 2. Die Punkte zählen Belege, sie sind keine Trefferquote.`;
+
 export const ruleCheckInfo = `So liest du das: Deine Pflichtfragen vor einem Einstieg, von Nexus aus den Binance-Kerzen beantwortet. Gesucht wird der jüngste 4H-Körperschluss über oder unter einem Keylevel in den letzten 24 Stunden; daraus folgt die Richtung (Long oder Short). Danach: Kam eine 1H-Kerze bis ±0,25 % ans Level zurück und schloss auf der Ausbruchsseite? Steht auf 15m eine Bestätigungskerze (Docht ins Level, Schluss in Traderichtung) mit geschlossener Folgekerze? Und liegt das nächste Ziel mindestens 1 % entfernt?
 
 Grün heisst erfüllt, rot heisst kein Trade, grau heisst noch offen. Die Kerzen werden beim Laden der Seite geholt; nach einem Kerzenschluss die Seite aktualisieren. Massgebend bleiben deine eigenen Zonen im Chart.`;

@@ -340,7 +340,7 @@ export default function LageCard({
   const nextEvent = upcomingEvents[0] ?? null;
   const rate = nowMs === null ? null : rateCourse(rateChanges, twoYear, nowMs);
   const spotBars = nowMs === null ? [] : hourlySpotNet(spotPoints, nowMs);
-  const turn = spotTurn(spotBars, spotPerp.result.spotDirection);
+  const turn = nowMs === null ? null : spotTurn(spotBars, spotPerp.result.spotDirection, nowMs);
   const labelFor = (key: string) => events.find((e) => e.event_key === key)?.label ?? key.toUpperCase();
 
   const rows: LageRow[] = [

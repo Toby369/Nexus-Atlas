@@ -100,6 +100,8 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
   { id: "news-risk", title: "News & Risiko", quellen: ["news"], herkunft: [Q.news, Q.nexus] },
   // 25.10.2026 (Toby): Hebelkarte "kann weit hinten" -- letzte Kachel im Archiv.
   { id: "leverage-map", title: "Liquidations-/Hebelkarte", quellen: ["candles_1h"], herkunft: [Q.binance, Q.nexus] },
+  // 22.11.2026: alter Regelcheck (4H-Ausbruch, 1H-Retest, 15m-Bestaetigung), im Reiter "Trade" durch den Setup-Rechner ersetzt.
+  { id: "rule-check", title: "Regelcheck (alt)", quellen: ["candles_1h"], herkunft: [Q.binance, Q.nexus] },
   // Das Institutional Playbook ist ein Modul im Wissen-Tab der Lernen-Seite.
   // Der Positionierung-Faktor bleibt Teil der 14-Faktoren-Engine (Lagebild),
   // hat aber keine eigene Detail-Kachel mehr.

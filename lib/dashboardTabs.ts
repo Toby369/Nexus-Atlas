@@ -24,7 +24,9 @@ export const DASHBOARD_TABS: DashboardTabMeta[] = [
   // Kacheln stecken als Details in "Lage" und bleiben im Archiv. Geloescht
   // wird nichts.
   { id: "lage", label: "Lage", tileIds: ["lage"], fixed: true },
-  { id: "trade", label: "Trade", tileIds: ["zones", "rule-check", "veto"], fixed: true },
+  // 22.11.2026 (Toby): Setup-Rechner ersetzt hier den Regelcheck; der alte
+  // Regelcheck bleibt im Archiv.
+  { id: "trade", label: "Trade", tileIds: ["zones", "setup", "veto"], fixed: true },
   { id: "wochenblick", label: "Wochenblick", tileIds: ["etf-flow", "cycle-indicators"] },
   {
     id: "archiv",
@@ -46,6 +48,7 @@ export const DASHBOARD_TABS: DashboardTabMeta[] = [
       "youtube-monitor",
       "lernen",
       "leverage-map",
+      "rule-check",
     ],
   },
 ];

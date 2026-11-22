@@ -185,22 +185,29 @@ export function useTradeStatus(props: DecisionProps) {
     [bundle.positioning_binance, bundle.positioning_bybit, bundle.positioning_okx, bundle.positioning_bitget],
     bundle.positioning_binance
   );
-  const veto = evaluateVeto({
-    side: check.side,
+  const inputs = {
     fundingPct: latest?.funding_rate == null ? null : fundingPctPer8h(latest.funding_rate),
     crowdLongPct: positioning?.crowdLongPct ?? null,
-    spot: spotPerp.result.spotDirection,
-    perp: spotPerp.result.perpDirection,
-    driverLabel: spotPerp.result.verdict ? `${spotPerp.result.verdict.label}: ${spotPerp.result.verdict.text}` : null,
     upcomingRisk: risk ? `${WARNING_LABELS[risk.id]} ${risk.inMin === 0 ? "läuft jetzt" : `in ${risk.inMin} Min`}` : null,
     dataDay,
     noisePct: hourlyNoisePct(props.candles1h),
+  };
+  const veto = evaluateVeto({
+    side: check.side,
+    fundingPct: inputs.fundingPct,
+    crowdLongPct: inputs.crowdLongPct,
+    spot: spotPerp.result.spotDirection,
+    perp: spotPerp.result.perpDirection,
+    driverLabel: spotPerp.result.verdict ? `${spotPerp.result.verdict.label}: ${spotPerp.result.verdict.text}` : null,
+    upcomingRisk: inputs.upcomingRisk,
+    dataDay,
+    noisePct: inputs.noisePct,
     stopPct: check.stopPct ?? MIN_STOP_PCT,
     tradesToday: journal.trades,
     lossesInRow: journal.losses,
   });
   const summary = vetoSummary(veto);
-  return { check, veto, summary, spotPerp, journal, setJournal };
+  return { check, veto, summary, spotPerp, journal, setJournal, inputs };
 }
 
 export function VetoCard(props: DecisionProps) {

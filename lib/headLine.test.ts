@@ -38,3 +38,15 @@ describe("headActionLine", () => {
     expect(headActionLine(check("long", "wait", "Long über 1: 1H-Retest abwarten"), warn, null).text).not.toContain("Warnung");
   });
 });
+
+describe("headFromSetup", () => {
+  it("folgt dem Setup-Rechner", async () => {
+    const { headFromSetup } = await import("./headLine");
+    const v = (tone: "trade" | "wait" | "watch" | "stop", short: string, halfSize: string[] = []) => ({ verdict: { tone, short }, halfSize });
+    expect(headFromSetup(undefined, "Über 60’000 Long")).toEqual({ text: "Über 60’000 Long", tone: "neutral" });
+    expect(headFromSetup(v("trade", "Long-Setup steht (9/10)"), null)).toEqual({ text: "Long-Setup steht (9/10)", tone: "ok" });
+    expect(headFromSetup(v("trade", "Long-Setup steht (9/10)", ["x"]), null)).toEqual({ text: "Long-Setup steht (9/10) · halbe Grösse", tone: "warn" });
+    expect(headFromSetup(v("stop", "Veto: CPI in 20 Min"), null).tone).toBe("stop");
+    expect(headFromSetup(v("watch", "Long 59’000 beobachten (5/10)"), null).tone).toBe("warn");
+  });
+});
