@@ -3,8 +3,8 @@ import type { SpotPressurePoint } from "./types";
 // Spot-Druck je Stunde (Toby 22.11.2026): Der 4H-Wert "Spot verkauft −5 %"
 // verdeckte um 08:01 zwei Kaufstunden (07 Uhr +9 %, 08 Uhr +10 %), Toby
 // stieg aus einem guten Long aus. Darum: 12 Stundenbalken in "Wer treibt?"
-// und eine Drehung, wenn die letzten zwei geschlossenen Stunden gegen die
-// 4H-Richtung laufen. Nur Anzeige: Spot-Druck sagt den Kurs der naechsten
+// und eine Drehung, wenn die letzte geschlossene und die laufende Stunde
+// gegen die 4H-Richtung laufen. Nur Anzeige: Spot-Druck sagt den Kurs der naechsten
 // Stunden nicht voraus (30 Tage, 4H rot 43 % / gruen 46 % steigend), er
 // zeigt, wer gerade handelt.
 
@@ -42,14 +42,26 @@ export function hourlySpotNet(points: SpotPressurePoint[], nowMs: number, hours 
   });
 }
 
+/** Die laufende Stunde zaehlt erst nach so vielen Minuten Daten. */
+export const RUNNING_HOUR_MIN_MINUTES = 15;
+
 /**
- * Dreht der Spot gegen die 4H-Richtung? Die letzten zwei GESCHLOSSENEN
- * Stunden muessen beide klar (ab ±5 %) auf der Gegenseite liegen.
+ * Dreht der Spot gegen die 4H-Richtung? Toby 22.11.2026: die letzte
+ * geschlossene Stunde PLUS die laufende (ab 15 Min) muessen beide klar
+ * (ab ±5 %) auf der Gegenseite liegen. Vorher galten zwei geschlossene
+ * Stunden; am 22.11. haette das erst um 09:00 gegriffen statt um 08:15.
  */
-export function spotTurn(bars: SpotHourBar[], spot4h: "up" | "down" | "flat" | null): "up" | "down" | null {
-  const closed = bars.filter((b) => b.complete);
-  const last2 = closed.slice(-2);
-  if (last2.length < 2 || last2.some((b) => b.netPct === null)) return null;
+export function spotTurn(
+  bars: SpotHourBar[],
+  spot4h: "up" | "down" | "flat" | null,
+  nowMs: number
+): "up" | "down" | null {
+  const lastClosed = [...bars].reverse().find((b) => b.complete);
+  const running = bars.find((b) => !b.complete);
+  if (!lastClosed || !running) return null;
+  if (nowMs - running.startMs < RUNNING_HOUR_MIN_MINUTES * 60_000) return null;
+  const last2 = [lastClosed, running];
+  if (last2.some((b) => b.netPct === null)) return null;
   if (spot4h === "down" && last2.every((b) => b.netPct! >= TURN_HOUR_PCT)) return "up";
   if (spot4h === "up" && last2.every((b) => b.netPct! <= -TURN_HOUR_PCT)) return "down";
   return null;

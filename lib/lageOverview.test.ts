@@ -25,7 +25,7 @@ describe("Lage: vier Fragen", () => {
 
   it("Wer treibt: Drehung schlaegt die 4H-Richtung (22.11.)", () => {
     const base = { spot: "down" as const, perp: "flat" as const, verdictLabel: "x", oiChangePct: 1.8, scenarioLabel: "y" };
-    expect(driverRow({ ...base, turn: "up" })).toMatchObject({ light: "warn", chip: "Spot dreht: kauft seit 2 h" });
+    expect(driverRow({ ...base, turn: "up" })).toMatchObject({ light: "warn", chip: "Spot dreht: kauft" });
     expect(driverRow(base)).toMatchObject({ light: "down", chip: "Spot verkauft" });
   });
 
