@@ -17,6 +17,7 @@ import { summarizePositioning } from "@/lib/positioning";
 import { nextHighRiskWindow, type EconomicEventRow } from "@/lib/tradingHours";
 import { dataDayLabel } from "@/lib/macroGuide";
 import { getTimeframe, type TimeframeId } from "@/lib/timeframes";
+import { useSetup } from "@/components/SetupCard";
 
 // Schritte 3 und 4 im Reiter "Trade" (Toby 22./25.10.2026): Regelcheck aus
 // den Kerzen und das Veto vor dem Klick. Das Veto nutzt die Richtung des
@@ -155,7 +156,11 @@ export function RuleCheckCard(props: DecisionProps) {
 }
 
 /** Regelcheck, Veto und Flow-Daten -- geteilt von Veto-Kachel und Kopf-Zeile (HeroHeader). */
-export function useTradeStatus(props: DecisionProps) {
+export function useTradeStatus(
+  props: DecisionProps,
+  /** Setup-Rechner (22.11.2026): Seite und Stop der aktuellen Idee statt des alten Regelchecks. */
+  setup?: { side: "long" | "short"; stopPct: number } | null
+) {
   const { events, timeframe } = props;
   const check = useRuleCheck(props);
   const { latest } = useLivePriceData();
@@ -193,7 +198,7 @@ export function useTradeStatus(props: DecisionProps) {
     noisePct: hourlyNoisePct(props.candles1h),
   };
   const veto = evaluateVeto({
-    side: check.side,
+    side: setup ? setup.side : check.side,
     fundingPct: inputs.fundingPct,
     crowdLongPct: inputs.crowdLongPct,
     spot: spotPerp.result.spotDirection,
@@ -202,7 +207,7 @@ export function useTradeStatus(props: DecisionProps) {
     upcomingRisk: inputs.upcomingRisk,
     dataDay,
     noisePct: inputs.noisePct,
-    stopPct: check.stopPct ?? MIN_STOP_PCT,
+    stopPct: setup ? setup.stopPct : (check.stopPct ?? MIN_STOP_PCT),
     tradesToday: journal.trades,
     lossesInRow: journal.losses,
   });
@@ -211,7 +216,8 @@ export function useTradeStatus(props: DecisionProps) {
 }
 
 export function VetoCard(props: DecisionProps) {
-  const { veto, summary, journal, setJournal } = useTradeStatus(props);
+  const { ideas } = useSetup(props);
+  const { veto, summary, journal, setJournal } = useTradeStatus(props, ideas[0] ? { side: ideas[0].side, stopPct: ideas[0].stopPct } : null);
 
   return (
     <StepCard step={4} title="Veto vor dem Klick" line={summary.short} tone={VETO_TONE[summary.tone]} info={vetoInfo} usageId="veto">

@@ -6,7 +6,7 @@ import { useLivePriceData } from "@/components/LivePriceDataProvider";
 import StepCard from "@/components/StepCard";
 import { zonesInfo } from "@/lib/panelInfo";
 import { entryZone, isAtZone, leverageForStop, nearestLiquidationTargets, nearestZones, stopBehindZone, type LiquidationTarget, type ZoneRow } from "@/lib/zones";
-import { isSyncStale, AUTARK_SYNC_STALE_MINUTES, type AutarkSyncStatus, type OwnZone } from "@/lib/ownZones";
+import { fetchAutarkSyncStatus, isSyncStale, AUTARK_SYNC_STALE_MINUTES, type AutarkSyncStatus, type OwnZone } from "@/lib/ownZones";
 import { computeTpSuggestions, type TpSuggestion } from "@/lib/tpStandard";
 import { zoneKey } from "@/lib/zoneHistory";
 import type { ZoneWatchView } from "@/lib/zoneWatchContext";
@@ -285,13 +285,35 @@ export default function ZonesCard({
   const shortStop = price !== null ? stopBehindZone("short", entryZone(keyLevels, price, "short"), price).stopPct : undefined;
   const autark = ownZones.some((z) => z.source === "autark");
   const [stale, setStale] = useState(false);
+  const [freshSyncAt, setFreshSyncAt] = useState<string | null>(null);
+  const propSyncAt = autarkSync?.lastSyncAt ?? null;
+  const lastSyncAt =
+    freshSyncAt && (!propSyncAt || Date.parse(freshSyncAt) > Date.parse(propSyncAt)) ? freshSyncAt : propSyncAt;
   useEffect(() => {
     if (!autark) return;
-    const check = () => setStale(isSyncStale(autarkSync?.lastSyncAt ?? null, Date.now()));
+    // 22.11.2026: Der Stand kam nur beim Laden der Seite mit. Blieb die Seite
+    // offen, meldete sie nach 30 Min "kein Abgleich", obwohl der Sync lief.
+    // Erst wenn der bekannte Stand veraltet wirkt, frisch nachfragen (eine
+    // kleine Abfrage, nur dann).
+    let cancelled = false;
+    const check = async () => {
+      if (!isSyncStale(lastSyncAt, Date.now())) {
+        setStale(false);
+        return;
+      }
+      const fresh = await fetchAutarkSyncStatus();
+      if (cancelled) return;
+      const at = fresh?.lastSyncAt ?? lastSyncAt;
+      if (at !== lastSyncAt) setFreshSyncAt(at);
+      setStale(isSyncStale(at, Date.now()));
+    };
     check();
     const interval = setInterval(check, STALE_CHECK_MS);
-    return () => clearInterval(interval);
-  }, [autark, autarkSync?.lastSyncAt]);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [autark, lastSyncAt]);
   const baseLine =
     price === null
       ? "Kein Live-Kurs"
@@ -346,7 +368,7 @@ export default function ZonesCard({
         nexusLevels={nexusLevels}
         price={price}
         autark={autark}
-        sync={autarkSync}
+        sync={autarkSync ? { ...autarkSync, lastSyncAt } : null}
         stale={stale}
         suggestions={zoneSuggestions}
       />
