@@ -144,7 +144,6 @@ export function VwapVectorCard({ data }: { data: VwapVectorData }) {
       </div>
 
       <div className="space-y-1">
-        <VwapRow label="Tag-VWAP" value={data.dayVwap} />
         <VwapRow label="Wochen-VWAP" value={data.weeklyVwap} anchorUtc={data.weeklyAnchorUtc} />
         <VwapRow label="Monats-VWAP" value={data.monthlyVwap} anchorUtc={data.monthlyAnchorUtc} />
         <VwapRow label="Swing-Hoch-VWAP" value={data.swingHighVwap} anchorUtc={data.swingHighAnchorUtc} />

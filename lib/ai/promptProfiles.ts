@@ -68,8 +68,8 @@ const BRIEFING_STYLE_INSTRUCTION =
   "Trader-Begriffe sind erlaubt (VWAP, EMA 200, RSI, Support, Widerstand, Funding, " +
   "Open Interest, Liquidationen, Reclaim). VERBOTEN: interne Datenfeldnamen, " +
   "Variablen oder JSON-Pfade aus dem Kontext (nie 'mein_system_checklist.ema13', " +
-  "'dayVwap', 'regimeAllowsGuss', 'TREND_FORMING_BULLISH', 'phase: respecting') -- " +
-  "uebersetze sie in Klartext ('EMA 13 auf Tagesbasis', 'Tages-VWAP', 'GUSS sieht " +
+  "'weeklyVwap', 'regimeAllowsGuss', 'TREND_FORMING_BULLISH', 'phase: respecting') -- " +
+  "uebersetze sie in Klartext ('EMA 13 auf Tagesbasis', 'Wochen-VWAP', 'GUSS sieht " +
   "einen beginnenden Aufwaertstrend', 'die Zone haelt'); keine Vergleichsoperatoren " +
   "wie '>' oder '='. Kurse als ganze USD mit Apostroph als Tausendertrenner (84'300 " +
   "USD), Zonen als Spanne (84'300-84'500 USD), Prozentwerte mit Vorzeichen und einer " +
@@ -174,8 +174,8 @@ export const BRIEFING_REPORT_SECTIONS = [
 const TECHNICAL_IDENTIFIER_PATTERNS: RegExp[] = [
   /\b[a-z][a-z0-9]*_[a-z0-9_]+\b/, // snake_case (mein_system_checklist)
   /\b[A-Z]{2,}_[A-Z0-9_]{2,}\b/, // UPPER_SNAKE (TREND_FORMING_BULLISH)
-  /\b[a-z]+[A-Z][a-zA-Z0-9]*\b/, // camelCase (dayVwap, closePrice)
-  /\b[A-Za-z_]{3,}\.[A-Za-z_]{3,}\b/, // Pfad (vwapVector.dayVwap)
+  /\b[a-z]+[A-Z][a-zA-Z0-9]*\b/, // camelCase (weeklyVwap, closePrice)
+  /\b[A-Za-z_]{3,}\.[A-Za-z_]{3,}\b/, // Pfad (vwapVector.weeklyVwap)
 ];
 
 /** Findet interne Feldnamen/Variablen in einem KI-Text (leeres Array = Klartext). */
@@ -403,7 +403,7 @@ export const promptProfiles: Record<string, PromptProfile> = {
       "bewegungsvorrat.ratio_pct (heutige Tagesspanne in % des Medians der letzten 10 " +
       "Tage, deutlich ueber 100 = Tagespensum ausgeschoepft); mein_system_checklist " +
       "(Funding, OI-Veraenderung, EMA 13/50/200 auf Tagesbasis, Tagesschluss); " +
-      "trading_indicators (GUSS-Regime, VWAP-Vector mit Tages-/Wochen-/Monats-VWAP, CVD -- " +
+      "trading_indicators (GUSS-Regime, VWAP-Vector mit Wochen-/Monats-VWAP, CVD -- " +
       "einzige Orderflow-Quelle); liquidations (Preis-Cluster nahe Kurs); divergenzen " +
       "(aktuelle RSI-/MACD-Divergenzen auf 1H/4H/1D -- laut Regelwerk nur Hinweis, nie " +
       "Sperre; falls vorhanden in der Gates-Zeile als Warnung bzw. Bestaetigung nennen). " +
@@ -444,7 +444,7 @@ export const promptProfiles: Record<string, PromptProfile> = {
     systemPrompt:
       BRIEFING_STYLE_INSTRUCTION +
       "Du schreibst den Abschnitt 'Bitcoin Chart'. Daten: btc_markt (aktueller Kurs, " +
-      "7-Tage-Hoch/-Tief), vwap (Tages-, Wochen-, Monats-VWAP), triangle/" +
+      "7-Tage-Hoch/-Tief), vwap (Wochen-, Monats-VWAP), triangle/" +
       "continuationFormation/swingFormations (algorithmisch erkannte Formationen, null = " +
       "keine), recentCandlestickPatterns, keyLevels (Preis, Seite Widerstand/" +
       "Unterstuetzung, Zeitrahmen, Bestaetigungen -- mehr Bestaetigungen = staerkere " +

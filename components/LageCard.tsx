@@ -17,6 +17,8 @@ import { getTimeframe, type TimeframeId } from "@/lib/timeframes";
 import { setVisibleInterval } from "@/lib/visibleInterval";
 import {
   driverRow,
+  etfDateText,
+  isUsWeekend,
   leverageRow,
   macroRow,
   overallSentence,
@@ -24,7 +26,8 @@ import {
   type LageRow,
   type Light,
 } from "@/lib/lageOverview";
-import type { EconomicCalendarEvent, EtfFlowDay, MarketState } from "@/lib/types";
+import type { EconomicCalendarEvent, EtfFlowDay, MarketState, SpotPressurePoint } from "@/lib/types";
+import { hourlySpotNet, spotTurn, SPOT_HOURS, type SpotHourBar } from "@/lib/spotHourly";
 import type { EconomicEventResult } from "@/lib/economicEventResult";
 import type { PremiumSummary } from "@/lib/coinbasePremium";
 import Link from "next/link";
@@ -39,6 +42,7 @@ const LIGHT_DOT: Record<Light, string> = { up: "bg-up", down: "bg-down", warn: "
 const LIGHT_TEXT: Record<Light, string> = { up: "text-up", down: "text-down", warn: "text-warn", neutral: "text-text" };
 const ETF_DAYS = 5;
 const PREMIUM_REFRESH_MS = 5 * 60_000;
+const SPOT_REFRESH_MS = 5 * 60_000;
 const CLOCK_MS = 60_000;
 const MACRO_KEYS = MACRO_DATA_DAY_KEYS;
 const BIAS_TEXT = { bullish: "bullisch", bearish: "bärisch", neutral: "neutral" } as const;
@@ -133,7 +137,44 @@ function MacroDetail({
   );
 }
 
-function Question({ row, children }: { row: LageRow; children?: ReactNode }) {
+/** 12 Stundenbalken Spot-Druck, aelteste links. Hoehe = Staerke, Farbe = Richtung. */
+function SpotHourBars({ bars }: { bars: SpotHourBar[] }) {
+  const max = Math.max(10, ...bars.map((b) => Math.abs(b.netPct ?? 0)));
+  const hour = (ms: number) =>
+    new Date(ms).toLocaleTimeString("de-CH", { hour: "2-digit", timeZone: "Europe/Zurich" });
+  return (
+    <span className="mt-1.5 block" aria-label="Spot-Druck je Stunde, letzte 12 Stunden">
+      <span className="flex h-11 items-center gap-[3px]">
+        {bars.map((b) => {
+          const v = b.netPct;
+          const h = v === null ? 0 : Math.max(2, (Math.abs(v) / max) * 20);
+          const color = v === null ? "" : v >= 0 ? "bg-up" : "bg-down";
+          return (
+            <span
+              key={b.startMs}
+              title={`${hour(b.startMs)}: ${v === null ? "keine Daten" : `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(0)} %`}${b.complete ? "" : " (läuft)"}`}
+              className="flex h-full flex-1 flex-col justify-center"
+            >
+              <span className="flex h-1/2 items-end">
+                {v !== null && v >= 0 && <span className={`w-full rounded-sm ${color} ${b.complete ? "" : "opacity-50"}`} style={{ height: h }} />}
+              </span>
+              <span className="flex h-1/2 items-start border-t border-border/60">
+                {v !== null && v < 0 && <span className={`w-full rounded-sm ${color} ${b.complete ? "" : "opacity-50"}`} style={{ height: h }} />}
+              </span>
+            </span>
+          );
+        })}
+      </span>
+      <span className="flex justify-between text-[10px] text-text-faint">
+        <span>{bars[0] ? hour(bars[0].startMs) : ""}</span>
+        <span>Spot je Stunde</span>
+        <span>jetzt</span>
+      </span>
+    </span>
+  );
+}
+
+function Question({ row, children, extra }: { row: LageRow; children?: ReactNode; extra?: ReactNode }) {
   return (
     <details
       className="group border-b border-border/50 py-2.5 last:border-b-0"
@@ -147,6 +188,7 @@ function Question({ row, children }: { row: LageRow; children?: ReactNode }) {
             <span className={`shrink-0 text-xs font-medium ${LIGHT_TEXT[row.light]}`}>{row.chip}</span>
           </span>
           <span className="block text-sm text-text tabular">{row.line}</span>
+          {extra}
         </span>
         <span aria-hidden className="pt-1 text-xs text-text-faint transition-transform group-open:rotate-180">
           ▾
@@ -180,6 +222,24 @@ export default function LageCard({
   const [lastFomc, setLastFomc] = useState<EconomicEventResult | null>(null);
   const [rateChanges, setRateChanges] = useState<FedRateChange[]>([]);
   const [twoYear, setTwoYear] = useState<number | null>(null);
+  const [spotPoints, setSpotPoints] = useState<SpotPressurePoint[]>([]);
+
+  // Spot-Druck der letzten 12 Stunden fuer die Stundenbalken (alle 5 Min,
+  // nur solange die Seite sichtbar ist).
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const since = new Date(Date.now() - SPOT_HOURS * 3_600_000).toISOString();
+      const { data } = await supabase.rpc("get_spot_pressure_series", { p_since: since, p_max_points: 300 });
+      if (!cancelled && data) setSpotPoints(data as SpotPressurePoint[]);
+    };
+    load();
+    const stop = setVisibleInterval(load, SPOT_REFRESH_MS);
+    return () => {
+      cancelled = true;
+      stop();
+    };
+  }, []);
   const [nowMs, setNowMs] = useState<number | null>(null);
 
   useEffect(() => {
@@ -279,6 +339,8 @@ export default function LageCard({
           .sort((a, b) => a.ms - b.ms);
   const nextEvent = upcomingEvents[0] ?? null;
   const rate = nowMs === null ? null : rateCourse(rateChanges, twoYear, nowMs);
+  const spotBars = nowMs === null ? [] : hourlySpotNet(spotPoints, nowMs);
+  const turn = spotTurn(spotBars, spotPerp.result.spotDirection);
   const labelFor = (key: string) => events.find((e) => e.event_key === key)?.label ?? key.toUpperCase();
 
   const rows: LageRow[] = [
@@ -288,6 +350,7 @@ export default function LageCard({
       verdictLabel: spotPerp.result.verdict?.label ?? null,
       oiChangePct: context.oiChangePct,
       scenarioLabel: context.result.label,
+      turn,
     }),
     leverageRow({
       fundingPct: latest?.funding_rate == null ? null : fundingPctPer8h(latest.funding_rate),
@@ -299,6 +362,8 @@ export default function LageCard({
       etfLastUsdM: etfDays[0]?.total_flow_usd_m ?? null,
       etfSumUsdM: etfSum,
       etfDays: etfDays.length,
+      etfDateText: etfDays[0] ? etfDateText(etfDays[0].flow_date) : null,
+      usClosed: nowMs !== null && isUsWeekend(nowMs),
       premiumPct: premium?.currentPct ?? null,
       premiumLabel: premium?.label ?? null,
       fearGreed: typeof sentiment?.value === "number" ? sentiment.value : null,
@@ -334,7 +399,11 @@ export default function LageCard({
       <p className={`text-base font-medium leading-snug ${LIGHT_TEXT[overall.light]}`}>{overall.text}</p>
       <div>
         {rows.map((r) => (
-          <Question key={r.id} row={r}>
+          <Question
+            key={r.id}
+            row={r}
+            extra={r.id === "driver" && spotBars.some((b) => b.netPct !== null) ? <SpotHourBars bars={spotBars} /> : undefined}
+          >
             {r.id === "macro" && (
               <MacroDetail
                 upcoming={upcomingEvents.map(({ e, ms }) => ({ label: e.label, key: e.event_key, ms }))}

@@ -19,7 +19,7 @@ function fixtureContext(overrides: Record<string, unknown> = {}): SystemBriefing
     market_state: { overall_state: "BULLISH", score: 5, confidence: 70, data_coverage_pct: 90, risk_level: "LOW", risk_factors: [], patterns: [], mtf_alignment: null, factors: {} },
     confidence_breakdown: { coveragePct: 90, consensusPct: 80, signalStrengthPct: 70 },
     mein_system_checklist: { ema13: 1, ema50: 2, ema200: 3 },
-    trading_indicators: { cvd: { trend: "bullish" }, vwapVector: { dayVwap: 84000, weeklyVwap: 83500, monthlyVwap: 84400 } },
+    trading_indicators: { cvd: { trend: "bullish" }, vwapVector: { weeklyVwap: 83500, monthlyVwap: 84400 } },
     liquidations: null,
     regelwerk: [{ module: "welz", section: "s1", title: "t1", content: "c1" }],
     market_context: { label: "L", bias: "bullish", explanation: "E", price_change_pct: 1, oi_change_pct: 1, spot_verdict_label: "V" },
@@ -65,7 +65,7 @@ describe("sliceForChartStruktur", () => {
       ["btc_markt", "continuationFormation", "keyLevels", "levelStruktur", "recentCandlestickPatterns", "swingFormations", "triangle", "vwap"].sort()
     );
     expect(slice.keyLevels).toBe(ctx.keyLevels);
-    expect(slice.vwap).toEqual({ tag: 84000, woche: 83500, monat: 84400 });
+    expect(slice.vwap).toEqual({ woche: 83500, monat: 84400 });
   });
   it("enthaelt KEIN Regelwerk (eigener Teil-Aufruf)", () => {
     const slice = sliceForChartStruktur(fixtureContext()) as Record<string, unknown>;

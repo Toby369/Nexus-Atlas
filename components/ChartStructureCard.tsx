@@ -124,8 +124,8 @@ const KEY_LEVEL_CONFIRMATION_LABELS: Record<ChartStructureData["keyLevels"][numb
   ema13: "EMA13",
   ema50: "EMA50",
   ema200: "EMA200",
-  vwap_daily: "VWAP Tag",
   vwap_weekly: "VWAP Woche",
+  vwap_monthly: "VWAP Monat",
   vwap_swing_high: "VWAP Swing-Hoch",
   vwap_swing_low: "VWAP Swing-Tief",
 };

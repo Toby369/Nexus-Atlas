@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { driverRow, leverageRow, macroRow, overallSentence, usInvestorsRow } from "./lageOverview";
+import { driverRow, etfDateText, isUsWeekend, leverageRow, macroRow, overallSentence, usInvestorsRow } from "./lageOverview";
 
 describe("Lage: vier Fragen", () => {
   it("Wer treibt: Spot entscheidet, nur Perp ist Hebel", () => {
@@ -21,6 +21,21 @@ describe("Lage: vier Fragen", () => {
     expect(usInvestorsRow({ ...base, etfSumUsdM: 300, premiumPct: 0.05, fearGreed: 10 }).light).toBe("up");
     expect(usInvestorsRow({ ...base, etfSumUsdM: -300, premiumPct: -0.05, fearGreed: 90 }).light).toBe("down");
     expect(usInvestorsRow({ ...base, etfSumUsdM: 300, premiumPct: -0.05, fearGreed: 50 }).light).toBe("neutral");
+  });
+
+  it("Wer treibt: Drehung schlaegt die 4H-Richtung (22.11.)", () => {
+    const base = { spot: "down" as const, perp: "flat" as const, verdictLabel: "x", oiChangePct: 1.8, scenarioLabel: "y" };
+    expect(driverRow({ ...base, turn: "up" })).toMatchObject({ light: "warn", chip: "Spot dreht: kauft seit 2 h" });
+    expect(driverRow(base)).toMatchObject({ light: "down", chip: "Spot verkauft" });
+  });
+
+  it("US-Anleger am Wochenende grau, mit Datum", () => {
+    const r = usInvestorsRow({ etfLastUsdM: -582, etfSumUsdM: -1306, etfDays: 5, premiumPct: -0.05, premiumLabel: null, fearGreed: 30, fearGreedLabel: null, etfDateText: "Do 19.11.", usClosed: true });
+    expect(r).toMatchObject({ light: "neutral", chip: "US geschlossen" });
+    expect(r.line).toContain("Stand Do 19.11.");
+    expect(isUsWeekend(Date.parse("2026-11-22T06:20:00Z"))).toBe(true);
+    expect(isUsWeekend(Date.parse("2026-11-23T15:00:00Z"))).toBe(false);
+    expect(etfDateText("2026-11-19")).toBe("Do 19.11.");
   });
 
   it("US-Makro: Termin in 24 h ist gelb", () => {
