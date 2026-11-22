@@ -1,7 +1,8 @@
 "use client";
 
-import { useTradeStatus, type DecisionProps } from "@/components/TradeStepCards";
-import { headActionLine } from "@/lib/headLine";
+import type { DecisionProps } from "@/components/TradeStepCards";
+import { useSetup } from "@/components/SetupCard";
+import { headFromSetup } from "@/lib/headLine";
 import { OPEN_TAB_EVENT } from "@/lib/dashboardTabs";
 
 // Kopf des Lagebilds: eine Handlungszeile (Plan, Stand des Regelchecks,
@@ -12,8 +13,8 @@ import { OPEN_TAB_EVENT } from "@/lib/dashboardTabs";
 const TONE = { neutral: "text-text", ok: "text-up", warn: "text-warn", stop: "text-down" } as const;
 
 export default function HeadStatus({ tradeStep, plan }: { tradeStep: DecisionProps; plan: string | null }) {
-  const { check, summary } = useTradeStatus(tradeStep);
-  const action = headActionLine(check, summary, plan);
+  const { ideas } = useSetup(tradeStep);
+  const action = headFromSetup(ideas[0], plan);
 
   return (
     <button

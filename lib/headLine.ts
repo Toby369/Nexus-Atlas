@@ -20,3 +20,26 @@ export function headActionLine(
   }
   return { text: base, tone: check.side !== null && check.verdict.tone === "stop" ? "stop" : "neutral" };
 }
+
+/**
+ * Kopf-Zeile aus dem Setup-Rechner (Toby 22.11.2026): gleiche Aussage wie
+ * die Setup-Karte im Reiter "Trade", damit oben nie etwas anderes steht.
+ * Ohne Idee der Plan-Satz.
+ */
+export function headFromSetup(
+  idea: { verdict: { tone: "trade" | "wait" | "watch" | "stop"; short: string }; halfSize: string[] } | undefined,
+  plan: string | null
+): { text: string; tone: HeadTone } {
+  if (!idea) return { text: plan ?? "Keine eigenen Zeichnungen in der Nähe", tone: "neutral" };
+  const half = idea.halfSize.length > 0 ? " · halbe Grösse" : "";
+  switch (idea.verdict.tone) {
+    case "trade":
+      return { text: idea.verdict.short + half, tone: half ? "warn" : "ok" };
+    case "stop":
+      return { text: idea.verdict.short, tone: "stop" };
+    case "watch":
+      return { text: idea.verdict.short, tone: "warn" };
+    default:
+      return { text: idea.verdict.short, tone: "neutral" };
+  }
+}

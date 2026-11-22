@@ -48,6 +48,7 @@ export function logDwell(tabId: string, seconds: number): void {
 const STEP_TITLES: Record<string, string> = {
   zones: "Zonen",
   "rule-check": "Regelcheck",
+  setup: "Setup-Rechner",
   veto: "Veto vor dem Klick",
   "lage-driver": "Lage: Wer treibt?",
   "lage-leverage": "Lage: Hebel und Masse",

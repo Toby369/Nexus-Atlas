@@ -10,6 +10,7 @@ import { buildZoneWatches } from "@/lib/zoneWatchContext";
 import { suggestMissingZones, suggestionText } from "@/lib/zoneSuggestions";
 import { bundleLiquidationZones } from "@/lib/leverageMap";
 import { RuleCheckCard, VetoCard } from "@/components/TradeStepCards";
+import { SetupCard } from "@/components/SetupCard";
 import { dailyTrendFromMtf } from "@/lib/zones";
 import ZonesCard from "@/components/ZonesCard";
 import LageChartCard from "@/components/LageChartCard";
@@ -754,7 +755,7 @@ export default async function Home({
                     "lage-chart": (
                       <LageChartCard data={lageChart} zones={tradeLevels} walls={wallsForChart(latestOrderbookWalls)} />
                     ),
-                    "rule-check": <RuleCheckCard {...tradeStepProps} />,
+                    setup: <SetupCard {...tradeStepProps} />,
                     veto: <VetoCard {...tradeStepProps} />,
                     "lage-hintergrund": <HeroHeader {...heroProps} variant="hintergrund" />,
                     "market-context": <MarketContextCard timeframe={timeframe} />,
@@ -773,6 +774,7 @@ export default async function Home({
                     ),
                     lernen: <QuizTile />,
                     "leverage-map": <LeverageMapCard map={latestLeverageMap} />,
+                    "rule-check": <RuleCheckCard {...tradeStepProps} />,
                     "cycle-indicators": <CycleIndicatorsCard data={cycleIndicators} />,
                     volatility: <VolatilityCard data={volatilitySnapshot} />,
                     "oi-change": <OiChangeCard />,

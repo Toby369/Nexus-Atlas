@@ -66,3 +66,19 @@ export function spotTurn(
   if (spot4h === "up" && last2.every((b) => b.netPct! <= -TURN_HOUR_PCT)) return "down";
   return null;
 }
+
+/**
+ * Spot-Beleg im Setup-Rechner (3 Punkte): letzte geschlossene Stunde UND
+ * laufende Stunde (ab 15 Min) je ab ±5 % in Traderichtung -> "ja";
+ * nur die laufende -> "teil" (zaehlt nicht); sonst "nein".
+ */
+export function spotConfirms(bars: SpotHourBar[], side: "long" | "short", nowMs: number): "ja" | "teil" | "nein" {
+  const dir = side === "long" ? 1 : -1;
+  const lastClosed = [...bars].reverse().find((b) => b.complete);
+  const running = bars.find((b) => !b.complete);
+  const strong = (b: SpotHourBar | undefined) => b !== undefined && b.netPct !== null && b.netPct * dir >= TURN_HOUR_PCT;
+  const runningOk = strong(running) && running !== undefined && nowMs - running.startMs >= RUNNING_HOUR_MIN_MINUTES * 60_000;
+  if (runningOk && strong(lastClosed)) return "ja";
+  if (runningOk) return "teil";
+  return "nein";
+}
