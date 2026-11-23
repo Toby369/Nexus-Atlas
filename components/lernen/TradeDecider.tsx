@@ -15,6 +15,7 @@ import {
   type Side,
   type VerdictKind,
 } from "@/lib/tradeDecision";
+import { EXIT_RULE_TEXT } from "@/lib/exitRule";
 import { FUNDING_ELEVATED_PCT } from "@/lib/fundingLevels";
 
 // Trade-Entscheider: eine Frage nach der anderen, nach Tobys Regelwerk.
@@ -262,6 +263,9 @@ export default function TradeDecider({ live }: { live: TradeDeciderLive }) {
                   <li key={x}>{x}</li>
                 ))}
               </ul>
+            )}
+            {(v.kind === "trade" || v.kind === "caution") && (
+              <p className="border-t border-border/60 pt-1.5 text-xs text-text-muted">{EXIT_RULE_TEXT}</p>
             )}
           </div>
 

@@ -354,7 +354,9 @@ Belege am Cluster, höchstens 10 Punkte: 15m-Schluss auf der richtigen Seite nac
 
 Einstieg am Cluster, Stop 0,25 % hinter dem Cluster, mindestens 0,5 % und nie enger als das 1,2-Fache der 1H-Spanne. Ziele an den nächsten Clustern ab 1 % Abstand. Hebel = 10 % ÷ Stop-Abstand, höchstens 20x; das Risiko bleibt 1 USDT. Zeigen zwei von drei Hintergrund-Punkten gegen dich (Kurs hinter EMA 50 und 200, hinter dem Wochen-VWAP, Spot über 4H dagegen) oder ist US-Datentag, gilt halbe Grösse.
 
-Veto: Termin-Fenster, 3 Trades oder 2 Verluste heute, kein Ziel ab 1 % oder CRV unter 2. Die Punkte zählen Belege, sie sind keine Trefferquote.`;
+Veto: Termin-Fenster, 3 Trades oder 2 Verluste heute, kein Ziel ab 1 % oder CRV unter 2. Die Punkte zählen Belege, sie sind keine Trefferquote.
+
+Nach dem Einstieg gilt die Ausstiegsregel: raus nur am Stop, am Ziel oder bei Invalidierung (Kerze der Einstiegs-Zeiteinheit schliesst zurück durch den Cluster). Eine Anzeige im Dashboard ist kein Ausstiegsgrund.`;
 
 export const ruleCheckInfo = `So liest du das: Deine Pflichtfragen vor einem Einstieg, von Nexus aus den Binance-Kerzen beantwortet. Gesucht wird der jüngste 4H-Körperschluss über oder unter einem Keylevel in den letzten 24 Stunden; daraus folgt die Richtung (Long oder Short). Danach: Kam eine 1H-Kerze bis ±0,25 % ans Level zurück und schloss auf der Ausbruchsseite? Steht auf 15m eine Bestätigungskerze (Docht ins Level, Schluss in Traderichtung) mit geschlossener Folgekerze? Und liegt das nächste Ziel mindestens 1 % entfernt?
 
