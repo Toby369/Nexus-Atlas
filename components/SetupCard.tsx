@@ -11,6 +11,7 @@ import { deriveMarketContext } from "@/lib/marketContext";
 import { hourlySpotNet, SPOT_HOURS } from "@/lib/spotHourly";
 import { evaluateSetup, MAX_POINTS, SETUP_MIN_POINTS, type DrawingInput, type SetupIdea } from "@/lib/setupEngine";
 import { setupInfo } from "@/lib/panelInfo";
+import { EXIT_RULE_NOT, EXIT_RULE_POINTS, EXIT_RULE_TITLE } from "@/lib/exitRule";
 import type { Candle } from "@/lib/candles";
 import type { SpotPressurePoint } from "@/lib/types";
 
@@ -260,6 +261,15 @@ export function SetupCard(props: DecisionProps) {
   return (
     <StepCard step={3} title="Setup-Rechner" line={line} tone={first ? TONE[first.verdict.tone] : "neutral"} info={setupInfo} usageId="setup">
       {first ? <IdeaBody idea={first} /> : <p className="text-sm text-text-muted">Nexus findet keinen Cluster mit deinen Zeichnungen.</p>}
+      <div className="rounded-md border border-border/60 bg-surface-raised px-3 py-2 text-xs">
+        <p className="font-medium text-text">{EXIT_RULE_TITLE}</p>
+        <ul className="mt-1 list-disc space-y-0.5 pl-4 text-text-muted">
+          {EXIT_RULE_POINTS.map((p) => (
+            <li key={p}>{p}</li>
+          ))}
+        </ul>
+        <p className="mt-1 text-text-faint">{EXIT_RULE_NOT}</p>
+      </div>
       {second && (
         <details className="rounded-md border border-border/60 px-3 py-2">
           <summary className="cursor-pointer text-xs text-text-muted">{second.verdict.short}</summary>
