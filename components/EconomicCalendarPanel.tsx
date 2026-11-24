@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { EconomicCalendarEvent } from "@/lib/types";
 import PanelInfo from "@/components/PanelInfo";
@@ -15,6 +15,13 @@ import {
 import { fetchEconomicResult, resultBiasDisplay, type EconomicEventResult } from "@/lib/economicEventResult";
 import { ShortDate, DaysUntil, RelativeTime } from "@/components/ClientTimestamp";
 import { setVisibleInterval } from "@/lib/visibleInterval";
+import {
+  fetchUsCalendarWeek,
+  groupUsCalendarByDay,
+  usEventInfo,
+  zurichDayKey,
+  type UsCalendarWeekEvent,
+} from "@/lib/usCalendarWeek";
 
 // Kalendertermine aendern sich selten und fast immer mit Vorlauf -- deutlich
 // laengeres Poll-Intervall als bei den uebrigen, minuetlich schwankenden
@@ -69,8 +76,15 @@ export default function EconomicCalendarPanel({
 }) {
   const [events, setEvents] = useState(initialEvents);
   const [results, setResults] = useState<Record<string, ResultState>>({});
+  const [usWeek, setUsWeek] = useState<UsCalendarWeekEvent[]>([]);
+  // Zeitpunkt des letzten Ladens (fuer "heute"); nicht im Render per Date.now() lesen.
+  const [usWeekNowMs, setUsWeekNowMs] = useState(0);
 
   useEffect(() => {
+    fetchUsCalendarWeek().then((w) => {
+      setUsWeek(w);
+      setUsWeekNowMs(Date.now());
+    });
     fetchResults(initialEvents).then(setResults);
     // initialEvents aendert sich nach dem ersten Render nicht mehr (kommt
     // als Server-Prop) -- bewusst nur beim Mount, der Poll unten uebernimmt
@@ -83,6 +97,8 @@ export default function EconomicCalendarPanel({
       const freshEvents = await fetchUpcomingEvents();
       setEvents(freshEvents);
       setResults(await fetchResults(freshEvents));
+      setUsWeek(await fetchUsCalendarWeek());
+      setUsWeekNowMs(Date.now());
     }, REFRESH_INTERVAL_MS);
     return () => stopPolling();
   }, []);
@@ -139,6 +155,111 @@ export default function EconomicCalendarPanel({
           })}
         </div>
       )}
+
+      <UsWeekSection events={usWeek} nowMs={usWeekNowMs} />
     </section>
+  );
+}
+
+// "Diese Woche (USA)": Prognose/Vorherig je US-Termin, Erklaerung erst auf
+// Klick/Tipp (Toby 24.11.2026). Zeiten in Schweizer Zeit. "Aktuell" liefert die
+// Quelle nicht -- bei CPI/PCE/NFP/FOMC steht das Ergebnis oben (News-Einordnung).
+function UsWeekSection({ events, nowMs }: { events: UsCalendarWeekEvent[]; nowMs: number }) {
+  const [onlyHigh, setOnlyHigh] = useState(false);
+  const days = useMemo(() => groupUsCalendarByDay(events, onlyHigh), [events, onlyHigh]);
+  if (events.length === 0) return null;
+  const todayKey = zurichDayKey(nowMs);
+
+  return (
+    <div className="mt-5 pt-4 border-t border-border/60">
+      <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+        <h3 className="text-xs uppercase tracking-[0.15em] text-text-muted">Diese Woche (USA)</h3>
+        <div className="flex gap-1">
+          {([
+            [false, "Hoch + Mittel"],
+            [true, "Nur hoch"],
+          ] as const).map(([value, label]) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => setOnlyHigh(value)}
+              aria-pressed={onlyHigh === value}
+              className={`rounded px-2 py-1 text-xs min-h-8 ${
+                onlyHigh === value ? "bg-text text-surface" : "bg-border/40 text-text-muted"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {days.length === 0 ? (
+        <p className="text-xs text-text-faint">Keine Termine mit diesem Filter.</p>
+      ) : (
+        <div className="space-y-3">
+          {days.map((day) => (
+            <div key={day.dayKey}>
+              <p className={`text-xs font-medium mb-1 ${day.dayKey === todayKey ? "text-text" : "text-text-muted"}`}>
+                {new Intl.DateTimeFormat("de-CH", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  timeZone: "Europe/Zurich",
+                }).format(Date.parse(day.events[0].event_time))}
+                {day.dayKey === todayKey ? " · heute" : ""}
+              </p>
+              <div className="divide-y divide-border/60">
+                {day.events.map((e) => {
+                  const info = usEventInfo(e.title);
+                  return (
+                    <details key={`${e.event_time}|${e.title}`} className="group py-1.5">
+                      <summary className="flex items-start gap-2 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                        <span className="text-xs text-text-faint tabular-nums w-12 shrink-0 pt-px">
+                          {formatZurichTime(Date.parse(e.event_time)).replace(" Uhr", "")}
+                        </span>
+                        <span className="min-w-0 flex-1 text-sm text-text">
+                          <span aria-hidden className={e.impact === "High" ? "text-down" : "text-text-faint"}>
+                            ●{" "}
+                          </span>
+                          {info.de}
+                          <span className="ml-1 text-text-faint group-open:rotate-180 inline-block transition-transform">▾</span>
+                          <span className="block text-xs text-text-faint tabular-nums">
+                            Prognose {e.forecast ?? "–"} · Vorherig {e.previous ?? "–"}
+                          </span>
+                        </span>
+                      </summary>
+                      <dl className="mt-2 ml-14 space-y-1.5 text-xs">
+                        <div>
+                          <dt className="text-text-faint uppercase tracking-wider">Was es misst</dt>
+                          <dd className="text-text">{info.what}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-text-faint uppercase tracking-wider">Bullisch für BTC</dt>
+                          <dd className="text-up">{info.bullish}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-text-faint uppercase tracking-wider">Bärisch für BTC</dt>
+                          <dd className="text-down">{info.bearish}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-text-faint uppercase tracking-wider">Faustregel</dt>
+                          <dd className="text-text-muted">{info.rule}</dd>
+                        </div>
+                      </dl>
+                    </details>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <p className="text-xs text-text-faint mt-3">
+        Zeiten in Schweizer Zeit. Bullisch/bärisch gilt immer im Vergleich zur Prognose, nicht zum Vormonat –
+        historische Faustregel, kein Automatismus, keine Anlageberatung. Tippe auf einen Termin für die Erklärung.
+      </p>
+    </div>
   );
 }

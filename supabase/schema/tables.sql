@@ -109,6 +109,20 @@ alter table public.economic_calendar_events enable row level security;
 create policy "Public read access" on public.economic_calendar_events as permissive for select to public using (true);
 -- Rechte: {postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}
 
+create table public.us_calendar_week (
+  event_time timestamp with time zone not null,
+  title text not null,
+  impact text not null,
+  forecast text,
+  previous text,
+  updated_at timestamp with time zone default now() not null,
+  constraint us_calendar_week_impact_check CHECK ((impact = ANY (ARRAY['High'::text, 'Medium'::text]))),
+  constraint us_calendar_week_pkey PRIMARY KEY (event_time, title)
+);
+alter table public.us_calendar_week enable row level security;
+create policy "Public read access" on public.us_calendar_week as permissive for select to public using (true);
+-- Rechte: {postgres=arwdDxtm/postgres,anon=r/postgres,authenticated=r/postgres,service_role=arwd/postgres}
+
 create table public.economic_event_results (
   event_key text not null,
   event_date date not null,

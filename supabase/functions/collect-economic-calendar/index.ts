@@ -198,6 +198,57 @@ async function collectFedRateChanges(
   }
 }
 
+// US-Wochenkalender (Toby 24.11.2026): Termine der laufenden Woche mit
+// Prognose und Vorherig aus dem oeffentlichen ForexFactory-Feed. Inoffiziell,
+// ohne Zusicherung -- faellt er aus oder aendert sich sein Format, bleibt der
+// letzte gespeicherte Stand stehen und der Rest dieser Funktion laeuft weiter.
+// Der Feed liefert kein "actual"; das Ergebnis kommt weiter aus den News
+// (economic_event_results). 1 Abruf pro Lauf (1x taeglich).
+const FF_FEED_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json";
+const US_WEEK_RETENTION_DAYS = 60;
+
+function emptyToNull(v: unknown): string | null {
+  return typeof v === "string" && v.trim() !== "" ? v.trim() : null;
+}
+
+async function collectUsCalendarWeek(
+  supabase: ReturnType<typeof createClient>,
+): Promise<{ saved: number; purged_before: string; error: string | null }> {
+  const purgeBefore = new Date(Date.now() - US_WEEK_RETENTION_DAYS * 86_400_000).toISOString();
+  try {
+    const json = await fetchJson(FF_FEED_URL, 15000);
+    if (!Array.isArray(json)) throw new Error("Feed ist kein Array");
+
+    const byKey = new Map<string, Record<string, unknown>>();
+    for (const e of json) {
+      if (e?.country !== "USD" || (e?.impact !== "High" && e?.impact !== "Medium")) continue;
+      if (typeof e?.title !== "string" || typeof e?.date !== "string") continue;
+      const ms = Date.parse(e.date);
+      if (Number.isNaN(ms)) continue;
+      const eventTime = new Date(ms).toISOString();
+      byKey.set(`${eventTime}|${e.title}`, {
+        event_time: eventTime,
+        title: e.title,
+        impact: e.impact,
+        forecast: emptyToNull(e.forecast),
+        previous: emptyToNull(e.previous),
+        updated_at: new Date().toISOString(),
+      });
+    }
+    const rows = [...byKey.values()];
+    if (rows.length === 0) throw new Error("keine US-Termine im Feed");
+
+    const { error } = await supabase.from("us_calendar_week").upsert(rows, { onConflict: "event_time,title" });
+    if (error) throw new Error(error.message);
+
+    // Aufbewahrung: Termine aelter als 60 Tage loeschen (kein eigener Cron noetig).
+    await supabase.from("us_calendar_week").delete().lt("event_time", purgeBefore);
+    return { saved: rows.length, purged_before: purgeBefore, error: null };
+  } catch (err) {
+    return { saved: 0, purged_before: purgeBefore, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 function resolveNextFomcDate(todayIso: string): CalendarRow {
   const nextDate = FOMC_DECISION_DATES.find((d) => d >= todayIso) ?? null;
   return {
@@ -244,6 +295,8 @@ Deno.serve(async (_req: Request) => {
     ? await collectFedRateChanges(supabase, fredApiKey)
     : { changes: 0, error: "kein FRED_API_KEY" };
 
+  const usWeek = await collectUsCalendarWeek(supabase);
+
   // Nur Zeilen mit tatsaechlich aufgeloestem Datum upserten -- ein Fehler
   // bei einer Quelle soll den zuletzt bekannten guten Wert der anderen
   // event_keys nicht ueberschreiben oder loeschen.
@@ -277,6 +330,7 @@ Deno.serve(async (_req: Request) => {
       success: true,
       results: rows.map((r) => ({ event_key: r.event_key, event_date: r.event_date, source: r.source })),
       fed_rate: fedRate,
+      us_week: usWeek,
     }),
     { headers: { "Content-Type": "application/json" } },
   );
