@@ -14,7 +14,7 @@ import type { OiChangeByExchange } from "@/lib/types";
 // Die Aufschluesselung "OI je Boerse" steckt als Aufklapper hier, da sie
 // dieselbe OI-Change%-Zahl im Detail zeigt.
 
-const COMPARE_EXCHANGES = ["bybit", "binance", "okx", "bitget", "bitunix", "pionex"];
+const COMPARE_EXCHANGES = ["bybit", "binance", "okx", "bitget", "bitunix", "pionex", "hyperliquid", "deribit"];
 const EXCHANGE_LABELS: Record<string, string> = {
   bybit: "Bybit",
   binance: "Binance",
@@ -22,12 +22,15 @@ const EXCHANGE_LABELS: Record<string, string> = {
   bitget: "Bitget",
   bitunix: "Bitunix",
   pionex: "Pionex",
+  hyperliquid: "Hyperliquid",
+  deribit: "Deribit",
 };
 // Boersen, ueber die sich ein OI-Change-Durchschnitt ueberhaupt sinnvoll
 // bilden laesst -- Bitunix bewusst ausgeschlossen (liefert nachweislich
 // dauerhaft kein Open Interest, kein fehlender Einzelwert wie bei den
 // anderen Boersen).
 const OI_AVERAGEABLE_EXCHANGES = COMPARE_EXCHANGES.filter((ex) => ex !== "bitunix");
+const LATER_EXCHANGES = new Set(SERIES_EXCHANGES.filter((e) => e.addedLater).map((e) => e.id as string));
 
 export default function OiChangeCard() {
   const {
@@ -49,9 +52,13 @@ export default function OiChangeCard() {
 
   const tfLabel = selectedTf.label;
   const byExchange = new Map(oiByExchange.map((e) => [e.exchange, e]));
-  const anyIncomplete = oiByExchange.some((e) => !e.has_full_history);
+  // 26.11.2026: Hyperliquid und Deribit kamen spaeter dazu. Ohne volle
+  // Historie im Fenster zaehlen sie nicht in den Durchschnitt und loesen
+  // keinen "unvollstaendig"-Hinweis aus (Altbestand bleibt wie bisher).
+  const anyIncomplete = oiByExchange.some((e) => !e.has_full_history && !LATER_EXCHANGES.has(e.exchange));
   const availableEntries = OI_AVERAGEABLE_EXCHANGES.map((ex) => byExchange.get(ex)).filter(
-    (e): e is OiChangeByExchange => !!e && e.oi_change_pct !== null
+    (e): e is OiChangeByExchange =>
+      !!e && e.oi_change_pct !== null && (e.has_full_history || !LATER_EXCHANGES.has(e.exchange))
   );
   const avgOiChangePct =
     availableEntries.length > 0

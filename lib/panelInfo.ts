@@ -15,7 +15,7 @@
 export function marktkontextInfo(tfLabel: string): string {
   return `So liest du das: Das Panel zeigt eines von vier Szenarien: Long-Aufbau, Short-Aufbau, Short-Covering oder Long-Abbau – oder „Keine klare Struktur“, wenn weder Preis noch OI einen Mindestschwellenwert überschreiten. Der Zusatz „spotbestätigt“ zeigt, ob sich der Spot-Markt in dieselbe Richtung wie die Futures-Bewegung bewegt; eine unbestätigte Bewegung gilt als eher gehebelt statt real nachfragegetrieben. Die Einordnung ist rein regelbasiert (keine KI) und keine Anlageberatung.
 
-So entsteht der Wert: Kombiniert die Preisrichtung (Bybit), die aggregierte Open-Interest-Richtung (Summe über alle Börsen mit Daten) und den Spot-Taker-Netto-Flow (Binance) über ${tfLabel}. Reicht die OI-Historie für ${tfLabel} noch nicht aus oder ist die Spot-Datenbasis zu dünn, wird das Ergebnis als PRELIMINARY oder INSUFFICIENT DATA gekennzeichnet.`;
+So entsteht der Wert: Kombiniert die Preisrichtung (Bybit), die aggregierte Open-Interest-Richtung (Summe über alle Börsen mit Daten) und den Spot-Taker-Netto-Flow (Binance, Coinbase, OKX) über ${tfLabel}. Reicht die OI-Historie für ${tfLabel} noch nicht aus oder ist die Spot-Datenbasis zu dünn, wird das Ergebnis als PRELIMINARY oder INSUFFICIENT DATA gekennzeichnet.`;
 }
 
 export function oiChangeInfo(tfLabel: string): string {
@@ -59,7 +59,7 @@ So liest du es zusammen: Masse stark long, Funding hoch, OI steigt und der Preis
 export function spotPressureInfo(tfLabel: string): string {
   return `So liest du das: Ordnet den Netto-Taker-Flow einem von vier Verdikten zu: BUYING PRESSURE, SELLING PRESSURE, NEUTRAL oder INSUFFICIENT DATA. Das misst eine Kauf-/Verkaufs-Imbalance im Taker-Orderflow, nicht ob am Spot-Markt tatsächlich netto mehr Coins gekauft als verkauft wurden. Deckt die Stichprobe weniger als 80 % der erwarteten Kerzen im Fenster ab, gilt das Ergebnis als PRELIMINARY, unter 20 % als INSUFFICIENT DATA.
 
-So entsteht der Wert: Datenbasis ist ausschliesslich Binance Spot BTC/USDT im 5-Minuten-Takt über ${tfLabel} – die einzige öffentliche Route mit echtem Taker-Buy/Sell-Split, keine Schätzung. Berechnet wird (Taker-Kaufvolumen − Taker-Verkaufsvolumen) / Gesamtvolumen über alle Kerzen im Fenster; ab ±5 % gilt BUYING bzw. SELLING PRESSURE, sonst NEUTRAL.`;
+So entsteht der Wert: Spot-Taker-Volumen von Binance (BTC/USDT), Coinbase (BTC/USD, aus den Einzel-Trades) und OKX (alle BTC-Spot-Paare) im 5-Minuten-Takt über ${tfLabel}, in BTC zusammengezählt, seit 26.11.2026; davor nur Binance. Echter Taker-Kauf/Verkauf, keine Schätzung. Der Preis kommt von Binance. Berechnet wird (Taker-Kaufvolumen − Taker-Verkaufsvolumen) / Gesamtvolumen über alle Kerzen im Fenster; ab ±5 % gilt BUYING bzw. SELLING PRESSURE, sonst NEUTRAL.`;
 }
 
 // Spot-Volumen-Profil -- nutzt dieselbe get_spot_volume_profile-RPC wie die
@@ -288,15 +288,15 @@ Andere Signale: zeigt, wie viele der aktuell laufenden Nexus-Signale (CVD-Trend,
 So entsteht der Wert: Bruch-Erkennung über den Schlusskurs der letzten bis zu 270 Tage (1H-Kerzen), Gegentest-Erkennung über market_features.swing_type (dieselbe Swing-Hoch/-Tief-Klassifikation, die auch die MTF-Ampel/Markt-Struktur-Faktoren nutzen) – reine Berechnung, kein KI-Modell. Keine Anlageberatung.`;
 
 export function spotPerpFlowInfo(tfLabel: string): string {
-  return `Was es misst: den Netto-Taker-Flow (aggressive Käufe minus aggressive Verkäufe, in % des Volumens) über ${tfLabel}, getrennt für Binance Spot und Binance Perp. So siehst du, wer eine Bewegung trägt: echte Spot-Käufer oder Hebel-Trader.
+  return `Was es misst: den Netto-Taker-Flow (aggressive Käufe minus aggressive Verkäufe, in % des Volumens) über ${tfLabel}, getrennt für Spot (Binance, Coinbase, OKX) und Binance Perp. So siehst du, wer eine Bewegung trägt: echte Spot-Käufer oder Hebel-Trader.
 
 Schwellen: Spot gilt ab ±5 % als kaufend oder verkaufend (wie Spot Pressure), Perp ab ±2 %. Perp-Flow schwankt deutlich weniger; beide Schwellen liegen etwa beim typischen Tageswert der letzten 60 Tage.
 
-Wie du es nutzt: Spot kauft, Perp flach = organische Nachfrage, tendenziell nachhaltig. Spot flach, Perp kauft = hebelgetrieben, fragil. Spot verkauft, Perp kauft = Warnsignal für gefangene Longs. Das sind Tendenzen, keine validierten Signale. Binance-Spot zeigt nicht die US-Nachfrage; dafür steht darunter die Coinbase-Premium.
+Wie du es nutzt: Spot kauft, Perp flach = organische Nachfrage, tendenziell nachhaltig. Spot flach, Perp kauft = hebelgetrieben, fragil. Spot verkauft, Perp kauft = Warnsignal für gefangene Longs. Das sind Tendenzen, keine validierten Signale. Coinbase (USA) ist im Spot seit 26.11.2026 mit drin; wie stark die USA gegenüber dem Rest kaufen, zeigt die Coinbase-Premium.
 
 Verlauf: Der Chart zeigt Spot-CVD und Perp-CVD kumuliert über den Zeitraum, jeweils in % des eigenen Volumens. So sind beide trotz des etwa zehnfach höheren Perp-Volumens vergleichbar, und die Linien enden genau bei den Werten oben. Divergenz = Spot minus Perp: Steigt sie, kauft Spot relativ stärker als die Perps (eher organisch); fällt sie, treiben die Perps.
 
-Quelle: Binance Spot (5-Min-Kerzen) und Binance Futures (Kerzen aus collect-candles), jeweils mit echtem Taker-Kauf-Anteil.`;
+Quelle: Spot von Binance, Coinbase und OKX (5-Min-Kerzen) und Binance Futures (Kerzen aus collect-candles), jeweils mit echtem Taker-Kauf-Anteil.`;
 }
 
 export const coinbasePremiumInfo = `Was es misst: den Preisabstand von Coinbase (BTC-USD) zu Binance (BTC-USDT) in Prozent, über dieselben 5-Minuten-Kerzen verglichen. Coinbase ist die Hauptbörse der US-Institutionen und ETF-Verwahrer.
@@ -372,7 +372,7 @@ Ein Veto (rot) sperrt den Einstieg: ein Hochrisiko-Zeitfenster läuft oder begin
 
 export const lageInfo = `So liest du das: Vier Fragen, je eine Zeile mit Ampel. Antippen zeigt die Details dazu.
 
-Wer treibt? Vergleicht den Netto-Kaufdruck auf Spot und Perps (CVD) und die Veränderung des Open Interest. Kauft Spot mit, ist die Bewegung getragen (grün); verkauft Spot, rot; bewegt sich nur der Perp-Markt, treibt der Hebel (gelb). Darunter je Stunde für die letzten 12 Stunden: oben der Spot-Druck (grün kauft, rot verkauft; Binance Spot), unten die OI-Änderung (blau = Hebel kommt rein, grau = Hebel geht raus; Summe aus Binance, Bybit, OKX, Bitget, Pionex). Die laufende Stunde ist blasser. Ab ±1 % OI in 2 Stunden steht ein Hinweis darunter.
+Wer treibt? Vergleicht den Netto-Kaufdruck auf Spot und Perps (CVD) und die Veränderung des Open Interest. Kauft Spot mit, ist die Bewegung getragen (grün); verkauft Spot, rot; bewegt sich nur der Perp-Markt, treibt der Hebel (gelb). Darunter je Stunde für die letzten 12 Stunden: oben der Spot-Druck (grün kauft, rot verkauft; Binance, Coinbase und OKX zusammen), unten die OI-Änderung (blau = Hebel kommt rein, grau = Hebel geht raus; Summe aus Binance, Bybit, OKX, Bitget, Hyperliquid, Deribit, Pionex). CME fehlt, deren Daten sind nicht frei verfügbar. Die laufende Stunde ist blasser. Ab ±1 % OI in 2 Stunden steht ein Hinweis darunter.
 
 Hebel und Masse: Funding ab 0,03 % pro 8 h oder mindestens 65 % Long-Konten heisst „Longs überfüllt“, negatives Funding oder unter 50 % Long-Konten „Shorts überfüllt“ (gelb). Dazu das nächste Liquidations-Ziel darüber und darunter.
 

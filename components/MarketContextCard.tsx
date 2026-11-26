@@ -303,10 +303,10 @@ export default function MarketContextCard({
           )}
 
           <p className="text-xs text-text-faint mt-3">
-            Quelle: Binance Spot BTC/USDT, 5-Min-Kerzen — einzige oeffentliche
-            Route mit echtem Taker-Buy/Sell-Split, keine Schaetzung. Zeigt nur den
-            Spot-Markt; den Abgleich mit dem Futures-Markt zeigt der Abschnitt
-            „Spot gegen Perp“ darunter.
+            Quelle: Spot von Binance (BTC/USDT), Coinbase (BTC/USD) und OKX, 5-Min-Kerzen,
+            echter Taker-Kauf/Verkauf, keine Schätzung (Coinbase und OKX seit 26.11.2026).
+            Zeigt nur den Spot-Markt; den Abgleich mit dem Futures-Markt zeigt der
+            Abschnitt „Spot gegen Perp“ darunter.
           </p>
         </div>
       </details>
