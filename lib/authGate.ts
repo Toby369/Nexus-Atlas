@@ -57,6 +57,8 @@ export function isPublicPath(pathname: string): boolean {
 //   persistiert einen Radar-Snapshot).
 // - /api/economic-result/generate: send-state-change-push (alle 15 Min,
 //   KI-Einordnung eines frisch veroeffentlichten Wirtschaftstermins).
+// - /api/setup/push: pg_cron setup-push-every-15-min (Setup-Rechner, Push
+//   bei "Setup steht", 23.11.2026).
 //
 // Bewusst ein dediziertes, eng geschnittenes CRON_SECRET statt des
 // SUPABASE_SERVICE_ROLE_KEY: der Service-Role-Key (voller DB-Bypass) als
@@ -69,6 +71,7 @@ export const SERVICE_ROLE_BEARER_PATHS: ReadonlySet<string> = new Set([
   "/api/signal-review/generate",
   "/api/divergence-radar/snapshot",
   "/api/economic-result/generate",
+  "/api/setup/push",
 ]);
 
 export function isAuthorizedServiceRoleRequest(

@@ -4,6 +4,8 @@ export interface ReportPushMessage {
   url: string;
   /** push_messages.kind, z.B. "briefing" (sonst leitet die Edge Function ihn aus dem Titel ab). */
   kind?: string;
+  /** Text fuer "Was heisst das?" auf der Mitteilungsseite (sonst Standardtext). */
+  explanation?: string;
 }
 
 export interface SendReportPushResult {
@@ -39,7 +41,7 @@ export async function sendReportPush(message: ReportPushMessage): Promise<SendRe
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        custom: { title: message.title, body: message.body, url: message.url, kind: message.kind },
+        custom: { title: message.title, body: message.body, url: message.url, kind: message.kind, explanation: message.explanation },
       }),
     });
     const data = await res.json();
