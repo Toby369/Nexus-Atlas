@@ -29,6 +29,8 @@ export interface DrawingInput {
   kind: string;
   label: string | null;
   points: { t: number; p: number }[];
+  /** AutarkTrade-Stil (nur text, rechts, links, baender, stufen). */
+  style?: Record<string, unknown> | null;
 }
 
 export interface SetupLevel {
@@ -143,6 +145,28 @@ export function rsiSeries(values: number[], n = 14): number[] {
 }
 
 // ---------- 1. Level-Karte ----------
+// 26.11.2026 (Toby): auch Trendlinien, Strahlen, Kanaele und Fibonacci.
+// Schraege Linien zaehlen mit ihrem Wert JETZT (lineare Fortsetzung),
+// nur solange sie bis heute reichen (rechts verlaengert, bzw. Strahl).
+// Gewicht 2: eine schraege Linie trifft den Preis ungenauer als eine Zone.
+const DEFAULT_FIB = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+
+function lineAt(a: { t: number; p: number }, b: { t: number; p: number }, t: number): number | null {
+  if (a.t === b.t) return null;
+  return a.p + ((b.p - a.p) * (t - a.t)) / (b.t - a.t);
+}
+
+/** Reicht die Linie bis "jetzt"? Ohne Verlaengerung nur innerhalb ihrer Punkte. */
+function reachesNow(a: { t: number }, b: { t: number }, nowMs: number, right: boolean, left: boolean): boolean {
+  const lo = Math.min(a.t, b.t);
+  const hi = Math.max(a.t, b.t);
+  return (nowMs <= hi || right) && (nowMs >= lo || left);
+}
+
+function fmtRatio(w: number): string {
+  return String(w).replace(".", ",");
+}
+
 const SWING_LABEL = /(4h|1d|daily|1w|w close|weekly|woche|monat)/i;
 
 function zurichShort(ms: number): string {
@@ -174,6 +198,39 @@ export function buildLevels(input: {
     } else if ((d.kind === "horizontale" || d.kind === "strahlH") && prices.length >= 1) {
       const weight = /swing|poc/i.test(label) ? 2 : 3;
       levels.push({ lo: prices[0], hi: prices[0], weight, name: label || "Linie", own: true, swing });
+    } else if ((d.kind === "trendlinie" || d.kind === "strahl") && d.points.length >= 2) {
+      const [a, b] = d.points;
+      const right = d.kind === "strahl" || d.style?.rechts === true;
+      const left = d.kind !== "strahl" && d.style?.links === true;
+      const v = reachesNow(a, b, input.nowMs, right, left) ? lineAt(a, b, input.nowMs) : null;
+      if (v !== null && v > 0) {
+        levels.push({ lo: v, hi: v, weight: 2, name: label || (d.kind === "strahl" ? "Strahl" : "Trendlinie"), own: true, swing });
+      }
+    } else if (d.kind === "kanal" && d.points.length >= 3) {
+      const [a, b, c] = d.points;
+      const right = d.style?.rechts !== false;
+      const base = reachesNow(a, b, input.nowMs, right, false) ? lineAt(a, b, input.nowMs) : null;
+      const offset = lineAt(a, b, c.t);
+      if (base !== null && offset !== null) {
+        const other = base + (c.p - offset);
+        const [lo, hi] = [Math.min(base, other), Math.max(base, other)];
+        const name = label || "Kanal";
+        if (lo > 0) levels.push({ lo, hi: lo, weight: 2, name: `${name} unten`, own: true, swing });
+        if (hi > 0 && hi !== lo) levels.push({ lo: hi, hi, weight: 2, name: `${name} oben`, own: true, swing });
+      }
+    } else if (d.kind === "fib" && d.points.length >= 2) {
+      const [a, b] = d.points;
+      const stufen = Array.isArray(d.style?.stufen)
+        ? (d.style!.stufen as { w?: unknown; an?: unknown }[]).filter((x) => x?.an !== false).map((x) => Number(x?.w))
+        : DEFAULT_FIB;
+      for (const w of stufen) {
+        if (!Number.isFinite(w)) continue;
+        // Wie im Chart: 0 am Endpunkt, 1 am Startpunkt.
+        const v = b.p - w * (b.p - a.p);
+        if (v <= 0) continue;
+        const golden = w === 0.5 || w === 0.618;
+        levels.push({ lo: v, hi: v, weight: golden ? 2 : 1, name: `Fib ${fmtRatio(w)}${label ? ` (${label})` : ""}`, own: true, swing });
+      }
     } else if (d.kind === "avwap" && d.points[0]) {
       const v = input.avwaps[d.autark_id];
       if (!(v > 0)) continue;

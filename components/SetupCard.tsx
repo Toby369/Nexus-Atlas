@@ -41,7 +41,7 @@ async function loadSetupData(): Promise<SetupData | null> {
   const now = Date.now();
   const since = new Date(now - SPOT_HOURS * 3_600_000).toISOString();
   const [drawRes, summaryRes, candleRes, spotRes] = await Promise.all([
-    supabase.from("autark_drawings").select("autark_id, kind, label, points"),
+    supabase.from("autark_drawings").select("autark_id, kind, label, points, style"),
     supabase.rpc("get_anchored_vwap_summary"),
     supabase
       .from("candles")

@@ -58,6 +58,34 @@ describe("Setup-Rechner", () => {
     expect(levels.some((l) => l.name === "x")).toBe(false);
   });
 
+  it("Trendlinie, Strahl, Kanal und Fibonacci mit ihrem Wert jetzt", () => {
+    const t0 = NOW - 10 * 3_600_000;
+    const t1 = NOW - 5 * 3_600_000;
+    const levels = buildLevels({
+      ...base,
+      drawings: [
+        { autark_id: 10, kind: "trendlinie", label: "TL", points: [{ t: t0, p: 58000 }, { t: t1, p: 58500 }], style: { rechts: true } },
+        { autark_id: 11, kind: "trendlinie", label: "kurz", points: [{ t: t0, p: 58000 }, { t: t1, p: 58500 }], style: {} },
+        { autark_id: 12, kind: "strahl", label: null, points: [{ t: t0, p: 61000 }, { t: t1, p: 60500 }] },
+        { autark_id: 13, kind: "kanal", label: null, points: [{ t: t0, p: 58000 }, { t: t1, p: 58500 }, { t: t0, p: 59000 }] },
+        { autark_id: 14, kind: "kanal", label: "kaputt", points: [{ t: t0, p: 1 }, { t: t0, p: 1 }, { t: t1, p: 2 }] },
+        { autark_id: 15, kind: "fib", label: "Swing", points: [{ t: t0, p: 60000 }, { t: t1, p: 62000 }], style: { stufen: [{ w: 0.618, an: true }, { w: 0.786, an: false }] } },
+      ],
+      ema50: null,
+      ema200: null,
+    });
+    const by = (n: string) => levels.find((l) => l.name === n);
+    expect(by("TL")?.lo).toBeCloseTo(59000); // 500 pro 5 h weiter bis jetzt
+    expect(by("kurz")).toBeUndefined(); // endet vor jetzt, nicht verlaengert
+    expect(by("Strahl")?.lo).toBeCloseTo(60000);
+    expect(by("Kanal unten")?.lo).toBeCloseTo(59000);
+    expect(by("Kanal oben")?.lo).toBeCloseTo(60000);
+    expect(levels.some((l) => l.name.startsWith("kaputt"))).toBe(false);
+    expect(by("Fib 0,618 (Swing)")).toMatchObject({ weight: 2 });
+    expect(by("Fib 0,618 (Swing)")?.lo).toBeCloseTo(62000 - 0.618 * 2000);
+    expect(levels.some((l) => l.name.startsWith("Fib 0,786"))).toBe(false);
+  });
+
   it("Cluster: Level innerhalb 0,3 % zusammen, nur mit eigener Zeichnung", () => {
     const clusters = buildClusters(buildLevels({ ...base, ema50: 59_500, ema200: 59_960 }));
     const support = clusters.find((c) => c.lo < 59_000 && c.hi > 59_300)!;
