@@ -4,7 +4,7 @@
 // stehen fest oben, unabhaengig vom gewaehlten Reiter (Ebene 1, siehe
 // docs/research/NEXUS-STRUKTUR-KONZEPT_2026-09-12.md).
 import { FUTURES_KEYS, ORDERBOOK_KEYS, POSITIONING_KEYS } from "./dataFreshness";
-import { FUTURES_QUELLEN, Q, type Quelle } from "./quellen";
+import { FUTURES_QUELLEN, Q, SPOT_QUELLEN, type Quelle } from "./quellen";
 
 export interface DashboardTileMeta {
   id: string;
@@ -53,7 +53,7 @@ export const DASHBOARD_TILES: DashboardTileMeta[] = [
     id: "market-context",
     title: "Marktkontext",
     quellen: [...FUTURES_KEYS, "spot_binance", "spot_volume"],
-    herkunft: [Q.binanceSpot, ...FUTURES_QUELLEN, Q.nexus],
+    herkunft: [...SPOT_QUELLEN, ...FUTURES_QUELLEN, Q.nexus],
   },
   { id: "regime-matrix", title: "Marktphase", quellen: ["regime_matrix", "candles_1h"], herkunft: [Q.binance, Q.nexus] },
   { id: "lernen", title: "Lernen", herkunft: [] },

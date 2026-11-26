@@ -21,6 +21,9 @@ export const Q = {
   bitunix: { name: "Bitunix", url: "https://www.bitunix.com/" },
   pionex: { name: "Pionex", url: "https://www.pionex.com/" },
   binanceSpot: { name: "Binance Spot", url: "https://www.binance.com/" },
+  coinbase: { name: "Coinbase", url: "https://www.coinbase.com/" },
+  okxSpot: { name: "OKX Spot", url: "https://www.okx.com/" },
+  hyperliquid: { name: "Hyperliquid", url: "https://hyperliquid.xyz/" },
   deribit: { name: "Deribit", url: "https://www.deribit.com/" },
   sosovalue: { name: "SoSoValue", url: "https://sosovalue.com/" },
   yahoo: { name: "Yahoo Finance", url: "https://finance.yahoo.com/" },
@@ -34,4 +37,6 @@ export const Q = {
   ki: { name: "KI", art: "ki" },
 } satisfies Record<string, Quelle>;
 
-export const FUTURES_QUELLEN: Quelle[] = [Q.binance, Q.bybit, Q.okx, Q.bitget, Q.bitunix, Q.pionex];
+export const FUTURES_QUELLEN: Quelle[] = [Q.binance, Q.bybit, Q.okx, Q.bitget, Q.bitunix, Q.pionex, Q.hyperliquid, Q.deribit];
+/** Spot-Druck seit 26.11.2026: Binance, Coinbase, OKX. */
+export const SPOT_QUELLEN: Quelle[] = [Q.binanceSpot, Q.coinbase, Q.okxSpot];

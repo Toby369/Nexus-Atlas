@@ -12,11 +12,19 @@ export type SeriesExchangeId =
   | "binance"
   | "okx"
   | "bitget"
-  | "pionex";
+  | "pionex"
+  | "hyperliquid"
+  | "deribit";
 
 export interface SeriesExchangeOption {
   id: SeriesExchangeId;
   label: string;
+  /**
+   * Seit 26.11.2026 neu in der Summe. get_market_series zaehlt eine Boerse
+   * erst, wenn sie zu Fensterbeginn Daten hat (kein OI-Sprung). Die
+   * Konsistenz-Pruefung in lib/marketContext.ts laesst sie deshalb aus.
+   */
+  addedLater?: boolean;
 }
 
 export const SERIES_EXCHANGES: SeriesExchangeOption[] = [
@@ -26,6 +34,8 @@ export const SERIES_EXCHANGES: SeriesExchangeOption[] = [
   { id: "okx", label: "OKX" },
   { id: "bitget", label: "Bitget" },
   { id: "pionex", label: "Pionex" },
+  { id: "hyperliquid", label: "Hyperliquid", addedLater: true },
+  { id: "deribit", label: "Deribit", addedLater: true },
 ];
 
 export const DEFAULT_SERIES_EXCHANGE: SeriesExchangeId = "aggregated";

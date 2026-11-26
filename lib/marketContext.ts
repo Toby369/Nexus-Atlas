@@ -415,7 +415,7 @@ export function deriveMarketContext(
   const earliestDataAgeDays =
     oiReferenceMs !== null ? (nowMs - oiReferenceMs) / (24 * 60 * 60 * 1000) : null;
 
-  const aggregatedExchangeIds = SERIES_EXCHANGES.filter((e) => e.id !== "aggregated").map(
+  const aggregatedExchangeIds = SERIES_EXCHANGES.filter((e) => e.id !== "aggregated" && !e.addedLater).map(
     (e) => e.id
   );
   const oiExchangeSetConsistent =

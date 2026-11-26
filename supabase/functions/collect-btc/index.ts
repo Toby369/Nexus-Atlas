@@ -6,6 +6,8 @@ import {
   parseBitgetTicker,
   parseBitunixFunding,
   parseBybitTicker,
+  parseDeribitFutures,
+  parseHyperliquidMarkt,
   parseOkxMarkt,
   parsePionexMarkt,
 } from "../_shared/boersenParser.ts";
@@ -119,6 +121,34 @@ const collectBitget = (symbol: string) =>
     )
   );
 
+// Seit 26.11.2026 (Toby: "moeglichst den gesamten OI"): Hyperliquid und
+// Deribit. Beide ohne Funding (siehe Parser), OI zaehlt in der Summe
+// "Aggregiert" erst, wenn sie ueber das ganze Zeitfenster Daten haben.
+const collectHyperliquid = () =>
+  collect("hyperliquid", async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    try {
+      const res = await fetch("https://api.hyperliquid.xyz/info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "metaAndAssetCtxs" }),
+        signal: controller.signal,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status} bei Hyperliquid`);
+      return parseHyperliquidMarkt(await res.json());
+    } finally {
+      clearTimeout(timeout);
+    }
+  });
+
+const collectDeribit = () =>
+  collect("deribit", async () =>
+    parseDeribitFutures(
+      await fetchJson("https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency=BTC&kind=future"),
+    )
+  );
+
 function errorSnapshot(exchange: string, err: unknown): NormalizedSnapshot {
   const message = err instanceof Error ? err.message : String(err);
   return {
@@ -150,6 +180,8 @@ Deno.serve(async (_req: Request) => {
     collectPionex("BTC_USDT_PERP"),
     collectOkx("BTC-USDT-SWAP"),
     collectBitget(symbol),
+    collectHyperliquid(),
+    collectDeribit(),
   ]);
 
   const snapshots: NormalizedSnapshot[] = results.map((r) =>

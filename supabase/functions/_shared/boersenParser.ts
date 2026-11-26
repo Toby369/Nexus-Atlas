@@ -155,6 +155,56 @@ export function parseOkxMarkt(ticker: Json, oiJson: Json, funding: Json, markJso
   };
 }
 
+// Hyperliquid (seit 26.11.2026, Gesamtmarkt-OI): metaAndAssetCtxs liefert
+// universe (Namen) und assetCtxs (gleiche Reihenfolge). openInterest in BTC.
+// funding_rate bewusst null: Hyperliquid rechnet stuendlich, Nexus-Funding-
+// Mittel gelten pro 8 h -- sonst wuerde der Mittelwert verfaelscht.
+export function parseHyperliquidMarkt(json: Json): MarktWerte {
+  const universe = json?.[0]?.universe;
+  const ctxs = json?.[1];
+  if (!Array.isArray(universe) || !Array.isArray(ctxs)) throw new Error("Unvollstaendige Hyperliquid-Antwort");
+  const i = universe.findIndex((u: Json) => u?.name === "BTC");
+  if (i < 0 || !ctxs[i]) throw new Error("Hyperliquid: BTC nicht gefunden");
+  const c = ctxs[i];
+  const mark = pflichtZahl(c, "markPx", "Hyperliquid");
+  const oi = pflichtZahl(c, "openInterest", "Hyperliquid");
+  return {
+    last_price: kannZahl(c, "midPx") ?? mark,
+    mark_price: mark,
+    index_price: kannZahl(c, "oraclePx"),
+    open_interest: oi,
+    open_interest_usd: oi * mark,
+    funding_rate: null,
+    next_funding_time_utc: null,
+  };
+}
+
+// Deribit (seit 26.11.2026): alle BTC-Futures inkl. BTC-PERPETUAL. Inverse
+// Kontrakte: open_interest ist in USD; in BTC = USD / mark_price je Kontrakt.
+// Preis und Mark vom Perpetual; funding_rate null (eigene Berechnung bei Deribit).
+export function parseDeribitFutures(json: Json): MarktWerte {
+  const list = json?.result;
+  if (!Array.isArray(list) || list.length === 0) throw new Error("Unvollstaendige Deribit-Antwort");
+  let usd = 0;
+  let btc = 0;
+  for (const r of list) {
+    const oiUsd = pflichtZahl(r, "open_interest", "Deribit");
+    const mark = pflichtZahl(r, "mark_price", "Deribit");
+    usd += oiUsd;
+    btc += mark > 0 ? oiUsd / mark : 0;
+  }
+  const perp = list.find((r: Json) => r?.instrument_name === "BTC-PERPETUAL") ?? list[0];
+  return {
+    last_price: kannZahl(perp, "last"),
+    mark_price: kannZahl(perp, "mark_price"),
+    index_price: kannZahl(perp, "estimated_delivery_price"),
+    open_interest: btc,
+    open_interest_usd: usd,
+    funding_rate: null,
+    next_funding_time_utc: null,
+  };
+}
+
 // Ein Ticker liefert Preis/Mark/Index/Funding/OI (holdingAmount, in BTC).
 // Kein naechster Funding-Zeitpunkt im Ticker -> null.
 export function parseBitgetTicker(json: Json, symbol: string): MarktWerte {

@@ -26,7 +26,7 @@ describe("Quellenhinweis", () => {
     expect(renderToStaticMarkup(<Quellenhinweis quellen={[]} />)).toBe("");
   });
 
-  it("die sechs Futures-Börsen haben eindeutige Namen", () => {
-    expect(new Set(FUTURES_QUELLEN.map((q) => q.name)).size).toBe(6);
+  it("die acht Futures-Börsen haben eindeutige Namen (seit 26.11.2026 mit Hyperliquid, Deribit)", () => {
+    expect(new Set(FUTURES_QUELLEN.map((q) => q.name)).size).toBe(8);
   });
 });

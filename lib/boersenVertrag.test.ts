@@ -10,6 +10,8 @@ import {
   parseBitunixFunding,
   parseBybitPositionierung,
   parseBybitTicker,
+  parseDeribitFutures,
+  parseHyperliquidMarkt,
   parseOkxMarkt,
   parseOkxPositionierung,
   parsePionexMarkt,
@@ -51,6 +53,23 @@ function plausibelBtc(w: MarktWerte) {
     expect(w.open_interest_usd / w.open_interest).toBeCloseTo(w.last_price, -3);
   }
 }
+
+describe("Gesamtmarkt-OI (collect-btc, seit 26.11.2026)", () => {
+  it("Hyperliquid: BTC-OI in BTC und USD, kein Funding", () => {
+    const w = parseHyperliquidMarkt(fixture("hyperliquid_meta"));
+    expect(w.open_interest).toBeCloseTo(35303.53534);
+    expect(w.open_interest_usd! / w.open_interest!).toBeCloseTo(60486, 0);
+    expect(w.funding_rate).toBeNull();
+    expect(w.mark_price).toBeGreaterThan(5_000);
+  });
+  it("Deribit: Summe aller BTC-Futures, inverse USD in BTC umgerechnet", () => {
+    const w = parseDeribitFutures(fixture("deribit_futures"));
+    expect(w.open_interest_usd).toBe(35168520 + 129723850 + 25178270 + 292260);
+    expect(w.open_interest!).toBeGreaterThan(3000);
+    expect(w.open_interest!).toBeLessThan(3200);
+    expect(w.funding_rate).toBeNull();
+  });
+});
 
 describe("Marktdaten (collect-btc)", () => {
   it("Bybit: Ticker", () => {
