@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { evaluateSetup, type DrawingInput } from "@/lib/setupEngine";
+import { evaluateSetup, parseSwingInputs, type DrawingInput, type SwingInputsRow } from "@/lib/setupEngine";
 import { hourlySpotNet } from "@/lib/spotHourly";
 import { hourlyNoisePct } from "@/lib/veto";
 import { fundingPctPer8h } from "@/lib/fundingLevels";
@@ -82,6 +82,7 @@ export async function POST() {
     spot: SpotPressurePoint[];
     funding_rate: number | null;
     events: { event_key: string; event_date: string }[];
+    swing?: SwingInputsRow | null;
   };
   const bundle = (bundleRes.data ?? null) as DashboardPollBundle | null;
 
@@ -115,6 +116,7 @@ export async function POST() {
     dataDay: dataDayLabel(nowMs, x.events),
     tradesToday: 0,
     lossesInRow: 0,
+    swing: parseSwingInputs(x.swing, nowMs),
   });
 
   const first = ideas[0];

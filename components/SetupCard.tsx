@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { setVisibleInterval } from "@/lib/visibleInterval";
 import { deriveMarketContext } from "@/lib/marketContext";
 import { hourlySpotNet, SPOT_HOURS } from "@/lib/spotHourly";
-import { evaluateSetup, MAX_POINTS, SETUP_MIN_POINTS, type DrawingInput, type SetupIdea } from "@/lib/setupEngine";
+import { evaluateSetup, MAX_POINTS, parseSwingInputs, SETUP_MIN_POINTS, type DrawingInput, type SetupIdea, type SwingInputsRow } from "@/lib/setupEngine";
 import { setupInfo } from "@/lib/panelInfo";
 import { EXIT_RULE_NOT, EXIT_RULE_POINTS, EXIT_RULE_TITLE } from "@/lib/exitRule";
 import type { Candle } from "@/lib/candles";
@@ -28,6 +28,7 @@ interface SetupData {
   monthlyVwap: number | null;
   candles15m: Candle[];
   spotPoints: SpotPressurePoint[];
+  swing: SwingInputsRow | null;
   loadedAt: number;
 }
 
@@ -40,8 +41,8 @@ const listeners = new Set<(d: SetupData) => void>();
 async function loadSetupData(): Promise<SetupData | null> {
   const now = Date.now();
   const since = new Date(now - SPOT_HOURS * 3_600_000).toISOString();
-  const [drawRes, summaryRes, candleRes, spotRes] = await Promise.all([
-    supabase.from("autark_drawings").select("autark_id, kind, label, points"),
+  const [drawRes, summaryRes, candleRes, spotRes, swingRes] = await Promise.all([
+    supabase.from("autark_drawings").select("autark_id, kind, label, points, style"),
     supabase.rpc("get_anchored_vwap_summary"),
     supabase
       .from("candles")
@@ -52,6 +53,7 @@ async function loadSetupData(): Promise<SetupData | null> {
       .order("open_time", { ascending: false })
       .limit(CANDLES_15M + 1),
     supabase.rpc("get_spot_pressure_series", { p_since: since, p_max_points: 300 }),
+    supabase.rpc("get_swing_inputs"),
   ]);
   if (drawRes.error || candleRes.error) return null;
   const drawings = (drawRes.data ?? []) as DrawingInput[];
@@ -86,6 +88,7 @@ async function loadSetupData(): Promise<SetupData | null> {
     monthlyVwap: summary?.monthly_vwap != null ? Number(summary.monthly_vwap) : null,
     candles15m,
     spotPoints: (spotRes.data ?? []) as SpotPressurePoint[],
+    swing: swingRes.error ? null : ((swingRes.data ?? null) as SwingInputsRow | null),
     loadedAt: now,
   };
 }
@@ -156,6 +159,7 @@ export function useSetup(props: DecisionProps): { ideas: SetupIdea[]; loaded: bo
     dataDay: inputs.dataDay,
     tradesToday: journal.trades,
     lossesInRow: journal.losses,
+    swing: parseSwingInputs(data.swing, nowMs),
   });
   return { ideas, loaded: true };
 }
@@ -175,7 +179,7 @@ export function IdeaBody({ idea }: { idea: SetupIdea }) {
           {idea.side === "long" ? "Long" : "Short"} {range}
         </span>
         <span className="rounded bg-surface-raised px-1.5 py-0.5 font-mono text-[11px] text-text-muted">
-          {idea.cluster.horizon === "swing" ? "Swing" : "Intraday"}
+          {idea.cluster.horizon === "swing" ? (idea.swingEvidence ? "Swing · Belege 4H" : "Swing") : "Intraday"}
           {idea.atCluster ? " · am Cluster" : ` · ${pct(idea.distancePct)} % entfernt`}
         </span>
       </div>
@@ -188,7 +192,7 @@ export function IdeaBody({ idea }: { idea: SetupIdea }) {
         <dt className="text-text-faint">Stop</dt>
         <dd className="font-mono tabular text-down">{fmt(idea.stop)}</dd>
         <dd className="text-right font-mono text-xs text-text-muted">
-          −{pct(idea.stopPct, 2)} %{idea.stopWidened ? " · 1H-Rauschen" : ""}
+          −{pct(idea.stopPct, 2)} %{idea.stopWidened ? (idea.swingEvidence ? " · 4H-Rauschen" : " · 1H-Rauschen") : ""}
         </dd>
         {idea.targets.map((t, i) => (
           <div key={t.price} className="contents">
