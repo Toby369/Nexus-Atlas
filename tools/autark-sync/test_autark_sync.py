@@ -177,5 +177,161 @@ class RunOnceTest(unittest.TestCase):
                 autark_sync.run_once(self.cfg)
 
 
+JOURNAL_SCHEMA = """
+create table trades (id integer primary key, dateUnix bigint not null, date text, executions text default '[]',
+  trades text default '[]', blotter text, pAndL text, createdAt timestamp, updatedAt timestamp, broker text default 'bitunix');
+create table notes (id integer primary key, dateUnix bigint, tradeId text, note text, entryNote text, feelings text,
+  playbook text, timeframe text, entryStressLevel integer, emotionLevel integer, closingNote text, closingStressLevel integer,
+  strategyFollowed integer default -1, tradingMetadata text, screenshotId text, aiReview text, updatedAt timestamp);
+create table tags (id integer primary key, tradeId text, tags text default '[]', closingTags text default '[]', updatedAt timestamp);
+create table satisfactions (id integer primary key, dateUnix bigint, tradeId text, satisfaction integer, updatedAt timestamp);
+create table excursions (id integer primary key, tradeId text, stopLoss real default 0, maePrice real default 0,
+  mfePrice real default 0, updatedAt timestamp);
+create table incoming_positions (id integer primary key, positionId text unique, symbol text, side text, entryPrice real,
+  leverage real, quantity real, status text default 'open', tags text default '[]', entryNote text, stressLevel integer,
+  tpslHistory text default '[]', bitunixData text, createdAt timestamp, updatedAt timestamp);
+create table settings (id integer primary key, tags text default '[]', apis text default '[]');
+"""
+
+NOW = 1795132800  # 2026-11-20 00:00 UTC
+
+
+def make_journal_db():
+    path = make_db([])
+    con = sqlite3.connect(path)
+    con.executescript(JOURNAL_SCHEMA)
+    day = [
+        {"id": "t1795046400_0_P1", "broker": "bitunix", "category": "futures", "symbol": "BTCUSDT", "side": "B",
+         "strategy": "long", "entryPrice": 59150, "exitPrice": 58000, "entryTime": NOW - 30000, "exitTime": NOW - 26000,
+         "buyQuantity": 0.002, "sellQuantity": 0.002, "grossProceeds": -2.3, "netProceeds": -2.5, "tradingFee": 0.2,
+         "fundingFee": 0},
+        {"id": "t1795046400_0_BOT", "category": "bot", "symbol": "BTCUSDT"},
+    ]
+    old = [{"id": "t1790000000_0_P0", "category": "futures", "symbol": "BTCUSDT", "side": "SS", "entryTime": 1789990000,
+            "exitTime": 1790000000, "netProceeds": 1.0}]
+    con.execute("insert into trades (dateUnix, trades, updatedAt) values (?, ?, ?)", (1795046400, json.dumps(day), "2026-11-19 09:00:00"))
+    con.execute("insert into trades (dateUnix, trades, updatedAt) values (?, ?, ?)", (1790000000, json.dumps(old), "2026-09-22 10:00:00"))
+    con.execute(
+        "insert into notes (tradeId, entryNote, feelings, playbook, entryStressLevel, strategyFollowed, tradingMetadata, screenshotId, aiReview, updatedAt) "
+        "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        ("t1795046400_0_P1", "<p>Plan A: Retest <b>AVWAP</b></p>", "ungeduldig", "<ul><li>EMA</li></ul>", 3, 0,
+         json.dumps({"sl": 58800, "tp": 61000, "rrr": 2.6, "leverage": 15, "tpslHistory": [{"time": 1, "type": "sl", "newVal": 58800}]}),
+         "BASE64...", "lange KI-Bewertung", "2026-11-19 09:05:00"),
+    )
+    con.execute("insert into tags (tradeId, tags, closingTags) values (?, ?, ?)", ("t1795046400_0_P1", '["tag_1", {"id": "tag_2"}]', '["tag_x"]'))
+    con.execute("insert into satisfactions (tradeId, satisfaction) values (?, ?)", ("t1795046400_0_P1", 0))
+    con.execute("insert into excursions (tradeId, stopLoss, maePrice) values (?, ?, ?)", ("t1795046400_0_P1", 0, 57900))
+    con.execute(
+        "insert into incoming_positions (positionId, symbol, side, entryPrice, leverage, quantity, status, tags, stressLevel, createdAt) "
+        "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        ("P9", "BTCUSDT", "LONG", 60100, 12, 0.003, "open", '["tag_1"]', 2, "2026-11-19 22:00:00"),
+    )
+    con.execute(
+        "insert into settings (id, tags, apis) values (1, ?, ?)",
+        (json.dumps([{"id": "group_0", "name": "Strategie", "tags": [{"id": "tag_1", "name": "Retest"}, {"id": "tag_2", "name": "AVWAP"}]}]),
+         json.dumps([{"key": "GEHEIM"}])),
+    )
+    con.commit()
+    con.close()
+    return path
+
+
+class ReadTradesTest(unittest.TestCase):
+    def setUp(self):
+        self.db = make_journal_db()
+
+    def tearDown(self):
+        os.unlink(self.db)
+
+    def test_letzte_7_tage_plus_offene_ohne_bots(self):
+        trades, ids = autark_sync.read_trades(self.db, now=NOW)
+        self.assertIsNone(ids)
+        by = {t["trade_id"]: t for t in trades}
+        self.assertEqual(sorted(by), ["open:P9", "t1795046400_0_P1"])
+        t = by["t1795046400_0_P1"]
+        self.assertEqual(t["side"], "long")
+        self.assertEqual(t["position_id"], "P1")
+        self.assertEqual(t["net_pnl"], -2.5)
+        self.assertEqual(t["quantity"], 0.002)
+        self.assertEqual(t["leverage"], 15)
+        self.assertEqual(t["stop_loss"], 58800)
+        self.assertEqual(t["mae_price"], 57900)
+        self.assertIs(t["strategy_followed"], False)
+        self.assertIs(t["satisfaction"], False)
+        self.assertEqual(t["tags"], ["Retest", "AVWAP"])
+        self.assertEqual(t["closing_tags"], ["tag_x"])
+        j = t["journal"]
+        self.assertEqual(j["entry_note"], "Plan A: Retest AVWAP")
+        self.assertEqual(j["playbook"], "EMA")
+        self.assertEqual(j["feelings"], "ungeduldig")
+        self.assertEqual(j["entry_stress"], 3)
+        self.assertEqual(j["take_profit"], 61000)
+        self.assertEqual(j["tpsl_history"][0]["newVal"], 58800)
+        self.assertEqual(t["autark_updated_at"], 1795078800 + 300)
+        o = by["open:P9"]
+        self.assertEqual((o["status"], o["side"], o["leverage"], o["tags"]), ("open", "long", 12, ["Retest"]))
+        self.assertEqual(o["journal"]["entry_stress"], 2)
+
+    def test_nie_screenshots_ki_oder_zugangsdaten(self):
+        trades, _ = autark_sync.read_trades(self.db, now=NOW, full=True)
+        dump = json.dumps(trades)
+        for secret in ("BASE64", "KI-Bewertung", "GEHEIM"):
+            self.assertNotIn(secret, dump)
+
+    def test_voll_mit_id_liste(self):
+        trades, ids = autark_sync.read_trades(self.db, now=NOW, full=True)
+        self.assertEqual(len(trades), 3)
+        self.assertEqual(sorted(ids), ["open:P9", "t1790000000_0_P0", "t1795046400_0_P1"])
+
+    def test_zeitformate(self):
+        self.assertEqual(autark_sync._ts("2026-11-19 09:00:00"), 1795078800)
+        self.assertEqual(autark_sync._ts(1795078800000), 1795078800)
+        self.assertEqual(autark_sync._ts("1795078800"), 1795078800)
+        self.assertIsNone(autark_sync._ts(""))
+        self.assertIsNone(autark_sync._ts(0))
+
+    def test_run_once_voll_beim_ersten_lauf_dann_taeglich(self):
+        fd, state = tempfile.mkstemp(suffix=".json")
+        os.close(fd)
+        os.unlink(state)
+        cfg = {"db": self.db, "url": "u", "secret": "s", "symbol": "BTCUSDT", "state": state, "allow_empty": True}
+        ok = {"success": True, "zones": 0, "drawings": 0, "trades": {"total": 3, "changed": 3}}
+        try:
+            with mock.patch.object(autark_sync, "send", return_value=ok) as send:
+                self.assertIn("Journal 3 Trades (3 neu/geändert, voll)", autark_sync.run_once(cfg))
+                self.assertEqual(len(send.call_args.args[7]), 3)
+                autark_sync.run_once(cfg)
+                self.assertIsNone(send.call_args.args[7])
+                autark_sync.run_once({**cfg, "full": True})
+                self.assertEqual(len(send.call_args.args[7]), 3)
+                autark_sync.run_once({**cfg, "journal": False})
+                self.assertIsNone(send.call_args.args[6])
+        finally:
+            if os.path.exists(state):
+                os.unlink(state)
+
+    def test_send_ohne_leere_id_liste(self):
+        captured = {}
+
+        class FakeRes:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def read(self):
+                return b'{"success": true}'
+
+        def fake_urlopen(req, timeout):
+            captured["body"] = json.loads(req.data)
+            return FakeRes()
+
+        with mock.patch.object(autark_sync.urllib.request, "urlopen", fake_urlopen):
+            autark_sync.send("https://example/autark-sync", "s", "BTCUSDT", [], False, None, [], [])
+            self.assertEqual(captured["body"]["trades"], [])
+            self.assertNotIn("all_trade_ids", captured["body"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -19,6 +19,8 @@ export interface OwnZone {
 export interface AutarkSyncStatus {
   lastSyncAt: string | null;
   zoneCount: number | null;
+  /** Trades im Journal-Sync (nur die Zahl; die Trades selbst sind privat). */
+  tradeCount?: number | null;
 }
 
 /** Ohne Lebenszeichen des Syncs seit so vielen Minuten gelten die AutarkTrade-Zonen als veraltet. */
@@ -48,14 +50,20 @@ export async function fetchOwnZones(): Promise<OwnZone[]> {
 export async function fetchAutarkSyncStatus(): Promise<AutarkSyncStatus | null> {
   const { data, error } = await supabase
     .from("autark_sync_status")
-    .select("last_sync_at, zone_count")
+    .select("last_sync_at, zone_count, trade_count")
     .eq("id", 1)
     .maybeSingle();
   if (error) {
     console.error("AutarkTrade-Sync-Status: Fehler beim Laden:", error.message);
     return null;
   }
-  return data ? { lastSyncAt: (data.last_sync_at as string | null) ?? null, zoneCount: num(data.zone_count) } : null;
+  return data
+    ? {
+        lastSyncAt: (data.last_sync_at as string | null) ?? null,
+        zoneCount: num(data.zone_count),
+        tradeCount: num(data.trade_count),
+      }
+    : null;
 }
 
 export function isSyncStale(lastSyncAt: string | null, nowMs: number): boolean {

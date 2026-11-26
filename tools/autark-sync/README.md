@@ -72,3 +72,17 @@ aus dem Text der Zeichnung.
 ```bash
 python3 -m unittest tools/autark-sync/test_autark_sync.py
 ```
+
+## Journal (seit 26.11.2026)
+
+Dasselbe Skript schickt auch das Trade-Journal aus AutarkTrade (TradeNote-Tabellen
+`trades`, `notes`, `tags`, `satisfactions`, `excursions`, `incoming_positions`, aus
+`settings` nur `tags`). Ohne Grid-Bots, Screenshots, KI-Reviews und Zugangsdaten;
+HTML wird zu Text. Alle 5 min nur Änderungen der letzten 7 Tage plus offene
+Positionen, beim ersten Lauf und täglich alles plus die ID-Liste (fehlende Trades
+markiert Nexus nur, gelöscht wird nichts). In Nexus privat (Tabelle `autark_trades`,
+nur Service-Role, Lesen über `/api/journal` hinter dem Login).
+
+- `AUTARK_JOURNAL=0` schaltet es aus
+- `--full` erzwingt einen vollen Lauf
+- `AUTARK_STATE` legt die Datei für den letzten vollen Lauf fest (Standard: neben dem Skript)

@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { cleanTrade, MAX_TRADE_IDS, MAX_TRADES } from "../_shared/autarkTradeClean.ts";
 
 // Zonen aus AutarkTrade (Toby 28.10.2026, docs/research/AUTARK-NEXUS-PLAN_2026-10-28.md).
 // tools/autark-sync/autark_sync.py liest Tobys Zeichnungen (Rechtecke,
@@ -17,6 +18,13 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 //    "style": {...}, "visible_on": ["15m", ...] | null, "updated_at": ms}
 // -> replace_autark_drawings (atomar, nur bei Aenderung). Bodies OHNE
 // "drawings" bleiben gueltig (aeltere Skriptversion auf dem VPS).
+//
+// Seit 26.11.2026 optional "trades" (Journal, privat) und "all_trade_ids":
+//   {"trade_id": "t1795046400_0_123", "status": "closed", "side": "long",
+//    "entry_time": <Unix-Sekunden>, "net_pnl": -1.2, "journal": {...}, ...}
+// -> upsert_autark_trades (nur Aenderungen). "all_trade_ids" (taeglich)
+// markiert fehlende Trades als in AutarkTrade geloescht; Nexus loescht nie.
+// HTML wird hier nochmals zu Text, Texte werden gekuerzt.
 
 const MAX_ZONES = 60;
 const MAX_DRAWINGS = 300;
@@ -81,7 +89,7 @@ Deno.serve(async (req: Request) => {
   const provided = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   if (!provided || !sameSecret(provided, expected)) return json({ success: false, error: "Nicht authentifiziert." }, 401);
 
-  let body: { symbol?: unknown; zones?: unknown; drawings?: unknown; allow_empty?: unknown };
+  let body: { symbol?: unknown; zones?: unknown; drawings?: unknown; allow_empty?: unknown; trades?: unknown; all_trade_ids?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -124,6 +132,26 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  let trades: Record<string, unknown>[] | null = null;
+  if (body.trades !== undefined) {
+    if (!Array.isArray(body.trades) || body.trades.length > MAX_TRADES) {
+      return json({ success: false, error: `trades muss eine Liste mit höchstens ${MAX_TRADES} Einträgen sein.` }, 400);
+    }
+    trades = [];
+    for (const raw of body.trades as Record<string, unknown>[]) {
+      const t = cleanTrade(raw);
+      if (typeof t === "string") skipped.push(t);
+      else trades.push(t);
+    }
+  }
+  let allTradeIds: string[] | null = null;
+  if (body.all_trade_ids !== undefined) {
+    if (!Array.isArray(body.all_trade_ids) || body.all_trade_ids.length > MAX_TRADE_IDS) {
+      return json({ success: false, error: `all_trade_ids muss eine Liste mit höchstens ${MAX_TRADE_IDS} Einträgen sein.` }, 400);
+    }
+    allTradeIds = (body.all_trade_ids as unknown[]).filter((x): x is string => typeof x === "string" && x.length > 0 && x.length <= 120);
+  }
+
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const { data, error } = await supabase.rpc("replace_own_zones_from_autark", {
     p_zones: zones,
@@ -140,5 +168,16 @@ Deno.serve(async (req: Request) => {
     if (res.error) return json({ success: false, zones: data, error: `Zeichnungen: ${res.error.message}` }, 500);
     drawingCount = res.data as number;
   }
-  return json({ success: true, zones: data, drawings: drawingCount, skipped: skipped.slice(0, 10) }, 200);
+  let tradeResult: Record<string, unknown> | null = null;
+  if (trades !== null && (trades.length > 0 || (allTradeIds !== null && allTradeIds.length > 0))) {
+    const res = await supabase.rpc("upsert_autark_trades", {
+      p_trades: trades,
+      p_all_ids: allTradeIds && allTradeIds.length > 0 ? allTradeIds : null,
+    });
+    if (res.error) {
+      return json({ success: false, zones: data, drawings: drawingCount, error: `Trades: ${res.error.message}` }, 500);
+    }
+    tradeResult = res.data as Record<string, unknown>;
+  }
+  return json({ success: true, zones: data, drawings: drawingCount, trades: tradeResult, skipped: skipped.slice(0, 10) }, 200);
 });
