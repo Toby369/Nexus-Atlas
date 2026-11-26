@@ -28,6 +28,7 @@ import {
 } from "@/lib/lageOverview";
 import type { EconomicCalendarEvent, EtfFlowDay, MarketState, SpotPressurePoint } from "@/lib/types";
 import { hourlySpotNet, spotTurn, SPOT_HOURS, type SpotHourBar } from "@/lib/spotHourly";
+import { alignOiBars, oiNote, type OiHourBar, type OiHourRow } from "@/lib/oiHourly";
 import type { EconomicEventResult } from "@/lib/economicEventResult";
 import type { PremiumSummary } from "@/lib/coinbasePremium";
 import Link from "next/link";
@@ -137,37 +138,94 @@ function MacroDetail({
   );
 }
 
-/** 12 Stundenbalken Spot-Druck, aelteste links. Hoehe = Staerke, Farbe = Richtung. */
-function SpotHourBars({ bars }: { bars: SpotHourBar[] }) {
-  const max = Math.max(10, ...bars.map((b) => Math.abs(b.netPct ?? 0)));
-  const hour = (ms: number) =>
-    new Date(ms).toLocaleTimeString("de-CH", { hour: "2-digit", timeZone: "Europe/Zurich" });
+interface HourBarItem {
+  startMs: number;
+  value: number | null;
+  complete: boolean;
+}
+
+/** Eine Zeile Stundenbalken um eine Mittellinie; Hoehe = Staerke, Farbe = Richtung. */
+function HourBarRow({
+  items,
+  label,
+  floor,
+  posClass,
+  negClass,
+  unit,
+  digits,
+}: {
+  items: HourBarItem[];
+  label: string;
+  floor: number;
+  posClass: string;
+  negClass: string;
+  unit: string;
+  digits: number;
+}) {
+  const max = Math.max(floor, ...items.map((b) => Math.abs(b.value ?? 0)));
+  const hour = (ms: number) => new Date(ms).toLocaleTimeString("de-CH", { hour: "2-digit", timeZone: "Europe/Zurich" });
   return (
-    <span className="mt-1.5 block" aria-label="Spot-Druck je Stunde, letzte 12 Stunden">
-      <span className="flex h-11 items-center gap-[3px]">
-        {bars.map((b) => {
-          const v = b.netPct;
-          const h = v === null ? 0 : Math.max(2, (Math.abs(v) / max) * 20);
-          const color = v === null ? "" : v >= 0 ? "bg-up" : "bg-down";
+    <span className="flex items-center gap-2">
+      <span className="w-7 shrink-0 text-[10px] text-text-faint">{label}</span>
+      <span className="flex h-10 flex-1 items-center gap-[3px]">
+        {items.map((b) => {
+          const v = b.value;
+          const h = v === null ? 0 : Math.max(2, (Math.abs(v) / max) * 18);
+          const bar = (cls: string) => (
+            <span className={`w-full rounded-sm ${cls} ${b.complete ? "" : "opacity-50"}`} style={{ height: h }} />
+          );
           return (
             <span
               key={b.startMs}
-              title={`${hour(b.startMs)}: ${v === null ? "keine Daten" : `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(0)} %`}${b.complete ? "" : " (läuft)"}`}
+              title={`${hour(b.startMs)}: ${v === null ? "keine Daten" : `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(digits)} ${unit}`}${b.complete ? "" : " (läuft)"}`}
               className="flex h-full flex-1 flex-col justify-center"
             >
-              <span className="flex h-1/2 items-end">
-                {v !== null && v >= 0 && <span className={`w-full rounded-sm ${color} ${b.complete ? "" : "opacity-50"}`} style={{ height: h }} />}
-              </span>
-              <span className="flex h-1/2 items-start border-t border-border/60">
-                {v !== null && v < 0 && <span className={`w-full rounded-sm ${color} ${b.complete ? "" : "opacity-50"}`} style={{ height: h }} />}
-              </span>
+              <span className="flex h-1/2 items-end">{v !== null && v >= 0 && bar(posClass)}</span>
+              <span className="flex h-1/2 items-start border-t border-border/60">{v !== null && v < 0 && bar(negClass)}</span>
             </span>
           );
         })}
       </span>
-      <span className="flex justify-between text-[10px] text-text-faint">
+    </span>
+  );
+}
+
+/**
+ * 12 Stundenbalken: oben Spot-Druck (gruen kauft, rot verkauft), darunter
+ * OI (blau Hebel rein, grau Hebel raus), dieselben Stunden untereinander.
+ */
+function SpotHourBars({ bars, oi }: { bars: SpotHourBar[]; oi: OiHourBar[] }) {
+  const hour = (ms: number) => new Date(ms).toLocaleTimeString("de-CH", { hour: "2-digit", timeZone: "Europe/Zurich" });
+  const note = oiNote(oi);
+  return (
+    <span className="mt-1.5 block" aria-label="Spot-Druck und Open Interest je Stunde, letzte 12 Stunden">
+      <HourBarRow
+        items={bars.map((b) => ({ startMs: b.startMs, value: b.netPct, complete: b.complete }))}
+        label="Spot"
+        floor={10}
+        posClass="bg-up"
+        negClass="bg-down"
+        unit="%"
+        digits={0}
+      />
+      {oi.some((b) => b.changePct !== null) && (
+        <HourBarRow
+          items={oi.map((b) => ({ startMs: b.startMs, value: b.changePct, complete: b.complete }))}
+          label="OI"
+          floor={0.5}
+          posClass="bg-blue-500"
+          negClass="bg-text-faint"
+          unit="%"
+          digits={2}
+        />
+      )}
+      <span className="flex justify-between pl-9 text-[10px] text-text-faint">
         <span>{bars[0] ? hour(bars[0].startMs) : ""}</span>
-        <span>Spot je Stunde</span>
+        {note ? (
+          <span className={note.tone === "out" ? "text-text-muted" : "text-blue-400"}>{note.text}</span>
+        ) : (
+          <span>je Stunde</span>
+        )}
         <span>jetzt</span>
       </span>
     </span>
@@ -223,6 +281,7 @@ export default function LageCard({
   const [rateChanges, setRateChanges] = useState<FedRateChange[]>([]);
   const [twoYear, setTwoYear] = useState<number | null>(null);
   const [spotPoints, setSpotPoints] = useState<SpotPressurePoint[]>([]);
+  const [oiRows, setOiRows] = useState<OiHourRow[]>([]);
 
   // Spot-Druck der letzten 12 Stunden fuer die Stundenbalken (alle 5 Min,
   // nur solange die Seite sichtbar ist).
@@ -230,8 +289,13 @@ export default function LageCard({
     let cancelled = false;
     const load = async () => {
       const since = new Date(Date.now() - SPOT_HOURS * 3_600_000).toISOString();
-      const { data } = await supabase.rpc("get_spot_pressure_series", { p_since: since, p_max_points: 300 });
-      if (!cancelled && data) setSpotPoints(data as SpotPressurePoint[]);
+      const [spotRes, oiRes] = await Promise.all([
+        supabase.rpc("get_spot_pressure_series", { p_since: since, p_max_points: 300 }),
+        supabase.rpc("get_oi_hourly", { p_hours: SPOT_HOURS + 1 }),
+      ]);
+      if (cancelled) return;
+      if (spotRes.data) setSpotPoints(spotRes.data as SpotPressurePoint[]);
+      if (oiRes.data) setOiRows(oiRes.data as OiHourRow[]);
     };
     load();
     const stop = setVisibleInterval(load, SPOT_REFRESH_MS);
@@ -340,6 +404,7 @@ export default function LageCard({
   const nextEvent = upcomingEvents[0] ?? null;
   const rate = nowMs === null ? null : rateCourse(rateChanges, twoYear, nowMs);
   const spotBars = nowMs === null ? [] : hourlySpotNet(spotPoints, nowMs);
+  const oiBars = nowMs === null ? [] : alignOiBars(oiRows, spotBars.map((b) => b.startMs), nowMs);
   const turn = nowMs === null ? null : spotTurn(spotBars, spotPerp.result.spotDirection, nowMs);
   const labelFor = (key: string) => events.find((e) => e.event_key === key)?.label ?? key.toUpperCase();
 
@@ -402,7 +467,7 @@ export default function LageCard({
           <Question
             key={r.id}
             row={r}
-            extra={r.id === "driver" && spotBars.some((b) => b.netPct !== null) ? <SpotHourBars bars={spotBars} /> : undefined}
+            extra={r.id === "driver" && spotBars.some((b) => b.netPct !== null) ? <SpotHourBars bars={spotBars} oi={oiBars} /> : undefined}
           >
             {r.id === "macro" && (
               <MacroDetail

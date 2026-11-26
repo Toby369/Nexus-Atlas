@@ -372,7 +372,7 @@ Ein Veto (rot) sperrt den Einstieg: ein Hochrisiko-Zeitfenster läuft oder begin
 
 export const lageInfo = `So liest du das: Vier Fragen, je eine Zeile mit Ampel. Antippen zeigt die Details dazu.
 
-Wer treibt? Vergleicht den Netto-Kaufdruck auf Spot und Perps (CVD) und die Veränderung des Open Interest. Kauft Spot mit, ist die Bewegung getragen (grün); verkauft Spot, rot; bewegt sich nur der Perp-Markt, treibt der Hebel (gelb).
+Wer treibt? Vergleicht den Netto-Kaufdruck auf Spot und Perps (CVD) und die Veränderung des Open Interest. Kauft Spot mit, ist die Bewegung getragen (grün); verkauft Spot, rot; bewegt sich nur der Perp-Markt, treibt der Hebel (gelb). Darunter je Stunde für die letzten 12 Stunden: oben der Spot-Druck (grün kauft, rot verkauft; Binance Spot), unten die OI-Änderung (blau = Hebel kommt rein, grau = Hebel geht raus; Summe aus Binance, Bybit, OKX, Bitget, Pionex). Die laufende Stunde ist blasser. Ab ±1 % OI in 2 Stunden steht ein Hinweis darunter.
 
 Hebel und Masse: Funding ab 0,03 % pro 8 h oder mindestens 65 % Long-Konten heisst „Longs überfüllt“, negatives Funding oder unter 50 % Long-Konten „Shorts überfüllt“ (gelb). Dazu das nächste Liquidations-Ziel darüber und darunter.
 
