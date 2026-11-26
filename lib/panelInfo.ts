@@ -346,7 +346,7 @@ Liquidations-Ziel: die nächste Zone über dem Kurs, in der Short-Positionen liq
 
 So entsteht der Wert: Nexus-Keylevels wie in der Chart-Struktur (Pivot-Konfluenz über mehrere Zeitrahmen, Liquidations-Cluster, Spot-Volumen). Das Level direkt am Kurs (±0,25 %, dein Retest-Band) wird übersprungen. Massgebend bleiben deine eigenen Zonen im Chart; diese Kachel ist der Abgleich.`;
 
-export const setupInfo = `So liest du das: Nexus liest deine Zeichnungen aus AutarkTrade (Zonen, Linien, AVWAP) und legt EMA 50/200 (15m), Wochen- und Monats-VWAP dazu. Level, die höchstens 0,3 % auseinanderliegen, werden ein Cluster (zwei Swing-Level: 0,6 %). Es zählen nur Cluster mit mindestens einer eigenen Zeichnung. Den AVWAP rechnet Nexus aus den Binance-15m-Kerzen ab deinem Anker, wie dein Chart.
+export const setupInfo = `So liest du das: Nexus liest deine Zeichnungen aus AutarkTrade (Zonen, Linien, Trendlinien, Kanäle, Fibonacci, AVWAP) und legt EMA 50/200 (15m), Wochen- und Monats-VWAP dazu. Level, die höchstens 0,3 % auseinanderliegen, werden ein Cluster (zwei Swing-Level: 0,6 %). Es zählen nur Cluster mit mindestens einer eigenen Zeichnung. Den AVWAP rechnet Nexus aus den Binance-15m-Kerzen ab deinem Anker, wie dein Chart.
 
 Ob ein Cluster Unterstützung oder Widerstand ist, entscheidet die Herkunft: Kam der Kurs von oben, ist es eine Long-Idee, sonst eine Short-Idee.
 
@@ -355,6 +355,8 @@ Belege am Cluster, höchstens 10 Punkte: 15m-Schluss auf der richtigen Seite nac
 Einstieg am Cluster, Stop 0,25 % hinter dem Cluster, mindestens 0,5 % und nie enger als das 1,2-Fache der 1H-Spanne. Ziele an den nächsten Clustern ab 1 % Abstand. Hebel = 10 % ÷ Stop-Abstand, höchstens 20x; das Risiko bleibt 1 USDT. Zeigen zwei von drei Hintergrund-Punkten gegen dich (Kurs hinter EMA 50 und 200, hinter dem Wochen-VWAP, Spot über 4H dagegen) oder ist US-Datentag, gilt halbe Grösse.
 
 Veto: Termin-Fenster, 3 Trades oder 2 Verluste heute, kein Ziel ab 1 % oder CRV unter 2. Die Punkte zählen Belege, sie sind keine Trefferquote.
+
+Swing-Cluster (nur Swing-Zeichnungen, z. B. 4H, 1D oder Woche) prüft Nexus auf längeren Zeitebenen, Etikett „Swing · Belege 4H“: 4H-Schluss nach dem Test in den letzten 6 Kerzen 2, Spot über 24 Stunden und 7 Tage je ab ±2 % in Traderichtung 3 (nur eines davon: halb, 0 Punkte), Momentum auf 4H höchstens 2, 4H-Testkerze mit weniger Volumen 1, ETF-Fluss der letzten 5 Handelstage in Traderichtung 1 (statt OI), Funding und Masse 1. Stop nie enger als das 1,2-Fache der 4H-Spanne, Ziele ab 3 %. Hintergrund: EMA 50/200 auf 4H, Monats- und Wochen-VWAP. Der grössere Stop ergibt automatisch weniger Hebel.
 
 Nach dem Einstieg gilt die Ausstiegsregel: raus nur am Stop, am Ziel oder bei Invalidierung (Kerze der Einstiegs-Zeiteinheit schliesst zurück durch den Cluster). Eine Anzeige im Dashboard ist kein Ausstiegsgrund.`;
 

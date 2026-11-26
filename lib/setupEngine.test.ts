@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildClusters, buildLevels, evaluateSetup, rsiSeries, type SetupInput } from "./setupEngine";
+import { buildClusters, buildLevels, evaluateSetup, parseSwingInputs, rsiSeries, type SetupInput } from "./setupEngine";
 
 const NOW = Date.parse("2026-11-22T07:20:00Z");
 
@@ -133,6 +133,73 @@ describe("Setup-Rechner", () => {
   it("weit weg vom Cluster: warten mit Abstand", () => {
     const { ideas } = evaluateSetup({ ...base, price: 60_200 });
     expect(ideas.every((i) => i.verdict.tone === "wait")).toBe(true);
+  });
+
+  it("Swing-Cluster: Belege auf 4H, Spot 24 h + 7 Tage, ETF statt OI, Ziel ab 3 %", () => {
+    // 240 4H-Kerzen: Abwaertsdrift an die 4H-Zone 59'000-59'400, letzte Kerze schliesst darueber.
+    const c4 = [];
+    for (let i = 0; i < 240; i++) {
+      const p = i < 230 ? 66_000 - i * 29 : 59_330 - (i - 230) * 20;
+      const last = i === 239;
+      c4.push({ openTime: new Date(NOW - (241 - i) * 4 * 3_600_000).toISOString(), open: p + 30, high: p + 250, low: last ? 59_100 : p - 250, close: last ? 59_450 : p, volume: last ? 500 : 1500 });
+    }
+    const input: SetupInput = {
+      ...base,
+      price: 59_450,
+      candles15m: candles().map((k) => ({ ...k, close: k.close + 300, high: k.high + 300, low: k.low + 300 })),
+      drawings: [
+        { autark_id: 1, kind: "rechteck", label: "4h zone", points: [{ t: 0, p: 59_000 }, { t: 1, p: 59_400 }] },
+        { autark_id: 2, kind: "rechteck", label: "1d widerstand", points: [{ t: 0, p: 64_000 }, { t: 1, p: 64_400 }] },
+        { autark_id: 3, kind: "strahlH", label: "4h", points: [{ t: 0, p: 60_200 }] },
+      ],
+      avwaps: {},
+      swing: { candles4h: c4, spot24hPct: 6.1, spot7dPct: 2.4, etfUsdM: 850, etfDays: 5 },
+    };
+    const long = evaluateSetup(input).ideas.find((i) => i.side === "long")!;
+    expect(long.cluster.horizon).toBe("swing");
+    expect(long.swingEvidence).toBe(true);
+    const by = Object.fromEntries(long.evidence.map((e) => [e.id, e]));
+    expect(by.close).toMatchObject({ points: 2 });
+    expect(by.close.text).toContain("4H");
+    expect(by.spot).toMatchObject({ points: 3, state: "ja" });
+    expect(by.etf).toMatchObject({ points: 1 });
+    expect(by.oi).toBeUndefined();
+    expect(by.volume.points).toBe(1);
+    expect(long.evidence.reduce((s, e) => s + e.max, 0)).toBe(10);
+    // 60'200 liegt unter 3 % -> erstes Ziel ist der 1D-Widerstand
+    expect(long.targets[0].price).toBe(64_000);
+
+    // Nur 24 h kauft, 7 Tage nicht: halb, 0 Punkte. ETF gegen dich: 0.
+    const mixed = evaluateSetup({ ...input, swing: { ...input.swing!, spot7dPct: -2.7, etfUsdM: -2500 } }).ideas.find((i) => i.side === "long")!;
+    const m = Object.fromEntries(mixed.evidence.map((e) => [e.id, e]));
+    expect(m.spot).toMatchObject({ points: 0, state: "teil" });
+    expect(m.etf.points).toBe(0);
+
+    // Ohne Swing-Daten: Intraday-Belege wie bisher.
+    const plain = evaluateSetup({ ...input, swing: null }).ideas.find((i) => i.side === "long")!;
+    expect(plain.swingEvidence).toBe(false);
+    expect(plain.evidence.some((e) => e.id === "oi")).toBe(true);
+  });
+
+  it("Swing-Eingaben aus der Datenbank: Netto in %, ETF-Summe, laufende 4H-Kerze raus", () => {
+    const s = parseSwingInputs(
+      {
+        candles4h: [
+          { open_time: new Date(NOW - 8 * 3_600_000).toISOString(), open: 1, high: 2, low: 0.5, close: 1.5, volume: 10 },
+          { open_time: new Date(NOW - 2 * 3_600_000).toISOString(), open: 1, high: 2, low: 0.5, close: 1.5, volume: null },
+        ],
+        spot24h: { buy: 9282.6, sell: 8221.7 },
+        spot7d: { buy: 0, sell: 0 },
+        etf: [{ flow_date: "2026-11-25", usd_m: -453.1 }, { flow_date: "2026-11-24", usd_m: -231.6 }, { flow_date: "2026-11-21", usd_m: null }],
+      },
+      NOW
+    )!;
+    expect(s.candles4h).toHaveLength(1);
+    expect(s.spot24hPct).toBeCloseTo(6.06, 1);
+    expect(s.spot7dPct).toBeNull();
+    expect(s.etfUsdM).toBeCloseTo(-684.7);
+    expect(s.etfDays).toBe(2);
+    expect(parseSwingInputs(null, NOW)).toBeNull();
   });
 
   it("RSI-Grenzen", () => {
