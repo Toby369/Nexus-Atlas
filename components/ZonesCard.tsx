@@ -171,6 +171,7 @@ function OwnZonesEditor({
         <>
           <p className="text-[11px] uppercase tracking-[0.12em] text-text-faint">
             Zonen aus AutarkTrade{sync?.lastSyncAt ? ` · Stand ${fmtTime(sync.lastSyncAt)}` : ""}
+            {sync?.tradeCount != null ? ` · Journal ${sync.tradeCount} Trades` : ""}
           </p>
           {stale && (
             <p className="text-xs text-warn">

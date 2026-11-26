@@ -71,6 +71,30 @@ Die Edge Function `autark-sync` (v5) nimmt alte und neue Skriptversionen an.
 Übertragen werden alle sichtbaren Zeichnungen ausser Pinsel und Emoji;
 ausgeblendete Zeichnungen gehen bewusst nicht an Nexus.
 
+**Journal-Sync** (seit 26.11.2026, gleiches Skript): Das Skript schickt auch das
+Trade-Journal (ohne Grid-Bots, ohne Screenshots, ohne KI-Reviews, ohne
+Zugangsdaten). In Nexus ist es privat: keine Lese-Policy, nur die Service-Role
+liest, im Dashboard über `/api/journal` hinter dem Login. Ablauf:
+
+- alle 5 min: Trades, die in den letzten 7 Tagen geändert oder geschlossen
+  wurden, plus alle offenen Positionen
+- beim ersten Lauf und danach einmal täglich: alle Trades plus die ID-Liste.
+  Fehlt ein Trade in AutarkTrade, wird er in Nexus nur als gelöscht markiert
+  (`deleted_in_autark_at`), nie gelöscht.
+- Zeitpunkt des letzten vollen Laufs: `~/.local/share/autark-sync/journal_state.json`
+
+```bash
+ssh vps
+curl -fsSL https://raw.githubusercontent.com/Toby369/Nexus-Atlas/main/tools/autark-sync/autark_sync.py -o ~/.local/share/autark-sync/autark_sync.py
+set -a; . ~/.config/autark-sync.env; set +a; python3 ~/.local/share/autark-sync/autark_sync.py --dry-run | tail -8
+journalctl --user -u autark-sync -n 5 --no-pager      # „…, Journal N Trades (… neu/geändert, voll)“
+```
+
+Ausschalten: `AUTARK_JOURNAL=0` in `~/.config/autark-sync.env`. Vollen Lauf
+erzwingen: `python3 ~/.local/share/autark-sync/autark_sync.py --once --full`
+(mit geladener env-Datei wie oben). Edge Function `autark-sync` ab v6 nimmt
+`trades`; ältere Skripte ohne Journal laufen weiter.
+
 **Kontrolle, ob alles läuft** (kurz, z. B. wöchentlich)
 
 ```bash
