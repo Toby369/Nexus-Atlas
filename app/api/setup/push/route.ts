@@ -11,6 +11,7 @@ import { dataDayLabel } from "@/lib/macroGuide";
 import { sendReportPush } from "@/lib/push";
 import {
   alreadyPushed,
+  isQuietHour,
   RISK_LABELS,
   SETUP_PUSH_KIND,
   SETUP_PUSH_LOCK_HOURS,
@@ -25,6 +26,8 @@ import type { DashboardPollBundle, SpotPressurePoint } from "@/lib/types";
 // Rechnet den Setup-Rechner wie im Reiter "Trade" (lib/setupEngine.ts) und
 // schickt einen Push, wenn die erste Idee "steht" und dieselbe Seite am
 // selben Cluster in den letzten 6 Stunden noch nicht gemeldet wurde.
+// Ruhezeit 23:00-06:00 Schweizer Zeit: kein Push (Toby 26.11.2026). Ein
+// Setup, das am Morgen noch steht, kommt danach im ersten Lauf ab 06:00.
 // Ausgeloest per pg_cron alle 15 Min (Job setup-push-every-15-min).
 // Zwei Datenbank-Abfragen je Lauf: get_setup_inputs() und der Poll-Bundle
 // (OI-Aenderung, Masse). Das Tageslimit aus dem Journal kennt nur der
@@ -118,6 +121,7 @@ export async function POST() {
   const msg = setupPushMessage(first);
   const state = first ? first.verdict.short : "keine Idee";
   if (!msg) return NextResponse.json({ success: true, pushed: false, state });
+  if (isQuietHour(nowMs)) return NextResponse.json({ success: true, pushed: false, state, reason: "Ruhezeit 23-06 Uhr" });
 
   const { data: recent } = await admin
     .from("push_messages")

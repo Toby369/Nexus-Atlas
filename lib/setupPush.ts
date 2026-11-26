@@ -12,6 +12,15 @@ import type { SpotPressurePoint } from "./types";
 export const SETUP_PUSH_KIND = "setup";
 export const SETUP_PUSH_LOCK_HOURS = 6;
 
+/** Ruhezeit (Toby 26.11.2026): keine Setup-Pushes von 23:00 bis 06:00 Schweizer Zeit. */
+export const QUIET_FROM_HOUR = 23;
+export const QUIET_TO_HOUR = 6;
+
+export function isQuietHour(nowMs: number): boolean {
+  const h = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Zurich", hour: "2-digit", hourCycle: "h23" }).format(nowMs));
+  return h >= QUIET_FROM_HOUR || h < QUIET_TO_HOUR;
+}
+
 /** Gleiche Texte wie components/TradingHoursBadge.tsx (dort Client-Modul). */
 export const RISK_LABELS: Record<string, string> = {
   opening: "US-Kasseneröffnung",

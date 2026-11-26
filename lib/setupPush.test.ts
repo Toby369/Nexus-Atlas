@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alreadyPushed, parseSetupTitle, setupPushMessage, spotDirection4h } from "./setupPush";
+import { alreadyPushed, isQuietHour, parseSetupTitle, setupPushMessage, spotDirection4h } from "./setupPush";
 import type { SetupIdea } from "./setupEngine";
 
 const idea = (tone: SetupIdea["verdict"]["tone"], halfSize: string[] = []): SetupIdea =>
@@ -49,5 +49,12 @@ describe("Setup-Push", () => {
     ];
     expect(spotDirection4h(pts, now)).toBe("up");
     expect(spotDirection4h([], now)).toBeNull();
+  });
+
+  it("Ruhezeit 23-06 Uhr Schweizer Zeit", () => {
+    expect(isQuietHour(Date.parse("2026-11-26T22:30:00Z"))).toBe(true); // 23:30
+    expect(isQuietHour(Date.parse("2026-11-26T04:59:00Z"))).toBe(true); // 05:59
+    expect(isQuietHour(Date.parse("2026-11-26T05:00:00Z"))).toBe(false); // 06:00
+    expect(isQuietHour(Date.parse("2026-11-26T21:59:00Z"))).toBe(false); // 22:59
   });
 });
