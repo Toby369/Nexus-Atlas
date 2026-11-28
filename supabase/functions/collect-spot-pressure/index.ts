@@ -150,7 +150,12 @@ async function collectOkx(startMs: number): Promise<ExtraFlow> {
 }
 
 // Coinbase: Trades seitenweise (neueste zuerst) bis vor den Kerzenbeginn.
-const COINBASE_MAX_PAGES = 8;
+// 27.11.2026: 8 Seiten reichten zur US-Eroeffnung nicht (bis ~7800 Trades je
+// 5 Min plus die Trades seit Kerzenende); 14:25-17:25 UTC fehlte Coinbase.
+// 30 Seiten = bis 30'000 Trades, ~5 s im Extremfall. Coinbase erlaubt
+// oeffentlich ~10 Anfragen/s; die Seiten laufen nacheinander. Keine
+// zusaetzlichen Supabase-Anfragen (Log-Kontingent unveraendert).
+const COINBASE_MAX_PAGES = 30;
 async function collectCoinbase(startMs: number): Promise<ExtraFlow> {
   try {
     const endMs = startMs + WINDOW_MS;
